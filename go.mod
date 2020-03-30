@@ -10,9 +10,9 @@ require (
 	github.com/gobuffalo/packd v0.3.0
 	github.com/gobuffalo/packr v1.30.1
 	github.com/golang/mock v1.3.1
-	github.com/meshplus/bitxhub-kit v0.0.0-20200329124935-585edb85ca63
-	github.com/meshplus/bitxhub-model v0.0.0-20200329125320-a37501c7a13e
-	github.com/meshplus/go-bitxhub-client v0.0.0-20200329130007-318d6f4c1087
+	github.com/meshplus/bitxhub-kit v1.0.0-rc1
+	github.com/meshplus/bitxhub-model v1.0.0-rc1
+	github.com/meshplus/go-bitxhub-client v1.0.0-rc1
 	github.com/mitchellh/go-homedir v1.1.0
 	github.com/rogpeppe/go-internal v1.5.1 // indirect
 	github.com/sirupsen/logrus v1.4.2

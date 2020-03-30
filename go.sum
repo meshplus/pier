@@ -122,10 +122,12 @@ github.com/mattn/go-isatty v0.0.11/go.mod h1:PhnuNfih5lzO57/f3n+odYbM4JtupLOxQOA
 github.com/matttproud/golang_protobuf_extensions v1.0.1/go.mod h1:D8He9yQNgCq6Z5Ld7szi9bcBfOoFv/3dc6xSMkL2PC0=
 github.com/meshplus/bitxhub-kit v0.0.0-20200329124935-585edb85ca63 h1:WDsTW19L/BEaMukcTV2VQXinXhP2n3Y5nyTKeNPC5BI=
 github.com/meshplus/bitxhub-kit v0.0.0-20200329124935-585edb85ca63/go.mod h1:ra/AhOkPvpElI+wXrB9G6DjdcrdxFU3vMwA5MYKr9D0=
-github.com/meshplus/bitxhub-model v0.0.0-20200329125320-a37501c7a13e h1:066IcST8gbjy4mlAYbxAi0QZ26rMZ0Wl67g3Q04+7Os=
-github.com/meshplus/bitxhub-model v0.0.0-20200329125320-a37501c7a13e/go.mod h1:mJ6ucVyePaAojmQ8Y1NAS4PoZzCNxC/Q6EHC18HyMvw=
-github.com/meshplus/go-bitxhub-client v0.0.0-20200329130007-318d6f4c1087 h1:j2O1vvQi6qc6+Q8db5u8GJPHY1ddDIdpjWKK9HFAOhM=
-github.com/meshplus/go-bitxhub-client v0.0.0-20200329130007-318d6f4c1087/go.mod h1:u/rFcS6BbMDpgDlC0C8b8oLPKWdBDoOlt6OuACqJVc0=
+github.com/meshplus/bitxhub-kit v1.0.0-rc1 h1:gNi8IFU5CMHT3KE2I4ACj5alMW9h/4cV8xOxn7wSmtA=
+github.com/meshplus/bitxhub-kit v1.0.0-rc1/go.mod h1:ra/AhOkPvpElI+wXrB9G6DjdcrdxFU3vMwA5MYKr9D0=
+github.com/meshplus/bitxhub-model v1.0.0-rc1 h1:9UajwmMvtOBLADzoJP+GxsaLMx3jew38Zp7xW+91sPM=
+github.com/meshplus/bitxhub-model v1.0.0-rc1/go.mod h1:mJ6ucVyePaAojmQ8Y1NAS4PoZzCNxC/Q6EHC18HyMvw=
+github.com/meshplus/go-bitxhub-client v1.0.0-rc1 h1:IPaQrFN1D14W6BQ1cCGfQSBypl3FtcMNJvUUV8tKraw=
+github.com/meshplus/go-bitxhub-client v1.0.0-rc1/go.mod h1:m4xazS4EjimY57I84L8ey37Iuq16haaC79yc3w+tr9Y=
 github.com/mitchellh/go-homedir v1.1.0 h1:lukF9ziXFxDFPkA1vsr5zpc1XuPDn/wFntq5mG+4E0Y=
 github.com/mitchellh/go-homedir v1.1.0/go.mod h1:SfyaCUpYCn1Vlf4IUYiD9fPX4A5wJrkLzIz1N1q0pr0=
 github.com/mitchellh/mapstructure v1.1.2 h1:fmNYVwqnSfB9mZU6OS2O6GsXM+wcskZDuKQzvN1EDeE=
