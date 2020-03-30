@@ -5,48 +5,16 @@
 Using the follow command to install necessary tools.
 
 ```bash
-make init
+make prepare
 ```
 
-And then install bitxmesh using the follow command.
+And then install pier using the following command.
 
 ```bash
 make install
 ```
 
-## Configuration
-
-```toml
-title = "pier"
-
-[port]
-pprof = 44556
-
-[log]
-level = "debug"
-
-[bitxhub]
-addr = "localhost:60011"
-
-[appchain]
-type = "fabric" 
-[appchain.fabric]
-  "addr" = "139.219.105.188:10053"
-```
-
-`port.pprof`: the pprof server port
-
-`log.level`: log level: debug, info, warn, error, fatal
-
-`bitxhub.addr`: bitxhub grpc server port
-
-`appchain.type`: fabric only
-
-`appchain.validators`: appchain validators address
-
-`appchain.fabric.addr`: fabric address
-
-## Usage
+## Initialization
 
 Using the follow command to initialize pier.
 ```bash
@@ -55,27 +23,58 @@ pier init
 Default repo path is `~/.pier`. If you want to specify the repo path, you can use `--repo` flag.
 
 ```bash
-pier init --repo=/Users/xcc/.pier_fabric
+pier init --repo=$HOME/.pier
 ```
 
 After initializing pier, it will generate the follow directory:
 
 ```
 ~/.pier
-├── pier.account
 ├── pier.toml
-├── fabric
-│   ├── config_fab.yaml
-│   └── crypto-config
-└── plugins
-    ├── fabric-client-1.0.so
-    └── hpc-client.so
+├── key.json
+
 ```
 
-Depending on the type of appchain, you should write your config in the `pier.toml`.
-                                              
-Next, launch your pier:
+## Configuration
 
-```bash
-pier start
+```toml
+title = "pier"
+
+[port]
+pprof = 44555
+
+[log]
+level = "debug"
+dir = "logs"
+filename = "pier.log"
+report_caller = false
+
+[bitxhub]
+addr = "localhost:60011"
+validators = [
+      "0x000f1a7a08ccc48e5d30f80850cf1cf283aa3abd",
+      "0xe93b92f1da08f925bdee44e91e7768380ae83307",
+      "0xb18c8575e3284e79b92100025a31378feb8100d6",
+      "0x856E2B9A5FA82FD1B031D1FF6863864DBAC7995D",
+]
+
+[appchain]
+plugin = "fabric-client-1.4.so"
+config = "fabric"
 ```
+
+`port.pprof`: the pprof server port
+
+`log.level`: log level: debug, info, warn, error, fatal
+
+`bitxhub.addr`: bitxhub grpc server port
+
+`bitxhub.validators`: bitxhub validator's addresses
+
+`appchain.plugin`: relative path in pier repo of appchain plugin
+
+`appchain.config`: relative path of appchain config directory
+
+## Usage
+
+More details about usage is in [Pier handbook](https://github.com/meshplus/pier/wiki/Pier%E4%BD%BF%E7%94%A8%E6%96%87%E6%A1%A3)

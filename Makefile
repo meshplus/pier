@@ -45,6 +45,9 @@ test-cover:
 packr:
 	cd internal/repo && packr
 
+prepare:
+	cd scripts && bash prepare.sh
+
 ## make install: Go install the project (hpc)
 install: packr
 	$(GO) install -ldflags '${LDFLAGS}' ./cmd/${APP_NAME}
@@ -56,7 +59,7 @@ docker-build: packr
 
 ## make build-linux: Go build linux executable file
 build-linux:
-	cd scripts && sh cross_compile.sh linux-amd64 ${CURRENT_PATH}
+	cd scripts && bash cross_compile.sh linux-amd64 ${CURRENT_PATH}
 
 ## make linter: Run golanci-lint
 linter:
