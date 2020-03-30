@@ -134,10 +134,10 @@ func getTx(t *testing.T) *pb.Transaction {
 
 func getIBTP(t *testing.T, index uint64, typ pb.IBTP_Type) *pb.IBTP {
 	pd := &pb.Payload{
-		FID:  from,
-		TID:  from,
-		Func: "set",
-		Args: [][]byte{[]byte("Alice")},
+		SrcContractId: from,
+		DstContractId: from,
+		Func:          "set",
+		Args:          [][]byte{[]byte("Alice")},
 	}
 	ibtppd, err := pd.Marshal()
 	require.Nil(t, err)

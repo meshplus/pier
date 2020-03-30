@@ -122,11 +122,11 @@ func prepare(t *testing.T) (*mock_agent.MockAgent, *mock_client.MockClient, *App
 }
 func createIBTP(idx uint64, typ pb.IBTP_Type, funct string, args string, callback string) (*pb.IBTP, error) {
 	pd := pb.Payload{
-		FID:      fid,
-		TID:      tid,
-		Func:     funct,
-		Args:     [][]byte{[]byte(args)},
-		Callback: callback,
+		SrcContractId: fid,
+		DstContractId: tid,
+		Func:          funct,
+		Args:          [][]byte{[]byte(args)},
+		Callback:      callback,
 	}
 	b, err := pd.Marshal()
 	if err != nil {

@@ -1,5 +1,8 @@
 # Pier
 
+![build](https://github.com/meshplus/pier/workflows/build/badge.svg)
+
+
 ## Build
 
 Using the follow command to install necessary tools.

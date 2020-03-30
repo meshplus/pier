@@ -20,6 +20,9 @@ var idCMD = cli.Command{
 
 		keyPath := filepath.Join(repoRoot, "key.json")
 		key, err := key.LoadKey(keyPath)
+		if err != nil {
+			return err
+		}
 
 		fmt.Println(key.Address)
 

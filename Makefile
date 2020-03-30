@@ -2,7 +2,7 @@
 SHELL := /bin/bash
 CURRENT_PATH = $(shell pwd)
 APP_NAME = pier
-APP_VERSION = 0.4.8
+APP_VERSION = 1.0.0
 
 # build with verison infos
 VERSION_DIR = github.com/meshplus/${APP_NAME}
@@ -63,4 +63,4 @@ build-linux:
 
 ## make linter: Run golanci-lint
 linter:
-	golangci-lint run -E goimports --skip-dirs-use-default -D staticcheck
+	golangci-lint run

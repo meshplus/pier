@@ -8,7 +8,7 @@ import (
 	context "context"
 	gomock "github.com/golang/mock/gomock"
 	pb "github.com/meshplus/bitxhub-model/pb"
-	go_bitxhub_client "github.com/meshplus/go-bitxhub-client"
+	rpcx "github.com/meshplus/go-bitxhub-client"
 	reflect "reflect"
 )
 
@@ -36,10 +36,10 @@ func (m *MockAgent) EXPECT() *MockAgentMockRecorder {
 }
 
 // Appchain mocks base method
-func (m *MockAgent) Appchain() (*go_bitxhub_client.Appchain, error) {
+func (m *MockAgent) Appchain() (*rpcx.Appchain, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Appchain")
-	ret0, _ := ret[0].(*go_bitxhub_client.Appchain)
+	ret0, _ := ret[0].(*rpcx.Appchain)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
