@@ -1,7 +1,7 @@
 # Pier
 
 ![build](https://github.com/meshplus/pier/workflows/build/badge.svg)
-
+[![codecov](https://codecov.io/gh/meshplus/pier/branch/master/graph/badge.svg)](https://codecov.io/gh/meshplus/pier)
 
 ## Build
 

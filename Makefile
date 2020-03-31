@@ -37,10 +37,10 @@ test:
 	go generate ./...
 	@$(GO) test ${TEST_PKGS} -count=1
 
-## make test-cover: Test project with cover
-test-cover:
-	@$(GO) test -coverprofile cover.out ${TEST_PKGS}
-	$(GO) tool cover -html=cover.out -o cover.html
+## make test-coverage: Test project with cover
+test-coverage:
+	@go test -short -coverprofile cover.out -covermode=atomic ${TEST_PKGS}
+	@cat cover.out >> coverage.txt
 
 packr:
 	cd internal/repo && packr
