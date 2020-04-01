@@ -24,11 +24,11 @@ const (
 func TestExecute(t *testing.T) {
 	exec, ag, cli := prepare(t)
 	defer exec.storage.Close()
-	// set expect values
 
+	// set expect values
 	ret := &model.PluginResponse{
 		Status: true,
-		Result: nil,
+		Result: getIBTP(t, 1, pb.IBTP_INTERCHAIN),
 	}
 	ag.EXPECT().SendIBTP(gomock.Any()).Return(getReceipt(), nil).AnyTimes()
 	ag.EXPECT().GetIBTPByID(gomock.Any()).Return(getIBTP(t, 2, pb.IBTP_INTERCHAIN), nil).Times(1)
@@ -43,11 +43,6 @@ func TestExecute(t *testing.T) {
 		tx.TransactionHash = tx.Hash()
 		txs = append(txs, tx)
 	}
-
-	// add extra index tx for triggering getMissing
-	missingTx := getTx(t, uint64(3), pb.IBTP_INTERCHAIN)
-	missingTx.TransactionHash = missingTx.Hash()
-	txs = append(txs, missingTx)
 
 	// add replay tx for triggering ignore tx
 	ignoreTx := getTx(t, uint64(2), pb.IBTP_INTERCHAIN)
