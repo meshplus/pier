@@ -39,6 +39,7 @@ test:
 
 ## make test-coverage: Test project with cover
 test-coverage:
+	go generate ./...
 	@go test -short -coverprofile cover.out -covermode=atomic ${TEST_PKGS}
 	@cat cover.out >> coverage.txt
 

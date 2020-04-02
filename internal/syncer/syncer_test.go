@@ -31,7 +31,7 @@ func TestSyncBlock(t *testing.T) {
 	txs = append(txs, getTx(t), getTx(t))
 
 	w1 := getWrapper(txs, &pb.BlockHeader{
-		Number: uint64(0),
+		Number: uint64(1),
 	})
 	recoverC <- w1
 
@@ -43,17 +43,19 @@ func TestSyncBlock(t *testing.T) {
 	ag.EXPECT().GetChainMeta().Return(meta, nil).AnyTimes()
 	ag.EXPECT().GetMerkleWrapper(gomock.Any(), gomock.Any()).Return(recoverC, nil).AnyTimes()
 
-	done := make(chan bool)
+	done := make(chan bool, 1)
 	go func() {
 		err := syncer.Start()
 		require.Nil(t, err)
 		<-done
 	}()
 
+	// required height is 1, receiving height 2 wrapper will trigger GetMerkleWrapper
 	w2 := getWrapper(txs, &pb.BlockHeader{
-		Number: uint64(1),
+		Number: uint64(2),
 	})
 	syncC <- w2
+	recoverC <- w2
 	time.Sleep(1 * time.Second)
 	receivedWrapper := &pb.MerkleWrapper{}
 	val, err := syncer.storage.Get(model.WrapperKey(1))
@@ -61,8 +63,52 @@ func TestSyncBlock(t *testing.T) {
 
 	err = receivedWrapper.Unmarshal(val)
 	require.Nil(t, err)
-	require.Equal(t, w2, receivedWrapper)
+	require.Equal(t, w1, receivedWrapper)
+	done <- true
+	require.Nil(t, syncer.Stop())
+}
 
+func TestRecover(t *testing.T) {
+	syncer, ag := prepare(t)
+	defer syncer.storage.Close()
+
+	// expect mock module returns
+	recoverC := make(chan *pb.MerkleWrapper, 1)
+	syncC := make(chan *pb.MerkleWrapper, 1)
+	txs := make([]*pb.Transaction, 0, 2)
+	txs = append(txs, getTx(t), getTx(t))
+
+	w1 := getWrapper(txs, &pb.BlockHeader{
+		Number: uint64(1),
+	})
+	recoverC <- w1
+
+	meta := &pb.ChainMeta{
+		Height:    1,
+		BlockHash: types.String2Hash(from),
+	}
+	ag.EXPECT().SyncMerkleWrapper(gomock.Any()).Return(syncC, nil).AnyTimes()
+	ag.EXPECT().GetChainMeta().Return(meta, nil).AnyTimes()
+	ag.EXPECT().GetMerkleWrapper(gomock.Any(), gomock.Any()).Return(recoverC, nil).AnyTimes()
+
+	done := make(chan bool, 1)
+	go func() {
+		err := syncer.Start()
+		require.Nil(t, err)
+		<-done
+	}()
+
+	close(recoverC)
+	time.Sleep(1 * time.Second)
+
+	// recover should have persist height 1 wrapper
+	receivedWrapper := &pb.MerkleWrapper{}
+	val, err := syncer.storage.Get(model.WrapperKey(1))
+	require.Nil(t, err)
+
+	err = receivedWrapper.Unmarshal(val)
+	require.Nil(t, err)
+	require.Equal(t, w1, receivedWrapper)
 	done <- true
 	require.Nil(t, syncer.Stop())
 }
