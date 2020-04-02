@@ -8,4 +8,5 @@ internal/repo/a_repo-packr.go
 bin
 cover.out
 coverage.out
+coverage.txt
 cover.html
