@@ -16,7 +16,7 @@ require (
 	github.com/mitchellh/go-homedir v1.1.0
 	github.com/rogpeppe/go-internal v1.5.1 // indirect
 	github.com/sirupsen/logrus v1.4.2
-	github.com/spf13/viper v1.4.0
+	github.com/spf13/viper v1.6.1
 	github.com/stretchr/testify v1.4.0
 	github.com/syndtr/goleveldb v1.0.1-0.20190923125748-758128399b1d
 	github.com/tidwall/gjson v1.6.0
@@ -30,3 +30,5 @@ replace golang.org/x/net => golang.org/x/net v0.0.0-20200202094626-16171245cfb2
 replace github.com/mholt/archiver => github.com/mholt/archiver v0.0.0-20180417220235-e4ef56d48eb0
 
 replace github.com/ugorji/go v1.1.4 => github.com/ugorji/go/codec v0.0.0-20190204201341-e444a5086c43
+
+replace github.com/spf13/pflag => github.com/spf13/pflag v1.0.5
