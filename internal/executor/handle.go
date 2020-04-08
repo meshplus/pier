@@ -187,18 +187,3 @@ func (e *ChannelExecutor) execCallback(ibtp *pb.IBTP) error {
 
 	return nil
 }
-
-// handleMissingIBTP fetches missing ibtps [begin, end) from bitxhub
-func (e *ChannelExecutor) handleMissingIBTP(from string, begin uint64, end uint64) error {
-	for i := begin; i < end; i++ {
-		ibtp, err := e.GetIBTPByID(fmt.Sprintf("%s-%s-%d", from, e.id, i))
-		if err != nil {
-			return fmt.Errorf("fetch receipt for id %s-%s-%d from bitxhub: %w", from, e.id, i, err)
-		}
-
-		if err := e.applyIBTP(ibtp); err != nil {
-			return err
-		}
-	}
-	return nil
-}
