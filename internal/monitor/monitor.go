@@ -228,36 +228,6 @@ func (m *AppchainMonitor) send(ibtp *pb.IBTP) {
 
 		return nil
 	}, strategy.Wait(1*time.Second)); err != nil {
-		logger.WithFields(logrus.Fields{
-			"index": ibtp.Index,
-			"error": err.Error(),
-		}).Error("Send ibtp")
-
-		m.updateIndex()
+		panic(err.Error())
 	}
-}
-
-// updateIndex will update index map when the sequence numbers are disordered.
-// During updating process, pier is suspended from receiving new ibtp packages
-func (m *AppchainMonitor) updateIndex() {
-	atomic.StoreUint64(&m.suspended, 1)
-
-	if err := retry.Retry(func(attempt uint) error {
-		outMeta, err := m.client.GetOutMeta()
-		if err != nil {
-			return err
-		}
-		for addr, index := range outMeta {
-			m.meta.InterchainCounter[addr] = index
-		}
-
-		return nil
-	}, strategy.Wait(1*time.Second)); err != nil {
-		logger.WithFields(logrus.Fields{
-			"index map": m.meta.InterchainCounter,
-		}).Fatal("Index map of monitor is messed up")
-	}
-
-	// unsuspend pier
-	atomic.StoreUint64(&m.suspended, 0)
 }
