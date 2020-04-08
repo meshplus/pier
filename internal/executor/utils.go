@@ -6,43 +6,9 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/Rican7/retry"
-	"github.com/Rican7/retry/strategy"
 	"github.com/meshplus/bitxhub-model/pb"
 	"github.com/sirupsen/logrus"
-	"github.com/syndtr/goleveldb/leveldb"
 )
-
-// GetIBTPByID recover missing ibtp from local storage.
-// If not found, query bitxhub.
-func (e *ChannelExecutor) GetIBTPByID(id string) (*pb.IBTP, error) {
-	ibtp := &pb.IBTP{}
-	value, err := e.storage.Get([]byte(id))
-	if err != nil {
-		if err == leveldb.ErrNotFound {
-			// todo: how to sync all previous blocks wrappers
-			// if former ibtp is not in datastore, sync all previous blocks wrappers
-			ibtp := &pb.IBTP{}
-			if err := retry.Retry(func(attempt uint) error {
-				ibtp, err = e.agent.GetIBTPByID(id)
-				if err != nil {
-					logger.Errorf("can't get ibtp from bitxhub: %s, retry", err.Error())
-					return err
-				}
-				return nil
-			}, strategy.Wait(2*time.Second)); err != nil {
-				logger.Panicf("Can't get ibtp from bitxhub: %s", err.Error())
-			}
-
-			return ibtp, nil
-		}
-		return nil, err
-	}
-	if err := ibtp.Unmarshal(value); err != nil {
-		return nil, err
-	}
-	return ibtp, nil
-}
 
 // generateCallback wraps an ibtp for a receipt. It need the information
 // from the corresponding incoming interchain ibtp
