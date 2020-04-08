@@ -33,6 +33,7 @@ func TestExecute(t *testing.T) {
 	ag.EXPECT().SendIBTP(gomock.Any()).Return(getReceipt(), nil).AnyTimes()
 	ag.EXPECT().GetIBTPByID(gomock.Any()).Return(getIBTP(t, 2, pb.IBTP_INTERCHAIN), nil).Times(1)
 	cli.EXPECT().SubmitIBTP(gomock.Any()).Return(ret, nil).AnyTimes()
+	cli.EXPECT().Stop().Return(nil).AnyTimes()
 
 	txs := make([]*pb.Transaction, 0)
 
@@ -55,9 +56,14 @@ func TestExecute(t *testing.T) {
 
 	// set exec height to 2
 	exec.height = 2
-	wrap1 := getWrapper(txs, header1)
+	require.Nil(t, exec.Start())
 
-	exec.applyMerkleWrapper(wrap1)
+	wrap1 := getWrapper(txs, header1)
+	w1byte, err := wrap1.Marshal()
+	require.Nil(t, err)
+
+	require.Nil(t, exec.storage.Put(model.WrapperKey(exec.getDemandHeight()), w1byte))
+
 	time.Sleep(1 * time.Second)
 	require.Equal(t, uint64(3), exec.height)
 
@@ -65,9 +71,13 @@ func TestExecute(t *testing.T) {
 	wrap2 := getWrapper(txs, &pb.BlockHeader{
 		Number: uint64(4),
 	})
+	w2byte, err := wrap2.Marshal()
+	require.Nil(t, err)
 
-	exec.applyMerkleWrapper(wrap2)
+	require.Nil(t, exec.storage.Put(model.WrapperKey(exec.getDemandHeight()), w2byte))
+
 	time.Sleep(1 * time.Second)
+	require.Nil(t, exec.Stop())
 	require.Equal(t, uint64(4), exec.height)
 }
 
@@ -89,8 +99,11 @@ func TestRecovery(t *testing.T) {
 	ag.EXPECT().SendIBTP(gomock.Any()).Return(getReceipt(), nil).AnyTimes()
 	ag.EXPECT().GetIBTPByID(gomock.Any()).Return(ibtp, nil).AnyTimes()
 	cli.EXPECT().GetInMessage(gomock.Any(), gomock.Any()).Return(ret, nil).AnyTimes()
+	cli.EXPECT().Stop().Return(nil).AnyTimes()
+
 	require.Nil(t, exec.Start())
 	require.Equal(t, uint64(2), exec.sourceReceiptMeta[from])
+	require.Nil(t, exec.Stop())
 }
 
 func prepare(t *testing.T) (*ChannelExecutor, *mock_agent.MockAgent, *mock_client.MockClient) {

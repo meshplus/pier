@@ -77,11 +77,13 @@ func TestRecovery(t *testing.T) {
 
 	h := types.Hash{}
 	h.SetBytes([]byte(hash))
-	receipt := &pb.Receipt{
-		Version: []byte("0.4.1"),
-		TxHash:  h,
-		Ret:     nil,
-		Status:  0,
+	successReceipt := &pb.Receipt{
+		TxHash: h,
+		Status: 0,
+	}
+	failedReceipt := &pb.Receipt{
+		TxHash: h,
+		Status: 1,
 	}
 	missingIbtp1, err := createIBTP(1, pb.IBTP_INTERCHAIN, "get", name, "setCallback")
 	require.Nil(t, err)
@@ -90,16 +92,19 @@ func TestRecovery(t *testing.T) {
 	outMeta := make(map[string]uint64)
 	outMeta[to] = 2
 
-	mockAgent.EXPECT().SendIBTP(gomock.Any()).Return(receipt, nil).AnyTimes()
+	mockAgent.EXPECT().SendIBTP(missingIbtp1).Return(successReceipt, nil).AnyTimes()
+	mockAgent.EXPECT().SendIBTP(missingIbtp2).Return(failedReceipt, nil).AnyTimes()
 	mockClient.EXPECT().CommitCallback(gomock.Any()).Return(nil).AnyTimes()
 	mockClient.EXPECT().GetOutMeta().Return(outMeta, nil).AnyTimes()
 	mockClient.EXPECT().GetOutMessage(to, uint64(1)).Return(missingIbtp1, nil).AnyTimes()
 	mockClient.EXPECT().GetOutMessage(to, uint64(2)).Return(missingIbtp2, nil).AnyTimes()
+	mockClient.EXPECT().Stop().Return(nil).AnyTimes()
 
 	// invoke recovery
 	err = mnt.recovery()
 	require.Nil(t, err)
-	require.Equal(t, uint64(2), mnt.meta.InterchainCounter[to])
+	require.Equal(t, uint64(1), mnt.meta.InterchainCounter[to])
+	require.Nil(t, mnt.Stop())
 }
 
 func prepare(t *testing.T) (*mock_agent.MockAgent, *mock_client.MockClient, *AppchainMonitor) {
@@ -120,6 +125,7 @@ func prepare(t *testing.T) (*mock_agent.MockAgent, *mock_client.MockClient, *App
 	require.Nil(t, err)
 	return mockAgent, mockClient, mnt
 }
+
 func createIBTP(idx uint64, typ pb.IBTP_Type, funct string, args string, callback string) (*pb.IBTP, error) {
 	pd := pb.Payload{
 		SrcContractId: fid,
