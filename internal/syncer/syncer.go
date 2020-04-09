@@ -4,11 +4,13 @@ import (
 	"context"
 	"fmt"
 	"strconv"
+	"sync"
 	"sync/atomic"
 	"time"
 
 	"github.com/Rican7/retry"
 	"github.com/Rican7/retry/strategy"
+	"github.com/meshplus/bitxhub-kit/crypto/asym"
 	"github.com/meshplus/bitxhub-kit/log"
 	"github.com/meshplus/bitxhub-kit/storage"
 	"github.com/meshplus/bitxhub-kit/types"
@@ -29,6 +31,7 @@ const wrapperCNumber = 1 << 10
 type MerkleSyncer struct {
 	height     uint64
 	agent      agent.Agent
+	quorum     uint64
 	validators []types.Address
 	storage    storage.Storage
 	wrapperC   chan *pb.MerkleWrapper
@@ -39,12 +42,13 @@ type MerkleSyncer struct {
 
 // New creates instance of MerkleSyncer given agent interacting with bitxhub,
 // validators addresses of bitxhub and local storage
-func New(ag agent.Agent, validators []types.Address, storage storage.Storage) (*MerkleSyncer, error) {
+func New(ag agent.Agent, quorum uint64, validators []types.Address, storage storage.Storage) (*MerkleSyncer, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	return &MerkleSyncer{
 		wrapperC:   make(chan *pb.MerkleWrapper, wrapperCNumber),
 		agent:      ag,
+		quorum:     quorum,
 		validators: validators,
 		storage:    storage,
 		ctx:        ctx,
@@ -202,14 +206,6 @@ func (syncer *MerkleSyncer) listenMerkleWrapper() {
 				continue
 			}
 
-			if ok, err := syncer.verifyWrapper(w); !ok {
-				logger.WithFields(logrus.Fields{
-					"height": w.BlockHeader.Number,
-					"error":  err,
-				}).Warn("Invalid wrapper")
-				continue
-			}
-
 			if w.BlockHeader.Number > syncer.getDemandHeight() {
 				logger.WithFields(logrus.Fields{
 					"begin": syncer.height,
@@ -249,6 +245,14 @@ func (syncer *MerkleSyncer) handleMerkleWrapper(w *pb.MerkleWrapper) {
 		return
 	}
 
+	if ok, err := syncer.verifyWrapper(w); !ok {
+		logger.WithFields(logrus.Fields{
+			"height": w.BlockHeader.Number,
+			"error":  err,
+		}).Warn("Invalid wrapper")
+		return
+	}
+
 	logger.WithFields(logrus.Fields{
 		"height": w.BlockHeader.Number,
 		"count":  len(w.Transactions),
@@ -271,7 +275,35 @@ func (syncer *MerkleSyncer) verifyWrapper(w *pb.MerkleWrapper) (bool, error) {
 	}
 
 	// validate if the wrapper is from bitxhub
-	// TODO(xcc): verify signatures
+	if w.BlockHeader.Number != syncer.getDemandHeight() {
+		return false, fmt.Errorf("wrong height of wrapper from bitxhub")
+	}
+
+	// todo: wait for bitxhub to provide signatures for wrapper, now verify always return true
+	if uint64(len(w.Signatures)) <= syncer.quorum {
+		return true, fmt.Errorf("%d signatures not meet the requirement of quorum %d", len(w.Signatures), syncer.quorum)
+	}
+
+	count := uint64(0)
+	var wg sync.WaitGroup
+	wg.Add(len(syncer.validators))
+
+	for _, validator := range syncer.validators {
+		sign, ok := w.Signatures[validator.String()]
+		if ok {
+			go func(vlt types.Address, sign []byte) {
+				if isValid, _ := asym.Verify(asym.ECDSASecp256r1, sign, w.SignHash().Bytes(), vlt); isValid {
+					atomic.AddUint64(&count, 1)
+				}
+			}(validator, sign)
+		}
+		wg.Done()
+	}
+
+	wg.Wait()
+	if count <= syncer.quorum {
+		return true, fmt.Errorf("invalid signature")
+	}
 
 	return true, nil
 }

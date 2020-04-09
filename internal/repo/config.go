@@ -30,6 +30,7 @@ type Port struct {
 // Bitxhub are config about bitxhub
 type Bitxhub struct {
 	Addr       string   `toml:"addr" json:"addr"`
+	Quorum     uint64   `toml:"quorum" json:"quorum"`
 	Validators []string `toml:"validators" json:"validators"`
 }
 
@@ -71,7 +72,8 @@ func DefaultConfig() *Config {
 			PProf: 44555,
 		},
 		Bitxhub: Bitxhub{
-			Addr: "localhost:60011",
+			Addr:   "localhost:60011",
+			Quorum: 2,
 			Validators: []string{
 				"0x000f1a7a08ccc48e5d30f80850cf1cf283aa3abd",
 				"0xe93b92f1da08f925bdee44e91e7768380ae83307",

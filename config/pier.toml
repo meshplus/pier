@@ -1,7 +1,6 @@
 title = "Pier"
 
 [port]
-http  = 8987
 pprof = 44555
 
 [log]
@@ -12,6 +11,7 @@ report_caller = false
 
 [bitxhub]
 addr = "localhost:60011"
+quorum = 2
 validators = [
     "0x000f1a7a08ccc48e5d30f80850cf1cf283aa3abd",
     "0xe93b92f1da08f925bdee44e91e7768380ae83307",
