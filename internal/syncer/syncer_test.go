@@ -129,7 +129,7 @@ func prepare(t *testing.T) (*MerkleSyncer, *mock_agent.MockAgent) {
 		types.String2Address("0xb18c8575e3284e79b92100025a31378feb8100d6"),
 		types.String2Address("0x856E2B9A5FA82FD1B031D1FF6863864DBAC7995D"),
 	)
-	syncer, err := New(ag, validators, storage)
+	syncer, err := New(ag, 2, validators, storage)
 	require.Nil(t, err)
 	return syncer, ag
 }

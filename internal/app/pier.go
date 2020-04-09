@@ -98,7 +98,7 @@ func NewPier(repoRoot string, config *repo.Config) (*Pier, error) {
 		return nil, fmt.Errorf("executor create: %w", err)
 	}
 
-	sync, err := syncer.New(ag, config.Bitxhub.GetValidators(), storage)
+	sync, err := syncer.New(ag, config.Bitxhub.Quorum, config.Bitxhub.GetValidators(), storage)
 	if err != nil {
 		return nil, fmt.Errorf("syncer create: %w", err)
 	}
