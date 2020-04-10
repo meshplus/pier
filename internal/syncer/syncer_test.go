@@ -6,13 +6,14 @@ import (
 	"testing"
 	"time"
 
-	"github.com/meshplus/pier/pkg/model"
-
 	"github.com/golang/mock/gomock"
+	"github.com/meshplus/bitxhub-kit/crypto"
+	"github.com/meshplus/bitxhub-kit/crypto/asym/ecdsa"
 	"github.com/meshplus/bitxhub-kit/storage/leveldb"
 	"github.com/meshplus/bitxhub-kit/types"
 	"github.com/meshplus/bitxhub-model/pb"
 	"github.com/meshplus/pier/internal/agent/mock_agent"
+	"github.com/meshplus/pier/pkg/model"
 	"github.com/stretchr/testify/require"
 )
 
@@ -21,7 +22,7 @@ const (
 )
 
 func TestSyncBlock(t *testing.T) {
-	syncer, ag := prepare(t)
+	syncer, ag, privKeys := prepare(t)
 	defer syncer.storage.Close()
 
 	// expect mock module returns
@@ -30,9 +31,9 @@ func TestSyncBlock(t *testing.T) {
 	txs := make([]*pb.Transaction, 0, 2)
 	txs = append(txs, getTx(t), getTx(t))
 
-	w1 := getWrapper(txs, &pb.BlockHeader{
+	w1 := getWrapper(t, txs, &pb.BlockHeader{
 		Number: uint64(1),
-	})
+	}, privKeys)
 	recoverC <- w1
 
 	meta := &pb.ChainMeta{
@@ -51,9 +52,9 @@ func TestSyncBlock(t *testing.T) {
 	}()
 
 	// required height is 1, receiving height 2 wrapper will trigger GetMerkleWrapper
-	w2 := getWrapper(txs, &pb.BlockHeader{
+	w2 := getWrapper(t, txs, &pb.BlockHeader{
 		Number: uint64(2),
-	})
+	}, privKeys)
 	syncC <- w2
 	recoverC <- w2
 	time.Sleep(1 * time.Second)
@@ -69,22 +70,29 @@ func TestSyncBlock(t *testing.T) {
 }
 
 func TestRecover(t *testing.T) {
-	syncer, ag := prepare(t)
+	syncer, ag, privKeys := prepare(t)
 	defer syncer.storage.Close()
 
 	// expect mock module returns
-	recoverC := make(chan *pb.MerkleWrapper, 1)
+	recoverC := make(chan *pb.MerkleWrapper, 2)
 	syncC := make(chan *pb.MerkleWrapper, 1)
 	txs := make([]*pb.Transaction, 0, 2)
 	txs = append(txs, getTx(t), getTx(t))
 
-	w1 := getWrapper(txs, &pb.BlockHeader{
+	w1 := getWrapper(t, txs, &pb.BlockHeader{
 		Number: uint64(1),
-	})
+	}, privKeys)
 	recoverC <- w1
 
+	// mock malicious wrapper
+	w2 := getWrapper(t, txs, &pb.BlockHeader{
+		Number: uint64(1),
+	}, privKeys)
+	w2.Signatures = nil
+	recoverC <- w2
+
 	meta := &pb.ChainMeta{
-		Height:    1,
+		Height:    3,
 		BlockHash: types.String2Hash(from),
 	}
 	ag.EXPECT().SyncMerkleWrapper(gomock.Any()).Return(syncC, nil).AnyTimes()
@@ -113,7 +121,7 @@ func TestRecover(t *testing.T) {
 	require.Nil(t, syncer.Stop())
 }
 
-func prepare(t *testing.T) (*MerkleSyncer, *mock_agent.MockAgent) {
+func prepare(t *testing.T) (*MerkleSyncer, *mock_agent.MockAgent, []crypto.PrivateKey) {
 	mockCtl := gomock.NewController(t)
 	mockCtl.Finish()
 	ag := mock_agent.NewMockAgent(mockCtl)
@@ -122,19 +130,20 @@ func prepare(t *testing.T) (*MerkleSyncer, *mock_agent.MockAgent) {
 	storage, err := leveldb.New(tmpDir)
 	require.Nil(t, err)
 
-	validators := make([]types.Address, 0)
-	validators = append(validators,
-		types.String2Address("0x000f1a7a08ccc48e5d30f80850cf1cf283aa3abd"),
-		types.String2Address("0xe93b92f1da08f925bdee44e91e7768380ae83307"),
-		types.String2Address("0xb18c8575e3284e79b92100025a31378feb8100d6"),
-		types.String2Address("0x856E2B9A5FA82FD1B031D1FF6863864DBAC7995D"),
-	)
-	syncer, err := New(ag, 2, validators, storage)
+	keys := getVlts(t)
+	var vltSet []types.Address
+	for _, key := range keys {
+		vlt, err := key.PublicKey().Address()
+		require.Nil(t, err)
+		vltSet = append(vltSet, vlt)
+	}
+
+	syncer, err := New(ag, 2, vltSet, storage)
 	require.Nil(t, err)
-	return syncer, ag
+	return syncer, ag, keys
 }
 
-func getWrapper(txs []*pb.Transaction, h *pb.BlockHeader) *pb.MerkleWrapper {
+func getWrapper(t *testing.T, txs []*pb.Transaction, h *pb.BlockHeader, privateKeys []crypto.PrivateKey) *pb.MerkleWrapper {
 	hashes := make([]types.Hash, 0, len(txs))
 	for i := 0; i < len(txs); i++ {
 		hash := types.Hash{}
@@ -145,9 +154,29 @@ func getWrapper(txs []*pb.Transaction, h *pb.BlockHeader) *pb.MerkleWrapper {
 		BlockHeader:       h,
 		TransactionHashes: hashes,
 		Transactions:      txs,
-		Signatures:        nil,
 	}
+
+	sigs := make(map[string][]byte)
+	for _, key := range privateKeys {
+		sign, err := key.Sign(wrapper.SignHash().Bytes())
+		require.Nil(t, err)
+		vlt, err := key.PublicKey().Address()
+		require.Nil(t, err)
+		sigs[vlt.String()] = sign
+	}
+	wrapper.Signatures = sigs
+
 	return wrapper
+}
+
+func getVlts(t *testing.T) []crypto.PrivateKey {
+	var keys []crypto.PrivateKey
+	for i := 0; i < 4; i++ {
+		priv, err := ecdsa.GenerateKey(ecdsa.Secp256r1)
+		require.Nil(t, err)
+		keys = append(keys, priv)
+	}
+	return keys
 }
 
 func getTx(t *testing.T) *pb.Transaction {

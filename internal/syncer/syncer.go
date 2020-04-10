@@ -286,18 +286,18 @@ func (syncer *MerkleSyncer) verifyWrapper(w *pb.MerkleWrapper) (bool, error) {
 
 	count := uint64(0)
 	var wg sync.WaitGroup
-	wg.Add(len(syncer.validators))
 
 	for _, validator := range syncer.validators {
 		sign, ok := w.Signatures[validator.String()]
 		if ok {
+			wg.Add(1)
 			go func(vlt types.Address, sign []byte) {
 				if isValid, _ := asym.Verify(asym.ECDSASecp256r1, sign, w.SignHash().Bytes(), vlt); isValid {
 					atomic.AddUint64(&count, 1)
 				}
+				wg.Done()
 			}(validator, sign)
 		}
-		wg.Done()
 	}
 
 	wg.Wait()
