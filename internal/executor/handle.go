@@ -2,6 +2,7 @@ package executor
 
 import (
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/Rican7/retry"
@@ -37,13 +38,30 @@ func (e *ChannelExecutor) applyMerkleWrapper(wrapper *pb.MerkleWrapper) {
 		e.updateHeight()
 	}()
 
+	// txs from different chain can run in parallel
+	txM := make(map[string][]*pb.IBTP)
 	for _, ibtp := range ibtps {
-		if err := e.applyIBTP(ibtp); err != nil {
-			logger.WithFields(logrus.Fields{
-				"error": err.Error(),
-			}).Error("Execute ibtp")
-		}
+		txM[ibtp.From] = append(txM[ibtp.From], ibtp)
 	}
+
+	var wg sync.WaitGroup
+	wg.Add(len(txM))
+
+	for _, queue := range txM {
+		go func(queue []*pb.IBTP) {
+			defer wg.Done()
+
+			for _, ibtp := range queue {
+				if err := e.applyIBTP(ibtp); err != nil {
+					logger.WithFields(logrus.Fields{
+						"error": err.Error(),
+					}).Error("Execute ibtp")
+				}
+			}
+		}(queue)
+	}
+
+	wg.Wait()
 }
 
 // applyIBTP handle ibtps of any type
