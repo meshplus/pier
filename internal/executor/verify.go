@@ -2,6 +2,8 @@ package executor
 
 import (
 	"fmt"
+	"sort"
+	"sync"
 
 	"github.com/meshplus/bitxhub-model/pb"
 )
@@ -26,34 +28,55 @@ func (e *ChannelExecutor) verify(wrapper *pb.MerkleWrapper) ([]*pb.IBTP, error) 
 	}
 
 	// filter those ibtps whose destination is this pier
-	var ibtps = make([]*pb.IBTP, 0)
+	var (
+		validIBTPs = make([]*pb.IBTP, 0)
+		ibtpM      = make(map[int]*pb.IBTP)
+		wg         sync.WaitGroup
+		lock       sync.Mutex
+		indices    []int
+	)
 
-	for _, tx := range wrapper.Transactions {
-		// check if this is interchain tx
-		txData := tx.GetData()
+	wg.Add(len(wrapper.Transactions))
 
-		if txData.Type != pb.TransactionData_INVOKE {
-			logger.Warning("Receive a non-crosschain tx")
-			continue
-		}
+	for i, tx := range wrapper.Transactions {
+		go func(tx *pb.Transaction, idx int) {
+			defer wg.Done()
 
-		// check if interchain ibtp is valid
-		ibtp, err := tx.GetIBTP()
-		if err != nil {
-			panic(err)
-		}
-		if ibtp.Type == pb.IBTP_INTERCHAIN {
-			if ibtp.To != e.id {
-				continue
+			// check if this is interchain tx
+			txData := tx.GetData()
+			if txData.Type != pb.TransactionData_INVOKE {
+				logger.Warning("Receive a non-crosschain tx")
+				return
 			}
-		} else if ibtp.Type == pb.IBTP_RECEIPT {
-			// this receipt is not for this executor
-			if ibtp.From != e.id {
-				continue
-			}
-		}
 
-		ibtps = append(ibtps, ibtp)
+			// check if interchain ibtp is valid
+			ibtp, err := tx.GetIBTP()
+			if err != nil {
+				panic(err)
+			}
+			if ibtp.Type == pb.IBTP_INTERCHAIN {
+				if ibtp.To != e.id {
+					return
+				}
+			} else if ibtp.Type == pb.IBTP_RECEIPT {
+				// this receipt is not for this executor
+				if ibtp.From != e.id {
+					return
+				}
+			}
+
+			lock.Lock()
+			defer lock.Unlock()
+			ibtpM[idx] = ibtp
+			indices = append(indices, idx)
+		}(tx, i)
 	}
-	return ibtps, nil
+
+	wg.Wait()
+
+	sort.Ints(indices)
+	for _, idx := range indices {
+		validIBTPs = append(validIBTPs, ibtpM[idx])
+	}
+	return validIBTPs, nil
 }
