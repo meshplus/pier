@@ -201,6 +201,8 @@ func (m *AppchainMonitor) send(ibtp *pb.IBTP) {
 
 		if !receipt.IsSuccess() {
 			entry.WithField("error", string(receipt.Ret)).Error("Send ibtp")
+
+			m.rollback(ibtp)
 			return nil
 		}
 
@@ -228,6 +230,54 @@ func (m *AppchainMonitor) send(ibtp *pb.IBTP) {
 
 		return nil
 	}, strategy.Wait(1*time.Second)); err != nil {
+		panic(err.Error())
+	}
+}
+
+// rollback send rollback message back to appchain
+//when interchain tx didn't pass the validation of bitxhub
+func (m *AppchainMonitor) rollback(original *pb.IBTP) {
+	defer logger.WithFields(logrus.Fields{
+		"index": original.Index,
+		"id":    original.ID(),
+	}).Info("Rollback interchain tx")
+
+	pdb := &pb.Payload{}
+	if err := pdb.Unmarshal(original.Payload); err != nil {
+		panic(fmt.Sprintf("Unmarshal ibtp payload: %s", err.Error()))
+	}
+
+	rollbackID := fmt.Sprintf("%s-%d", original.To, original.Index)
+	newPayload := &pb.Payload{
+		SrcContractId: pdb.DstContractId,
+		DstContractId: pdb.SrcContractId,
+		Func:          "interchainConfirm",
+		Args:          [][]byte{[]byte("false"), []byte(rollbackID)},
+	}
+
+	b, err := newPayload.Marshal()
+	if err != nil {
+		panic(fmt.Sprintf("Unmarshal ibtp payload: %s", err.Error()))
+	}
+
+	rollbackMsg := &pb.IBTP{
+		From:      original.From,
+		To:        original.To,
+		Index:     original.Index,
+		Payload:   b,
+		Type:      pb.IBTP_RECEIPT,
+		Timestamp: time.Now().UnixNano(),
+		Version:   original.Version,
+	}
+
+	if err := retry.Retry(func(attempt uint) error {
+		_, err := m.client.SubmitIBTP(rollbackMsg)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	}, strategy.Wait(2*time.Second)); err != nil {
 		panic(err.Error())
 	}
 }
