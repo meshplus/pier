@@ -12,35 +12,36 @@ import (
 	"github.com/meshplus/bitxhub-kit/types"
 	"github.com/meshplus/bitxhub-model/pb"
 	rpcx "github.com/meshplus/go-bitxhub-client"
-	"github.com/meshplus/pier/internal/agent"
 	"github.com/meshplus/pier/pkg/plugins/client"
 	"github.com/sirupsen/logrus"
 )
+
+const maxSize = 1 << 10
 
 var logger = log.NewWithModule("monitor")
 
 // Monitor receives event from blockchain and sends it to bitxhub
 type AppchainMonitor struct {
-	agent     agent.Agent
 	client    client.Client
 	meta      *rpcx.Appchain
+	sendCh    chan *pb.IBTP
 	suspended uint64
 	ctx       context.Context
 	cancel    context.CancelFunc
 }
 
-// New creates monitor instance given agent of bitxhub, client interacting with appchain
-// and meta about appchain.
-func New(agent agent.Agent, client client.Client, meta *rpcx.Appchain) (*AppchainMonitor, error) {
+// New creates monitor instance of client interacting with appchain and meta about appchain.
+func New(client client.Client, meta *rpcx.Appchain) (*AppchainMonitor, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	if meta.InterchainCounter == nil {
 		meta.InterchainCounter = make(map[string]uint64)
 	}
+
 	return &AppchainMonitor{
-		agent:  agent,
 		client: client,
 		meta:   meta,
+		sendCh: make(chan *pb.IBTP, maxSize),
 		ctx:    ctx,
 		cancel: cancel,
 	}, nil
@@ -184,50 +185,19 @@ func (m *AppchainMonitor) handleMissingIBTP(to string, begin, end uint64) error 
 	return nil
 }
 
-// send will send the ibtp package to bitxhub
+// send will send the ibtp package to other chain
 func (m *AppchainMonitor) send(ibtp *pb.IBTP) {
-	entry := logger.WithFields(logrus.Fields{
+	defer logger.WithFields(logrus.Fields{
 		"index": ibtp.Index,
 		"type":  ibtp.Type,
 		"to":    types.String2Address(ibtp.To).ShortString(),
 		"id":    ibtp.ID(),
-	})
+	}).Info("Send ibtp")
 
-	send := func() error {
-		receipt, err := m.agent.SendIBTP(ibtp)
-		if err != nil {
-			return fmt.Errorf("send ibtp : %w", err)
-		}
+	m.sendCh <- ibtp
+	m.meta.InterchainCounter[ibtp.To] = ibtp.Index
+}
 
-		if !receipt.IsSuccess() {
-			entry.WithField("error", string(receipt.Ret)).Error("Send ibtp")
-			return nil
-		}
-
-		if err := m.client.CommitCallback(ibtp); err != nil {
-			return err
-		}
-
-		entry.WithFields(logrus.Fields{
-			"hash": receipt.TxHash.Hex(),
-		}).Info("Send ibtp")
-
-		m.meta.InterchainCounter[ibtp.To] = ibtp.Index
-
-		return nil
-	}
-
-	if err := retry.Retry(func(attempt uint) error {
-		if err := send(); err != nil {
-			entry.WithFields(logrus.Fields{
-				"error": err,
-			}).Error("Send IBTP")
-
-			return err
-		}
-
-		return nil
-	}, strategy.Wait(1*time.Second)); err != nil {
-		panic(err.Error())
-	}
+func (m *AppchainMonitor) FetchIBTP() chan *pb.IBTP {
+	return m.sendCh
 }

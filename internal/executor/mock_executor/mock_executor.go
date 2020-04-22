@@ -5,7 +5,9 @@
 package mock_executor
 
 import (
+	event "github.com/ethereum/go-ethereum/event"
 	gomock "github.com/golang/mock/gomock"
+	pb "github.com/meshplus/bitxhub-model/pb"
 	reflect "reflect"
 )
 
@@ -58,4 +60,30 @@ func (m *MockExecutor) Stop() error {
 func (mr *MockExecutorMockRecorder) Stop() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Stop", reflect.TypeOf((*MockExecutor)(nil).Stop))
+}
+
+// HandleIBTP mocks base method
+func (m *MockExecutor) HandleIBTP(ibtp *pb.IBTP) {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "HandleIBTP", ibtp)
+}
+
+// HandleIBTP indicates an expected call of HandleIBTP
+func (mr *MockExecutorMockRecorder) HandleIBTP(ibtp interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "HandleIBTP", reflect.TypeOf((*MockExecutor)(nil).HandleIBTP), ibtp)
+}
+
+// SubscribeReceipt mocks base method
+func (m *MockExecutor) SubscribeReceipt(arg0 chan<- *pb.IBTP) event.Subscription {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SubscribeReceipt", arg0)
+	ret0, _ := ret[0].(event.Subscription)
+	return ret0
+}
+
+// SubscribeReceipt indicates an expected call of SubscribeReceipt
+func (mr *MockExecutorMockRecorder) SubscribeReceipt(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SubscribeReceipt", reflect.TypeOf((*MockExecutor)(nil).SubscribeReceipt), arg0)
 }

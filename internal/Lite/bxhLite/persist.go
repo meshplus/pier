@@ -1,4 +1,4 @@
-package syncer
+package bxhLite
 
 import (
 	"fmt"
@@ -8,8 +8,8 @@ import (
 	"github.com/meshplus/pier/pkg/model"
 )
 
-func (syncer *MerkleSyncer) persist(w *pb.MerkleWrapper) error {
-	batch := syncer.storage.NewBatch()
+func (lite *BxhLite) persist(w *pb.MerkleWrapper) error {
+	batch := lite.storage.NewBatch()
 
 	data, err := w.Marshal()
 	if err != nil {
@@ -32,7 +32,7 @@ func (syncer *MerkleSyncer) persist(w *pb.MerkleWrapper) error {
 		batch.Put(model.IBTPKey(ibtp.ID()), data)
 	}
 
-	batch.Put(syncHeightKey(), []byte(strconv.FormatUint(syncer.height, 10)))
+	batch.Put(syncHeightKey(), []byte(strconv.FormatUint(lite.height, 10)))
 
 	err = batch.Commit()
 	if err != nil {

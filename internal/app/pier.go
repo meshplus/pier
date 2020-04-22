@@ -6,18 +6,17 @@ import (
 	"fmt"
 	"path/filepath"
 
-	"github.com/sirupsen/logrus"
-
 	"github.com/meshplus/bitxhub-kit/crypto"
 	"github.com/meshplus/bitxhub-kit/log"
 	"github.com/meshplus/bitxhub-kit/storage"
 	"github.com/meshplus/bitxhub-kit/storage/leveldb"
 	rpcx "github.com/meshplus/go-bitxhub-client"
+	"github.com/meshplus/pier/internal/Lite"
+	"github.com/meshplus/pier/internal/Lite/bxhLite"
 	"github.com/meshplus/pier/internal/agent"
 	"github.com/meshplus/pier/internal/executor"
 	"github.com/meshplus/pier/internal/monitor"
 	"github.com/meshplus/pier/internal/repo"
-	"github.com/meshplus/pier/internal/syncer"
 	"github.com/meshplus/pier/pkg/plugins"
 	plugin "github.com/meshplus/pier/pkg/plugins/client"
 )
@@ -31,7 +30,7 @@ type Pier struct {
 	agent      agent.Agent
 	monitor    monitor.Monitor
 	exec       executor.Executor
-	sync       syncer.Syncer
+	stub       Lite.Lite
 	storage    storage.Storage
 	ctx        context.Context
 	cancel     context.CancelFunc
@@ -88,7 +87,7 @@ func NewPier(repoRoot string, config *repo.Config) (*Pier, error) {
 		return nil, fmt.Errorf("client create: %w", err)
 	}
 
-	mnt, err := monitor.New(ag, cli, chain)
+	mnt, err := monitor.New(cli, chain)
 	if err != nil {
 		return nil, fmt.Errorf("monitor create: %w", err)
 	}
@@ -98,9 +97,9 @@ func NewPier(repoRoot string, config *repo.Config) (*Pier, error) {
 		return nil, fmt.Errorf("executor create: %w", err)
 	}
 
-	sync, err := syncer.New(ag, config.Bitxhub.Quorum, config.Bitxhub.GetValidators(), storage)
+	sync, err := bxhLite.New(ag, config.Bitxhub.Quorum, chain.ID, config.Bitxhub.GetValidators(), storage)
 	if err != nil {
-		return nil, fmt.Errorf("syncer create: %w", err)
+		return nil, fmt.Errorf("bxhLite create: %w", err)
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -112,35 +111,11 @@ func NewPier(repoRoot string, config *repo.Config) (*Pier, error) {
 		meta:       chain,
 		monitor:    mnt,
 		exec:       exec,
-		sync:       sync,
+		stub:       sync,
 		storage:    storage,
 		ctx:        ctx,
 		cancel:     cancel,
 	}, nil
-}
-
-// Start starts three main components of pier app
-func (pier *Pier) Start() error {
-	logger.WithFields(logrus.Fields{
-		"id":                     pier.meta.ID,
-		"interchain_counter":     pier.meta.InterchainCounter,
-		"receipt_counter":        pier.meta.ReceiptCounter,
-		"source_receipt_counter": pier.meta.SourceReceiptCounter,
-	}).Info("Pier information")
-
-	if err := pier.monitor.Start(); err != nil {
-		return fmt.Errorf("monitor start: %w", err)
-	}
-
-	if err := pier.exec.Start(); err != nil {
-		return fmt.Errorf("executor start: %w", err)
-	}
-
-	if err := pier.sync.Start(); err != nil {
-		return fmt.Errorf("sync start: %w", err)
-	}
-
-	return nil
 }
 
 // Stop stops three main components of pier app
@@ -153,7 +128,7 @@ func (pier *Pier) Stop() error {
 		return fmt.Errorf("executor stop: %w", err)
 	}
 
-	if err := pier.sync.Stop(); err != nil {
+	if err := pier.stub.Stop(); err != nil {
 		return fmt.Errorf("sync stop: %w", err)
 	}
 

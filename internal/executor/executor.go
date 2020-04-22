@@ -6,6 +6,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/ethereum/go-ethereum/event"
 	"github.com/meshplus/bitxhub-kit/log"
 	"github.com/meshplus/bitxhub-kit/storage"
 	"github.com/meshplus/bitxhub-model/pb"
@@ -161,4 +162,13 @@ func (e *ChannelExecutor) run() {
 // getDemandHeight get next wanted wrapper height
 func (e *ChannelExecutor) getDemandHeight() uint64 {
 	return atomic.LoadUint64(&e.height) + 1
+}
+
+func (e *ChannelExecutor) HandleIBTP(ibtp *pb.IBTP) {
+	// todo: add implementation
+}
+
+func (e *ChannelExecutor) SubscribeReceipt(chan<- *pb.IBTP) event.Subscription {
+	// todo: add implementation
+	return nil
 }

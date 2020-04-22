@@ -1,4 +1,4 @@
-package syncer
+package bxhLite
 
 import (
 	"io/ioutil"
@@ -29,7 +29,7 @@ func TestSyncBlock(t *testing.T) {
 	recoverC := make(chan *pb.MerkleWrapper, 1)
 	syncC := make(chan *pb.MerkleWrapper, 1)
 	txs := make([]*pb.Transaction, 0, 2)
-	txs = append(txs, getTx(t), getTx(t))
+	txs = append(txs, getTx(t, uint64(1), pb.IBTP_INTERCHAIN), getTx(t, uint64(2), pb.IBTP_INTERCHAIN))
 
 	w1 := getWrapper(t, txs, &pb.BlockHeader{
 		Number: uint64(1),
@@ -76,8 +76,15 @@ func TestRecover(t *testing.T) {
 	// expect mock module returns
 	recoverC := make(chan *pb.MerkleWrapper, 2)
 	syncC := make(chan *pb.MerkleWrapper, 1)
-	txs := make([]*pb.Transaction, 0, 2)
-	txs = append(txs, getTx(t), getTx(t))
+
+	txs := make([]*pb.Transaction, 0)
+	//receipts := make([]*pb.Receipt, 0)
+	typs := []pb.IBTP_Type{pb.IBTP_INTERCHAIN, pb.IBTP_RECEIPT}
+	for i := 0; i < 2; i++ {
+		tx := getTx(t, uint64(i+1), typs[i])
+		tx.TransactionHash = tx.Hash()
+		txs = append(txs, tx)
+	}
 
 	w1 := getWrapper(t, txs, &pb.BlockHeader{
 		Number: uint64(1),
@@ -121,7 +128,7 @@ func TestRecover(t *testing.T) {
 	require.Nil(t, syncer.Stop())
 }
 
-func prepare(t *testing.T) (*MerkleSyncer, *mock_agent.MockAgent, []crypto.PrivateKey) {
+func prepare(t *testing.T) (*BxhLite, *mock_agent.MockAgent, []crypto.PrivateKey) {
 	mockCtl := gomock.NewController(t)
 	mockCtl.Finish()
 	ag := mock_agent.NewMockAgent(mockCtl)
@@ -138,17 +145,15 @@ func prepare(t *testing.T) (*MerkleSyncer, *mock_agent.MockAgent, []crypto.Priva
 		vltSet = append(vltSet, vlt)
 	}
 
-	syncer, err := New(ag, 2, vltSet, storage)
+	syncer, err := New(ag, 2, from, vltSet, storage)
 	require.Nil(t, err)
 	return syncer, ag, keys
 }
 
 func getWrapper(t *testing.T, txs []*pb.Transaction, h *pb.BlockHeader, privateKeys []crypto.PrivateKey) *pb.MerkleWrapper {
 	hashes := make([]types.Hash, 0, len(txs))
-	for i := 0; i < len(txs); i++ {
-		hash := types.Hash{}
-		hash.SetBytes([]byte(from))
-		hashes = append(hashes, hash)
+	for _, tx := range txs {
+		hashes = append(hashes, tx.TransactionHash)
 	}
 	wrapper := &pb.MerkleWrapper{
 		BlockHeader:       h,
@@ -179,14 +184,14 @@ func getVlts(t *testing.T) []crypto.PrivateKey {
 	return keys
 }
 
-func getTx(t *testing.T) *pb.Transaction {
-	ibtp := getIBTP(t, 1, pb.IBTP_INTERCHAIN)
-	body, err := ibtp.Marshal()
+func getTx(t *testing.T, index uint64, typ pb.IBTP_Type) *pb.Transaction {
+	origin := getIBTP(t, index, typ)
+	ib, err := origin.Marshal()
 	require.Nil(t, err)
 
 	tmpIP := &pb.InvokePayload{
 		Method: "set",
-		Args:   []*pb.Arg{{Value: body}},
+		Args:   []*pb.Arg{{Value: ib}},
 	}
 	pd, err := tmpIP.Marshal()
 	require.Nil(t, err)

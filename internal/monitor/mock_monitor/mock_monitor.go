@@ -6,6 +6,7 @@ package mock_monitor
 
 import (
 	gomock "github.com/golang/mock/gomock"
+	pb "github.com/meshplus/bitxhub-model/pb"
 	reflect "reflect"
 )
 
@@ -58,4 +59,18 @@ func (m *MockMonitor) Stop() error {
 func (mr *MockMonitorMockRecorder) Stop() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Stop", reflect.TypeOf((*MockMonitor)(nil).Stop))
+}
+
+// FetchIBTP mocks base method
+func (m *MockMonitor) FetchIBTP() chan *pb.IBTP {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "FetchIBTP")
+	ret0, _ := ret[0].(chan *pb.IBTP)
+	return ret0
+}
+
+// FetchIBTP indicates an expected call of FetchIBTP
+func (mr *MockMonitorMockRecorder) FetchIBTP() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FetchIBTP", reflect.TypeOf((*MockMonitor)(nil).FetchIBTP))
 }
