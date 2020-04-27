@@ -1,4 +1,4 @@
-package syncer
+package bxh_lite
 
 import (
 	"io/ioutil"
@@ -9,11 +9,11 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/meshplus/bitxhub-kit/crypto"
 	"github.com/meshplus/bitxhub-kit/crypto/asym/ecdsa"
+	"github.com/meshplus/bitxhub-kit/merkle/merkletree"
 	"github.com/meshplus/bitxhub-kit/storage/leveldb"
 	"github.com/meshplus/bitxhub-kit/types"
 	"github.com/meshplus/bitxhub-model/pb"
 	"github.com/meshplus/pier/internal/agent/mock_agent"
-	"github.com/meshplus/pier/pkg/model"
 	"github.com/stretchr/testify/require"
 )
 
@@ -22,106 +22,100 @@ const (
 )
 
 func TestSyncBlock(t *testing.T) {
-	syncer, ag, privKeys := prepare(t)
-	defer syncer.storage.Close()
+	lite, ag, _ := prepare(t)
+	defer lite.storage.Close()
 
 	// expect mock module returns
-	recoverC := make(chan *pb.MerkleWrapper, 1)
-	syncC := make(chan *pb.MerkleWrapper, 1)
+	recoverHeaderC := make(chan *pb.BlockHeader, 1)
+	syncHeaderC := make(chan *pb.BlockHeader, 1)
+	recoverWrapperC := make(chan *pb.InterchainTxWrapper, 1)
+	syncWrapeprC := make(chan *pb.InterchainTxWrapper, 1)
 	txs := make([]*pb.Transaction, 0, 2)
 	txs = append(txs, getTx(t), getTx(t))
 
-	w1 := getWrapper(t, txs, &pb.BlockHeader{
-		Number: uint64(1),
-	}, privKeys)
-	recoverC <- w1
+	w1 := getBlockHeader(t, txs, 1)
+	recoverHeaderC <- w1
 
 	meta := &pb.ChainMeta{
-		Height:    0,
+		Height:    1,
 		BlockHash: types.String2Hash(from),
 	}
-	ag.EXPECT().SyncMerkleWrapper(gomock.Any()).Return(syncC, nil).AnyTimes()
+	ag.EXPECT().SyncBlockHeader(gomock.Any()).Return(syncHeaderC, nil).AnyTimes()
+	ag.EXPECT().SyncInterchainTxWrapper(gomock.Any()).Return(syncWrapeprC, nil).AnyTimes()
+	ag.EXPECT().GetHeader(gomock.Any(), gomock.Any()).Return(recoverHeaderC, nil).AnyTimes()
+	ag.EXPECT().GetInterchainTxWrapper(gomock.Any(), gomock.Any()).Return(recoverWrapperC, nil).AnyTimes()
 	ag.EXPECT().GetChainMeta().Return(meta, nil).AnyTimes()
-	ag.EXPECT().GetMerkleWrapper(gomock.Any(), gomock.Any()).Return(recoverC, nil).AnyTimes()
 
 	done := make(chan bool, 1)
 	go func() {
-		err := syncer.Start()
+		err := lite.Start()
 		require.Nil(t, err)
 		<-done
 	}()
 
-	// required height is 1, receiving height 2 wrapper will trigger GetMerkleWrapper
-	w2 := getWrapper(t, txs, &pb.BlockHeader{
-		Number: uint64(2),
-	}, privKeys)
-	syncC <- w2
-	recoverC <- w2
+	// required height is 1, receiving height 2 wrapper will trigger GetInterchainTxWrapper
+	w2 := getBlockHeader(t, txs, 2)
+	syncHeaderC <- w2
+	recoverHeaderC <- w2
 	time.Sleep(1 * time.Second)
-	receivedWrapper := &pb.MerkleWrapper{}
-	val, err := syncer.storage.Get(model.WrapperKey(1))
+	receivedWrapper := &pb.BlockHeader{}
+	val, err := lite.storage.Get(headerKey(1))
 	require.Nil(t, err)
 
 	err = receivedWrapper.Unmarshal(val)
 	require.Nil(t, err)
 	require.Equal(t, w1, receivedWrapper)
 	done <- true
-	require.Nil(t, syncer.Stop())
+	require.Nil(t, lite.Stop())
 }
 
 func TestRecover(t *testing.T) {
-	syncer, ag, privKeys := prepare(t)
-	defer syncer.storage.Close()
+	lite, ag, _ := prepare(t)
+	defer lite.storage.Close()
 
 	// expect mock module returns
-	recoverC := make(chan *pb.MerkleWrapper, 2)
-	syncC := make(chan *pb.MerkleWrapper, 1)
+	recoverHeaderC := make(chan *pb.BlockHeader, 1)
+	syncHeaderC := make(chan *pb.BlockHeader, 1)
+	recoverWrapperC := make(chan *pb.InterchainTxWrapper, 1)
+	syncWrapeprC := make(chan *pb.InterchainTxWrapper, 1)
 	txs := make([]*pb.Transaction, 0, 2)
 	txs = append(txs, getTx(t), getTx(t))
 
-	w1 := getWrapper(t, txs, &pb.BlockHeader{
-		Number: uint64(1),
-	}, privKeys)
-	recoverC <- w1
-
-	// mock malicious wrapper
-	w2 := getWrapper(t, txs, &pb.BlockHeader{
-		Number: uint64(1),
-	}, privKeys)
-	w2.Signatures = nil
-	recoverC <- w2
+	w1 := getBlockHeader(t, txs, 1)
+	recoverHeaderC <- w1
 
 	meta := &pb.ChainMeta{
-		Height:    3,
+		Height:    1,
 		BlockHash: types.String2Hash(from),
 	}
-	ag.EXPECT().SyncMerkleWrapper(gomock.Any()).Return(syncC, nil).AnyTimes()
+	ag.EXPECT().SyncBlockHeader(gomock.Any()).Return(syncHeaderC, nil).AnyTimes()
+	ag.EXPECT().SyncInterchainTxWrapper(gomock.Any()).Return(syncWrapeprC, nil).AnyTimes()
+	ag.EXPECT().GetHeader(gomock.Any(), gomock.Any()).Return(recoverHeaderC, nil).AnyTimes()
+	ag.EXPECT().GetInterchainTxWrapper(gomock.Any(), gomock.Any()).Return(recoverWrapperC, nil).AnyTimes()
 	ag.EXPECT().GetChainMeta().Return(meta, nil).AnyTimes()
-	ag.EXPECT().GetMerkleWrapper(gomock.Any(), gomock.Any()).Return(recoverC, nil).AnyTimes()
 
 	done := make(chan bool, 1)
 	go func() {
-		err := syncer.Start()
+		err := lite.Start()
 		require.Nil(t, err)
 		<-done
 	}()
 
-	close(recoverC)
 	time.Sleep(1 * time.Second)
 
 	// recover should have persist height 1 wrapper
-	receivedWrapper := &pb.MerkleWrapper{}
-	val, err := syncer.storage.Get(model.WrapperKey(1))
+	receivedWrapper := &pb.BlockHeader{}
+	val, err := lite.storage.Get(headerKey(1))
 	require.Nil(t, err)
 
 	err = receivedWrapper.Unmarshal(val)
 	require.Nil(t, err)
 	require.Equal(t, w1, receivedWrapper)
 	done <- true
-	require.Nil(t, syncer.Stop())
+	require.Nil(t, lite.Stop())
 }
 
-func prepare(t *testing.T) (*MerkleSyncer, *mock_agent.MockAgent, []crypto.PrivateKey) {
+func prepare(t *testing.T) (*BxhLite, *mock_agent.MockAgent, []crypto.PrivateKey) {
 	mockCtl := gomock.NewController(t)
 	mockCtl.Finish()
 	ag := mock_agent.NewMockAgent(mockCtl)
@@ -138,35 +132,38 @@ func prepare(t *testing.T) (*MerkleSyncer, *mock_agent.MockAgent, []crypto.Priva
 		vltSet = append(vltSet, vlt)
 	}
 
-	syncer, err := New(ag, 2, vltSet, storage)
+	lite, err := New(ag, storage)
 	require.Nil(t, err)
-	return syncer, ag, keys
+
+	return lite, ag, keys
 }
 
-func getWrapper(t *testing.T, txs []*pb.Transaction, h *pb.BlockHeader, privateKeys []crypto.PrivateKey) *pb.MerkleWrapper {
-	hashes := make([]types.Hash, 0, len(txs))
+func getBlockHeader(t *testing.T, txs []*pb.Transaction, number uint64) *pb.BlockHeader {
+	hashes := make([]interface{}, 0, len(txs))
 	for i := 0; i < len(txs); i++ {
-		hash := types.Hash{}
-		hash.SetBytes([]byte(from))
-		hashes = append(hashes, hash)
-	}
-	wrapper := &pb.MerkleWrapper{
-		BlockHeader:       h,
-		TransactionHashes: hashes,
-		Transactions:      txs,
+		hash := txs[i].Hash()
+		hashes = append(hashes, pb.TransactionHash(hash.Bytes()))
 	}
 
-	sigs := make(map[string][]byte)
-	for _, key := range privateKeys {
-		sign, err := key.Sign(wrapper.SignHash().Bytes())
-		require.Nil(t, err)
-		vlt, err := key.PublicKey().Address()
-		require.Nil(t, err)
-		sigs[vlt.String()] = sign
+	tree := merkletree.NewMerkleTree()
+	require.Nil(t, tree.InitMerkleTree(hashes))
+	root := tree.GetMerkleRoot()
+
+	wrapper := &pb.BlockHeader{
+		Number:     number,
+		Timestamp:  time.Now().UnixNano(),
+		ParentHash: types.String2Hash(from),
+		TxRoot:     types.Bytes2Hash(root),
 	}
-	wrapper.Signatures = sigs
 
 	return wrapper
+}
+
+func getWrapper(t *testing.T, txs []*pb.Transaction, txHashes []types.Hash) *pb.InterchainTxWrapper {
+	return &pb.InterchainTxWrapper{
+		Transactions:      txs,
+		TransactionHashes: txHashes,
+	}
 }
 
 func getVlts(t *testing.T) []crypto.PrivateKey {

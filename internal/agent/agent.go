@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/meshplus/bitxhub-kit/hexutil"
 	"github.com/meshplus/bitxhub-kit/types"
 	"github.com/meshplus/bitxhub-model/pb"
 	rpcx "github.com/meshplus/go-bitxhub-client"
@@ -15,6 +14,8 @@ import (
 
 // agent is responsible for interacting with bitxhub
 var _ Agent = (*BxhAgent)(nil)
+
+const maxSizeCh = 1024
 
 // BxhAgent represents the necessary data for interacting with bitxhub
 type BxhAgent struct {
@@ -58,17 +59,73 @@ func (agent *BxhAgent) Appchain() (*rpcx.Appchain, error) {
 	return appchain, nil
 }
 
-// SyncMerkleWrapper implements Agent
-func (agent *BxhAgent) SyncMerkleWrapper(ctx context.Context) (chan *pb.MerkleWrapper, error) {
-	return agent.client.SyncMerkleWrapper(ctx, hexutil.Encode(agent.from[:]), 0)
+func (agent *BxhAgent) SyncBlockHeader(ctx context.Context) (chan *pb.BlockHeader, error) {
+	ch, err := agent.client.Subscribe(ctx, pb.SubscriptionRequest_BLOCK_HEADER, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var headerCh = make(chan *pb.BlockHeader, maxSizeCh)
+	go func() {
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case h, ok := <-ch:
+				if !ok {
+					close(headerCh)
+					return
+				}
+				headerCh <- h.(*pb.BlockHeader)
+			}
+		}
+	}()
+
+	return headerCh, nil
 }
 
-// GetMerkleWrapper implements Agent
-func (agent *BxhAgent) GetMerkleWrapper(begin, end uint64) (chan *pb.MerkleWrapper, error) {
+func (agent *BxhAgent) GetHeader(begin, end uint64) (chan *pb.BlockHeader, error) {
 	ctx := context.Background()
-	ch := make(chan *pb.MerkleWrapper, end-begin+1)
+	ch := make(chan *pb.BlockHeader)
 
-	return ch, agent.client.GetMerkleWrapper(ctx, agent.from.String(), begin, end, ch)
+	if err := agent.client.GetBlockHeader(ctx, begin, end, ch); err != nil {
+		return nil, err
+	}
+
+	return ch, nil
+}
+
+func (agent *BxhAgent) SyncInterchainTxWrapper(ctx context.Context) (chan *pb.InterchainTxWrapper, error) {
+	ch, err := agent.client.Subscribe(ctx, pb.SubscriptionRequest_INTERCHAIN_TX_WRAPPER, agent.from.Bytes())
+	if err != nil {
+		return nil, err
+	}
+
+	var txCh = make(chan *pb.InterchainTxWrapper, maxSizeCh)
+	go func() {
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case h, ok := <-ch:
+				if !ok {
+					close(txCh)
+					return
+				}
+				txCh <- h.(*pb.InterchainTxWrapper)
+			}
+		}
+	}()
+
+	return txCh, nil
+}
+
+// GetInterchainTxWrapper implements Agent
+func (agent *BxhAgent) GetInterchainTxWrapper(begin, end uint64) (chan *pb.InterchainTxWrapper, error) {
+	ctx := context.Background()
+	ch := make(chan *pb.InterchainTxWrapper, end-begin+1)
+
+	return ch, agent.client.GetInterchainTxWrapper(ctx, agent.from.String(), begin, end, ch)
 }
 
 // SendTransaction implements Agent

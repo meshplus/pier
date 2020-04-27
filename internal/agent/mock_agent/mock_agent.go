@@ -50,34 +50,64 @@ func (mr *MockAgentMockRecorder) Appchain() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Appchain", reflect.TypeOf((*MockAgent)(nil).Appchain))
 }
 
-// SyncMerkleWrapper mocks base method
-func (m *MockAgent) SyncMerkleWrapper(ctx context.Context) (chan *pb.MerkleWrapper, error) {
+// SyncBlockHeader mocks base method
+func (m *MockAgent) SyncBlockHeader(ctx context.Context) (chan *pb.BlockHeader, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "SyncMerkleWrapper", ctx)
-	ret0, _ := ret[0].(chan *pb.MerkleWrapper)
+	ret := m.ctrl.Call(m, "SyncBlockHeader", ctx)
+	ret0, _ := ret[0].(chan *pb.BlockHeader)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// SyncMerkleWrapper indicates an expected call of SyncMerkleWrapper
-func (mr *MockAgentMockRecorder) SyncMerkleWrapper(ctx interface{}) *gomock.Call {
+// SyncBlockHeader indicates an expected call of SyncBlockHeader
+func (mr *MockAgentMockRecorder) SyncBlockHeader(ctx interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SyncMerkleWrapper", reflect.TypeOf((*MockAgent)(nil).SyncMerkleWrapper), ctx)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SyncBlockHeader", reflect.TypeOf((*MockAgent)(nil).SyncBlockHeader), ctx)
 }
 
-// GetMerkleWrapper mocks base method
-func (m *MockAgent) GetMerkleWrapper(begin, end uint64) (chan *pb.MerkleWrapper, error) {
+// GetHeader mocks base method
+func (m *MockAgent) GetHeader(begin, end uint64) (chan *pb.BlockHeader, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetMerkleWrapper", begin, end)
-	ret0, _ := ret[0].(chan *pb.MerkleWrapper)
+	ret := m.ctrl.Call(m, "GetHeader", begin, end)
+	ret0, _ := ret[0].(chan *pb.BlockHeader)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// GetMerkleWrapper indicates an expected call of GetMerkleWrapper
-func (mr *MockAgentMockRecorder) GetMerkleWrapper(begin, end interface{}) *gomock.Call {
+// GetHeader indicates an expected call of GetHeader
+func (mr *MockAgentMockRecorder) GetHeader(begin, end interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetMerkleWrapper", reflect.TypeOf((*MockAgent)(nil).GetMerkleWrapper), begin, end)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetHeader", reflect.TypeOf((*MockAgent)(nil).GetHeader), begin, end)
+}
+
+// SyncInterchainTxWrapper mocks base method
+func (m *MockAgent) SyncInterchainTxWrapper(ctx context.Context) (chan *pb.InterchainTxWrapper, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SyncInterchainTxWrapper", ctx)
+	ret0, _ := ret[0].(chan *pb.InterchainTxWrapper)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// SyncInterchainTxWrapper indicates an expected call of SyncInterchainTxWrapper
+func (mr *MockAgentMockRecorder) SyncInterchainTxWrapper(ctx interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SyncInterchainTxWrapper", reflect.TypeOf((*MockAgent)(nil).SyncInterchainTxWrapper), ctx)
+}
+
+// GetInterchainTxWrapper mocks base method
+func (m *MockAgent) GetInterchainTxWrapper(begin, end uint64) (chan *pb.InterchainTxWrapper, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetInterchainTxWrapper", begin, end)
+	ret0, _ := ret[0].(chan *pb.InterchainTxWrapper)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetInterchainTxWrapper indicates an expected call of GetInterchainTxWrapper
+func (mr *MockAgentMockRecorder) GetInterchainTxWrapper(begin, end interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetInterchainTxWrapper", reflect.TypeOf((*MockAgent)(nil).GetInterchainTxWrapper), begin, end)
 }
 
 // SendTransaction mocks base method
