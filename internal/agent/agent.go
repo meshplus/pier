@@ -15,8 +15,6 @@ import (
 // agent is responsible for interacting with bitxhub
 var _ Agent = (*BxhAgent)(nil)
 
-const maxSizeCh = 1024
-
 // BxhAgent represents the necessary data for interacting with bitxhub
 type BxhAgent struct {
 	client     rpcx.Client
@@ -59,13 +57,12 @@ func (agent *BxhAgent) Appchain() (*rpcx.Appchain, error) {
 	return appchain, nil
 }
 
-func (agent *BxhAgent) SyncBlockHeader(ctx context.Context) (chan *pb.BlockHeader, error) {
+func (agent *BxhAgent) SyncBlockHeader(ctx context.Context, headerCh chan *pb.BlockHeader) error {
 	ch, err := agent.client.Subscribe(ctx, pb.SubscriptionRequest_BLOCK_HEADER, nil)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	var headerCh = make(chan *pb.BlockHeader, maxSizeCh)
 	go func() {
 		for {
 			select {
@@ -81,27 +78,23 @@ func (agent *BxhAgent) SyncBlockHeader(ctx context.Context) (chan *pb.BlockHeade
 		}
 	}()
 
-	return headerCh, nil
+	return nil
 }
 
-func (agent *BxhAgent) GetHeader(begin, end uint64) (chan *pb.BlockHeader, error) {
-	ctx := context.Background()
-	ch := make(chan *pb.BlockHeader)
-
+func (agent *BxhAgent) GetBlockHeader(ctx context.Context, begin, end uint64, ch chan *pb.BlockHeader) error {
 	if err := agent.client.GetBlockHeader(ctx, begin, end, ch); err != nil {
-		return nil, err
+		return err
 	}
 
-	return ch, nil
+	return nil
 }
 
-func (agent *BxhAgent) SyncInterchainTxWrapper(ctx context.Context) (chan *pb.InterchainTxWrapper, error) {
+func (agent *BxhAgent) SyncInterchainTxWrapper(ctx context.Context, txCh chan *pb.InterchainTxWrapper) error {
 	ch, err := agent.client.Subscribe(ctx, pb.SubscriptionRequest_INTERCHAIN_TX_WRAPPER, agent.from.Bytes())
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	var txCh = make(chan *pb.InterchainTxWrapper, maxSizeCh)
 	go func() {
 		for {
 			select {
@@ -117,15 +110,12 @@ func (agent *BxhAgent) SyncInterchainTxWrapper(ctx context.Context) (chan *pb.In
 		}
 	}()
 
-	return txCh, nil
+	return nil
 }
 
 // GetInterchainTxWrapper implements Agent
-func (agent *BxhAgent) GetInterchainTxWrapper(begin, end uint64) (chan *pb.InterchainTxWrapper, error) {
-	ctx := context.Background()
-	ch := make(chan *pb.InterchainTxWrapper, end-begin+1)
-
-	return ch, agent.client.GetInterchainTxWrapper(ctx, agent.from.String(), begin, end, ch)
+func (agent *BxhAgent) GetInterchainTxWrapper(ctx context.Context, begin, end uint64, ch chan *pb.InterchainTxWrapper) error {
+	return agent.client.GetInterchainTxWrapper(ctx, agent.from.String(), begin, end, ch)
 }
 
 // SendTransaction implements Agent

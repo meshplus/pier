@@ -10,6 +10,6 @@ type Lite interface {
 	// Stop stops service of lite client
 	Stop() error
 
-	// QueryHeader verifies tx in block
+	// QueryHeader gets block header given block height
 	QueryHeader(height uint64) (*pb.BlockHeader, error)
 }

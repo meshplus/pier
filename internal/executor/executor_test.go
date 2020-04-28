@@ -50,15 +50,11 @@ func TestExecute(t *testing.T) {
 	ignoreTx.TransactionHash = ignoreTx.Hash()
 	txs = append(txs, ignoreTx)
 
-	header1 := &pb.BlockHeader{
-		Number: uint64(2),
-	}
-
 	// set exec height to 2
 	exec.height = 2
 	require.Nil(t, exec.Start())
 
-	wrap1 := getWrapper(txs, header1)
+	wrap1 := getWrapper(txs, 2)
 	w1byte, err := wrap1.Marshal()
 	require.Nil(t, err)
 
@@ -68,9 +64,7 @@ func TestExecute(t *testing.T) {
 	require.Equal(t, uint64(3), exec.height)
 
 	// execute anther wrong index wrapper and exec height remains the same
-	wrap2 := getWrapper(txs, &pb.BlockHeader{
-		Number: uint64(4),
-	})
+	wrap2 := getWrapper(txs, 4)
 	w2byte, err := wrap2.Marshal()
 	require.Nil(t, err)
 
@@ -94,8 +88,6 @@ func TestRecovery(t *testing.T) {
 	// set up fake returns for missing receipt
 	ret := [][]byte{[]byte("Alice"), []byte("100")}
 	ibtp := getIBTP(t, 1, pb.IBTP_INTERCHAIN)
-	w := make(chan *pb.MerkleWrapper)
-	ag.EXPECT().SyncMerkleWrapper(gomock.Any()).Return(w, nil).AnyTimes()
 	ag.EXPECT().SendIBTP(gomock.Any()).Return(getReceipt(), nil).AnyTimes()
 	ag.EXPECT().GetIBTPByID(gomock.Any()).Return(ibtp, nil).AnyTimes()
 	cli.EXPECT().GetInMessage(gomock.Any(), gomock.Any()).Return(ret, nil).AnyTimes()
@@ -131,16 +123,15 @@ func prepare(t *testing.T) (*ChannelExecutor, *mock_agent.MockAgent, *mock_clien
 	return exec, ag, cli
 }
 
-func getWrapper(txs []*pb.Transaction, h *pb.BlockHeader) *pb.MerkleWrapper {
+func getWrapper(txs []*pb.Transaction, height uint64) *pb.InterchainTxWrapper {
 	hashes := make([]types.Hash, 0, len(txs))
 	for _, tx := range txs {
 		hashes = append(hashes, tx.TransactionHash)
 	}
-	wrapper := &pb.MerkleWrapper{
-		BlockHeader:       h,
+	wrapper := &pb.InterchainTxWrapper{
 		TransactionHashes: hashes,
 		Transactions:      txs,
-		Signatures:        nil,
+		Height:            height,
 	}
 	return wrapper
 }

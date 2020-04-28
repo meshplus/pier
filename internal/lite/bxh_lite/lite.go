@@ -4,17 +4,17 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/syndtr/goleveldb/leveldb"
-
-	"github.com/sirupsen/logrus"
-
 	"github.com/meshplus/bitxhub-kit/log"
 	"github.com/meshplus/bitxhub-kit/storage"
 	"github.com/meshplus/bitxhub-model/pb"
 	"github.com/meshplus/pier/internal/agent"
+	"github.com/sirupsen/logrus"
+	"github.com/syndtr/goleveldb/leveldb"
 )
 
 var logger = log.NewWithModule("bxh_lite")
+
+const maxChSize = 1024
 
 type BxhLite struct {
 	ag      agent.Agent
@@ -93,8 +93,8 @@ func (lite *BxhLite) recover(begin, end uint64) {
 		"end":   end,
 	}).Info("BitXHub lite recover")
 
-	headerCh, err := lite.ag.GetHeader(begin, end)
-	if err != nil {
+	headerCh := make(chan *pb.BlockHeader, maxChSize)
+	if err := lite.ag.GetBlockHeader(lite.ctx, begin, end, headerCh); err != nil {
 		logger.WithFields(logrus.Fields{
 			"begin": begin,
 			"end":   end,

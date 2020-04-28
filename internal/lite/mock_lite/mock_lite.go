@@ -61,17 +61,17 @@ func (mr *MockLiteMockRecorder) Stop() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Stop", reflect.TypeOf((*MockLite)(nil).Stop))
 }
 
-// VerifyIBTP mocks base method
-func (m *MockLite) VerifyIBTP(ibtp *pb.IBTP, path []*pb.TransactionHash, height uint64) (bool, error) {
+// QueryHeader mocks base method
+func (m *MockLite) QueryHeader(height uint64) (*pb.BlockHeader, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "VerifyIBTP", ibtp, path, height)
-	ret0, _ := ret[0].(bool)
+	ret := m.ctrl.Call(m, "QueryHeader", height)
+	ret0, _ := ret[0].(*pb.BlockHeader)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// VerifyIBTP indicates an expected call of VerifyIBTP
-func (mr *MockLiteMockRecorder) VerifyIBTP(ibtp, path, height interface{}) *gomock.Call {
+// QueryHeader indicates an expected call of QueryHeader
+func (mr *MockLiteMockRecorder) QueryHeader(height interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "VerifyIBTP", reflect.TypeOf((*MockLite)(nil).VerifyIBTP), ibtp, path, height)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "QueryHeader", reflect.TypeOf((*MockLite)(nil).QueryHeader), height)
 }

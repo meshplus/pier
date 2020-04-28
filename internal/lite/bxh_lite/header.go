@@ -52,8 +52,8 @@ func (lite *BxhLite) syncBlock() {
 				}
 
 				lite.handleBlockHeader(header)
-			default:
-				logger.Errorf("Not supported type for sync block")
+			//default:
+			//	logger.Errorf("Not supported type for sync block")
 			case <-lite.ctx.Done():
 				return
 			}
@@ -85,15 +85,12 @@ func (lite *BxhLite) syncBlock() {
 }
 
 func (lite *BxhLite) getHeaderChannel() chan *pb.BlockHeader {
-	ch := make(chan *pb.BlockHeader)
+	ch := make(chan *pb.BlockHeader, maxChSize)
 
 	if err := retry.Retry(func(attempt uint) error {
-		c, err := lite.ag.SyncBlockHeader(lite.ctx)
-		if err != nil {
+		if err := lite.ag.SyncBlockHeader(lite.ctx, ch); err != nil {
 			return err
 		}
-
-		ch = c
 
 		return nil
 	}, strategy.Wait(2*time.Second)); err != nil {

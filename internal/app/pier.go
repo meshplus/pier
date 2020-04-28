@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"path/filepath"
 
+	"github.com/meshplus/pier/internal/syncer"
+
 	"github.com/meshplus/bitxhub-kit/crypto"
 	"github.com/meshplus/bitxhub-kit/log"
 	"github.com/meshplus/bitxhub-kit/storage"
@@ -32,6 +34,7 @@ type Pier struct {
 	monitor    monitor.Monitor
 	exec       executor.Executor
 	lite       lite.Lite
+	syncer     syncer.Syncer
 	storage    storage.Storage
 	ctx        context.Context
 	cancel     context.CancelFunc
@@ -100,9 +103,13 @@ func NewPier(repoRoot string, config *repo.Config) (*Pier, error) {
 
 	lite, err := bxh_lite.New(ag, storage)
 	if err != nil {
-		return nil, fmt.Errorf("syncer create: %w", err)
+		return nil, fmt.Errorf("lite create: %w", err)
 	}
 
+	syncer, err := syncer.New(ag, lite, storage)
+	if err != nil {
+		return nil, fmt.Errorf("syncer create: %w", err)
+	}
 	ctx, cancel := context.WithCancel(context.Background())
 
 	return &Pier{
@@ -113,6 +120,7 @@ func NewPier(repoRoot string, config *repo.Config) (*Pier, error) {
 		monitor:    mnt,
 		exec:       exec,
 		lite:       lite,
+		syncer:     syncer,
 		storage:    storage,
 		ctx:        ctx,
 		cancel:     cancel,
@@ -140,6 +148,10 @@ func (pier *Pier) Start() error {
 		return fmt.Errorf("lite start: %w", err)
 	}
 
+	if err := pier.syncer.Start(); err != nil {
+		return fmt.Errorf("syncer start: %w", err)
+	}
+
 	return nil
 }
 
@@ -155,6 +167,10 @@ func (pier *Pier) Stop() error {
 
 	if err := pier.lite.Stop(); err != nil {
 		return fmt.Errorf("lite stop: %w", err)
+	}
+
+	if err := pier.syncer.Stop(); err != nil {
+		return fmt.Errorf("syncer stop: %w", err)
 	}
 
 	return nil

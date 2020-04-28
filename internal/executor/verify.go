@@ -1,7 +1,6 @@
 package executor
 
 import (
-	"fmt"
 	"sort"
 	"sync"
 
@@ -9,22 +8,13 @@ import (
 )
 
 // verify verifies merkleWrapper received
-func (e *ChannelExecutor) verify(wrapper *pb.MerkleWrapper) ([]*pb.IBTP, error) {
+func (e *ChannelExecutor) verify(wrapper *pb.InterchainTxWrapper) ([]*pb.IBTP, error) {
 	if wrapper == nil {
 		return nil, nil
 	}
 
 	if len(wrapper.Transactions) == 0 {
 		return nil, nil
-	}
-
-	valid, err := wrapper.VerifyMerkleWrapper()
-	if err != nil {
-		return nil, fmt.Errorf("verify merkle wrapper: %w", err)
-	}
-
-	if !valid {
-		return nil, fmt.Errorf("invalid merkle wrapper #%d", wrapper.BlockHeader.Number)
 	}
 
 	// filter those ibtps whose destination is this pier

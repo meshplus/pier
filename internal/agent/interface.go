@@ -16,19 +16,19 @@ type Agent interface {
 
 	// syncBlockHeaer tries to get an channel of Headers from bitxhub.
 	// Note: only the header beyond the height of sync-header request moment will be sent to this channel
-	SyncBlockHeader(ctx context.Context) (chan *pb.BlockHeader, error)
+	SyncBlockHeader(ctx context.Context, ch chan *pb.BlockHeader) error
 
-	// GetHeader tries to get headers whose height is in the interval of [begin, end]
+	// GetBlockHeader tries to get headers whose height is in the interval of [begin, end]
 	// All these headers will be sent the channel.
-	GetHeader(begin, end uint64) (chan *pb.BlockHeader, error)
+	GetBlockHeader(ctx context.Context, begin, end uint64, ch chan *pb.BlockHeader) error
 
 	// SyncInterchainTxWrapper tries to get an channel of interchain tx wrapper from bitxhub.
 	// Note: only the interchain tx wrappers beyond the height of sync-header request moment will be sent to this channel
-	SyncInterchainTxWrapper(ctx context.Context) (chan *pb.InterchainTxWrapper, error)
+	SyncInterchainTxWrapper(ctx context.Context, ch chan *pb.InterchainTxWrapper) error
 
 	// GetInterchainTxWrapper tries to get txWrappers whose height is in the interval of [begin, end]
 	// All these wrappers will be sent the channel.
-	GetInterchainTxWrapper(begin, end uint64) (chan *pb.InterchainTxWrapper, error)
+	GetInterchainTxWrapper(ctx context.Context, begin, end uint64, ch chan *pb.InterchainTxWrapper) error
 
 	// SendTransaction sends the wrapped interchain tx to bitxhub
 	SendTransaction(tx *pb.Transaction) (*pb.Receipt, error)

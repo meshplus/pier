@@ -35,3 +35,5 @@ replace github.com/spf13/pflag => github.com/spf13/pflag v1.0.5
 replace github.com/golang/protobuf => github.com/golang/protobuf v1.3.2
 
 replace golang.org/x/text => golang.org/x/text v0.3.0
+
+replace gopkg.in/yaml.v2 => gopkg.in/yaml.v2 v2.2.7
