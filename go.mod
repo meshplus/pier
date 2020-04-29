@@ -22,8 +22,6 @@ require (
 	github.com/syndtr/goleveldb v1.0.1-0.20190923125748-758128399b1d
 	github.com/tidwall/gjson v1.6.0
 	github.com/urfave/cli v1.22.1
-	golang.org/x/sys v0.0.0-20191228213918-04cbcbbfeed8 // indirect
-	golang.org/x/text v0.3.2 // indirect
 )
 
 replace golang.org/x/net => golang.org/x/net v0.0.0-20200202094626-16171245cfb2
@@ -33,3 +31,7 @@ replace github.com/mholt/archiver => github.com/mholt/archiver v0.0.0-2018041722
 replace github.com/ugorji/go v1.1.4 => github.com/ugorji/go/codec v0.0.0-20190204201341-e444a5086c43
 
 replace github.com/spf13/pflag => github.com/spf13/pflag v1.0.5
+
+replace github.com/golang/protobuf => github.com/golang/protobuf v1.3.2
+
+replace golang.org/x/text => golang.org/x/text v0.3.0
