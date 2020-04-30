@@ -142,7 +142,7 @@ func (e *ChannelExecutor) run() {
 				continue
 			}
 
-			w := &pb.MerkleWrapper{}
+			w := &pb.InterchainTxWrapper{}
 			if err := w.Unmarshal(data); err != nil {
 				logger.WithFields(logrus.Fields{
 					"height": e.getDemandHeight(),
@@ -151,7 +151,7 @@ func (e *ChannelExecutor) run() {
 				continue
 			}
 
-			e.applyMerkleWrapper(w)
+			e.applyInterchainTxWrapper(w)
 		case <-e.ctx.Done():
 			return
 		}

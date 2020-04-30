@@ -4,60 +4,57 @@ import (
 	"context"
 	"fmt"
 	"strconv"
-	"sync"
 	"sync/atomic"
 	"time"
 
 	"github.com/Rican7/retry"
 	"github.com/Rican7/retry/strategy"
-	"github.com/meshplus/bitxhub-kit/crypto/asym"
 	"github.com/meshplus/bitxhub-kit/log"
+	"github.com/meshplus/bitxhub-kit/merkle/merkletree"
 	"github.com/meshplus/bitxhub-kit/storage"
 	"github.com/meshplus/bitxhub-kit/types"
 	"github.com/meshplus/bitxhub-model/pb"
 	"github.com/meshplus/pier/internal/agent"
-	"github.com/meshplus/pier/pkg/model"
+	"github.com/meshplus/pier/internal/lite"
 	"github.com/sirupsen/logrus"
 	"github.com/syndtr/goleveldb/leveldb"
 )
 
-var _ Syncer = (*MerkleSyncer)(nil)
+var _ Syncer = (*WrapperSyncer)(nil)
 
 var logger = log.NewWithModule("syncer")
 
-const wrapperCNumber = 1 << 10
+const maxChSize = 1 << 10
 
-// MerkleSyncer represents the necessary data for sync block wrappers from bitxhub
-type MerkleSyncer struct {
-	height     uint64
-	agent      agent.Agent
-	quorum     uint64
-	validators []types.Address
-	storage    storage.Storage
-	wrapperC   chan *pb.MerkleWrapper
+// WrapperSyncer represents the necessary data for sync tx wrappers from bitxhub
+type WrapperSyncer struct {
+	height   uint64
+	agent    agent.Agent
+	lite     lite.Lite
+	storage  storage.Storage
+	wrapperC chan *pb.InterchainTxWrapper
 
 	ctx    context.Context
 	cancel context.CancelFunc
 }
 
-// New creates instance of MerkleSyncer given agent interacting with bitxhub,
+// New creates instance of WrapperSyncer given agent interacting with bitxhub,
 // validators addresses of bitxhub and local storage
-func New(ag agent.Agent, quorum uint64, validators []types.Address, storage storage.Storage) (*MerkleSyncer, error) {
+func New(ag agent.Agent, lite lite.Lite, storage storage.Storage) (*WrapperSyncer, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 
-	return &MerkleSyncer{
-		wrapperC:   make(chan *pb.MerkleWrapper, wrapperCNumber),
-		agent:      ag,
-		quorum:     quorum,
-		validators: validators,
-		storage:    storage,
-		ctx:        ctx,
-		cancel:     cancel,
+	return &WrapperSyncer{
+		wrapperC: make(chan *pb.InterchainTxWrapper, maxChSize),
+		agent:    ag,
+		lite:     lite,
+		storage:  storage,
+		ctx:      ctx,
+		cancel:   cancel,
 	}, nil
 }
 
 // Start implements Syncer
-func (syncer *MerkleSyncer) Start() error {
+func (syncer *WrapperSyncer) Start() error {
 	meta, err := syncer.agent.GetChainMeta()
 	if err != nil {
 		return fmt.Errorf("get chain meta from bitxhub: %w", err)
@@ -74,8 +71,8 @@ func (syncer *MerkleSyncer) Start() error {
 		syncer.recover(syncer.getDemandHeight(), meta.Height)
 	}
 
-	go syncer.syncMerkleWrapper()
-	go syncer.listenMerkleWrapper()
+	go syncer.syncInterchainTxWrapper()
+	go syncer.listenInterchainTxWrapper()
 
 	logger.WithFields(logrus.Fields{
 		"current_height": syncer.height,
@@ -86,28 +83,29 @@ func (syncer *MerkleSyncer) Start() error {
 }
 
 // recover will recover those missing merkle wrapper when pier is down
-func (syncer *MerkleSyncer) recover(begin, end uint64) {
+func (syncer *WrapperSyncer) recover(begin, end uint64) {
 	logger.WithFields(logrus.Fields{
 		"begin": begin,
 		"end":   end,
 	}).Info("Syncer recover")
 
-	ch, err := syncer.agent.GetMerkleWrapper(begin, end)
-	if err != nil {
+	ch := make(chan *pb.InterchainTxWrapper, maxChSize)
+
+	if err := syncer.agent.GetInterchainTxWrapper(syncer.ctx, begin, end, ch); err != nil {
 		logger.WithFields(logrus.Fields{
 			"begin": begin,
 			"end":   end,
 			"error": err,
-		}).Warn("get merkle wrapper")
+		}).Warn("get interchain tx wrapper")
 	}
 
 	for w := range ch {
-		syncer.handleMerkleWrapper(w)
+		syncer.handleInterchainTxWrapper(w)
 	}
 }
 
 // Stop implements Syncer
-func (syncer *MerkleSyncer) Stop() error {
+func (syncer *WrapperSyncer) Stop() error {
 	syncer.cancel()
 
 	logger.Info("Syncer stopped")
@@ -115,31 +113,17 @@ func (syncer *MerkleSyncer) Stop() error {
 	return nil
 }
 
-func (syncer *MerkleSyncer) QueryWrapper(height uint64) (*pb.MerkleWrapper, error) {
-	// get wrapper from storage
-	v, err := syncer.storage.Get(model.WrapperKey(height))
-	if err != nil {
-		return nil, fmt.Errorf("get wrapper by key %d: %w", height, err)
-	}
-
-	w := &pb.MerkleWrapper{}
-	if err := w.Unmarshal(v); err != nil {
-		return nil, fmt.Errorf("unmarshal wrapper: %w", err)
-	}
-
-	return w, nil
-}
-
-// syncMerkleWrapper queries to bitxhub and syncs confirmed block
-// Note: only block wrappers generated after the connection to bitxhub
+// syncInterchainTxWrapper queries to bitxhub and syncs confirmed interchain txs
+// whose destination is the same as pierID.
+// Note: only interchain txs generated after the connection to bitxhub
 // being established will be sent to syncer
-func (syncer *MerkleSyncer) syncMerkleWrapper() {
-	loop := func(ch <-chan *pb.MerkleWrapper) {
+func (syncer *WrapperSyncer) syncInterchainTxWrapper() {
+	loop := func(ch <-chan *pb.InterchainTxWrapper) {
 		for {
 			select {
 			case wrapper, ok := <-ch:
 				if !ok {
-					logger.Warn("Unexpected closed channel while syncing merkle wrapper")
+					logger.Warn("Unexpected closed channel while syncing interchain tx wrapper")
 					return
 				}
 
@@ -177,16 +161,13 @@ func (syncer *MerkleSyncer) syncMerkleWrapper() {
 }
 
 // getWrapperChannel gets a syncing merkle wrapper channel
-func (syncer *MerkleSyncer) getWrapperChannel() chan *pb.MerkleWrapper {
-	var ch chan *pb.MerkleWrapper
+func (syncer *WrapperSyncer) getWrapperChannel() chan *pb.InterchainTxWrapper {
+	ch := make(chan *pb.InterchainTxWrapper, maxChSize)
 
 	if err := retry.Retry(func(attempt uint) error {
-		c, err := syncer.agent.SyncMerkleWrapper(syncer.ctx)
-		if err != nil {
+		if err := syncer.agent.SyncInterchainTxWrapper(syncer.ctx, ch); err != nil {
 			return err
 		}
-
-		ch = c
 
 		return nil
 	}, strategy.Wait(2*time.Second)); err != nil {
@@ -196,120 +177,141 @@ func (syncer *MerkleSyncer) getWrapperChannel() chan *pb.MerkleWrapper {
 	return ch
 }
 
-// listenMerkleWrapper listen on the wrapper channel for handling
-func (syncer *MerkleSyncer) listenMerkleWrapper() {
+// listenInterchainTxWrapper listen on the wrapper channel for handling
+func (syncer *WrapperSyncer) listenInterchainTxWrapper() {
 	for {
 		select {
 		case w := <-syncer.wrapperC:
-			if w.BlockHeader.Number < syncer.getDemandHeight() {
-				logger.WithField("height", w.BlockHeader.Number).Warn("Discard wrong wrapper")
+			if w.Height < syncer.getDemandHeight() {
+				logger.WithField("height", w.Height).Warn("Discard wrong wrapper")
 				continue
 			}
 
-			if w.BlockHeader.Number > syncer.getDemandHeight() {
+			if w.Height > syncer.getDemandHeight() {
 				logger.WithFields(logrus.Fields{
 					"begin": syncer.height,
-					"end":   w.BlockHeader.Number,
-				}).Info("Get merkle wrapper")
+					"end":   w.Height,
+				}).Info("Get interchain tx wrapper")
 
-				ch, err := syncer.agent.GetMerkleWrapper(syncer.getDemandHeight(), w.BlockHeader.Number)
-				if err != nil {
+				ch := make(chan *pb.InterchainTxWrapper, maxChSize)
+				if err := syncer.agent.GetInterchainTxWrapper(syncer.ctx, syncer.getDemandHeight(), w.Height, ch); err != nil {
 					logger.WithFields(logrus.Fields{
 						"begin": syncer.height,
-						"end":   w.BlockHeader.Number,
+						"end":   w.Height,
 						"error": err,
-					}).Warn("get merkle wrapper")
+					}).Warn("Get interchain tx wrapper")
 				}
 
 				for w := range ch {
-					syncer.handleMerkleWrapper(w)
+					syncer.handleInterchainTxWrapper(w)
 				}
 				continue
 			}
 
-			syncer.handleMerkleWrapper(w)
+			syncer.handleInterchainTxWrapper(w)
 		case <-syncer.ctx.Done():
 			return
 		}
 	}
 }
 
-// handleMerkleWrapper is the handler for merkle wrapper
-func (syncer *MerkleSyncer) handleMerkleWrapper(w *pb.MerkleWrapper) {
+// handleInterchainTxWrapper is the handler for interchain tx wrapper
+func (syncer *WrapperSyncer) handleInterchainTxWrapper(w *pb.InterchainTxWrapper) {
 	if w == nil {
-		logger.WithField("height", syncer.height).Error("empty merkle wrapper")
+		logger.WithField("height", syncer.height).Error("empty interchain tx wrapper")
 		return
 	}
 
-	if w.BlockHeader.Number < syncer.getDemandHeight() {
+	if w.Height < syncer.getDemandHeight() {
+		logger.Warn("wrong height")
 		return
 	}
 
 	if ok, err := syncer.verifyWrapper(w); !ok {
 		logger.WithFields(logrus.Fields{
-			"height": w.BlockHeader.Number,
+			"height": w.Height,
 			"error":  err,
 		}).Warn("Invalid wrapper")
 		return
 	}
 
 	logger.WithFields(logrus.Fields{
-		"height": w.BlockHeader.Number,
+		"height": w.Height,
 		"count":  len(w.Transactions),
-	}).Info("Persist merkle wrapper")
+	}).Info("Persist interchain tx wrapper")
 
 	if err := syncer.persist(w); err != nil {
 		logger.WithFields(logrus.Fields{
-			"height": w.BlockHeader.Number,
+			"height": w.Height,
 			"error":  err,
-		}).Error("Persist merkle wrapper")
+		}).Error("Persist interchain tx wrapper")
 	}
 
 	syncer.updateHeight()
 }
 
 // verifyWrapper verifies the basic of merkle wrapper from bitxhub
-func (syncer *MerkleSyncer) verifyWrapper(w *pb.MerkleWrapper) (bool, error) {
-	if w == nil || w.BlockHeader == nil {
-		return false, fmt.Errorf("empty wrapper or block header")
+func (syncer *WrapperSyncer) verifyWrapper(w *pb.InterchainTxWrapper) (bool, error) {
+	if w.Height != 1 && w.TransactionHashes == nil {
+		return false, fmt.Errorf("empty wrapper or tx hashes")
 	}
 
-	// validate if the wrapper is from bitxhub
-	if w.BlockHeader.Number != syncer.getDemandHeight() {
+	if w.Height != syncer.getDemandHeight() {
 		return false, fmt.Errorf("wrong height of wrapper from bitxhub")
 	}
 
-	// todo: wait for bitxhub to provide signatures for wrapper, now verify always return true
-	if uint64(len(w.Signatures)) <= syncer.quorum {
-		return true, fmt.Errorf("%d signatures not meet the requirement of quorum %d", len(w.Signatures), syncer.quorum)
+	if w.Height == 1 {
+		return true, nil
 	}
 
-	count := uint64(0)
-	var wg sync.WaitGroup
+	// validate if the txs is committed in bitxhub
+	hashes := make([]interface{}, 0, len(w.TransactionHashes))
+	existM := make(map[string]bool)
+	for _, hash := range w.TransactionHashes {
+		hashes = append(hashes, pb.TransactionHash(hash.Bytes()))
+		existM[hash.String()] = true
+	}
 
-	for _, validator := range syncer.validators {
-		sign, ok := w.Signatures[validator.String()]
-		if ok {
-			wg.Add(1)
-			go func(vlt types.Address, sign []byte) {
-				if isValid, _ := asym.Verify(asym.ECDSASecp256r1, sign, w.SignHash().Bytes(), vlt); isValid {
-					atomic.AddUint64(&count, 1)
-				}
-				wg.Done()
-			}(validator, sign)
+	tree := merkletree.NewMerkleTree()
+	if err := tree.InitMerkleTree(hashes); err != nil {
+		return false, err
+	}
+
+	var (
+		header *pb.BlockHeader
+		err    error
+	)
+	if err := retry.Retry(func(attempt uint) error {
+		header, err = syncer.lite.QueryHeader(w.Height)
+		if err != nil {
+			if err == leveldb.ErrNotFound {
+				return fmt.Errorf("query block header :%w", err)
+			}
+			panic(err)
 		}
+
+		return nil
+	}, strategy.Wait(2*time.Second)); err != nil {
+		panic(err)
 	}
 
-	wg.Wait()
-	if count <= syncer.quorum {
-		return true, fmt.Errorf("invalid signature")
+	// verify tx root
+	if types.Bytes2Hash(tree.GetMerkleRoot()) != header.TxRoot {
+		return false, fmt.Errorf("tx wrapper is wrong")
+	}
+
+	// verify if every interchain tx is valid
+	for _, tx := range w.Transactions {
+		if existM[tx.TransactionHash.String()] {
+			// TODO: how to deal with malicious tx found
+		}
 	}
 
 	return true, nil
 }
 
 // getLastHeight gets the current working height of Syncer
-func (syncer *MerkleSyncer) getLastHeight() (uint64, error) {
+func (syncer *WrapperSyncer) getLastHeight() (uint64, error) {
 	v, err := syncer.storage.Get(syncHeightKey())
 	if err != nil {
 		if err == leveldb.ErrNotFound {
@@ -326,11 +328,11 @@ func syncHeightKey() []byte {
 	return []byte("sync-height")
 }
 
-func (syncer *MerkleSyncer) getDemandHeight() uint64 {
+func (syncer *WrapperSyncer) getDemandHeight() uint64 {
 	return atomic.LoadUint64(&syncer.height) + 1
 }
 
 // updateHeight updates sync height and
-func (syncer *MerkleSyncer) updateHeight() {
+func (syncer *WrapperSyncer) updateHeight() {
 	atomic.AddUint64(&syncer.height, 1)
 }

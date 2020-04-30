@@ -11,14 +11,14 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-// applyMerkleWrapper validates block wrapper from bitxhub and unwrap its ibtps
+// applyInterchainTxWrapper validates interchain tx wrapper from bitxhub and unwrap its ibtps
 // if there are any interchain txs targeting to this pier;
 // if so, it will handle these interchain txs differently according to their type
-func (e *ChannelExecutor) applyMerkleWrapper(wrapper *pb.MerkleWrapper) {
+func (e *ChannelExecutor) applyInterchainTxWrapper(wrapper *pb.InterchainTxWrapper) {
 	logger.WithFields(logrus.Fields{
-		"height": wrapper.BlockHeader.Number,
+		"height": wrapper.Height,
 		"count":  len(wrapper.Transactions),
-	}).Info("Execute merkle wrapper")
+	}).Info("Execute interchain tx wrapper")
 
 	ibtps, err := e.verify(wrapper)
 	if err != nil {
@@ -32,8 +32,8 @@ func (e *ChannelExecutor) applyMerkleWrapper(wrapper *pb.MerkleWrapper) {
 
 	defer func() {
 		logger.WithFields(logrus.Fields{
-			"height": wrapper.BlockHeader.Number,
-		}).Info("Finish merkle wrapper")
+			"height": wrapper.Height,
+		}).Info("Finish interchain tx wrapper")
 
 		e.updateHeight()
 	}()

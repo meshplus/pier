@@ -8,7 +8,7 @@ import (
 	"github.com/meshplus/pier/pkg/model"
 )
 
-func (syncer *MerkleSyncer) persist(w *pb.MerkleWrapper) error {
+func (syncer *WrapperSyncer) persist(w *pb.InterchainTxWrapper) error {
 	batch := syncer.storage.NewBatch()
 
 	data, err := w.Marshal()
@@ -16,7 +16,7 @@ func (syncer *MerkleSyncer) persist(w *pb.MerkleWrapper) error {
 		return fmt.Errorf("marshal wrapper: %w", err)
 	}
 
-	batch.Put(model.WrapperKey(w.BlockHeader.Number), data)
+	batch.Put(model.WrapperKey(w.Height), data)
 
 	for _, tx := range w.Transactions {
 		ibtp, err := tx.GetIBTP()

@@ -47,19 +47,42 @@ func TestAppchain(t *testing.T) {
 func TestSyncBlock(t *testing.T) {
 	ag, mockClient := prepare(t)
 
-	hash := types.Hash{}
-	hash.SetBytes([]byte(from))
-	wrap := &pb.MerkleWrapper{
+	hash := types.String2Hash(from)
+	header := &pb.BlockHeader{
+		Timestamp: time.Now().UnixNano(),
+	}
+	wrapper := &pb.InterchainTxWrapper{
 		TransactionHashes: []types.Hash{hash, hash},
 	}
-	ch := make(chan *pb.MerkleWrapper, 1)
-	ch <- wrap
+	subHeaderCh := make(chan interface{}, 1)
+	syncHeaderCh := make(chan *pb.BlockHeader, 1)
+	subWrapperCh := make(chan interface{}, 1)
+	syncWrapperCh := make(chan *pb.InterchainTxWrapper, 1)
+	getHeaderCh := make(chan *pb.BlockHeader, 1)
+	getWrapperCh := make(chan *pb.InterchainTxWrapper, 1)
 
-	mockClient.EXPECT().SyncMerkleWrapper(gomock.Any(), gomock.Any(), gomock.Any()).Return(ch, nil)
+	subHeaderCh <- header
+	subWrapperCh <- wrapper
 
-	wrapper, err := ag.SyncMerkleWrapper(context.Background())
-	require.Nil(t, err)
-	require.Equal(t, wrap, <-wrapper)
+	mockClient.EXPECT().Subscribe(gomock.Any(), pb.SubscriptionRequest_BLOCK_HEADER, gomock.Any()).Return(subHeaderCh, nil).AnyTimes()
+	mockClient.EXPECT().Subscribe(gomock.Any(), pb.SubscriptionRequest_INTERCHAIN_TX_WRAPPER, gomock.Any()).Return(subWrapperCh, nil).AnyTimes()
+	mockClient.EXPECT().GetInterchainTxWrapper(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
+	mockClient.EXPECT().GetBlockHeader(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
+
+	require.Nil(t, ag.SyncBlockHeader(context.Background(), syncHeaderCh))
+	require.Nil(t, ag.SyncInterchainTxWrapper(context.Background(), syncWrapperCh))
+
+	require.Equal(t, header, <-syncHeaderCh)
+	require.Equal(t, wrapper, <-syncWrapperCh)
+
+	getWrapperCh <- wrapper
+	getHeaderCh <- header
+
+	require.Nil(t, ag.GetBlockHeader(context.Background(), 1, 2, getHeaderCh))
+	require.Nil(t, ag.GetInterchainTxWrapper(context.Background(), 1, 2, getWrapperCh))
+
+	require.Equal(t, header, <-getHeaderCh)
+	require.Equal(t, wrapper, <-getWrapperCh)
 }
 
 func TestSendTransaction(t *testing.T) {

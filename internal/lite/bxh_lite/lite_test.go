@@ -1,4 +1,4 @@
-package syncer
+package bxh_lite
 
 import (
 	"context"
@@ -7,13 +7,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/meshplus/bitxhub-kit/merkle/merkletree"
-
-	"github.com/meshplus/pier/pkg/model"
-
-	"github.com/meshplus/pier/internal/lite/mock_lite"
-
 	"github.com/golang/mock/gomock"
+	"github.com/meshplus/bitxhub-kit/crypto"
+	"github.com/meshplus/bitxhub-kit/crypto/asym/ecdsa"
+	"github.com/meshplus/bitxhub-kit/merkle/merkletree"
 	"github.com/meshplus/bitxhub-kit/storage/leveldb"
 	"github.com/meshplus/bitxhub-kit/types"
 	"github.com/meshplus/bitxhub-model/pb"
@@ -26,39 +23,37 @@ const (
 )
 
 func TestSyncHeader(t *testing.T) {
-	syncer, ag, lite := prepare(t)
-	defer syncer.storage.Close()
+	lite, ag, _ := prepare(t)
+	defer lite.storage.Close()
 
 	// expect mock module returns
 	txs := make([]*pb.Transaction, 0, 2)
 	txs = append(txs, getTx(t), getTx(t))
 
-	w1 := getTxWrapper(t, txs, 1)
+	h1 := getBlockHeader(t, txs, 1)
 	h2 := getBlockHeader(t, txs, 2)
-	w2 := getTxWrapper(t, txs, 2)
-	// mock invalid tx wrapper
-	w3 := getTxWrapper(t, txs, 3)
-	w3.TransactionHashes = w3.TransactionHashes[1:]
+	// mock invalid block header
+	h3 := getBlockHeader(t, txs, 3)
+	h3.TxRoot = types.String2Hash(from)
 
 	meta := &pb.ChainMeta{
 		Height:    1,
 		BlockHash: types.String2Hash(from),
 	}
-	ag.EXPECT().SyncInterchainTxWrapper(gomock.Any(), gomock.Any()).Do(func(ctx context.Context, ch chan *pb.InterchainTxWrapper) {
-		ch <- w2
-		ch <- w3
+	ag.EXPECT().SyncBlockHeader(gomock.Any(), gomock.Any()).Do(func(ctx context.Context, ch chan *pb.BlockHeader) {
+		ch <- h2
+		close(ch)
 	}).AnyTimes()
-	ag.EXPECT().GetInterchainTxWrapper(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Do(
-		func(ctx context.Context, begin, end uint64, ch chan *pb.InterchainTxWrapper) {
-			ch <- w1
+	ag.EXPECT().GetBlockHeader(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Do(
+		func(ctx context.Context, begin, end uint64, ch chan *pb.BlockHeader) {
+			ch <- h1
 			close(ch)
 		}).AnyTimes()
 	ag.EXPECT().GetChainMeta().Return(meta, nil).AnyTimes()
-	lite.EXPECT().QueryHeader(gomock.Any()).Return(h2, nil).AnyTimes()
 
 	done := make(chan bool, 1)
 	go func() {
-		err := syncer.Start()
+		err := lite.Start()
 		require.Nil(t, err)
 		<-done
 	}()
@@ -66,33 +61,36 @@ func TestSyncHeader(t *testing.T) {
 	time.Sleep(1 * time.Second)
 
 	// recover should have persist height 1 wrapper
-	receiveWrapper := &pb.InterchainTxWrapper{}
-	val, err := syncer.storage.Get(model.WrapperKey(2))
+	receivedHeader, err := lite.QueryHeader(2)
 	require.Nil(t, err)
 
-	require.Nil(t, receiveWrapper.Unmarshal(val))
-	require.Equal(t, w2, receiveWrapper)
+	require.Equal(t, h2, receivedHeader)
 	done <- true
-	require.Equal(t, uint64(2), syncer.height)
-	require.Nil(t, syncer.Stop())
+	require.Equal(t, uint64(2), lite.height)
+	require.Nil(t, lite.Stop())
 }
 
-func prepare(t *testing.T) (*WrapperSyncer, *mock_agent.MockAgent, *mock_lite.MockLite) {
+func prepare(t *testing.T) (*BxhLite, *mock_agent.MockAgent, []crypto.PrivateKey) {
 	mockCtl := gomock.NewController(t)
 	mockCtl.Finish()
-
 	ag := mock_agent.NewMockAgent(mockCtl)
-	lite := mock_lite.NewMockLite(mockCtl)
-
 	tmpDir, err := ioutil.TempDir("", "storage")
 	require.Nil(t, err)
 	storage, err := leveldb.New(tmpDir)
 	require.Nil(t, err)
 
-	syncer, err := New(ag, lite, storage)
+	keys := getVlts(t)
+	var vltSet []types.Address
+	for _, key := range keys {
+		vlt, err := key.PublicKey().Address()
+		require.Nil(t, err)
+		vltSet = append(vltSet, vlt)
+	}
+
+	lite, err := New(ag, storage)
 	require.Nil(t, err)
 
-	return syncer, ag, lite
+	return lite, ag, keys
 }
 
 func getBlockHeader(t *testing.T, txs []*pb.Transaction, number uint64) *pb.BlockHeader {
@@ -116,20 +114,14 @@ func getBlockHeader(t *testing.T, txs []*pb.Transaction, number uint64) *pb.Bloc
 	return wrapper
 }
 
-func getTxWrapper(t *testing.T, txs []*pb.Transaction, number uint64) *pb.InterchainTxWrapper {
-	hashes := make([]types.Hash, 0, len(txs))
-	for i := 0; i < len(txs); i++ {
-		hash := txs[i].Hash()
-		hashes = append(hashes, hash)
+func getVlts(t *testing.T) []crypto.PrivateKey {
+	var keys []crypto.PrivateKey
+	for i := 0; i < 4; i++ {
+		priv, err := ecdsa.GenerateKey(ecdsa.Secp256r1)
+		require.Nil(t, err)
+		keys = append(keys, priv)
 	}
-
-	wrapper := &pb.InterchainTxWrapper{
-		Transactions:      txs,
-		TransactionHashes: hashes,
-		Height:            number,
-	}
-
-	return wrapper
+	return keys
 }
 
 func getTx(t *testing.T) *pb.Transaction {

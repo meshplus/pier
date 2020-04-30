@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"path/filepath"
 
-	"github.com/sirupsen/logrus"
+	"github.com/meshplus/pier/internal/syncer"
 
 	"github.com/meshplus/bitxhub-kit/crypto"
 	"github.com/meshplus/bitxhub-kit/log"
@@ -15,11 +15,13 @@ import (
 	rpcx "github.com/meshplus/go-bitxhub-client"
 	"github.com/meshplus/pier/internal/agent"
 	"github.com/meshplus/pier/internal/executor"
+	"github.com/meshplus/pier/internal/lite"
+	"github.com/meshplus/pier/internal/lite/bxh_lite"
 	"github.com/meshplus/pier/internal/monitor"
 	"github.com/meshplus/pier/internal/repo"
-	"github.com/meshplus/pier/internal/syncer"
 	"github.com/meshplus/pier/pkg/plugins"
 	plugin "github.com/meshplus/pier/pkg/plugins/client"
+	"github.com/sirupsen/logrus"
 )
 
 var logger = log.NewWithModule("app")
@@ -31,7 +33,8 @@ type Pier struct {
 	agent      agent.Agent
 	monitor    monitor.Monitor
 	exec       executor.Executor
-	sync       syncer.Syncer
+	lite       lite.Lite
+	syncer     syncer.Syncer
 	storage    storage.Storage
 	ctx        context.Context
 	cancel     context.CancelFunc
@@ -98,11 +101,15 @@ func NewPier(repoRoot string, config *repo.Config) (*Pier, error) {
 		return nil, fmt.Errorf("executor create: %w", err)
 	}
 
-	sync, err := syncer.New(ag, config.Bitxhub.Quorum, config.Bitxhub.GetValidators(), storage)
+	lite, err := bxh_lite.New(ag, storage)
+	if err != nil {
+		return nil, fmt.Errorf("lite create: %w", err)
+	}
+
+	syncer, err := syncer.New(ag, lite, storage)
 	if err != nil {
 		return nil, fmt.Errorf("syncer create: %w", err)
 	}
-
 	ctx, cancel := context.WithCancel(context.Background())
 
 	return &Pier{
@@ -112,7 +119,8 @@ func NewPier(repoRoot string, config *repo.Config) (*Pier, error) {
 		meta:       chain,
 		monitor:    mnt,
 		exec:       exec,
-		sync:       sync,
+		lite:       lite,
+		syncer:     syncer,
 		storage:    storage,
 		ctx:        ctx,
 		cancel:     cancel,
@@ -136,8 +144,12 @@ func (pier *Pier) Start() error {
 		return fmt.Errorf("executor start: %w", err)
 	}
 
-	if err := pier.sync.Start(); err != nil {
-		return fmt.Errorf("sync start: %w", err)
+	if err := pier.lite.Start(); err != nil {
+		return fmt.Errorf("lite start: %w", err)
+	}
+
+	if err := pier.syncer.Start(); err != nil {
+		return fmt.Errorf("syncer start: %w", err)
 	}
 
 	return nil
@@ -153,8 +165,12 @@ func (pier *Pier) Stop() error {
 		return fmt.Errorf("executor stop: %w", err)
 	}
 
-	if err := pier.sync.Stop(); err != nil {
-		return fmt.Errorf("sync stop: %w", err)
+	if err := pier.lite.Stop(); err != nil {
+		return fmt.Errorf("lite stop: %w", err)
+	}
+
+	if err := pier.syncer.Stop(); err != nil {
+		return fmt.Errorf("syncer stop: %w", err)
 	}
 
 	return nil

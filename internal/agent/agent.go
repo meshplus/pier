@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/meshplus/bitxhub-kit/hexutil"
 	"github.com/meshplus/bitxhub-kit/types"
 	"github.com/meshplus/bitxhub-model/pb"
 	rpcx "github.com/meshplus/go-bitxhub-client"
@@ -58,17 +57,65 @@ func (agent *BxhAgent) Appchain() (*rpcx.Appchain, error) {
 	return appchain, nil
 }
 
-// SyncMerkleWrapper implements Agent
-func (agent *BxhAgent) SyncMerkleWrapper(ctx context.Context) (chan *pb.MerkleWrapper, error) {
-	return agent.client.SyncMerkleWrapper(ctx, hexutil.Encode(agent.from[:]), 0)
+func (agent *BxhAgent) SyncBlockHeader(ctx context.Context, headerCh chan *pb.BlockHeader) error {
+	ch, err := agent.client.Subscribe(ctx, pb.SubscriptionRequest_BLOCK_HEADER, nil)
+	if err != nil {
+		return err
+	}
+
+	go func() {
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case h, ok := <-ch:
+				if !ok {
+					close(headerCh)
+					return
+				}
+				headerCh <- h.(*pb.BlockHeader)
+			}
+		}
+	}()
+
+	return nil
 }
 
-// GetMerkleWrapper implements Agent
-func (agent *BxhAgent) GetMerkleWrapper(begin, end uint64) (chan *pb.MerkleWrapper, error) {
-	ctx := context.Background()
-	ch := make(chan *pb.MerkleWrapper, end-begin+1)
+func (agent *BxhAgent) GetBlockHeader(ctx context.Context, begin, end uint64, ch chan *pb.BlockHeader) error {
+	if err := agent.client.GetBlockHeader(ctx, begin, end, ch); err != nil {
+		return err
+	}
 
-	return ch, agent.client.GetMerkleWrapper(ctx, agent.from.String(), begin, end, ch)
+	return nil
+}
+
+func (agent *BxhAgent) SyncInterchainTxWrapper(ctx context.Context, txCh chan *pb.InterchainTxWrapper) error {
+	ch, err := agent.client.Subscribe(ctx, pb.SubscriptionRequest_INTERCHAIN_TX_WRAPPER, agent.from.Bytes())
+	if err != nil {
+		return err
+	}
+
+	go func() {
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case h, ok := <-ch:
+				if !ok {
+					close(txCh)
+					return
+				}
+				txCh <- h.(*pb.InterchainTxWrapper)
+			}
+		}
+	}()
+
+	return nil
+}
+
+// GetInterchainTxWrapper implements Agent
+func (agent *BxhAgent) GetInterchainTxWrapper(ctx context.Context, begin, end uint64, ch chan *pb.InterchainTxWrapper) error {
+	return agent.client.GetInterchainTxWrapper(ctx, agent.from.String(), begin, end, ch)
 }
 
 // SendTransaction implements Agent
