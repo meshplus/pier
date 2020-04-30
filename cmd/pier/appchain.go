@@ -103,6 +103,11 @@ func registerAppchain(ctx *cli.Context) error {
 		return fmt.Errorf("load client: %w", err)
 	}
 
+	pubKey, err := getPubKey(repo.KeyPath(repoRoot))
+	if err != nil {
+		return fmt.Errorf("get public key: %w", err)
+	}
+
 	receipt, err := client.InvokeBVMContract(
 		rpcx.InterchainContractAddr,
 		"Register", rpcx.String(string(data)),
@@ -111,6 +116,7 @@ func registerAppchain(ctx *cli.Context) error {
 		rpcx.String(name),
 		rpcx.String(desc),
 		rpcx.String(version),
+		rpcx.String(string(pubKey)),
 	)
 	if err != nil {
 		return fmt.Errorf("invoke bvm contract: %w", err)
@@ -218,4 +224,18 @@ func loadClient(keyPath, grpcAddr string) (rpcx.Client, error) {
 		rpcx.WithAddrs([]string{grpcAddr}),
 		rpcx.WithPrivateKey(privateKey),
 	)
+}
+
+func getPubKey(keyPath string) ([]byte, error) {
+	key, err := key.LoadKey(keyPath)
+	if err != nil {
+		return nil, err
+	}
+
+	privateKey, err := key.GetPrivateKey("bitxhub")
+	if err != nil {
+		return nil, err
+	}
+
+	return privateKey.PublicKey().Bytes()
 }
