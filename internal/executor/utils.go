@@ -23,14 +23,42 @@ func (e *ChannelExecutor) generateCallback(toExecute *pb.IBTP, args [][]byte) (r
 		return nil, fmt.Errorf("ibtp payload unmarshal: %w", err)
 	}
 
+	ct := &pb.Content{}
+	contentByte := pd.Content
+
+	if pd.Encrypted {
+		contentByte, err = e.cryptor.Decrypt(contentByte, toExecute.From)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	if err := ct.Unmarshal(contentByte); err != nil {
+		return nil, fmt.Errorf("ibtp payload content unmarshal: %w", err)
+	}
+
 	as := make([][]byte, 0)
-	as = append(as, pd.Args[0])
+	as = append(as, ct.Args[0])
 	as = append(as, args...)
-	newPayload := &pb.Payload{
-		SrcContractId: pd.SrcContractId,
-		DstContractId: pd.DstContractId,
-		Func:          pd.Callback,
+	newContent := &pb.Content{
+		SrcContractId: ct.SrcContractId,
+		DstContractId: ct.DstContractId,
+		Func:          ct.Callback,
 		Args:          as,
+	}
+	ctb, err := newContent.Marshal()
+	if err != nil {
+		return nil, err
+	}
+	if pd.Encrypted {
+		ctb, err = e.cryptor.Encrypt(ctb, toExecute.To)
+		if err != nil {
+			return nil, err
+		}
+	}
+	newPayload := &pb.Payload{
+		Encrypted: pd.Encrypted,
+		Content:   ctb,
 	}
 	pdb, err := newPayload.Marshal()
 	if err != nil {
