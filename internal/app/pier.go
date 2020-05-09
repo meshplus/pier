@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"path/filepath"
 
-	"github.com/meshplus/pier/internal/syncer"
+	"github.com/meshplus/pier/internal/txcrypto"
 
 	"github.com/meshplus/bitxhub-kit/crypto"
 	"github.com/meshplus/bitxhub-kit/log"
@@ -19,6 +19,7 @@ import (
 	"github.com/meshplus/pier/internal/lite/bxh_lite"
 	"github.com/meshplus/pier/internal/monitor"
 	"github.com/meshplus/pier/internal/repo"
+	"github.com/meshplus/pier/internal/syncer"
 	"github.com/meshplus/pier/pkg/plugins"
 	plugin "github.com/meshplus/pier/pkg/plugins/client"
 	"github.com/sirupsen/logrus"
@@ -91,12 +92,17 @@ func NewPier(repoRoot string, config *repo.Config) (*Pier, error) {
 		return nil, fmt.Errorf("client create: %w", err)
 	}
 
-	mnt, err := monitor.New(ag, cli, chain)
+	cryptor, err := txcrypto.NewRelayCryptor(client, privateKey)
+	if err != nil {
+		return nil, fmt.Errorf("cryptor create: %w", err)
+	}
+
+	mnt, err := monitor.New(ag, cli, chain, cryptor)
 	if err != nil {
 		return nil, fmt.Errorf("monitor create: %w", err)
 	}
 
-	exec, err := executor.NewChannelExecutor(ag, cli, chain, storage)
+	exec, err := executor.NewChannelExecutor(ag, cli, chain, storage, cryptor)
 	if err != nil {
 		return nil, fmt.Errorf("executor create: %w", err)
 	}

@@ -161,14 +161,22 @@ func getTx(t *testing.T) *pb.Transaction {
 }
 
 func getIBTP(t *testing.T, index uint64, typ pb.IBTP_Type) *pb.IBTP {
-	pd := &pb.Payload{
+	ct := &pb.Content{
 		SrcContractId: from,
 		DstContractId: from,
 		Func:          "set",
 		Args:          [][]byte{[]byte("Alice")},
 	}
+	c, err := ct.Marshal()
+	require.Nil(t, err)
+
+	pd := pb.Payload{
+		Encrypted: false,
+		Content:   c,
+	}
 	ibtppd, err := pd.Marshal()
 	require.Nil(t, err)
+
 	return &pb.IBTP{
 		From:      from,
 		To:        from,

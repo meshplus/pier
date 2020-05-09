@@ -12,6 +12,7 @@ import (
 	"github.com/meshplus/bitxhub-model/pb"
 	rpcx "github.com/meshplus/go-bitxhub-client"
 	"github.com/meshplus/pier/internal/agent/mock_agent"
+	"github.com/meshplus/pier/internal/txcrypto/mock_txcrypto"
 	"github.com/meshplus/pier/pkg/model"
 	"github.com/meshplus/pier/pkg/plugins/client/mock_client"
 	"github.com/stretchr/testify/require"
@@ -103,6 +104,7 @@ func prepare(t *testing.T) (*ChannelExecutor, *mock_agent.MockAgent, *mock_clien
 	mockCtl.Finish()
 	ag := mock_agent.NewMockAgent(mockCtl)
 	cli := mock_client.NewMockClient(mockCtl)
+	cryptor := mock_txcrypto.NewMockCryptor(mockCtl)
 
 	tmpDir, err := ioutil.TempDir("", "storage")
 	require.Nil(t, err)
@@ -118,7 +120,7 @@ func prepare(t *testing.T) (*ChannelExecutor, *mock_agent.MockAgent, *mock_clien
 
 	cli.EXPECT().GetInMeta().Return(make(map[string]uint64), nil).AnyTimes()
 	cli.EXPECT().GetCallbackMeta().Return(make(map[string]uint64), nil).AnyTimes()
-	exec, err := NewChannelExecutor(ag, cli, meta, storage)
+	exec, err := NewChannelExecutor(ag, cli, meta, storage, cryptor)
 	require.Nil(t, err)
 	return exec, ag, cli
 }
@@ -174,14 +176,22 @@ func getTx(t *testing.T, index uint64, typ pb.IBTP_Type) *pb.Transaction {
 }
 
 func getIBTP(t *testing.T, index uint64, typ pb.IBTP_Type) *pb.IBTP {
-	pd := &pb.Payload{
+	ct := &pb.Content{
 		SrcContractId: from,
 		DstContractId: from,
 		Func:          "set",
 		Args:          [][]byte{[]byte("Alice")},
 	}
+	c, err := ct.Marshal()
+	require.Nil(t, err)
+
+	pd := pb.Payload{
+		Encrypted: false,
+		Content:   c,
+	}
 	ibtppd, err := pd.Marshal()
 	require.Nil(t, err)
+
 	return &pb.IBTP{
 		From:      from,
 		To:        from,

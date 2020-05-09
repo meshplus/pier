@@ -13,6 +13,7 @@ import (
 	"github.com/meshplus/bitxhub-model/pb"
 	rpcx "github.com/meshplus/go-bitxhub-client"
 	"github.com/meshplus/pier/internal/agent"
+	"github.com/meshplus/pier/internal/txcrypto"
 	"github.com/meshplus/pier/pkg/plugins/client"
 	"github.com/sirupsen/logrus"
 )
@@ -27,22 +28,24 @@ type AppchainMonitor struct {
 	suspended uint64
 	ctx       context.Context
 	cancel    context.CancelFunc
+	cryptor   txcrypto.Cryptor
 }
 
 // New creates monitor instance given agent of bitxhub, client interacting with appchain
 // and meta about appchain.
-func New(agent agent.Agent, client client.Client, meta *rpcx.Appchain) (*AppchainMonitor, error) {
+func New(agent agent.Agent, client client.Client, meta *rpcx.Appchain, cryptor txcrypto.Cryptor) (*AppchainMonitor, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	if meta.InterchainCounter == nil {
 		meta.InterchainCounter = make(map[string]uint64)
 	}
 	return &AppchainMonitor{
-		agent:  agent,
-		client: client,
-		meta:   meta,
-		ctx:    ctx,
-		cancel: cancel,
+		agent:   agent,
+		client:  client,
+		meta:    meta,
+		ctx:     ctx,
+		cancel:  cancel,
+		cryptor: cryptor,
 	}, nil
 }
 
@@ -137,6 +140,13 @@ func (m *AppchainMonitor) handleIBTP(ibtp *pb.IBTP) {
 		}
 	}
 
+	ibtp, err := m.checkEnrcyption(ibtp)
+	if err != nil {
+		logger.WithFields(logrus.Fields{
+			"index": ibtp.Index,
+			"to":    types.String2Address(ibtp.To).ShortString(),
+		}).Error("check encryption")
+	}
 	m.send(ibtp)
 }
 
@@ -176,6 +186,11 @@ func (m *AppchainMonitor) handleMissingIBTP(to string, begin, end uint64) error 
 		ev, err := m.getIBTP(to, begin)
 		if err != nil {
 			return fmt.Errorf("fetch ibtp:%w", err)
+		}
+
+		ev, err = m.checkEnrcyption(ev)
+		if err != nil {
+			return fmt.Errorf("check enrcyption:%w", err)
 		}
 
 		m.send(ev)
@@ -230,4 +245,27 @@ func (m *AppchainMonitor) send(ibtp *pb.IBTP) {
 	}, strategy.Wait(1*time.Second)); err != nil {
 		panic(err.Error())
 	}
+}
+
+func (m *AppchainMonitor) checkEnrcyption(ibtp *pb.IBTP) (*pb.IBTP, error) {
+	pld := &pb.Payload{}
+	if err := pld.Unmarshal(ibtp.Payload); err != nil {
+		return ibtp, err
+	}
+	if !pld.Encrypted {
+		return ibtp, nil
+	}
+
+	ctb, err := m.cryptor.Encrypt(pld.Content, ibtp.To)
+	if err != nil {
+		return ibtp, err
+	}
+	pld.Content = ctb
+	payload, err := pld.Marshal()
+	if err != nil {
+		return ibtp, err
+	}
+	ibtp.Payload = payload
+
+	return ibtp, nil
 }

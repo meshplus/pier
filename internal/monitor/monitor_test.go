@@ -9,6 +9,7 @@ import (
 	"github.com/meshplus/bitxhub-model/pb"
 	rpcx "github.com/meshplus/go-bitxhub-client"
 	"github.com/meshplus/pier/internal/agent/mock_agent"
+	"github.com/meshplus/pier/internal/txcrypto/mock_txcrypto"
 	"github.com/meshplus/pier/pkg/plugins/client/mock_client"
 	"github.com/stretchr/testify/require"
 )
@@ -113,6 +114,7 @@ func prepare(t *testing.T) (*mock_agent.MockAgent, *mock_client.MockClient, *App
 
 	mockAgent := mock_agent.NewMockAgent(mockCtl)
 	mockClient := mock_client.NewMockClient(mockCtl)
+	mockCryptor := mock_txcrypto.NewMockCryptor(mockCtl)
 	meta := &rpcx.Appchain{
 		ID:            from,
 		Name:          "hyperchain",
@@ -121,18 +123,26 @@ func prepare(t *testing.T) (*mock_agent.MockAgent, *mock_client.MockClient, *App
 		Status:        0,
 		ChainType:     "hyperchain",
 	}
-	mnt, err := New(mockAgent, mockClient, meta)
+	mnt, err := New(mockAgent, mockClient, meta, mockCryptor)
 	require.Nil(t, err)
 	return mockAgent, mockClient, mnt
 }
 
 func createIBTP(idx uint64, typ pb.IBTP_Type, funct string, args string, callback string) (*pb.IBTP, error) {
-	pd := pb.Payload{
+	ct := pb.Content{
 		SrcContractId: fid,
 		DstContractId: tid,
 		Func:          funct,
 		Args:          [][]byte{[]byte(args)},
 		Callback:      callback,
+	}
+	c, err := ct.Marshal()
+	if err != nil {
+		return nil, err
+	}
+	pd := pb.Payload{
+		Encrypted: false,
+		Content:   c,
 	}
 	b, err := pd.Marshal()
 	if err != nil {

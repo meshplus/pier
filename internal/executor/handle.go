@@ -162,8 +162,21 @@ func (e *ChannelExecutor) applyReceiptIBTP(ibtp *pb.IBTP) {
 		logger.WithField("error", err).Panic("Unmarshal receipt type ibtp payload")
 	}
 
+	ct := &pb.Content{}
+	contentByte := pd.Content
+
+	var err error
+	if pd.Encrypted {
+		contentByte, err = e.cryptor.Decrypt(contentByte, ibtp.To)
+		logger.WithField("error", err).Panic("Decrypt the content")
+	}
+
+	if err := ct.Unmarshal(contentByte); err != nil {
+		logger.WithField("error", err).Panic("Unmarshal receipt type ibtp payload content")
+	}
+
 	// if this receipt is for executing callback function
-	if pd.Func != "" {
+	if ct.Func != "" {
 		// if this is a callback ibtp, retry it until it worked
 		// because it might be rollback in asset
 		if err := retry.Retry(func(attempt uint) error {
