@@ -1,0 +1,19 @@
+syntax = "proto3";
+
+package peermgr;
+
+message Message {
+    enum Type {
+        APPCHAIN = 0;
+        APPCHAIN_ACK = 1;
+        RULE = 2;
+        RULE_ACK = 3;
+        QUERY_IBTP = 4;
+        QUERY_IBTP_ACK = 5;
+        IBTP = 6;
+        IBTP_RECEIPT = 7;
+    }
+    Type type = 1;
+    bytes data = 2;
+    bytes Version = 3;
+}
