@@ -162,7 +162,7 @@ func prepare(t *testing.T) (*BxhAgent, *mock_client.MockClient) {
 
 	addr := types.Address{}
 	addr.SetBytes([]byte(from))
-	bitxhub := repo.Bitxhub{
+	bitxhub := repo.Relay{
 		Addr: "localhost:60011",
 		Validators: []string{
 			"0x000f1a7a08ccc48e5d30f80850cf1cf283aa3abd",
