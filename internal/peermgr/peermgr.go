@@ -17,16 +17,16 @@ type PeerManager interface {
 	Stop() error
 
 	// AsyncSend sends message to peer with peer info.
-	AsyncSend(uint64, *peermgr.Message) error
+	AsyncSend(string, *peermgr.Message) error
 
 	// SendWithStream sends message using existed stream
 	SendWithStream(network.Stream, *peermgr.Message) error
 
 	// Send sends message waiting response
-	Send(uint64, *peermgr.Message) (*peermgr.Message, error)
+	Send(string, *peermgr.Message) (*peermgr.Message, error)
 
 	// Peers
-	Peers() map[uint64]*peer.AddrInfo
+	Peers() map[string]*peer.AddrInfo
 
 	// RegisterMsgHandler
 	RegisterMsgHandler(peermgr.Message_Type, MessageHandler) error
