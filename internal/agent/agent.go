@@ -25,7 +25,7 @@ type BxhAgent struct {
 
 // New create an instance of BxhAgent given the client of bitxhub and
 // the appchain id and some configuration of bitxhub
-func New(client rpcx.Client, pierID types.Address, bitxhub repo.Bitxhub) (*BxhAgent, error) {
+func New(client rpcx.Client, pierID types.Address, bitxhub repo.Relay) (*BxhAgent, error) {
 	return &BxhAgent{
 		client:     client,
 		from:       pierID,

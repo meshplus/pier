@@ -6,8 +6,6 @@ import (
 	"fmt"
 	"path/filepath"
 
-	"github.com/meshplus/pier/internal/txcrypto"
-
 	"github.com/meshplus/bitxhub-kit/crypto"
 	"github.com/meshplus/bitxhub-kit/log"
 	"github.com/meshplus/bitxhub-kit/storage"
@@ -20,6 +18,7 @@ import (
 	"github.com/meshplus/pier/internal/monitor"
 	"github.com/meshplus/pier/internal/repo"
 	"github.com/meshplus/pier/internal/syncer"
+	"github.com/meshplus/pier/internal/txcrypto"
 	"github.com/meshplus/pier/pkg/plugins"
 	plugin "github.com/meshplus/pier/pkg/plugins/client"
 	"github.com/sirupsen/logrus"
@@ -57,7 +56,7 @@ func NewPier(repoRoot string, config *repo.Config) (*Pier, error) {
 	// pier register to bitxhub and got meta infos about its related
 	// appchain from bitxhub
 	client, err := rpcx.New(
-		rpcx.WithAddrs([]string{config.Bitxhub.Addr}),
+		rpcx.WithAddrs([]string{config.Mode.Relay.Addr}),
 		rpcx.WithLogger(logger),
 		rpcx.WithPrivateKey(privateKey),
 	)
@@ -70,7 +69,7 @@ func NewPier(repoRoot string, config *repo.Config) (*Pier, error) {
 		return nil, fmt.Errorf("get address from private key %w", err)
 	}
 
-	ag, err := agent.New(client, addr, config.Bitxhub)
+	ag, err := agent.New(client, addr, config.Mode.Relay)
 	if err != nil {
 		return nil, fmt.Errorf("create agent error: %w", err)
 	}

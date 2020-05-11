@@ -98,7 +98,7 @@ func registerAppchain(ctx *cli.Context) error {
 		return fmt.Errorf("init config error: %s", err)
 	}
 
-	client, err := loadClient(repo.KeyPath(repoRoot), config.Bitxhub.Addr)
+	client, err := loadClient(repo.KeyPath(repoRoot), config.Mode.Relay.Addr)
 	if err != nil {
 		return fmt.Errorf("load client: %w", err)
 	}
@@ -149,7 +149,7 @@ func auditAppchain(ctx *cli.Context) error {
 		return fmt.Errorf("init config error: %s", err)
 	}
 
-	client, err := loadClient(repo.KeyPath(repoRoot), config.Bitxhub.Addr)
+	client, err := loadClient(repo.KeyPath(repoRoot), config.Mode.Relay.Addr)
 	if err != nil {
 		return fmt.Errorf("load client: %w", err)
 	}
@@ -186,7 +186,7 @@ func getAppchain(ctx *cli.Context) error {
 		return fmt.Errorf("init config error: %s", err)
 	}
 
-	client, err := loadClient(repo.KeyPath(repoRoot), config.Bitxhub.Addr)
+	client, err := loadClient(repo.KeyPath(repoRoot), config.Mode.Relay.Addr)
 	if err != nil {
 		return fmt.Errorf("load client: %w", err)
 	}
