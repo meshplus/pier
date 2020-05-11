@@ -5,15 +5,11 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/meshplus/bitxhub-kit/storage"
-
 	"github.com/Rican7/retry"
 	"github.com/Rican7/retry/strategy"
-
-	"github.com/syndtr/goleveldb/leveldb"
-
-	"github.com/meshplus/bitxhub-model/pb"
+	"github.com/meshplus/bitxhub-kit/storage"
 	"github.com/sirupsen/logrus"
+	"github.com/syndtr/goleveldb/leveldb"
 )
 
 // recover recovers block height and unsent receipt to bitxhub
@@ -69,29 +65,30 @@ func (e *ChannelExecutor) handleMissingReceipt(from string, begin uint64, end ui
 				"index": begin,
 			})
 
-			receipt, err := e.getReceipt(from, begin)
-			if err != nil {
-				entry.WithField("error", err).Error("Get missing execution receipt")
-				return err
-			}
+			// todo: query original interchain tx from lite?
+			//receipt, err := e.getReceipt(from, begin)
+			//if err != nil {
+			//	entry.WithField("error", err).Error("Get missing execution receipt")
+			//	return err
+			//}
 
-			// send receipt back to bitxhub
-			result, err := e.agent.SendIBTP(receipt)
-			if err != nil {
-				entry.WithField("error", err).Error("Send execution receipt to bitxhub")
-				return err
-			}
-
-			if !result.IsSuccess() {
-				entry.WithField("error", err).Error("Send execution receipt to bitxhub")
-			}
-
-			e.sourceReceiptMeta[from]++
-
-			entry.WithFields(logrus.Fields{
-				"status": result.Status,
-				"hash":   result.TxHash,
-			}).Info("Get missing execution receipt from appchain")
+			//// send receipt back to bitxhub
+			//result, err := e.agent.SendIBTP(receipt)
+			//if err != nil {
+			//	entry.WithField("error", err).Error("Send execution receipt to bitxhub")
+			//	return err
+			//}
+			//
+			//if !result.IsSuccess() {
+			//	entry.WithField("error", err).Error("Send execution receipt to bitxhub")
+			//}
+			//
+			//e.sourceReceiptMeta[from]++
+			//
+			//entry.WithFields(logrus.Fields{
+			//	"status": result.Status,
+			//	"hash":   result.TxHash,
+			//}).Info("Get missing execution receipt from appchain")
 
 			return nil
 		}, strategy.Wait(1*time.Second))
@@ -106,16 +103,16 @@ func (e *ChannelExecutor) handleMissingReceipt(from string, begin uint64, end ui
 }
 
 // getReceipt only generates one receipt given source chain id and interchain tx index
-func (e *ChannelExecutor) getReceipt(from string, idx uint64) (*pb.IBTP, error) {
-	ret, err := e.client.GetInMessage(from, idx)
-	if err != nil {
-		return nil, fmt.Errorf("get execution receipt message from appchain: %w", err)
-	}
-
-	ibtp, err := e.agent.GetIBTPByID(fmt.Sprintf("%s-%s-%d", from, e.id, idx))
-	if err != nil {
-		return nil, fmt.Errorf("get execution receipt for id %s-%s-%d from bitxhub:%w", from, e.id, idx, err)
-	}
-
-	return e.generateCallback(ibtp, ret)
-}
+//func (e *ChannelExecutor) getReceipt(from string, idx uint64) (*pb.IBTP, error) {
+//	ret, err := e.client.GetInMessage(from, idx)
+//	if err != nil {
+//		return nil, fmt.Errorf("get execution receipt message from appchain: %w", err)
+//	}
+//
+//	ibtp, err := e.agent.GetIBTPByID(fmt.Sprintf("%s-%s-%d", from, e.id, idx))
+//	if err != nil {
+//		return nil, fmt.Errorf("get execution receipt for id %s-%s-%d from bitxhub:%w", from, e.id, idx, err)
+//	}
+//
+//	return e.generateCallback(ibtp, ret)
+//}

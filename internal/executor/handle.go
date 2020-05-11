@@ -11,10 +11,10 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-// applyInterchainTxWrapper validates interchain tx wrapper from bitxhub and unwrap its ibtps
+// HandleInterchainTxWrapper validates interchain tx wrapper from bitxhub and unwrap its ibtps
 // if there are any interchain txs targeting to this pier;
 // if so, it will handle these interchain txs differently according to their type
-func (e *ChannelExecutor) applyInterchainTxWrapper(wrapper *pb.InterchainTxWrapper) {
+func (e *ChannelExecutor) HandleInterchainTxWrapper(wrapper *pb.InterchainTxWrapper) {
 	logger.WithFields(logrus.Fields{
 		"height": wrapper.Height,
 		"count":  len(wrapper.Transactions),
@@ -133,26 +133,29 @@ func (e *ChannelExecutor) applyInterchainIBTP(ibtp *pb.IBTP) {
 		}).Warn("Get wrong response")
 	}
 
-	if err := retry.Retry(func(attempt uint) error {
-		receipt, err := e.agent.SendIBTP(response.Result)
-		if err != nil {
-			entry.Error(err)
-			return err
-		}
-
-		if !receipt.IsSuccess() {
-			entry.WithField("error", string(receipt.Ret)).Error("Send receipt IBTP")
-			return nil
-		}
-
-		entry.Info("Send receipt IBTP")
-
-		return nil
-	}, strategy.Wait(1*time.Second)); err != nil {
-		entry.Panicf("Can't send rollback ibtp back to bitxhub: %s", err.Error())
-	}
+	//if err := retry.Retry(func(attempt uint) error {
+	//	receipt, err := e.agent.SendIBTP(response.Result)
+	//	if err != nil {
+	//		entry.Error(err)
+	//		return err
+	//	}
+	//
+	//	if !receipt.IsSuccess() {
+	//		entry.WithField("error", string(receipt.Ret)).Error("Send receipt IBTP")
+	//		return nil
+	//	}
+	//
+	//	entry.Info("Send receipt IBTP")
+	//
+	//	return nil
+	//}, strategy.Wait(1*time.Second)); err != nil {
+	//	entry.Panicf("Can't send rollback ibtp back to bitxhub: %s", err.Error())
+	//}
 
 	e.executeMeta[ibtp.From]++
+
+	// send back receipt
+	e.receiptSub.Send(response.Result)
 	e.sourceReceiptMeta[ibtp.From]++
 }
 

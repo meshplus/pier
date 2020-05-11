@@ -6,6 +6,7 @@ package mock_executor
 
 import (
 	gomock "github.com/golang/mock/gomock"
+	pb "github.com/meshplus/bitxhub-model/pb"
 	reflect "reflect"
 )
 
@@ -58,4 +59,33 @@ func (m *MockExecutor) Stop() error {
 func (mr *MockExecutorMockRecorder) Stop() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Stop", reflect.TypeOf((*MockExecutor)(nil).Stop))
+}
+
+// HandleIBTP mocks base method
+func (m *MockExecutor) HandleIBTP(ibtp *pb.IBTP) (*pb.IBTP, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "HandleIBTP", ibtp)
+	ret0, _ := ret[0].(*pb.IBTP)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// HandleIBTP indicates an expected call of HandleIBTP
+func (mr *MockExecutorMockRecorder) HandleIBTP(ibtp interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "HandleIBTP", reflect.TypeOf((*MockExecutor)(nil).HandleIBTP), ibtp)
+}
+
+// QueryLatestMeta mocks base method
+func (m *MockExecutor) QueryLatestMeta() map[string]uint64 {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "QueryLatestMeta")
+	ret0, _ := ret[0].(map[string]uint64)
+	return ret0
+}
+
+// QueryLatestMeta indicates an expected call of QueryLatestMeta
+func (mr *MockExecutorMockRecorder) QueryLatestMeta() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "QueryLatestMeta", reflect.TypeOf((*MockExecutor)(nil).QueryLatestMeta))
 }
