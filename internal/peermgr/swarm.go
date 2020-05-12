@@ -207,8 +207,8 @@ func (swarm *Swarm) getAddrInfo(id string) (*peer.AddrInfo, error) {
 	return addr.(*peer.AddrInfo), nil
 }
 
-func convertToLibp2pPrivKey(privateKey interface{}) (crypto2.PrivKey, error) {
-	ecdsaPrivKey, ok := privateKey.(ecdsa.PrivateKey)
+func convertToLibp2pPrivKey(privateKey crypto.PrivateKey) (crypto2.PrivKey, error) {
+	ecdsaPrivKey, ok := privateKey.(*ecdsa.PrivateKey)
 	if !ok {
 		return nil, fmt.Errorf("convert to libp2p private key: not ecdsa private key")
 	}
@@ -232,7 +232,12 @@ func loadPeers(peers []string, privateKey crypto2.PrivKey) (string, map[string]*
 
 	for _, p := range peers {
 		if strings.HasSuffix(p, id.String()) {
-			local = p
+			idx := strings.LastIndex(p, "/p2p/")
+			if idx == -1 {
+				return "", nil, fmt.Errorf("pid is not existed in bootstrap")
+			}
+
+			local = p[:idx]
 		} else {
 			addr, err := AddrToPeerInfo(p)
 			if err != nil {
