@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/meshplus/pier/internal/validation"
 	"github.com/gin-gonic/gin"
 	appchainmgr "github.com/meshplus/bitxhub-core/appchain-mgr"
 	"github.com/meshplus/bitxhub-kit/log"
@@ -54,6 +55,8 @@ func (g *Gin) Start() error {
 		v1.POST(client.UpdateAppchainUrl, g.updateAppchain)
 		v1.POST(client.AuditAppchainUrl, g.auditAppchain)
 		v1.GET(client.GetAppchainUrl, g.getAppchain)
+
+		v1.POST(client.RegisterRule, g.registerRule)
 	}
 
 	return g.router.Run(fmt.Sprintf(":%d", g.config.Port.Http))
@@ -190,5 +193,51 @@ func (g *Gin) handleAckAppchain(c *gin.Context, msg *peerproto.Message) {
 	case proto.AppchainMessage_GET:
 		res.Data = am.Data
 	}
+	c.JSON(http.StatusOK, res)
+}
+
+func (g *Gin) registerRule(c *gin.Context) {
+	pierId := c.GetString("pier")
+	var res pb.Response
+	rule := &validation.Rule{}
+	if err := c.BindJSON(&rule); err != nil {
+		res.Data = []byte(err.Error())
+		c.JSON(http.StatusBadRequest, res)
+		return
+	}
+	data, err := json.Marshal(rule)
+	if err != nil {
+		g.logger.Errorln(err)
+		return
+	}
+	msg := &peerproto.Message{
+		Type: peerproto.Message_RULE,
+		Data: data,
+	}
+	ackMsg, err := g.peerMgr.Send(pierId, msg)
+	if err != nil {
+		res.Data = []byte(err.Error())
+		c.JSON(http.StatusInternalServerError, res)
+		return
+	}
+	g.handleAckRule(c, ackMsg)
+}
+
+func (g *Gin) handleAckAppchain(c *gin.Context, msg *peerproto.Message) {
+	data := msg.Data
+	ruleRes := &validation.RuleResponse{}
+	if err := json.Unmarshal(data, ruleRes); err != nil {
+		g.logger.Error(err)
+		return
+	}
+	res := pb.Response{
+		Data: ruleRes.Content,
+	}
+
+	if !am.Ok {
+		c.JSON(http.StatusInternalServerError, res)
+		return
+	}
+
 	c.JSON(http.StatusOK, res)
 }

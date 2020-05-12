@@ -10,6 +10,7 @@ import (
 	"github.com/meshplus/bitxhub-kit/crypto"
 	"github.com/meshplus/bitxhub-kit/key"
 	"github.com/meshplus/pier/internal/repo"
+	"github.com/meshplus/pier/internal/validation"
 	"github.com/urfave/cli"
 )
 
@@ -135,6 +136,23 @@ var clientCMD = cli.Command{
 				},
 			},
 			Action: getPierAppchain,
+		},
+		{
+			Name:  "rule",
+			Usage: "register appchain validation rule",
+			Flags: []cli.Flag{
+				cli.StringFlag{
+					Name:     "path",
+					Usage:    "rule file path",
+					Required: true,
+				},
+				cli.StringFlag{
+					Name:     "pier",
+					Usage:    "Specific target pier id",
+					Required: true,
+				},
+			},
+			Action: registerAppchainRule,
 		},
 	},
 }
@@ -268,4 +286,46 @@ func getPubKey(keyPath string) (crypto.PublicKey, error) {
 	}
 
 	return privateKey.PublicKey(), nil
+}
+
+func registerAppchainRule(ctx *cli.Context) error {
+	path := ctx.String("path")
+	pier := ctx.String("pier")
+
+	data, err := ioutil.ReadFile(path)
+	if err != nil {
+		return fmt.Errorf("read rule file: %w", err)
+	}
+	repoRoot, err := repo.PathRootWithDefault(ctx.GlobalString("repo"))
+	if err != nil {
+		return err
+	}
+
+	pubKey, err := getPubKey(repo.KeyPath(repoRoot))
+	if err != nil {
+		return fmt.Errorf("get public key: %w", err)
+	}
+	addr, _ := pubKey.Address()
+	rule := validation.Rule{
+		Code:    data,
+		Address: addr.String(),
+	}
+	postData, err := json.Marshal(rule)
+	if err != nil {
+		return fmt.Errorf("marshal rule error: %w", err)
+	}
+
+	url, err := getURL(ctx, fmt.Sprintf("%s?pier=%s", RegisterRuleUrl, pier))
+	if err != nil {
+		return err
+	}
+
+	resp, err := httpPost(url, postData)
+	if err != nil {
+		return err
+	}
+
+	fmt.Println(parseResponse(resp))
+
+	return nil
 }
