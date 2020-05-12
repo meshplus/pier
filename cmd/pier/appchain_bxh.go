@@ -13,9 +13,9 @@ import (
 	"github.com/urfave/cli"
 )
 
-var appchainCMD = cli.Command{
+var appchainBxhCMD = cli.Command{
 	Name:  "appchain",
-	Usage: "Command about appchain",
+	Usage: "Command about appchain in bitxhub",
 	Subcommands: []cli.Command{
 		{
 			Name:  "register",
@@ -155,7 +155,7 @@ func auditAppchain(ctx *cli.Context) error {
 	}
 
 	receipt, err := client.InvokeBVMContract(
-		rpcx.InterchainContractAddr,
+		rpcx.AppchainMgrContractAddr,
 		"Audit",
 		rpcx.String(id),
 		rpcx.Int32(1),
@@ -192,7 +192,7 @@ func getAppchain(ctx *cli.Context) error {
 	}
 
 	receipt, err := client.InvokeBVMContract(
-		rpcx.InterchainContractAddr,
+		rpcx.AppchainMgrContractAddr,
 		"Appchain",
 	)
 

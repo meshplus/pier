@@ -6,6 +6,7 @@ import (
 
 	"github.com/fatih/color"
 	"github.com/meshplus/bitxhub-kit/log"
+	"github.com/meshplus/pier/cmd/pier/client"
 	"github.com/urfave/cli"
 )
 
@@ -26,7 +27,8 @@ func main() {
 	}
 
 	app.Commands = []cli.Command{
-		appchainCMD,
+		appchainBxhCMD,
+		client.LoadClientCMD(),
 		idCMD,
 		initCMD,
 		interchainCMD,

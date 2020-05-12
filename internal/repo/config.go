@@ -22,6 +22,7 @@ type Config struct {
 
 // Port are ports providing http and pprof service
 type Port struct {
+	Http  int64 `toml:"http" json:"http"`
 	PProf int64 `toml:"pprof" json:"pprof"`
 }
 
@@ -76,6 +77,7 @@ func DefaultConfig() *Config {
 		RepoRoot: ".pier",
 		Title:    "pier configuration file",
 		Port: Port{
+			Http:  8080,
 			PProf: 44555,
 		},
 		Mode: Mode{
