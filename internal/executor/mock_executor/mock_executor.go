@@ -62,12 +62,11 @@ func (mr *MockExecutorMockRecorder) Stop() *gomock.Call {
 }
 
 // HandleIBTP mocks base method
-func (m *MockExecutor) HandleIBTP(ibtp *pb.IBTP) (*pb.IBTP, error) {
+func (m *MockExecutor) HandleIBTP(ibtp *pb.IBTP) *pb.IBTP {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "HandleIBTP", ibtp)
 	ret0, _ := ret[0].(*pb.IBTP)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
+	return ret0
 }
 
 // HandleIBTP indicates an expected call of HandleIBTP
@@ -88,4 +87,19 @@ func (m *MockExecutor) QueryLatestMeta() map[string]uint64 {
 func (mr *MockExecutorMockRecorder) QueryLatestMeta() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "QueryLatestMeta", reflect.TypeOf((*MockExecutor)(nil).QueryLatestMeta))
+}
+
+// QueryReceipt mocks base method
+func (m *MockExecutor) QueryReceipt(from string, idx uint64, originalIBTP *pb.IBTP) (*pb.IBTP, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "QueryReceipt", from, idx, originalIBTP)
+	ret0, _ := ret[0].(*pb.IBTP)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// QueryReceipt indicates an expected call of QueryReceipt
+func (mr *MockExecutorMockRecorder) QueryReceipt(from, idx, originalIBTP interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "QueryReceipt", reflect.TypeOf((*MockExecutor)(nil).QueryReceipt), from, idx, originalIBTP)
 }

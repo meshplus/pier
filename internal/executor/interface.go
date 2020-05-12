@@ -14,8 +14,11 @@ type Executor interface {
 
 	// HandleIBTP handles interchain ibtps from other appchains
 	// and return the receipt ibtp for ack or callback
-	HandleIBTP(ibtp *pb.IBTP) (*pb.IBTP, error)
+	HandleIBTP(ibtp *pb.IBTP) *pb.IBTP
 
 	// QueryLatestMeta queries latest index map of ibtps executed on appchain
 	QueryLatestMeta() map[string]uint64
+
+	// QueryReceipt query receipt for original interchain ibtp
+	QueryReceipt(from string, idx uint64, originalIBTP *pb.IBTP) (*pb.IBTP, error)
 }

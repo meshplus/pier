@@ -11,11 +11,11 @@ import (
 )
 
 type DirectChecker struct {
-	ruleMgr     validation.RuleMgr
-	appchainMgr appchain.AppchainMgr
+	ruleMgr     *validation.RuleMgr
+	appchainMgr *appchain.AppchainMgr
 }
 
-func NewDirectChecker(ruleMgr validation.RuleMgr, appchainMgr appchain.AppchainMgr) Checker {
+func NewDirectChecker(ruleMgr *validation.RuleMgr, appchainMgr *appchain.AppchainMgr) Checker {
 	return &DirectChecker{
 		ruleMgr:     ruleMgr,
 		appchainMgr: appchainMgr,

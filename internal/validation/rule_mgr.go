@@ -21,13 +21,13 @@ type RuleResponse struct {
 }
 
 type RuleMgr struct {
-	Ledger      CodeLedger
+	Ledger      *CodeLedger
 	PeerManager peermgr.PeerManager
-	Ve          validator.ValidationEngine
+	Ve          *validator.ValidationEngine
 }
 
-func NewRuleMgr(addr string, storage storage.Storage, pm peermgr.PeerManager) (*RuleMgr, error) {
-	ledger := CodeLedger{
+func NewRuleMgr(storage storage.Storage, pm peermgr.PeerManager) (*RuleMgr, error) {
+	ledger := &CodeLedger{
 		storage: storage,
 	}
 	ve := validator.NewValidationEngine(ledger, logger)

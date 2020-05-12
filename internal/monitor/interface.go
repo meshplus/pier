@@ -14,7 +14,7 @@ type Monitor interface {
 	ListenOnIBTP() chan *pb.IBTP
 
 	// query historical ibtp by its id
-	QueryIBTP(id string) *pb.IBTP
+	QueryIBTP(id string) (*pb.IBTP, error)
 
 	// QueryLatestMeta queries latest index map of ibtps executed on appchain
 	QueryLatestMeta() map[string]uint64

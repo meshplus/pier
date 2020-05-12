@@ -76,11 +76,12 @@ func (mr *MockMonitorMockRecorder) ListenOnIBTP() *gomock.Call {
 }
 
 // QueryIBTP mocks base method
-func (m *MockMonitor) QueryIBTP(id string) *pb.IBTP {
+func (m *MockMonitor) QueryIBTP(id string) (*pb.IBTP, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "QueryIBTP", id)
 	ret0, _ := ret[0].(*pb.IBTP)
-	return ret0
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
 }
 
 // QueryIBTP indicates an expected call of QueryIBTP

@@ -2,12 +2,9 @@ package executor
 
 import (
 	"fmt"
-	"strconv"
-	"sync/atomic"
 	"time"
 
 	"github.com/meshplus/bitxhub-model/pb"
-	"github.com/sirupsen/logrus"
 )
 
 // generateCallback wraps an ibtp for a receipt. It need the information
@@ -75,19 +72,4 @@ func (e *ChannelExecutor) generateCallback(toExecute *pb.IBTP, args [][]byte) (r
 		Payload:   pdb,
 		Version:   toExecute.Version,
 	}, nil
-}
-
-// updateHeight atomically update current working height
-func (e *ChannelExecutor) updateHeight() {
-	atomic.AddUint64(&e.height, 1)
-
-	if err := e.storage.Put(execHeightKey(), []byte(strconv.FormatUint(e.height, 10))); err != nil {
-		logger.WithFields(logrus.Fields{
-			"error": err.Error(),
-		}).Error("Put exec height into data store")
-	}
-}
-
-func execHeightKey() []byte {
-	return []byte("exec-height")
 }

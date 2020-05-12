@@ -6,6 +6,7 @@ package mock_syncer
 
 import (
 	gomock "github.com/golang/mock/gomock"
+	syncer "github.com/meshplus/pier/internal/syncer"
 	reflect "reflect"
 )
 
@@ -58,4 +59,18 @@ func (m *MockSyncer) Stop() error {
 func (mr *MockSyncerMockRecorder) Stop() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Stop", reflect.TypeOf((*MockSyncer)(nil).Stop))
+}
+
+// RegisterIBTPHandler mocks base method
+func (m *MockSyncer) RegisterIBTPHandler(handler syncer.IBTPHandler) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "RegisterIBTPHandler", handler)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// RegisterIBTPHandler indicates an expected call of RegisterIBTPHandler
+func (mr *MockSyncerMockRecorder) RegisterIBTPHandler(handler interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RegisterIBTPHandler", reflect.TypeOf((*MockSyncer)(nil).RegisterIBTPHandler), handler)
 }
