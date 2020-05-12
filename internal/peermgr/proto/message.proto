@@ -11,7 +11,9 @@ message Message {
         QUERY_IBTP = 4;
         QUERY_IBTP_ACK = 5;
         IBTP = 6;
-        IBTP_RECEIPT = 7;
+        IBTP_ACK = 7;
+        IBTP_RECEIPT = 8;
+        IBTP_RECEIPT_ACK = 9;
     }
     Type type = 1;
     bytes data = 2;

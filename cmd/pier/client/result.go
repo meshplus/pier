@@ -12,5 +12,5 @@ func parseResponse(data []byte) (string, error) {
 	//	return "", fmt.Errorf("wrong data: %w", err)
 	//}
 
-	return string(res), nil
+	return res.Str, nil
 }
