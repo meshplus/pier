@@ -1,6 +1,7 @@
 title = "Pier"
 
 [port]
+http = 44544
 pprof = 44555
 
 [log]

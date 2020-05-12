@@ -1,0 +1,14 @@
+syntax = "proto3";
+
+package proto;
+
+message AppchainMessage {
+    enum Type {
+        REGISTER = 0;
+        UPDATE = 1;
+        GET = 2;
+    }
+    Type type = 1;
+    bool ok = 2;
+    bytes data = 3;
+}

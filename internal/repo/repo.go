@@ -38,6 +38,9 @@ const (
 
 	// KeyPassword
 	KeyPassword = "bitxhub"
+
+	// API name
+	APIName = "api"
 )
 
 var RootPath string
@@ -156,4 +159,13 @@ func LoadPrivateKey(repoRoot string) (crypto.PrivateKey, error) {
 	}
 
 	return k.GetPrivateKey(KeyPassword)
+}
+
+func GetAPI(repoRoot string) (string, error) {
+	data, err := ioutil.ReadFile(filepath.Join(repoRoot, APIName))
+	if err != nil {
+		return "", err
+	}
+
+	return string(data), nil
 }
