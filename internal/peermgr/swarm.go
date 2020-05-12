@@ -36,7 +36,7 @@ type Swarm struct {
 	logger         logrus.FieldLogger
 	peers          map[string]*peer.AddrInfo
 	connectedPeers sync.Map
-	msgHandlers    map[peermgr.Message_Type]MessageHandler
+	msgHandlers    sync.Map
 
 	ctx    context.Context
 	cancel context.CancelFunc
@@ -67,12 +67,11 @@ func New(config *repo.Config, privKey crypto.PrivateKey) (*Swarm, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	return &Swarm{
-		p2p:         p2p,
-		logger:      logger,
-		peers:       remotes,
-		msgHandlers: make(map[peermgr.Message_Type]MessageHandler),
-		ctx:         ctx,
-		cancel:      cancel,
+		p2p:    p2p,
+		logger: logger,
+		peers:  remotes,
+		ctx:    ctx,
+		cancel: cancel,
 	}, nil
 }
 
@@ -122,6 +121,10 @@ func (swarm *Swarm) Start() error {
 }
 
 func (swarm *Swarm) Stop() error {
+	if err := swarm.p2p.Stop(); err != nil {
+		return err
+	}
+
 	swarm.cancel()
 
 	return nil
@@ -190,7 +193,7 @@ func (swarm *Swarm) RegisterMsgHandler(messageType peermgr.Message_Type, handler
 
 	for msgType := range peermgr.Message_Type_name {
 		if msgType == int32(messageType) {
-			swarm.msgHandlers[messageType] = handler
+			swarm.msgHandlers.Store(messageType, handler)
 			return nil
 		}
 	}
@@ -272,15 +275,25 @@ func (swarm *Swarm) handleMessage(s network2.Stream, data []byte) {
 		return
 	}
 
-	handler, ok := swarm.msgHandlers[m.Type]
+	handler, ok := swarm.msgHandlers.Load(m.Type)
 	if !ok {
 		swarm.logger.WithFields(logrus.Fields{
 			"error": fmt.Errorf("can't handle msg[type: %v]", m.Type),
 			"type":  m.Type.String(),
 		}).Error("Handle message")
+		return
 	}
 
-	handler(s, m)
+	msgHandler, ok := handler.(MessageHandler)
+	if !ok {
+		swarm.logger.WithFields(logrus.Fields{
+			"error": fmt.Errorf("invalid handler for msg [type: %v]", m.Type),
+			"type":  m.Type.String(),
+		}).Error("Handle message")
+		return
+	}
+
+	msgHandler(s, m)
 }
 
 func (swarm *Swarm) getRemoteAddress(id peer.ID) (string, error) {
