@@ -16,6 +16,7 @@ import (
 	"github.com/meshplus/pier/internal/lite"
 	"github.com/meshplus/pier/internal/lite/bxh_lite"
 	"github.com/meshplus/pier/internal/monitor"
+	"github.com/meshplus/pier/internal/peermgr"
 	"github.com/meshplus/pier/internal/repo"
 	"github.com/meshplus/pier/internal/syncer"
 	"github.com/meshplus/pier/internal/txcrypto"
@@ -36,6 +37,7 @@ type Pier struct {
 	lite       lite.Lite
 	syncer     syncer.Syncer
 	storage    storage.Storage
+	peerMgr    peermgr.PeerManager
 	ctx        context.Context
 	cancel     context.CancelFunc
 	meta       *rpcx.Appchain
@@ -67,6 +69,11 @@ func NewPier(repoRoot string, config *repo.Config) (*Pier, error) {
 	addr, err := privateKey.PublicKey().Address()
 	if err != nil {
 		return nil, fmt.Errorf("get address from private key %w", err)
+	}
+
+	peerMgr, err := peermgr.New(config, privateKey)
+	if err != nil {
+		return nil, fmt.Errorf("peerMgr create: %w", err)
 	}
 
 	ag, err := agent.New(client, addr, config.Mode.Relay)
@@ -115,6 +122,7 @@ func NewPier(repoRoot string, config *repo.Config) (*Pier, error) {
 	if err != nil {
 		return nil, fmt.Errorf("syncer create: %w", err)
 	}
+
 	ctx, cancel := context.WithCancel(context.Background())
 
 	return &Pier{
@@ -127,6 +135,7 @@ func NewPier(repoRoot string, config *repo.Config) (*Pier, error) {
 		lite:       lite,
 		syncer:     syncer,
 		storage:    storage,
+		peerMgr:    peerMgr,
 		ctx:        ctx,
 		cancel:     cancel,
 	}, nil
@@ -140,6 +149,10 @@ func (pier *Pier) Start() error {
 		"receipt_counter":        pier.meta.ReceiptCounter,
 		"source_receipt_counter": pier.meta.SourceReceiptCounter,
 	}).Info("Pier information")
+
+	if err := pier.peerMgr.Start(); err != nil {
+		return fmt.Errorf("peerMgr start: %w", err)
+	}
 
 	if err := pier.monitor.Start(); err != nil {
 		return fmt.Errorf("monitor start: %w", err)
@@ -176,6 +189,10 @@ func (pier *Pier) Stop() error {
 
 	if err := pier.syncer.Stop(); err != nil {
 		return fmt.Errorf("syncer stop: %w", err)
+	}
+
+	if err := pier.peerMgr.Stop(); err != nil {
+		return fmt.Errorf("peerMgr stop: %w", err)
 	}
 
 	return nil
