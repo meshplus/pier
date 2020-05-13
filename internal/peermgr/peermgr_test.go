@@ -21,7 +21,7 @@ func TestSwarm_Start(t *testing.T) {
 	require.Nil(t, err)
 
 	require.Nil(t, swarm1.Start())
-	time.Sleep(time.Second * 1)
+	time.Sleep(time.Second)
 
 	swarm2, err := New(config, keys[1])
 	require.Nil(t, err)
@@ -69,6 +69,7 @@ func TestSwarm_Stop(t *testing.T) {
 	require.Nil(t, err)
 
 	require.Nil(t, swarm1.Start())
+	time.Sleep(time.Second)
 
 	swarm2, err := New(config, keys[1])
 	require.Nil(t, err)
