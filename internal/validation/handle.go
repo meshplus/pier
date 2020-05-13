@@ -30,6 +30,7 @@ func (rm *RuleMgr) handleRule(net network.Stream, msg *peerproto.Message) {
 	ackData, err := json.Marshal(res)
 	if err != nil {
 		logger.Error(err)
+		return
 	}
 
 	ackMsg := peerproto.Message{
