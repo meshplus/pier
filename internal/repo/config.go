@@ -26,6 +26,11 @@ type Port struct {
 	PProf int64 `toml:"pprof" json:"pprof"`
 }
 
+const (
+	DirectMode = "direct"
+	RelayMode  = "relay"
+)
+
 type Mode struct {
 	Type   string `toml:"type" json:"type"`
 	Relay  Relay  `toml:"relay" json:"relay"`

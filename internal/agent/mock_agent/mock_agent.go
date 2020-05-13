@@ -165,3 +165,18 @@ func (mr *MockAgentMockRecorder) GetChainMeta() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetChainMeta", reflect.TypeOf((*MockAgent)(nil).GetChainMeta))
 }
+
+// GetInterchainMeta mocks base method
+func (m *MockAgent) GetInterchainMeta() (*rpcx.Interchain, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetInterchainMeta")
+	ret0, _ := ret[0].(*rpcx.Interchain)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetInterchainMeta indicates an expected call of GetInterchainMeta
+func (mr *MockAgentMockRecorder) GetInterchainMeta() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetInterchainMeta", reflect.TypeOf((*MockAgent)(nil).GetInterchainMeta))
+}

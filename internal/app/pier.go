@@ -11,7 +11,11 @@ import (
 	"github.com/meshplus/bitxhub-kit/storage"
 	"github.com/meshplus/bitxhub-kit/storage/leveldb"
 	rpcx "github.com/meshplus/go-bitxhub-client"
+	"github.com/meshplus/pier/api"
 	"github.com/meshplus/pier/internal/agent"
+	"github.com/meshplus/pier/internal/appchain"
+	"github.com/meshplus/pier/internal/checker"
+	"github.com/meshplus/pier/internal/exchanger"
 	"github.com/meshplus/pier/internal/executor"
 	"github.com/meshplus/pier/internal/lite"
 	"github.com/meshplus/pier/internal/lite/bxh_lite"
@@ -20,6 +24,7 @@ import (
 	"github.com/meshplus/pier/internal/repo"
 	"github.com/meshplus/pier/internal/syncer"
 	"github.com/meshplus/pier/internal/txcrypto"
+	"github.com/meshplus/pier/internal/validation"
 	"github.com/meshplus/pier/pkg/plugins"
 	plugin "github.com/meshplus/pier/pkg/plugins/client"
 	"github.com/sirupsen/logrus"
@@ -31,21 +36,20 @@ var logger = log.NewWithModule("app")
 type Pier struct {
 	privateKey crypto.PrivateKey
 	plugin     plugin.Client
-	agent      agent.Agent
 	monitor    monitor.Monitor
 	exec       executor.Executor
 	lite       lite.Lite
-	syncer     syncer.Syncer
 	storage    storage.Storage
-	peerMgr    peermgr.PeerManager
+	exchanger  exchanger.IExchanger
 	ctx        context.Context
 	cancel     context.CancelFunc
-	meta       *rpcx.Appchain
+	appchain   *rpcx.Appchain
+	meta       *rpcx.Interchain
 }
 
 // NewPier instantiates pier instance.
 func NewPier(repoRoot string, config *repo.Config) (*Pier, error) {
-	storage, err := leveldb.New(filepath.Join(config.RepoRoot, "storage"))
+	store, err := leveldb.New(filepath.Join(config.RepoRoot, "store"))
 	if err != nil {
 		return nil, fmt.Errorf("read from datastaore %w", err)
 	}
@@ -55,72 +59,140 @@ func NewPier(repoRoot string, config *repo.Config) (*Pier, error) {
 		return nil, fmt.Errorf("repo load key: %w", err)
 	}
 
-	// pier register to bitxhub and got meta infos about its related
-	// appchain from bitxhub
-	client, err := rpcx.New(
-		rpcx.WithAddrs([]string{config.Mode.Relay.Addr}),
-		rpcx.WithLogger(logger),
-		rpcx.WithPrivateKey(privateKey),
-	)
-	if err != nil {
-		return nil, fmt.Errorf("create bitxhub client: %w", err)
-	}
-
 	addr, err := privateKey.PublicKey().Address()
 	if err != nil {
 		return nil, fmt.Errorf("get address from private key %w", err)
 	}
 
-	peerMgr, err := peermgr.New(config, privateKey)
-	if err != nil {
-		return nil, fmt.Errorf("peerMgr create: %w", err)
+	var (
+		ag          agent.Agent
+		ck          checker.Checker
+		cryptor     txcrypto.Cryptor
+		ex          exchanger.IExchanger
+		lite        lite.Lite
+		sync        syncer.Syncer
+		gin         api.GinService
+		meta        *rpcx.Interchain
+		chain       *rpcx.Appchain
+		peerManager peermgr.PeerManager
+	)
+
+	switch config.Mode.Type {
+	case repo.DirectMode:
+		peerManager, err = peermgr.New(config, privateKey)
+		if err != nil {
+			return nil, fmt.Errorf("peerMgr create: %w", err)
+		}
+
+		ruleMgr, err := validation.NewRuleMgr(store, peerManager)
+		if err != nil {
+			return nil, fmt.Errorf("ruleMgr create: %w", err)
+		}
+
+		appchainMgr, err := appchain.NewAppchainMgr(addr.String(), store, peerManager)
+		if err != nil {
+			return nil, fmt.Errorf("ruleMgr create: %w", err)
+		}
+
+		gin, err = api.NewGin(appchainMgr, peerManager, config)
+		if err != nil {
+			return nil, fmt.Errorf("gin service create: %w", err)
+		}
+
+		ck = checker.NewDirectChecker(ruleMgr, appchainMgr)
+
+		ok, data := appchainMgr.Mgr.Appchain()
+		if !ok {
+			return nil, fmt.Errorf("appchain not registered")
+		}
+
+		chain = &rpcx.Appchain{}
+		if err := json.Unmarshal(data, chain); err != nil {
+			return nil, fmt.Errorf("get appchain info: %s", err.Error())
+		}
+
+		// todo: add cryptor and get meta from other chains
+		meta = &rpcx.Interchain{}
+	case repo.RelayMode:
+		ck = &checker.MockChecker{}
+
+		// pier register to bitxhub and got meta infos about its related
+		// appchain from bitxhub
+		client, err := rpcx.New(
+			rpcx.WithAddrs([]string{config.Mode.Relay.Addr}),
+			rpcx.WithLogger(logger),
+			rpcx.WithPrivateKey(privateKey),
+		)
+		if err != nil {
+			return nil, fmt.Errorf("create bitxhub client: %w", err)
+		}
+
+		ag, err = agent.New(client, addr, config.Mode.Relay)
+		if err != nil {
+			return nil, fmt.Errorf("create agent error: %w", err)
+		}
+
+		// agent queries appchain info from bitxhub
+		meta, err = ag.GetInterchainMeta()
+		if err != nil {
+			return nil, err
+		}
+
+		chain, err = ag.Appchain()
+		if err != nil {
+			return nil, err
+		}
+
+		cryptor, err = txcrypto.NewRelayCryptor(client, privateKey)
+		if err != nil {
+			return nil, fmt.Errorf("cryptor create: %w", err)
+		}
+
+		lite, err = bxh_lite.New(ag, store)
+		if err != nil {
+			return nil, fmt.Errorf("lite create: %w", err)
+		}
+
+		sync, err = syncer.New(ag, lite, store)
+		if err != nil {
+			return nil, fmt.Errorf("syncer create: %w", err)
+		}
+	default:
+		return nil, fmt.Errorf("unsupported mode")
 	}
 
-	ag, err := agent.New(client, addr, config.Mode.Relay)
-	if err != nil {
-		return nil, fmt.Errorf("create agent error: %w", err)
-	}
-
-	// agent query appchain info from bitxhub
-	chain, err := ag.Appchain()
-	if err != nil {
-		return nil, err
-	}
-
-	//use chain info to instantiate monitor and executor module
-	extra, err := json.Marshal(chain.InterchainCounter)
+	//use meta info to instantiate monitor and executor module
+	extra, err := json.Marshal(meta.InterchainCounter)
 	if err != nil {
 		return nil, fmt.Errorf("marshal interchain meta: %w", err)
 	}
 
-	cli, err := plugins.CreateClient(addr.String(), config, extra)
+	cli, err := plugins.CreateClient(chain.ID, config, extra)
 	if err != nil {
-		return nil, fmt.Errorf("client create: %w", err)
+		return nil, fmt.Errorf("appchain client create: %w", err)
 	}
 
-	cryptor, err := txcrypto.NewRelayCryptor(client, privateKey)
-	if err != nil {
-		return nil, fmt.Errorf("cryptor create: %w", err)
-	}
-
-	mnt, err := monitor.New(ag, cli, chain, cryptor)
+	mnt, err := monitor.New(cli, cryptor)
 	if err != nil {
 		return nil, fmt.Errorf("monitor create: %w", err)
 	}
 
-	exec, err := executor.NewChannelExecutor(ag, cli, chain, storage, cryptor)
+	exec, err := executor.New(cli, chain.ID, store, cryptor)
 	if err != nil {
 		return nil, fmt.Errorf("executor create: %w", err)
 	}
 
-	lite, err := bxh_lite.New(ag, storage)
+	ex, err = exchanger.New(config.Mode.Type, chain.ID, meta,
+		exchanger.WithAgent(ag),
+		exchanger.WithChecker(ck),
+		exchanger.WithExecutor(exec),
+		exchanger.WithMonitor(mnt),
+		exchanger.WithPeerMgr(peerManager),
+		exchanger.WithSyncer(sync),
+		exchanger.WithGin(gin),
+	)
 	if err != nil {
-		return nil, fmt.Errorf("lite create: %w", err)
-	}
-
-	syncer, err := syncer.New(ag, lite, storage)
-	if err != nil {
-		return nil, fmt.Errorf("syncer create: %w", err)
+		return nil, fmt.Errorf("exchanger create: %w", err)
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -128,14 +200,13 @@ func NewPier(repoRoot string, config *repo.Config) (*Pier, error) {
 	return &Pier{
 		privateKey: privateKey,
 		plugin:     cli,
-		agent:      ag,
-		meta:       chain,
+		appchain:   chain,
+		meta:       meta,
 		monitor:    mnt,
+		exchanger:  ex,
 		exec:       exec,
 		lite:       lite,
-		syncer:     syncer,
-		storage:    storage,
-		peerMgr:    peerMgr,
+		storage:    store,
 		ctx:        ctx,
 		cancel:     cancel,
 	}, nil
@@ -150,10 +221,6 @@ func (pier *Pier) Start() error {
 		"source_receipt_counter": pier.meta.SourceReceiptCounter,
 	}).Info("Pier information")
 
-	if err := pier.peerMgr.Start(); err != nil {
-		return fmt.Errorf("peerMgr start: %w", err)
-	}
-
 	if err := pier.monitor.Start(); err != nil {
 		return fmt.Errorf("monitor start: %w", err)
 	}
@@ -166,8 +233,8 @@ func (pier *Pier) Start() error {
 		return fmt.Errorf("lite start: %w", err)
 	}
 
-	if err := pier.syncer.Start(); err != nil {
-		return fmt.Errorf("syncer start: %w", err)
+	if err := pier.exchanger.Start(); err != nil {
+		return fmt.Errorf("exchanger start: %w", err)
 	}
 
 	return nil
@@ -187,14 +254,9 @@ func (pier *Pier) Stop() error {
 		return fmt.Errorf("lite stop: %w", err)
 	}
 
-	if err := pier.syncer.Stop(); err != nil {
-		return fmt.Errorf("syncer stop: %w", err)
+	if err := pier.exchanger.Start(); err != nil {
+		return fmt.Errorf("exchanger stop: %w", err)
 	}
-
-	if err := pier.peerMgr.Stop(); err != nil {
-		return fmt.Errorf("peerMgr stop: %w", err)
-	}
-
 	return nil
 }
 

@@ -40,7 +40,7 @@ func (agent *BxhAgent) Stop() error {
 
 // Appchain implements Agent
 func (agent *BxhAgent) Appchain() (*rpcx.Appchain, error) {
-	receipt, err := agent.client.InvokeBVMContract(rpcx.InterchainContractAddr, "Appchain")
+	receipt, err := agent.client.InvokeBVMContract(rpcx.AppchainMgrContractAddr, "Appchain")
 	if err != nil {
 		return nil, err
 	}
@@ -55,6 +55,24 @@ func (agent *BxhAgent) Appchain() (*rpcx.Appchain, error) {
 	}
 
 	return appchain, nil
+}
+
+func (agent *BxhAgent) GetInterchainMeta() (*rpcx.Interchain, error) {
+	receipt, err := agent.client.InvokeBVMContract(rpcx.InterchainContractAddr, "Interchain")
+	if err != nil {
+		return nil, err
+	}
+
+	if !receipt.IsSuccess() {
+		return nil, fmt.Errorf("receipt: %s", receipt.Ret)
+	}
+
+	ret := &rpcx.Interchain{}
+	if err := json.Unmarshal(receipt.Ret, ret); err != nil {
+		return nil, fmt.Errorf("unmarshal interchain meta from bitxhub: %w", err)
+	}
+
+	return ret, nil
 }
 
 func (agent *BxhAgent) SyncBlockHeader(ctx context.Context, headerCh chan *pb.BlockHeader) error {

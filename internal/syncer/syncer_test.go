@@ -7,17 +7,14 @@ import (
 	"testing"
 	"time"
 
-	"github.com/meshplus/bitxhub-kit/merkle/merkletree"
-
-	"github.com/meshplus/pier/pkg/model"
-
-	"github.com/meshplus/pier/internal/lite/mock_lite"
-
 	"github.com/golang/mock/gomock"
+	"github.com/meshplus/bitxhub-kit/merkle/merkletree"
 	"github.com/meshplus/bitxhub-kit/storage/leveldb"
 	"github.com/meshplus/bitxhub-kit/types"
 	"github.com/meshplus/bitxhub-model/pb"
 	"github.com/meshplus/pier/internal/agent/mock_agent"
+	"github.com/meshplus/pier/internal/lite/mock_lite"
+	"github.com/meshplus/pier/pkg/model"
 	"github.com/stretchr/testify/require"
 )
 
@@ -92,6 +89,8 @@ func prepare(t *testing.T) (*WrapperSyncer, *mock_agent.MockAgent, *mock_lite.Mo
 	syncer, err := New(ag, lite, storage)
 	require.Nil(t, err)
 
+	// register handler for syncer
+	require.Nil(t, syncer.RegisterIBTPHandler(func(ibtp *pb.IBTP) {}))
 	return syncer, ag, lite
 }
 

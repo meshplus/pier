@@ -223,7 +223,7 @@ func (g *Gin) registerRule(c *gin.Context) {
 	g.handleAckRule(c, ackMsg)
 }
 
-func (g *Gin) handleAckAppchain(c *gin.Context, msg *peerproto.Message) {
+func (g *Gin) handleAckRule(c *gin.Context, msg *peerproto.Message) {
 	data := msg.Data
 	ruleRes := &validation.RuleResponse{}
 	if err := json.Unmarshal(data, ruleRes); err != nil {
@@ -231,7 +231,7 @@ func (g *Gin) handleAckAppchain(c *gin.Context, msg *peerproto.Message) {
 		return
 	}
 	res := pb.Response{
-		Data: ruleRes.Content,
+		Data: []byte(ruleRes.Content),
 	}
 
 	if !ruleRes.Ok {

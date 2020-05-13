@@ -91,7 +91,7 @@ func TestSwarm_Stop(t *testing.T) {
 	require.Nil(t, swarm1.Stop())
 
 	msg := &peermgr.Message{Type: peermgr.Message_APPCHAIN}
-	msg2, err := swarm2.Send(ids[0], msg)
+	_, err = swarm2.Send(ids[0], msg)
 	require.NotNil(t, err)
 
 	swarm1, err = New(config, keys[0])
@@ -112,7 +112,7 @@ func TestSwarm_Stop(t *testing.T) {
 	time.Sleep(time.Second * 3)
 
 	msg = &peermgr.Message{Type: peermgr.Message_APPCHAIN}
-	msg2, err = swarm2.Send(ids[0], msg)
+	msg2, err := swarm2.Send(ids[0], msg)
 	require.Nil(t, err)
 	require.Equal(t, peermgr.Message_APPCHAIN_ACK, msg2.Type)
 }

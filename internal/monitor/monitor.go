@@ -3,6 +3,8 @@ package monitor
 import (
 	"context"
 	"fmt"
+	"strconv"
+	"strings"
 	"sync/atomic"
 	"time"
 
@@ -11,8 +13,6 @@ import (
 	"github.com/meshplus/bitxhub-kit/log"
 	"github.com/meshplus/bitxhub-kit/types"
 	"github.com/meshplus/bitxhub-model/pb"
-	rpcx "github.com/meshplus/go-bitxhub-client"
-	"github.com/meshplus/pier/internal/agent"
 	"github.com/meshplus/pier/internal/txcrypto"
 	"github.com/meshplus/pier/pkg/plugins/client"
 	"github.com/sirupsen/logrus"
@@ -20,42 +20,37 @@ import (
 
 var logger = log.NewWithModule("monitor")
 
-// Monitor receives event from blockchain and sends it to bitxhub
+// Monitor receives event from blockchain and sends it to network
 type AppchainMonitor struct {
-	agent     agent.Agent
-	client    client.Client
-	meta      *rpcx.Appchain
-	suspended uint64
-	ctx       context.Context
-	cancel    context.CancelFunc
-	cryptor   txcrypto.Cryptor
+	client            client.Client
+	interchainCounter map[string]uint64
+	recvCh            chan *pb.IBTP
+	suspended         uint64
+	ctx               context.Context
+	cancel            context.CancelFunc
+	cryptor           txcrypto.Cryptor
 }
 
-// New creates monitor instance given agent of bitxhub, client interacting with appchain
-// and meta about appchain.
-func New(agent agent.Agent, client client.Client, meta *rpcx.Appchain, cryptor txcrypto.Cryptor) (*AppchainMonitor, error) {
-	ctx, cancel := context.WithCancel(context.Background())
-
-	if meta.InterchainCounter == nil {
-		meta.InterchainCounter = make(map[string]uint64)
+// New creates monitor instance given client interacting with appchain and interchainCounter about appchain.
+func New(client client.Client, cryptor txcrypto.Cryptor) (*AppchainMonitor, error) {
+	meta, err := client.GetOutMeta()
+	if err != nil {
+		return nil, fmt.Errorf("get out interchainCounter from broker contract :%w", err)
 	}
+
+	ctx, cancel := context.WithCancel(context.Background())
 	return &AppchainMonitor{
-		agent:   agent,
-		client:  client,
-		meta:    meta,
-		ctx:     ctx,
-		cancel:  cancel,
-		cryptor: cryptor,
+		client:            client,
+		interchainCounter: meta,
+		cryptor:           cryptor,
+		recvCh:            make(chan *pb.IBTP, 1024),
+		ctx:               ctx,
+		cancel:            cancel,
 	}, nil
 }
 
 // Start implements Monitor
 func (m *AppchainMonitor) Start() error {
-	err := m.recovery()
-	if err != nil {
-		return fmt.Errorf("recover monitor :%w", err)
-	}
-
 	go func() {
 		for {
 			select {
@@ -80,29 +75,6 @@ func (m *AppchainMonitor) Start() error {
 	return nil
 }
 
-// recovery will recover interchain info from both bitxhub side and contract
-// on appchain side in case pier is halted accidentally
-func (m *AppchainMonitor) recovery() error {
-	meta, err := m.client.GetOutMeta()
-	if err != nil {
-		return fmt.Errorf("get out meta from broker contract :%w", err)
-	}
-	for addr, index := range meta {
-		beginIndex, ok := m.meta.InterchainCounter[addr]
-		if !ok {
-			beginIndex = 0
-		}
-
-		if err = m.handleMissingIBTP(addr, beginIndex+1, index+1); err != nil {
-			logger.WithFields(logrus.Fields{
-				"address": addr,
-				"error":   err.Error(),
-			}).Error("Handle missing ibtp")
-		}
-	}
-	return nil
-}
-
 // Stop implements Monitor
 func (m *AppchainMonitor) Stop() error {
 	m.cancel()
@@ -112,12 +84,44 @@ func (m *AppchainMonitor) Stop() error {
 	return m.client.Stop()
 }
 
+func (m *AppchainMonitor) ListenOnIBTP() chan *pb.IBTP {
+	return m.recvCh
+}
+
+func (m *AppchainMonitor) QueryIBTP(id string) (*pb.IBTP, error) {
+	args := strings.Split(id, "-")
+	if len(args) != 3 {
+		return nil, fmt.Errorf("invalid ibtp id %s", id)
+	}
+
+	idx, err := strconv.ParseUint(args[2], 10, 64)
+	if err != nil {
+		return nil, err
+	}
+
+	ibtp, err := m.getIBTP(args[1], idx)
+	if err != nil {
+		logger.WithFields(logrus.Fields{
+			"id": id,
+		}).Error("query ibtp from contract")
+	}
+
+	if err := m.checkEnrcyption(ibtp); err != nil {
+		return nil, err
+	}
+	return ibtp, nil
+}
+
+func (m *AppchainMonitor) QueryLatestMeta() map[string]uint64 {
+	return m.interchainCounter
+}
+
 // handleIBTP handle the ibtp package captured by monitor.
 // it will check the index of this package to filter duplicated packages and
 // fetch unfinished ones
 func (m *AppchainMonitor) handleIBTP(ibtp *pb.IBTP) {
-	// m.meta.InterchainCounter[ibtp.To] is the index of top handled tx
-	if m.meta.InterchainCounter[ibtp.To] >= ibtp.Index {
+	// m.interchainCounter.InterchainCounter[ibtp.To] is the index of top handled tx
+	if m.interchainCounter[ibtp.To] >= ibtp.Index {
 		logger.WithFields(logrus.Fields{
 			"index":   ibtp.Index,
 			"to":      ibtp.To,
@@ -126,13 +130,13 @@ func (m *AppchainMonitor) handleIBTP(ibtp *pb.IBTP) {
 		return
 	}
 
-	if m.meta.InterchainCounter[ibtp.To]+1 < ibtp.Index {
+	if m.interchainCounter[ibtp.To]+1 < ibtp.Index {
 		logger.WithFields(logrus.Fields{
 			"index": ibtp.Index,
 			"to":    types.String2Address(ibtp.To).ShortString(),
 		}).Info("Get missing ibtp")
 
-		if err := m.handleMissingIBTP(ibtp.To, m.meta.InterchainCounter[ibtp.To]+1, ibtp.Index); err != nil {
+		if err := m.handleMissingIBTP(ibtp.To, m.interchainCounter[ibtp.To]+1, ibtp.Index); err != nil {
 			logger.WithFields(logrus.Fields{
 				"index": ibtp.Index,
 				"to":    types.String2Address(ibtp.To).ShortString(),
@@ -140,14 +144,20 @@ func (m *AppchainMonitor) handleIBTP(ibtp *pb.IBTP) {
 		}
 	}
 
-	ibtp, err := m.checkEnrcyption(ibtp)
-	if err != nil {
+	if err := m.checkEnrcyption(ibtp); err != nil {
 		logger.WithFields(logrus.Fields{
 			"index": ibtp.Index,
 			"to":    types.String2Address(ibtp.To).ShortString(),
 		}).Error("check encryption")
 	}
-	m.send(ibtp)
+
+	logger.WithFields(logrus.Fields{
+		"index": ibtp.Index,
+		"to":    types.String2Address(ibtp.To).ShortString(),
+	}).Error("Send out ibtp")
+
+	m.interchainCounter[ibtp.To]++
+	m.recvCh <- ibtp
 }
 
 // getIBTP gets interchain tx recorded in appchain given destination chain and index
@@ -188,84 +198,35 @@ func (m *AppchainMonitor) handleMissingIBTP(to string, begin, end uint64) error 
 			return fmt.Errorf("fetch ibtp:%w", err)
 		}
 
-		ev, err = m.checkEnrcyption(ev)
-		if err != nil {
+		if err = m.checkEnrcyption(ev); err != nil {
 			return fmt.Errorf("check enrcyption:%w", err)
 		}
 
-		m.send(ev)
+		m.recvCh <- ev
 	}
 
 	return nil
 }
 
-// send will send the ibtp package to bitxhub
-func (m *AppchainMonitor) send(ibtp *pb.IBTP) {
-	entry := logger.WithFields(logrus.Fields{
-		"index": ibtp.Index,
-		"type":  ibtp.Type,
-		"to":    types.String2Address(ibtp.To).ShortString(),
-		"id":    ibtp.ID(),
-	})
-
-	send := func() error {
-		receipt, err := m.agent.SendIBTP(ibtp)
-		if err != nil {
-			return fmt.Errorf("send ibtp : %w", err)
-		}
-
-		if !receipt.IsSuccess() {
-			entry.WithField("error", string(receipt.Ret)).Error("Send ibtp")
-			return nil
-		}
-
-		if err := m.client.CommitCallback(ibtp); err != nil {
-			return err
-		}
-
-		entry.WithFields(logrus.Fields{
-			"hash": receipt.TxHash.Hex(),
-		}).Info("Send ibtp")
-
-		m.meta.InterchainCounter[ibtp.To] = ibtp.Index
-
-		return nil
-	}
-
-	if err := retry.Retry(func(attempt uint) error {
-		if err := send(); err != nil {
-			entry.WithFields(logrus.Fields{
-				"error": err,
-			}).Error("Send IBTP")
-
-			return err
-		}
-
-		return nil
-	}, strategy.Wait(1*time.Second)); err != nil {
-		panic(err.Error())
-	}
-}
-
-func (m *AppchainMonitor) checkEnrcyption(ibtp *pb.IBTP) (*pb.IBTP, error) {
+func (m *AppchainMonitor) checkEnrcyption(ibtp *pb.IBTP) error {
 	pld := &pb.Payload{}
 	if err := pld.Unmarshal(ibtp.Payload); err != nil {
-		return ibtp, err
+		return err
 	}
 	if !pld.Encrypted {
-		return ibtp, nil
+		return nil
 	}
 
 	ctb, err := m.cryptor.Encrypt(pld.Content, ibtp.To)
 	if err != nil {
-		return ibtp, err
+		return err
 	}
 	pld.Content = ctb
 	payload, err := pld.Marshal()
 	if err != nil {
-		return ibtp, err
+		return err
 	}
 	ibtp.Payload = payload
 
-	return ibtp, nil
+	return nil
 }

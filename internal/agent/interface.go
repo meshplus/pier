@@ -42,4 +42,6 @@ type Agent interface {
 
 	// GetChainMeta gets chain meta of relay chain
 	GetChainMeta() (*pb.ChainMeta, error)
+
+	GetInterchainMeta() (*rpcx.Interchain, error)
 }

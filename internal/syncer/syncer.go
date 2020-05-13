@@ -33,6 +33,7 @@ type WrapperSyncer struct {
 	lite     lite.Lite
 	storage  storage.Storage
 	wrapperC chan *pb.InterchainTxWrapper
+	handler  IBTPHandler
 
 	ctx    context.Context
 	cancel context.CancelFunc
@@ -66,6 +67,17 @@ func (syncer *WrapperSyncer) Start() error {
 		return fmt.Errorf("get last height: %w", err)
 	}
 	syncer.height = height
+
+	// wait for ibtp handler
+	hasHandler := make(chan bool)
+	go func() {
+		for {
+			if syncer.handler != nil {
+				hasHandler <- true
+			}
+		}
+	}()
+	<-hasHandler
 
 	if meta.Height > height {
 		syncer.recover(syncer.getDemandHeight(), meta.Height)
@@ -247,7 +259,25 @@ func (syncer *WrapperSyncer) handleInterchainTxWrapper(w *pb.InterchainTxWrapper
 		}).Error("Persist interchain tx wrapper")
 	}
 
+	for _, tx := range w.Transactions {
+		ibtp, err := tx.GetIBTP()
+		if err != nil {
+			logger.Errorf("Get ibtp from tx: %s", err.Error())
+			continue
+		}
+		syncer.handler(ibtp)
+	}
+
 	syncer.updateHeight()
+}
+
+func (syncer *WrapperSyncer) RegisterIBTPHandler(handler IBTPHandler) error {
+	if handler == nil {
+		return fmt.Errorf("register ibtp handler: empty handler")
+	}
+
+	syncer.handler = handler
+	return nil
 }
 
 // verifyWrapper verifies the basic of merkle wrapper from bitxhub
@@ -304,6 +334,7 @@ func (syncer *WrapperSyncer) verifyWrapper(w *pb.InterchainTxWrapper) (bool, err
 	for _, tx := range w.Transactions {
 		if existM[tx.TransactionHash.String()] {
 			// TODO: how to deal with malicious tx found
+			continue
 		}
 	}
 

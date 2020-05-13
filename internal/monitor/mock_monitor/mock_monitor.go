@@ -6,6 +6,7 @@ package mock_monitor
 
 import (
 	gomock "github.com/golang/mock/gomock"
+	pb "github.com/meshplus/bitxhub-model/pb"
 	reflect "reflect"
 )
 
@@ -58,4 +59,47 @@ func (m *MockMonitor) Stop() error {
 func (mr *MockMonitorMockRecorder) Stop() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Stop", reflect.TypeOf((*MockMonitor)(nil).Stop))
+}
+
+// ListenOnIBTP mocks base method
+func (m *MockMonitor) ListenOnIBTP() chan *pb.IBTP {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ListenOnIBTP")
+	ret0, _ := ret[0].(chan *pb.IBTP)
+	return ret0
+}
+
+// ListenOnIBTP indicates an expected call of ListenOnIBTP
+func (mr *MockMonitorMockRecorder) ListenOnIBTP() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListenOnIBTP", reflect.TypeOf((*MockMonitor)(nil).ListenOnIBTP))
+}
+
+// QueryIBTP mocks base method
+func (m *MockMonitor) QueryIBTP(id string) (*pb.IBTP, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "QueryIBTP", id)
+	ret0, _ := ret[0].(*pb.IBTP)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// QueryIBTP indicates an expected call of QueryIBTP
+func (mr *MockMonitorMockRecorder) QueryIBTP(id interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "QueryIBTP", reflect.TypeOf((*MockMonitor)(nil).QueryIBTP), id)
+}
+
+// QueryLatestMeta mocks base method
+func (m *MockMonitor) QueryLatestMeta() map[string]uint64 {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "QueryLatestMeta")
+	ret0, _ := ret[0].(map[string]uint64)
+	return ret0
+}
+
+// QueryLatestMeta indicates an expected call of QueryLatestMeta
+func (mr *MockMonitorMockRecorder) QueryLatestMeta() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "QueryLatestMeta", reflect.TypeOf((*MockMonitor)(nil).QueryLatestMeta))
 }
