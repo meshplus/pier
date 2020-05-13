@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/meshplus/pier/internal/validation"
 	"github.com/gin-gonic/gin"
 	appchainmgr "github.com/meshplus/bitxhub-core/appchain-mgr"
 	"github.com/meshplus/bitxhub-kit/log"
@@ -17,6 +16,7 @@ import (
 	"github.com/meshplus/pier/internal/peermgr"
 	peerproto "github.com/meshplus/pier/internal/peermgr/proto"
 	"github.com/meshplus/pier/internal/repo"
+	"github.com/meshplus/pier/internal/validation"
 	"github.com/sirupsen/logrus"
 )
 
@@ -56,7 +56,7 @@ func (g *Gin) Start() error {
 		v1.POST(client.AuditAppchainUrl, g.auditAppchain)
 		v1.GET(client.GetAppchainUrl, g.getAppchain)
 
-		v1.POST(client.RegisterRule, g.registerRule)
+		v1.POST(client.RegisterRuleUrl, g.registerRule)
 	}
 
 	return g.router.Run(fmt.Sprintf(":%d", g.config.Port.Http))
@@ -234,7 +234,7 @@ func (g *Gin) handleAckAppchain(c *gin.Context, msg *peerproto.Message) {
 		Data: ruleRes.Content,
 	}
 
-	if !am.Ok {
+	if !ruleRes.Ok {
 		c.JSON(http.StatusInternalServerError, res)
 		return
 	}
