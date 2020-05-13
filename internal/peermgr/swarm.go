@@ -32,12 +32,14 @@ const (
 var _ PeerManager = (*Swarm)(nil)
 
 type Swarm struct {
-	p2p            network.Network
-	logger         logrus.FieldLogger
-	peers          map[string]*peer.AddrInfo
-	connectedPeers sync.Map
-	msgHandlers    sync.Map
+	p2p             network.Network
+	logger          logrus.FieldLogger
+	peers           map[string]*peer.AddrInfo
+	connectedPeers  sync.Map
+	msgHandlers     sync.Map
+	connectHandlers []ConnectHandler
 
+	lock   sync.RWMutex
 	ctx    context.Context
 	cancel context.CancelFunc
 }
@@ -107,6 +109,14 @@ func (swarm *Swarm) Start() error {
 				}).Info("Connect successfully")
 
 				swarm.connectedPeers.Store(address, addr)
+
+				swarm.lock.RLock()
+				defer swarm.lock.RUnlock()
+				for _, handler := range swarm.connectHandlers {
+					go func(connectHandler ConnectHandler, address string) {
+						connectHandler(address)
+					}(handler, address)
+				}
 
 				return nil
 			},
@@ -319,4 +329,13 @@ func (swarm *Swarm) getRemoteAddress(id peer.ID) (string, error) {
 	}
 
 	return addr.String(), nil
+}
+
+func (swarm *Swarm) RegisterConnectHandler(handler ConnectHandler) error {
+	swarm.lock.Lock()
+	defer swarm.lock.Unlock()
+
+	swarm.connectHandlers = append(swarm.connectHandlers, handler)
+
+	return nil
 }
