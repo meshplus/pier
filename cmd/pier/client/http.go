@@ -17,6 +17,8 @@ const (
 	UpdateAppchainUrl   = "/appchain/update"
 	AuditAppchainUrl    = "/appchain/audit"
 	GetAppchainUrl      = "/appchain/get"
+
+	RegisterRuleUrl = "/rule/register"
 )
 
 func httpGet(url string) ([]byte, error) {
