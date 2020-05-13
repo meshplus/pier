@@ -7,6 +7,7 @@ import (
 )
 
 type MessageHandler func(network.Stream, *peermgr.Message)
+type ConnectHandler func(network.Stream, string)
 
 //go:generate mockgen -destination mock_peermgr/mock_peermgr.go -package mock_peermgr -source peermgr.go
 type PeerManager interface {
@@ -30,4 +31,7 @@ type PeerManager interface {
 
 	// RegisterMsgHandler
 	RegisterMsgHandler(peermgr.Message_Type, MessageHandler) error
+
+	// RegisterConnectHandler
+	RegisterConnectHandler(ConnectHandler) error
 }

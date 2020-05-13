@@ -6,14 +6,16 @@ message Message {
     enum Type {
         APPCHAIN = 0;
         APPCHAIN_ACK = 1;
-        RULE = 2;
-        RULE_ACK = 3;
-        QUERY_IBTP = 4;
-        QUERY_IBTP_ACK = 5;
-        IBTP = 6;
-        IBTP_ACK = 7;
-        IBTP_RECEIPT = 8;
-        IBTP_RECEIPT_ACK = 9;
+        INTERCHAIN = 2;
+        INTERCHAIN_ACK = 3;
+        RULE = 4;
+        RULE_ACK = 5;
+        QUERY_IBTP = 6;
+        QUERY_IBTP_ACK = 7;
+        IBTP = 8;
+        IBTP_ACK = 9;
+        IBTP_RECEIPT = 10;
+        IBTP_RECEIPT_ACK = 11;
     }
     Type type = 1;
     bytes data = 2;
