@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/meshplus/pier/api"
-
 	"github.com/Rican7/retry"
 	"github.com/Rican7/retry/strategy"
 	"github.com/meshplus/bitxhub-kit/log"
@@ -14,6 +12,7 @@ import (
 	"github.com/meshplus/bitxhub-kit/types"
 	"github.com/meshplus/bitxhub-model/pb"
 	rpcx "github.com/meshplus/go-bitxhub-client"
+	"github.com/meshplus/pier/api"
 	"github.com/meshplus/pier/internal/agent"
 	"github.com/meshplus/pier/internal/checker"
 	"github.com/meshplus/pier/internal/executor"
@@ -101,11 +100,12 @@ func (ex *Exchanger) Start() error {
 		// recover exchanger before relay any interchain msgs
 		ex.recoverRelay()
 
-		if err := ex.syncer.Start(); err != nil {
-			return fmt.Errorf("syncer start: %w", err)
-		}
 		if err := ex.syncer.RegisterIBTPHandler(ex.handleIBTP); err != nil {
 			return fmt.Errorf("register ibtp handler: %w", err)
+		}
+
+		if err := ex.syncer.Start(); err != nil {
+			return fmt.Errorf("syncer start: %w", err)
 		}
 	}
 
@@ -120,7 +120,7 @@ func (ex *Exchanger) Start() error {
 					return
 				}
 				if err := ex.sendIBTP(ibtp); err != nil {
-					logger.Info()
+					logger.Infof("Send ibtp: %s", err.Error())
 				}
 			}
 		}

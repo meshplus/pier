@@ -254,7 +254,7 @@ func (pier *Pier) Stop() error {
 		return fmt.Errorf("lite stop: %w", err)
 	}
 
-	if err := pier.exchanger.Start(); err != nil {
+	if err := pier.exchanger.Stop(); err != nil {
 		return fmt.Errorf("exchanger stop: %w", err)
 	}
 	return nil

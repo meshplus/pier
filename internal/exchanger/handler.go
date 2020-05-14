@@ -9,6 +9,7 @@ import (
 	"github.com/libp2p/go-libp2p-core/network"
 	"github.com/meshplus/bitxhub-model/pb"
 	peerMsg "github.com/meshplus/pier/internal/peermgr/proto"
+	"github.com/sirupsen/logrus"
 )
 
 const (
@@ -25,6 +26,14 @@ func (ex *Exchanger) handleIBTP(ibtp *pb.IBTP) {
 	}
 
 	receipt := ex.exec.HandleIBTP(ibtp)
+	if receipt == nil {
+		return
+	}
+	logger.WithFields(logrus.Fields{
+		"index": ibtp.Index,
+		"from":  ibtp.From,
+	}).Info("Handle ibtp")
+
 	if err := retry.Retry(func(attempt uint) error {
 		_, err = ex.agent.SendIBTP(receipt)
 		if err != nil {

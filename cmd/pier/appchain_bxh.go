@@ -109,7 +109,7 @@ func registerAppchain(ctx *cli.Context) error {
 	}
 
 	receipt, err := client.InvokeBVMContract(
-		rpcx.InterchainContractAddr,
+		rpcx.AppchainMgrContractAddr,
 		"Register", rpcx.String(string(data)),
 		rpcx.Int32(1),
 		rpcx.String(typ),
