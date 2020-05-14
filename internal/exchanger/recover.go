@@ -18,7 +18,7 @@ func (ex *Exchanger) recoverRelay() {
 			beginIndex = 0
 		}
 
-		if err := ex.handleMissingReceipt(to, beginIndex+1, idx+1); err != nil {
+		if err := ex.handleMissingIBTP(to, beginIndex+1, idx+1); err != nil {
 			logger.WithFields(logrus.Fields{
 				"address": to,
 				"error":   err.Error(),

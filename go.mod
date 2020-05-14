@@ -31,10 +31,13 @@ require (
 	github.com/tidwall/gjson v1.6.0
 	github.com/urfave/cli v1.22.1
 	golang.org/x/sys v0.0.0-20200509044756-6aff5f38e54f // indirect
-	google.golang.org/grpc v1.28.1 // indirect
 )
 
+replace github.com/hyperledger/fabric => github.com/hyperledger/fabric v2.0.1+incompatible
+
 replace golang.org/x/net => golang.org/x/net v0.0.0-20200202094626-16171245cfb2
+
+replace google.golang.org/grpc => google.golang.org/grpc v1.28.1
 
 replace github.com/mholt/archiver => github.com/mholt/archiver v0.0.0-20180417220235-e4ef56d48eb0
 

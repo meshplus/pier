@@ -68,17 +68,6 @@ func (syncer *WrapperSyncer) Start() error {
 	}
 	syncer.height = height
 
-	// wait for ibtp handler
-	hasHandler := make(chan bool)
-	go func() {
-		for {
-			if syncer.handler != nil {
-				hasHandler <- true
-			}
-		}
-	}()
-	<-hasHandler
-
 	if meta.Height > height {
 		syncer.recover(syncer.getDemandHeight(), meta.Height)
 	}
