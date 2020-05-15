@@ -89,6 +89,7 @@ func TestSwarm_Stop(t *testing.T) {
 	require.Nil(t, err)
 
 	require.Nil(t, swarm1.Stop())
+	time.Sleep(time.Second)
 
 	msg := &peermgr.Message{Type: peermgr.Message_IBTP_GET}
 	_, err = swarm2.Send(ids[0], msg)
