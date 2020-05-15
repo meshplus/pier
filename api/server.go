@@ -38,6 +38,12 @@ type response struct {
 	Data []byte `json:"data"`
 }
 
+type Approve struct {
+	Id         string `json:"id"`
+	IsApproved int32  `json:"is_approved"`
+	Desc       string `json:"desc"`
+}
+
 func NewServer(appchainMgr *appchain.Manager, peerMgr peermgr.PeerManager, config *repo.Config) (*Server, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	router := gin.New()
@@ -53,6 +59,7 @@ func NewServer(appchainMgr *appchain.Manager, peerMgr peermgr.PeerManager, confi
 }
 
 func (g *Server) Start() error {
+	gin.SetMode(gin.ReleaseMode)
 	g.router.Use(gin.Recovery())
 	v1 := g.router.Group("/v1")
 	{
@@ -64,7 +71,13 @@ func (g *Server) Start() error {
 		v1.POST(client.RegisterRuleUrl, g.registerRule)
 	}
 
-	return g.router.Run(fmt.Sprintf(":%d", g.config.Port.Http))
+	go func() {
+		err := g.router.Run(fmt.Sprintf(":%d", g.config.Port.Http))
+		if err != nil {
+			panic(err)
+		}
+	}()
+	return nil
 }
 
 func (g *Server) Stop() error {
@@ -74,8 +87,8 @@ func (g *Server) Stop() error {
 }
 
 func (g *Server) auditAppchain(c *gin.Context) {
-	var res pb.Response
-	var approve client.Approve
+	res := &response{}
+	var approve Approve
 	if err := c.BindJSON(&approve); err != nil {
 		res.Data = []byte(err.Error())
 		c.JSON(http.StatusBadRequest, res)
@@ -100,7 +113,7 @@ func (g *Server) registerAppchain(c *gin.Context) {
 
 func (g *Server) sendAppchain(c *gin.Context, appchainType peerproto.Message_Type) {
 	// target pier id
-	pierID := c.GetString("pier_id")
+	pierID := c.Query("pier_id")
 	var res pb.Response
 	var appchain appchainmgr.Appchain
 	if err := c.BindJSON(&appchain); err != nil {
@@ -125,7 +138,7 @@ func (g *Server) sendAppchain(c *gin.Context, appchainType peerproto.Message_Typ
 }
 
 func (g *Server) getAppchain(c *gin.Context) {
-	var res pb.Response
+	res := &response{}
 
 	// target pier id
 	selfPierID, err := g.getSelfPierID(c)
@@ -133,7 +146,7 @@ func (g *Server) getAppchain(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, err.Error())
 		return
 	}
-	targetPierID := c.GetString("pier_id")
+	targetPierID := c.Query("pier_id")
 	appchain := &appchainmgr.Appchain{
 		ID: selfPierID,
 	}
@@ -178,7 +191,7 @@ func (g *Server) handleAckAppchain(c *gin.Context, msg *peerproto.Message) {
 
 func (g *Server) registerRule(c *gin.Context) {
 	// target pier id
-	pierID := c.GetString("pier_id")
+	pierID := c.Query("pier_id")
 	rule := &rulemgr.Rule{}
 	res := &response{}
 	if err := c.BindJSON(&rule); err != nil {
