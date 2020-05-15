@@ -38,12 +38,6 @@ type response struct {
 	Data []byte `json:"data"`
 }
 
-type Approve struct {
-	Id         string `json:"id"`
-	IsApproved int32  `json:"is_approved"`
-	Desc       string `json:"desc"`
-}
-
 func NewServer(appchainMgr *appchain.Manager, peerMgr peermgr.PeerManager, config *repo.Config) (*Server, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	router := gin.New()
@@ -88,7 +82,7 @@ func (g *Server) Stop() error {
 
 func (g *Server) auditAppchain(c *gin.Context) {
 	res := &response{}
-	var approve Approve
+	var approve client.Approve
 	if err := c.BindJSON(&approve); err != nil {
 		res.Data = []byte(err.Error())
 		c.JSON(http.StatusBadRequest, res)
