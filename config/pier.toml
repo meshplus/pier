@@ -1,6 +1,7 @@
 title = "Pier"
 
 [port]
+http = 44544
 pprof = 44555
 
 [log]
@@ -9,7 +10,9 @@ dir = "logs"
 filename = "pier.log"
 report_caller = false
 
-[bitxhub]
+[mode]
+type = "relay" # relay or direct
+[mode.relay]
 addr = "localhost:60011"
 quorum = 2
 validators = [
@@ -18,6 +21,8 @@ validators = [
     "0xb18c8575e3284e79b92100025a31378feb8100d6",
     "0x856E2B9A5FA82FD1B031D1FF6863864DBAC7995D",
 ]
+[mode.direct]
+peers = []
 
 [appchain]
 plugin = "fabric-client-1.4.so"

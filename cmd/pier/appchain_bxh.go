@@ -13,9 +13,9 @@ import (
 	"github.com/urfave/cli"
 )
 
-var appchainCMD = cli.Command{
+var appchainBxhCMD = cli.Command{
 	Name:  "appchain",
-	Usage: "Command about appchain",
+	Usage: "Command about appchain in bitxhub",
 	Subcommands: []cli.Command{
 		{
 			Name:  "register",
@@ -98,7 +98,7 @@ func registerAppchain(ctx *cli.Context) error {
 		return fmt.Errorf("init config error: %s", err)
 	}
 
-	client, err := loadClient(repo.KeyPath(repoRoot), config.Bitxhub.Addr)
+	client, err := loadClient(repo.KeyPath(repoRoot), config.Mode.Relay.Addr)
 	if err != nil {
 		return fmt.Errorf("load client: %w", err)
 	}
@@ -109,7 +109,7 @@ func registerAppchain(ctx *cli.Context) error {
 	}
 
 	receipt, err := client.InvokeBVMContract(
-		rpcx.InterchainContractAddr,
+		rpcx.AppchainMgrContractAddr,
 		"Register", rpcx.String(string(data)),
 		rpcx.Int32(1),
 		rpcx.String(typ),
@@ -149,13 +149,13 @@ func auditAppchain(ctx *cli.Context) error {
 		return fmt.Errorf("init config error: %s", err)
 	}
 
-	client, err := loadClient(repo.KeyPath(repoRoot), config.Bitxhub.Addr)
+	client, err := loadClient(repo.KeyPath(repoRoot), config.Mode.Relay.Addr)
 	if err != nil {
 		return fmt.Errorf("load client: %w", err)
 	}
 
 	receipt, err := client.InvokeBVMContract(
-		rpcx.InterchainContractAddr,
+		rpcx.AppchainMgrContractAddr,
 		"Audit",
 		rpcx.String(id),
 		rpcx.Int32(1),
@@ -186,13 +186,13 @@ func getAppchain(ctx *cli.Context) error {
 		return fmt.Errorf("init config error: %s", err)
 	}
 
-	client, err := loadClient(repo.KeyPath(repoRoot), config.Bitxhub.Addr)
+	client, err := loadClient(repo.KeyPath(repoRoot), config.Mode.Relay.Addr)
 	if err != nil {
 		return fmt.Errorf("load client: %w", err)
 	}
 
 	receipt, err := client.InvokeBVMContract(
-		rpcx.InterchainContractAddr,
+		rpcx.AppchainMgrContractAddr,
 		"Appchain",
 	)
 

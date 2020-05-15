@@ -1,0 +1,25 @@
+syntax = "proto3";
+
+package peermgr;
+
+message Message {
+    enum Type {
+        APPCHAIN_REGISTER = 0;
+        APPCHAIN_UPDATE = 1;
+        APPCHAIN_GET = 2;
+        INTERCHAIN_META_GET = 3;
+        RULE_DEPLOY = 4;
+        IBTP_GET = 5;
+        IBTP_SEND = 6;
+        IBTP_RECEIPT_SEND = 7;
+        ACK = 8;
+    }
+    Type type = 1;
+    Payload payload = 2;
+    string version = 3;
+}
+
+message Payload {
+    bool ok = 1;
+    bytes data = 2;
+}

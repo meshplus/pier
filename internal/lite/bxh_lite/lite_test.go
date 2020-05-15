@@ -80,13 +80,6 @@ func prepare(t *testing.T) (*BxhLite, *mock_agent.MockAgent, []crypto.PrivateKey
 	require.Nil(t, err)
 
 	keys := getVlts(t)
-	var vltSet []types.Address
-	for _, key := range keys {
-		vlt, err := key.PublicKey().Address()
-		require.Nil(t, err)
-		vltSet = append(vltSet, vlt)
-	}
-
 	lite, err := New(ag, storage)
 	require.Nil(t, err)
 

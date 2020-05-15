@@ -2,7 +2,6 @@ package executor
 
 import (
 	"fmt"
-	"sync"
 	"time"
 
 	"github.com/Rican7/retry"
@@ -11,63 +10,11 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-// applyInterchainTxWrapper validates interchain tx wrapper from bitxhub and unwrap its ibtps
-// if there are any interchain txs targeting to this pier;
-// if so, it will handle these interchain txs differently according to their type
-func (e *ChannelExecutor) applyInterchainTxWrapper(wrapper *pb.InterchainTxWrapper) {
-	logger.WithFields(logrus.Fields{
-		"height": wrapper.Height,
-		"count":  len(wrapper.Transactions),
-	}).Info("Execute interchain tx wrapper")
-
-	ibtps, err := e.verify(wrapper)
-	if err != nil {
-		// todo: what should exec do when wrapper is wrong
-		logger.WithFields(logrus.Fields{
-			"error": err.Error(),
-		}).Panic("Invalid wrapper")
-
-		return
-	}
-
-	defer func() {
-		logger.WithFields(logrus.Fields{
-			"height": wrapper.Height,
-		}).Info("Finish interchain tx wrapper")
-
-		e.updateHeight()
-	}()
-
-	// txs from different chain can run in parallel
-	txM := make(map[string][]*pb.IBTP)
-	for _, ibtp := range ibtps {
-		txM[ibtp.From] = append(txM[ibtp.From], ibtp)
-	}
-
-	var wg sync.WaitGroup
-	wg.Add(len(txM))
-
-	for _, queue := range txM {
-		go func(queue []*pb.IBTP) {
-			defer wg.Done()
-
-			for _, ibtp := range queue {
-				if err := e.applyIBTP(ibtp); err != nil {
-					logger.WithFields(logrus.Fields{
-						"error": err.Error(),
-					}).Error("Execute ibtp")
-				}
-			}
-		}(queue)
-	}
-
-	wg.Wait()
-}
-
 // applyIBTP handle ibtps of any type
-func (e *ChannelExecutor) applyIBTP(ibtp *pb.IBTP) error {
+func (e *ChannelExecutor) HandleIBTP(ibtp *pb.IBTP) *pb.IBTP {
 	if ibtp == nil {
-		return fmt.Errorf("empty ibtp structure")
+		logger.Error("empty ibtp structure")
+		return nil
 	}
 
 	logger.WithFields(logrus.Fields{
@@ -79,13 +26,13 @@ func (e *ChannelExecutor) applyIBTP(ibtp *pb.IBTP) error {
 
 	switch ibtp.Type {
 	case pb.IBTP_INTERCHAIN:
-		e.applyInterchainIBTP(ibtp)
+		return e.applyInterchainIBTP(ibtp)
 	case pb.IBTP_RECEIPT:
+		// no ack ibtp for receipt
 		e.applyReceiptIBTP(ibtp)
 	default:
-		return fmt.Errorf("wrong ibtp type")
+		logger.Error("wrong ibtp type")
 	}
-
 	return nil
 }
 
@@ -93,7 +40,7 @@ func (e *ChannelExecutor) applyIBTP(ibtp *pb.IBTP) error {
 // one receipt-type ibtp sent back to where it comes from.
 // if this interchain tx has callback function, get results from the execution
 // of it and set these results as callback function's args
-func (e *ChannelExecutor) applyInterchainIBTP(ibtp *pb.IBTP) {
+func (e *ChannelExecutor) applyInterchainIBTP(ibtp *pb.IBTP) *pb.IBTP {
 	entry := logger.WithFields(logrus.Fields{
 		"from":  ibtp.From,
 		"type":  ibtp.Type,
@@ -102,7 +49,7 @@ func (e *ChannelExecutor) applyInterchainIBTP(ibtp *pb.IBTP) {
 
 	if e.executeMeta[ibtp.From] >= ibtp.Index {
 		entry.Warn("Ignore tx")
-		return
+		return nil
 	}
 
 	if e.executeMeta[ibtp.From]+1 < ibtp.Index {
@@ -133,27 +80,8 @@ func (e *ChannelExecutor) applyInterchainIBTP(ibtp *pb.IBTP) {
 		}).Warn("Get wrong response")
 	}
 
-	if err := retry.Retry(func(attempt uint) error {
-		receipt, err := e.agent.SendIBTP(response.Result)
-		if err != nil {
-			entry.Error(err)
-			return err
-		}
-
-		if !receipt.IsSuccess() {
-			entry.WithField("error", string(receipt.Ret)).Error("Send receipt IBTP")
-			return nil
-		}
-
-		entry.Info("Send receipt IBTP")
-
-		return nil
-	}, strategy.Wait(1*time.Second)); err != nil {
-		entry.Panicf("Can't send rollback ibtp back to bitxhub: %s", err.Error())
-	}
-
 	e.executeMeta[ibtp.From]++
-	e.sourceReceiptMeta[ibtp.From]++
+	return response.Result
 }
 
 func (e *ChannelExecutor) applyReceiptIBTP(ibtp *pb.IBTP) {
