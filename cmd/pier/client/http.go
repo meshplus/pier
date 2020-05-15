@@ -13,12 +13,12 @@ import (
 )
 
 const (
-	RegisterAppchainUrl = "/appchain/register"
-	UpdateAppchainUrl   = "/appchain/update"
-	AuditAppchainUrl    = "/appchain/audit"
-	GetAppchainUrl      = "/appchain/get"
+	RegisterAppchainUrl = "appchain/register"
+	UpdateAppchainUrl   = "appchain/update"
+	AuditAppchainUrl    = "appchain/audit"
+	GetAppchainUrl      = "appchain/get"
 
-	RegisterRuleUrl = "/rule/register"
+	RegisterRuleUrl = "rule/register"
 )
 
 func httpGet(url string) ([]byte, error) {
