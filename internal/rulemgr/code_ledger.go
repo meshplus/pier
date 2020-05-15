@@ -1,4 +1,4 @@
-package validation
+package rulemgr
 
 import (
 	"github.com/meshplus/bitxhub-kit/storage"

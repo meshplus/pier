@@ -135,6 +135,20 @@ func (mr *MockPeerManagerMockRecorder) RegisterMsgHandler(arg0, arg1 interface{}
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RegisterMsgHandler", reflect.TypeOf((*MockPeerManager)(nil).RegisterMsgHandler), arg0, arg1)
 }
 
+// RegisterMultiMsgHandler mocks base method
+func (m *MockPeerManager) RegisterMultiMsgHandler(arg0 []peermgr0.Message_Type, arg1 peermgr.MessageHandler) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "RegisterMultiMsgHandler", arg0, arg1)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// RegisterMultiMsgHandler indicates an expected call of RegisterMultiMsgHandler
+func (mr *MockPeerManagerMockRecorder) RegisterMultiMsgHandler(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RegisterMultiMsgHandler", reflect.TypeOf((*MockPeerManager)(nil).RegisterMultiMsgHandler), arg0, arg1)
+}
+
 // RegisterConnectHandler mocks base method
 func (m *MockPeerManager) RegisterConnectHandler(arg0 peermgr.ConnectHandler) error {
 	m.ctrl.T.Helper()

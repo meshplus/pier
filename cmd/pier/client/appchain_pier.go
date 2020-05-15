@@ -6,11 +6,12 @@ import (
 	"io/ioutil"
 	"strconv"
 
+	"github.com/meshplus/pier/internal/rulemgr"
+
 	appchainmgr "github.com/meshplus/bitxhub-core/appchain-mgr"
 	"github.com/meshplus/bitxhub-kit/crypto"
 	"github.com/meshplus/bitxhub-kit/key"
 	"github.com/meshplus/pier/internal/repo"
-	"github.com/meshplus/pier/internal/validation"
 	"github.com/urfave/cli"
 )
 
@@ -29,7 +30,7 @@ var clientCMD = cli.Command{
 			Usage: "Register appchain in pier",
 			Flags: []cli.Flag{
 				cli.StringFlag{
-					Name:     "pier",
+					Name:     "pier_id",
 					Usage:    "Specific target pier id",
 					Required: true,
 				},
@@ -306,7 +307,7 @@ func registerAppchainRule(ctx *cli.Context) error {
 		return fmt.Errorf("get public key: %w", err)
 	}
 	addr, _ := pubKey.Address()
-	rule := validation.Rule{
+	rule := rulemgr.Rule{
 		Code:    data,
 		Address: addr.String(),
 	}

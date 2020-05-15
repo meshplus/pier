@@ -2,7 +2,10 @@ package exchanger
 
 import (
 	"encoding/json"
+	"fmt"
 	"time"
+
+	"github.com/meshplus/pier/internal/peermgr"
 
 	"github.com/Rican7/retry"
 	"github.com/Rican7/retry/strategy"
@@ -12,15 +15,10 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-const (
-	ErrorCode   = "ERROR"
-	ConfirmCode = "OK"
-)
-
 // handleIBTP handle ibtps from bitxhub
 func (ex *Exchanger) handleIBTP(ibtp *pb.IBTP) {
-	ok, err := ex.checker.Check(ibtp)
-	if err != nil || !ok {
+	err := ex.checker.Check(ibtp)
+	if err != nil {
 		// todo: send receipt back to bitxhub
 		return
 	}
@@ -46,85 +44,86 @@ func (ex *Exchanger) handleIBTP(ibtp *pb.IBTP) {
 }
 
 // handleIBTPMessage handle ibtp message from another pier
-func (ex *Exchanger) handleIBTPMessage(stream network.Stream, msg *peerMsg.Message) {
-	ibtp := &pb.IBTP{}
-	if err := ibtp.Unmarshal(msg.Data); err != nil {
-		logger.Warnf("Received invalid ibtp message: %s", err.Error())
-		ex.sentACKMsg(stream, ErrorCode)
+func (ex *Exchanger) handleSendIBTPMessage(stream network.Stream, msg *peerMsg.Message) {
+	handle := func() error {
+		ibtp := &pb.IBTP{}
+		if err := ibtp.Unmarshal(msg.Payload.Data); err != nil {
+			return fmt.Errorf("unmarshal ibtp: %w", err)
+		}
+
+		err := ex.checker.Check(ibtp)
+		if err != nil {
+			return fmt.Errorf("check ibtp: %w", err)
+		}
+
+		receipt := ex.exec.HandleIBTP(ibtp)
+		data, err := receipt.Marshal()
+		if err != nil {
+			return fmt.Errorf("marshal ibtp receipt: %w", err)
+		}
+
+		retMsg := peermgr.Message(peerMsg.Message_ACK, true, data)
+
+		err = ex.peerMgr.SendWithStream(stream, retMsg)
+		if err != nil {
+			return fmt.Errorf("send back ibtp: %w", err)
+		}
+
+		return nil
+	}
+
+	if err := handle(); err != nil {
+		logger.Error(err)
 		return
 	}
 
-	ok, err := ex.checker.Check(ibtp)
-	if err != nil || !ok {
-		ex.sentACKMsg(stream, ErrorCode)
-		return
-	}
-
-	// send ibtp_ack to counterpart chain
-	ex.sentACKMsg(stream, ConfirmCode)
-
-	receipt := ex.exec.HandleIBTP(ibtp)
-	data, err := receipt.Marshal()
-	if err != nil {
-		logger.Errorf("invalid receipt message: %s", err.Error())
-		return
-	}
-
-	retMsg := &peerMsg.Message{
-		Type: peerMsg.Message_IBTP_RECEIPT,
-		Data: data,
-	}
-
-	if err := retry.Retry(func(attempt uint) error {
-		return ex.peerMgr.SendWithStream(stream, retMsg)
-	}, strategy.Wait(1*time.Second)); err != nil {
-		logger.Panic(err)
-	}
+	logger.Info("Handle ibtp from pier")
 }
 
-func (ex *Exchanger) handleQueryIBTPMessage(stream network.Stream, msg *peerMsg.Message) {
-	ibtpID := string(msg.Data)
+func (ex *Exchanger) handleGetIBTPMessage(stream network.Stream, msg *peerMsg.Message) {
+	ibtpID := string(msg.Payload.Data)
 	ibtp, err := ex.mnt.QueryIBTP(ibtpID)
 	if err != nil {
-		logger.Error("get wrong ibtp id")
+		logger.Error("Get wrong ibtp id")
 		return
 	}
+
 	data, err := ibtp.Marshal()
 	if err != nil {
 		return
 	}
 
-	retMsg := &peerMsg.Message{
-		Type: peerMsg.Message_QUERY_IBTP_ACK,
-		Data: data,
-	}
+	retMsg := peermgr.Message(peerMsg.Message_ACK, true, data)
 
-	if err := retry.Retry(func(attempt uint) error {
-		return ex.peerMgr.SendWithStream(stream, retMsg)
-	}, strategy.Wait(1*time.Second)); err != nil {
-		logger.Panic(err)
+	err = ex.peerMgr.SendWithStream(stream, retMsg)
+	if err != nil {
+		logger.Error(err)
 	}
 }
 
 func (ex *Exchanger) handleNewConnection(dstPierID string) {
-	msg := &peerMsg.Message{
-		Type: peerMsg.Message_INTERCHAIN,
-		Data: []byte(ex.pierID),
-	}
+	pierID := []byte(ex.pierID)
+	msg := peermgr.Message(peerMsg.Message_INTERCHAIN_META_GET, true, pierID)
 
 	indices := &struct {
-		InterchainIndex uint64
-		ReceiptIndex    uint64
+		InterchainIndex uint64 `json:"interchain_index"`
+		ReceiptIndex    uint64 `json:"receipt_index"`
 	}{}
+
 	loop := func() error {
-		receipt, err := ex.peerMgr.Send(dstPierID, msg)
+		interchainMeta, err := ex.peerMgr.Send(dstPierID, msg)
 		if err != nil {
 			return err
 		}
 
-		if err = json.Unmarshal(receipt.Data, indices); err != nil {
+		if !interchainMeta.Payload.Ok {
+			return fmt.Errorf("interchain meta message payload is false")
+		}
+
+		if err = json.Unmarshal(interchainMeta.Payload.Data, indices); err != nil {
 			return err
 		}
+
 		return nil
 	}
 
@@ -137,39 +136,26 @@ func (ex *Exchanger) handleNewConnection(dstPierID string) {
 	ex.recoverDirect(dstPierID, indices.InterchainIndex, indices.ReceiptIndex)
 }
 
-func (ex *Exchanger) handleInterchainMessage(stream network.Stream, msg *peerMsg.Message) {
+func (ex *Exchanger) handleGetInterchainMessage(stream network.Stream, msg *peerMsg.Message) {
 	mntMeta := ex.exec.QueryLatestMeta()
 	execMeta := ex.exec.QueryLatestMeta()
 
 	indices := &struct {
-		InterchainIndex uint64
-		ReceiptIndex    uint64
+		InterchainIndex uint64 `json:"interchain_index"`
+		ReceiptIndex    uint64 `json:"receipt_index"`
 	}{}
-	indices.InterchainIndex = execMeta[string(msg.GetData())]
-	indices.ReceiptIndex = mntMeta[string(msg.GetData())]
+
+	indices.InterchainIndex = execMeta[string(msg.Payload.Data)]
+	indices.ReceiptIndex = mntMeta[string(msg.Payload.Data)]
 
 	data, err := json.Marshal(indices)
 	if err != nil {
-		return
+		panic(err)
 	}
-	retMsg := &peerMsg.Message{
-		Type: peerMsg.Message_INTERCHAIN_ACK,
-		Data: data,
-	}
+
+	retMsg := peermgr.Message(peerMsg.Message_ACK, true, data)
 	if err := ex.peerMgr.SendWithStream(stream, retMsg); err != nil {
+		logger.Error(err)
 		return
-	}
-}
-
-func (ex *Exchanger) sentACKMsg(stream network.Stream, statusCode string) {
-	msg := &peerMsg.Message{
-		Type: peerMsg.Message_IBTP_ACK,
-		Data: []byte(statusCode),
-	}
-
-	if err := retry.Retry(func(attempt uint) error {
-		return ex.peerMgr.SendWithStream(stream, msg)
-	}, strategy.Wait(1*time.Second)); err != nil {
-		logger.Panic(err)
 	}
 }

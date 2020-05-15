@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"path/filepath"
 
+	"github.com/meshplus/pier/internal/rulemgr"
+
 	"github.com/meshplus/bitxhub-kit/crypto"
 	"github.com/meshplus/bitxhub-kit/log"
 	"github.com/meshplus/bitxhub-kit/storage"
@@ -24,7 +26,6 @@ import (
 	"github.com/meshplus/pier/internal/repo"
 	"github.com/meshplus/pier/internal/syncer"
 	"github.com/meshplus/pier/internal/txcrypto"
-	"github.com/meshplus/pier/internal/validation"
 	"github.com/meshplus/pier/pkg/plugins"
 	plugin "github.com/meshplus/pier/pkg/plugins/client"
 	"github.com/sirupsen/logrus"
@@ -71,7 +72,7 @@ func NewPier(repoRoot string, config *repo.Config) (*Pier, error) {
 		ex          exchanger.IExchanger
 		lite        lite.Lite
 		sync        syncer.Syncer
-		gin         api.GinService
+		apiServer   *api.Server
 		meta        *rpcx.Interchain
 		chain       *rpcx.Appchain
 		peerManager peermgr.PeerManager
@@ -84,17 +85,17 @@ func NewPier(repoRoot string, config *repo.Config) (*Pier, error) {
 			return nil, fmt.Errorf("peerMgr create: %w", err)
 		}
 
-		ruleMgr, err := validation.NewRuleMgr(store, peerManager)
+		ruleMgr, err := rulemgr.New(store, peerManager)
 		if err != nil {
 			return nil, fmt.Errorf("ruleMgr create: %w", err)
 		}
 
-		appchainMgr, err := appchain.NewAppchainMgr(addr.String(), store, peerManager)
+		appchainMgr, err := appchain.NewManager(addr.String(), store, peerManager)
 		if err != nil {
 			return nil, fmt.Errorf("ruleMgr create: %w", err)
 		}
 
-		gin, err = api.NewGin(appchainMgr, peerManager, config)
+		apiServer, err = api.NewServer(appchainMgr, peerManager, config)
 		if err != nil {
 			return nil, fmt.Errorf("gin service create: %w", err)
 		}
@@ -189,7 +190,7 @@ func NewPier(repoRoot string, config *repo.Config) (*Pier, error) {
 		exchanger.WithMonitor(mnt),
 		exchanger.WithPeerMgr(peerManager),
 		exchanger.WithSyncer(sync),
-		exchanger.WithGin(gin),
+		exchanger.WithAPIServer(apiServer),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("exchanger create: %w", err)

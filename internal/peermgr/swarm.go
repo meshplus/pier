@@ -26,7 +26,7 @@ import (
 )
 
 const (
-	protocolID protocol.ID = "/B1txHu6/1.0.0" // magic protocol
+	protocolID protocol.ID = "/pier/1.0.0" // magic protocol
 )
 
 var _ PeerManager = (*Swarm)(nil)
@@ -52,7 +52,7 @@ func New(config *repo.Config, privKey crypto.PrivateKey) (*Swarm, error) {
 
 	local, remotes, err := loadPeers(config.Mode.Direct.Peers, libp2pPrivKey)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("load peers: %w", err)
 	}
 
 	p2p, err := network.New(
@@ -81,7 +81,7 @@ func (swarm *Swarm) Start() error {
 	swarm.p2p.SetMessageHandler(swarm.handleMessage)
 
 	if err := swarm.p2p.Start(); err != nil {
-		return err
+		return fmt.Errorf("p2p module start: %w", err)
 	}
 
 	for id, addr := range swarm.peers {
@@ -148,7 +148,7 @@ func (swarm *Swarm) AsyncSend(id string, msg *peermgr.Message) error {
 
 	data, err := msg.Marshal()
 	if err != nil {
-		return err
+		return fmt.Errorf("marshal message: %w", err)
 	}
 
 	return swarm.p2p.AsyncSend(addrInfo, network.Message(data))
@@ -209,6 +209,16 @@ func (swarm *Swarm) RegisterMsgHandler(messageType peermgr.Message_Type, handler
 	}
 
 	return fmt.Errorf("register msg handler: invalid message type")
+}
+
+func (swarm *Swarm) RegisterMultiMsgHandler(messageTypes []peermgr.Message_Type, handler MessageHandler) error {
+	for _, typ := range messageTypes {
+		if err := swarm.RegisterMsgHandler(typ, handler); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func (swarm *Swarm) getAddrInfo(id string) (*peer.AddrInfo, error) {

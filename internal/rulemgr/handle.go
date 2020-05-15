@@ -1,7 +1,9 @@
-package validation
+package rulemgr
 
 import (
 	"encoding/json"
+
+	"github.com/meshplus/pier/internal/peermgr"
 
 	"github.com/libp2p/go-libp2p-core/network"
 	"github.com/meshplus/bitxhub-kit/types"
@@ -9,7 +11,7 @@ import (
 )
 
 func (rm *RuleMgr) handleRule(net network.Stream, msg *peerproto.Message) {
-	data := msg.Data
+	data := msg.Payload.Data
 	rule := &Rule{}
 	if err := json.Unmarshal(data, rule); err != nil {
 		logger.Error(err)
@@ -33,12 +35,9 @@ func (rm *RuleMgr) handleRule(net network.Stream, msg *peerproto.Message) {
 		return
 	}
 
-	ackMsg := peerproto.Message{
-		Type: peerproto.Message_RULE_ACK,
-		Data: ackData,
-	}
+	ackMsg := peermgr.Message(peerproto.Message_ACK, true, ackData)
 
-	err = rm.PeerManager.SendWithStream(net, &ackMsg)
+	err = rm.PeerManager.SendWithStream(net, ackMsg)
 	if err != nil {
 		logger.Error(err)
 	}

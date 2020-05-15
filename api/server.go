@@ -5,27 +5,28 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"path/filepath"
 
 	"github.com/gin-gonic/gin"
 	appchainmgr "github.com/meshplus/bitxhub-core/appchain-mgr"
+	"github.com/meshplus/bitxhub-kit/key"
 	"github.com/meshplus/bitxhub-kit/log"
 	"github.com/meshplus/bitxhub-model/pb"
 	"github.com/meshplus/pier/cmd/pier/client"
 	"github.com/meshplus/pier/internal/appchain"
-	"github.com/meshplus/pier/internal/appchain/proto"
 	"github.com/meshplus/pier/internal/peermgr"
 	peerproto "github.com/meshplus/pier/internal/peermgr/proto"
 	"github.com/meshplus/pier/internal/repo"
-	"github.com/meshplus/pier/internal/validation"
+	"github.com/meshplus/pier/internal/rulemgr"
 	"github.com/sirupsen/logrus"
 )
 
 var logger = log.NewWithModule("api_service")
 
-type Gin struct {
+type Server struct {
 	router      *gin.Engine
 	peerMgr     peermgr.PeerManager
-	appchainMgr *appchain.AppchainMgr
+	appchainMgr *appchain.Manager
 	config      *repo.Config
 	logger      logrus.FieldLogger
 
@@ -33,10 +34,14 @@ type Gin struct {
 	cancel context.CancelFunc
 }
 
-func NewGin(appchainMgr *appchain.AppchainMgr, peerMgr peermgr.PeerManager, config *repo.Config) (GinService, error) {
+type response struct {
+	Data []byte `json:"data"`
+}
+
+func NewServer(appchainMgr *appchain.Manager, peerMgr peermgr.PeerManager, config *repo.Config) (*Server, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	router := gin.New()
-	return &Gin{
+	return &Server{
 		router:      router,
 		appchainMgr: appchainMgr,
 		peerMgr:     peerMgr,
@@ -47,7 +52,7 @@ func NewGin(appchainMgr *appchain.AppchainMgr, peerMgr peermgr.PeerManager, conf
 	}, nil
 }
 
-func (g *Gin) Start() error {
+func (g *Server) Start() error {
 	g.router.Use(gin.Recovery())
 	v1 := g.router.Group("/v1")
 	{
@@ -62,13 +67,13 @@ func (g *Gin) Start() error {
 	return g.router.Run(fmt.Sprintf(":%d", g.config.Port.Http))
 }
 
-func (g *Gin) Stop() error {
+func (g *Server) Stop() error {
 	g.cancel()
 	g.logger.Infoln("gin service stop")
 	return nil
 }
 
-func (g *Gin) auditAppchain(c *gin.Context) {
+func (g *Server) auditAppchain(c *gin.Context) {
 	var res pb.Response
 	var approve client.Approve
 	if err := c.BindJSON(&approve); err != nil {
@@ -85,16 +90,17 @@ func (g *Gin) auditAppchain(c *gin.Context) {
 	c.JSON(http.StatusOK, res)
 }
 
-func (g *Gin) updateAppchain(c *gin.Context) {
-	g.sendAppchain(c, proto.AppchainMessage_UPDATE)
+func (g *Server) updateAppchain(c *gin.Context) {
+	g.sendAppchain(c, peerproto.Message_APPCHAIN_UPDATE)
 }
 
-func (g *Gin) registerAppchain(c *gin.Context) {
-	g.sendAppchain(c, proto.AppchainMessage_REGISTER)
+func (g *Server) registerAppchain(c *gin.Context) {
+	g.sendAppchain(c, peerproto.Message_APPCHAIN_REGISTER)
 }
 
-func (g *Gin) sendAppchain(c *gin.Context, appchainType proto.AppchainMessage_Type) {
-	pierId := c.GetString("pier")
+func (g *Server) sendAppchain(c *gin.Context, appchainType peerproto.Message_Type) {
+	// target pier id
+	pierID := c.GetString("pier_id")
 	var res pb.Response
 	var appchain appchainmgr.Appchain
 	if err := c.BindJSON(&appchain); err != nil {
@@ -106,100 +112,75 @@ func (g *Gin) sendAppchain(c *gin.Context, appchainType proto.AppchainMessage_Ty
 	if err != nil {
 		g.logger.Errorln(err)
 	}
-	am := proto.AppchainMessage{
-		Type: appchainType,
-		Data: data,
-	}
-	amData, err := am.Marshal()
-	if err != nil {
-		g.logger.Errorln(err)
-		return
-	}
-	msg := &peerproto.Message{
-		Type: peerproto.Message_APPCHAIN,
-		Data: amData,
-	}
-	ackMsg, err := g.peerMgr.Send(pierId, msg)
+
+	msg := peermgr.Message(appchainType, true, data)
+	ackMsg, err := g.peerMgr.Send(pierID, msg)
 	if err != nil {
 		res.Data = []byte(err.Error())
 		c.JSON(http.StatusInternalServerError, res)
 		return
 	}
+
 	g.handleAckAppchain(c, ackMsg)
 }
 
-func (g *Gin) getAppchain(c *gin.Context) {
+func (g *Server) getAppchain(c *gin.Context) {
 	var res pb.Response
-	pierId := c.GetString("pier")
-	id := c.GetString("id")
 
-	appchain := &appchainmgr.Appchain{
-		ID: id,
+	// target pier id
+	selfPierID, err := g.getSelfPierID(c)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, err.Error())
+		return
 	}
+	targetPierID := c.GetString("pier_id")
+	appchain := &appchainmgr.Appchain{
+		ID: selfPierID,
+	}
+
 	data, err := json.Marshal(appchain)
 	if err != nil {
-		g.logger.Errorln(err)
+		c.JSON(http.StatusInternalServerError, err.Error())
 		return
 	}
-	am := proto.AppchainMessage{
-		Type: proto.AppchainMessage_GET,
-		Data: data,
-	}
-	amData, err := am.Marshal()
-	if err != nil {
-		g.logger.Errorln(err)
-		return
-	}
-	msg := &peerproto.Message{
-		Type: peerproto.Message_APPCHAIN,
-		Data: amData,
-	}
+	msg := peermgr.Message(peerproto.Message_APPCHAIN_GET, true, data)
 
-	ackMsg, err := g.peerMgr.Send(pierId, msg)
+	ackMsg, err := g.peerMgr.Send(targetPierID, msg)
 	if err != nil {
 		res.Data = []byte(err.Error())
 		c.JSON(http.StatusInternalServerError, res)
 		return
 	}
+
 	g.handleAckAppchain(c, ackMsg)
 }
 
-func (g *Gin) handleAckAppchain(c *gin.Context, msg *peerproto.Message) {
-	data := msg.Data
-	am := &proto.AppchainMessage{}
-	if err := am.Unmarshal(data); err != nil {
-		g.logger.Error(err)
-		return
-	}
-	res := pb.Response{
-		Data: am.Data,
-	}
-
-	if !am.Ok {
-		c.JSON(http.StatusInternalServerError, res)
-		return
-	}
+func (g *Server) handleAckAppchain(c *gin.Context, msg *peerproto.Message) {
 	app := appchainmgr.Appchain{}
-	if err := json.Unmarshal(am.Data, &app); err != nil {
+	if err := json.Unmarshal(msg.Payload.Data, &app); err != nil {
 		g.logger.Error(err)
 		return
 	}
 
-	switch am.Type {
-	case proto.AppchainMessage_REGISTER:
+	res := &response{}
+
+	switch msg.Type {
+	case peerproto.Message_APPCHAIN_REGISTER:
 		res.Data = []byte(fmt.Sprintf("appchain register successfully, id is %s\n", app.ID))
-	case proto.AppchainMessage_UPDATE:
+	case peerproto.Message_APPCHAIN_UPDATE:
 		res.Data = []byte(fmt.Sprintf("appchain update successfully, id is %s\n", app.ID))
-	case proto.AppchainMessage_GET:
-		res.Data = am.Data
+	case peerproto.Message_APPCHAIN_GET:
+		res.Data = msg.Payload.Data
 	}
+
 	c.JSON(http.StatusOK, res)
 }
 
-func (g *Gin) registerRule(c *gin.Context) {
-	pierId := c.GetString("pier")
-	var res pb.Response
-	rule := &validation.Rule{}
+func (g *Server) registerRule(c *gin.Context) {
+	// target pier id
+	pierID := c.GetString("pier_id")
+	rule := &rulemgr.Rule{}
+	res := &response{}
 	if err := c.BindJSON(&rule); err != nil {
 		res.Data = []byte(err.Error())
 		c.JSON(http.StatusBadRequest, res)
@@ -210,11 +191,8 @@ func (g *Gin) registerRule(c *gin.Context) {
 		g.logger.Errorln(err)
 		return
 	}
-	msg := &peerproto.Message{
-		Type: peerproto.Message_RULE,
-		Data: data,
-	}
-	ackMsg, err := g.peerMgr.Send(pierId, msg)
+	msg := peermgr.Message(peerproto.Message_RULE_DEPLOY, true, data)
+	ackMsg, err := g.peerMgr.Send(pierID, msg)
 	if err != nil {
 		res.Data = []byte(err.Error())
 		c.JSON(http.StatusInternalServerError, res)
@@ -223,14 +201,14 @@ func (g *Gin) registerRule(c *gin.Context) {
 	g.handleAckRule(c, ackMsg)
 }
 
-func (g *Gin) handleAckRule(c *gin.Context, msg *peerproto.Message) {
-	data := msg.Data
-	ruleRes := &validation.RuleResponse{}
+func (g *Server) handleAckRule(c *gin.Context, msg *peerproto.Message) {
+	data := msg.Payload.Data
+	ruleRes := &rulemgr.RuleResponse{}
 	if err := json.Unmarshal(data, ruleRes); err != nil {
 		g.logger.Error(err)
 		return
 	}
-	res := pb.Response{
+	res := &response{
 		Data: []byte(ruleRes.Content),
 	}
 
@@ -240,4 +218,15 @@ func (g *Gin) handleAckRule(c *gin.Context, msg *peerproto.Message) {
 	}
 
 	c.JSON(http.StatusOK, res)
+}
+
+func (g *Server) getSelfPierID(ctx *gin.Context) (string, error) {
+	repoRoot := g.config.RepoRoot
+	keyPath := filepath.Join(repoRoot, "key.json")
+	key, err := key.LoadKey(keyPath)
+	if err != nil {
+		return "", err
+	}
+
+	return key.Address.Hex(), nil
 }

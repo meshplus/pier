@@ -11,15 +11,17 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-var logger = log.NewWithModule("appchain_mgr")
-var _ appchainmgr.Persister = (*Persister)(nil)
+var (
+	logger                       = log.NewWithModule("appchain_mgr")
+	_      appchainmgr.Persister = (*Persister)(nil)
+)
 
 type Persister struct {
 	addr    string
 	storage storage.Storage
 }
 
-type AppchainMgr struct {
+type Manager struct {
 	PeerManager peermgr.PeerManager
 	Mgr         appchainmgr.AppchainMgr
 }
@@ -87,14 +89,21 @@ func (m Persister) Query(prefix string) (bool, [][]byte) {
 	return len(ret) != 0, ret
 }
 
-func NewAppchainMgr(addr string, storage storage.Storage, pm peermgr.PeerManager) (*AppchainMgr, error) {
+func NewManager(addr string, storage storage.Storage, pm peermgr.PeerManager) (*Manager, error) {
 	appchainMgr := appchainmgr.New(&Persister{addr: addr, storage: storage})
-	am := &AppchainMgr{
+	am := &Manager{
 		PeerManager: pm,
 		Mgr:         appchainMgr,
 	}
-	if err := pm.RegisterMsgHandler(peerproto.Message_APPCHAIN, am.handleAppchain); err != nil {
+
+	err := pm.RegisterMultiMsgHandler([]peerproto.Message_Type{
+		peerproto.Message_APPCHAIN_REGISTER,
+		peerproto.Message_APPCHAIN_UPDATE,
+		peerproto.Message_APPCHAIN_GET,
+	}, am.handleMessage)
+	if err != nil {
 		return nil, err
 	}
+
 	return am, nil
 }

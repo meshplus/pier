@@ -4,33 +4,44 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/meshplus/pier/internal/rulemgr"
+
 	appchainmgr "github.com/meshplus/bitxhub-core/appchain-mgr"
 	"github.com/meshplus/bitxhub-model/pb"
 	"github.com/meshplus/pier/internal/appchain"
-	"github.com/meshplus/pier/internal/validation"
 )
 
 type DirectChecker struct {
-	ruleMgr     *validation.RuleMgr
-	appchainMgr *appchain.AppchainMgr
+	ruleMgr     *rulemgr.RuleMgr
+	appchainMgr *appchain.Manager
 }
 
-func NewDirectChecker(ruleMgr *validation.RuleMgr, appchainMgr *appchain.AppchainMgr) Checker {
+func NewDirectChecker(ruleMgr *rulemgr.RuleMgr, appchainMgr *appchain.Manager) Checker {
 	return &DirectChecker{
 		ruleMgr:     ruleMgr,
 		appchainMgr: appchainMgr,
 	}
 }
 
-func (c *DirectChecker) Check(ibtp *pb.IBTP) (bool, error) {
+func (c *DirectChecker) Check(ibtp *pb.IBTP) error {
 	ok, appchainByte := c.appchainMgr.Mgr.GetAppchain(ibtp.From)
 	if !ok {
-		return false, fmt.Errorf("appchain not found")
-	}
-	appchain := &appchainmgr.Appchain{}
-	if err := json.Unmarshal(appchainByte, appchain); err != nil {
-		return false, err
+		return fmt.Errorf("appchain not found")
 	}
 
-	return c.ruleMgr.Ve.Validate(ibtp.From, ibtp.From, ibtp.Proof, ibtp.Payload, appchain.Validators)
+	appchain := &appchainmgr.Appchain{}
+	if err := json.Unmarshal(appchainByte, appchain); err != nil {
+		return fmt.Errorf("unmarshal appchain: %w", err)
+	}
+
+	ok, err := c.ruleMgr.Validate(ibtp.From, ibtp.From, ibtp.Proof, ibtp.Payload, appchain.Validators)
+	if err != nil {
+		return err
+	}
+
+	if !ok {
+		return fmt.Errorf("rule check failed")
+	}
+
+	return nil
 }

@@ -1,4 +1,4 @@
-package validation
+package rulemgr
 
 import (
 	"github.com/meshplus/bitxhub-core/validator"
@@ -26,7 +26,7 @@ type RuleMgr struct {
 	Ve          *validator.ValidationEngine
 }
 
-func NewRuleMgr(storage storage.Storage, pm peermgr.PeerManager) (*RuleMgr, error) {
+func New(storage storage.Storage, pm peermgr.PeerManager) (*RuleMgr, error) {
 	ledger := &CodeLedger{
 		storage: storage,
 	}
@@ -36,8 +36,12 @@ func NewRuleMgr(storage storage.Storage, pm peermgr.PeerManager) (*RuleMgr, erro
 		PeerManager: pm,
 		Ve:          ve,
 	}
-	if err := pm.RegisterMsgHandler(peerproto.Message_RULE, rm.handleRule); err != nil {
+	if err := pm.RegisterMsgHandler(peerproto.Message_RULE_DEPLOY, rm.handleRule); err != nil {
 		return nil, err
 	}
 	return rm, nil
+}
+
+func (rm *RuleMgr) Validate(address, from string, proof, payload []byte, validators string) (bool, error) {
+	return rm.Ve.Validate(address, from, proof, payload, validators)
 }

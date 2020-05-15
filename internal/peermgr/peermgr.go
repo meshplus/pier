@@ -32,6 +32,9 @@ type PeerManager interface {
 	// RegisterMsgHandler
 	RegisterMsgHandler(peermgr.Message_Type, MessageHandler) error
 
+	// RegisterMultiMsgHandler
+	RegisterMultiMsgHandler([]peermgr.Message_Type, MessageHandler) error
+
 	// RegisterConnectHandler
 	RegisterConnectHandler(ConnectHandler) error
 }

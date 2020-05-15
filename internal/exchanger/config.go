@@ -12,14 +12,14 @@ import (
 )
 
 type Config struct {
-	agent   agent.Agent
-	checker checker.Checker
-	store   storage.Storage
-	peerMgr peermgr.PeerManager
-	mnt     monitor.Monitor
-	exec    executor.Executor
-	syncer  syncer.Syncer
-	gin     api.GinService
+	agent     agent.Agent
+	checker   checker.Checker
+	store     storage.Storage
+	peerMgr   peermgr.PeerManager
+	mnt       monitor.Monitor
+	exec      executor.Executor
+	syncer    syncer.Syncer
+	apiServer *api.Server
 }
 
 type Option func(*Config)
@@ -60,9 +60,9 @@ func WithSyncer(syncer syncer.Syncer) Option {
 	}
 }
 
-func WithGin(gin api.GinService) Option {
+func WithAPIServer(apiServer *api.Server) Option {
 	return func(config *Config) {
-		config.gin = gin
+		config.apiServer = apiServer
 	}
 }
 
