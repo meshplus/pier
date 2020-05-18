@@ -3,7 +3,6 @@ package client
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/meshplus/pier/api"
 	"io/ioutil"
 	"strconv"
 
@@ -17,6 +16,11 @@ import (
 )
 
 
+type Approve struct {
+	Id         string `json:"id"`
+	IsApproved int32  `json:"is_approved"`
+	Desc       string `json:"desc"`
+}
 
 var clientCMD = cli.Command{
 	Name:  "client",
@@ -176,7 +180,7 @@ func auditPierAppchain(ctx *cli.Context) error {
 	if err != nil {
 		return fmt.Errorf("isApproved must be 0 or 1: %w", err)
 	}
-	approve := &api.Approve{
+	approve := &Approve{
 		Id:         id,
 		IsApproved: int32(ia),
 		Desc:       desc,
