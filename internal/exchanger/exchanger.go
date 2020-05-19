@@ -110,11 +110,12 @@ func (ex *Exchanger) Start() error {
 	}
 
 	go func() {
+		ch := ex.mnt.ListenOnIBTP()
 		for {
 			select {
 			case <-ex.ctx.Done():
 				return
-			case ibtp, ok := <-ex.mnt.ListenOnIBTP():
+			case ibtp, ok := <-ch:
 				if !ok {
 					logger.Warn("Unexpected closed channel while listening on interchain ibtp")
 					return

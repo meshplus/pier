@@ -5,12 +5,11 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/meshplus/pier/internal/peermgr"
-
 	"github.com/Rican7/retry"
 	"github.com/Rican7/retry/strategy"
 	"github.com/libp2p/go-libp2p-core/network"
 	"github.com/meshplus/bitxhub-model/pb"
+	"github.com/meshplus/pier/internal/peermgr"
 	peerMsg "github.com/meshplus/pier/internal/peermgr/proto"
 	"github.com/sirupsen/logrus"
 )
@@ -77,7 +76,7 @@ func (ex *Exchanger) handleSendIBTPMessage(stream network.Stream, msg *peerMsg.M
 		return
 	}
 
-	logger.Info("Handle ibtp from pier")
+	logger.Info("Handle ibtp from other pier")
 }
 
 func (ex *Exchanger) handleGetIBTPMessage(stream network.Stream, msg *peerMsg.Message) {

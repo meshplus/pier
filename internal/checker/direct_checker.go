@@ -4,11 +4,10 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/meshplus/pier/internal/rulemgr"
-
 	appchainmgr "github.com/meshplus/bitxhub-core/appchain-mgr"
 	"github.com/meshplus/bitxhub-model/pb"
 	"github.com/meshplus/pier/internal/appchain"
+	"github.com/meshplus/pier/internal/rulemgr"
 )
 
 type DirectChecker struct {
@@ -26,7 +25,7 @@ func NewDirectChecker(ruleMgr *rulemgr.RuleMgr, appchainMgr *appchain.Manager) C
 func (c *DirectChecker) Check(ibtp *pb.IBTP) error {
 	ok, appchainByte := c.appchainMgr.Mgr.GetAppchain(ibtp.From)
 	if !ok {
-		return fmt.Errorf("appchain not found")
+		return fmt.Errorf("appchain %s not found", ibtp.From)
 	}
 
 	appchain := &appchainmgr.Appchain{}

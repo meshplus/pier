@@ -6,8 +6,6 @@ import (
 	"fmt"
 	"path/filepath"
 
-	"github.com/meshplus/pier/internal/rulemgr"
-
 	"github.com/meshplus/bitxhub-kit/crypto"
 	"github.com/meshplus/bitxhub-kit/log"
 	"github.com/meshplus/bitxhub-kit/storage"
@@ -21,9 +19,11 @@ import (
 	"github.com/meshplus/pier/internal/executor"
 	"github.com/meshplus/pier/internal/lite"
 	"github.com/meshplus/pier/internal/lite/bxh_lite"
+	"github.com/meshplus/pier/internal/lite/direct_lite"
 	"github.com/meshplus/pier/internal/monitor"
 	"github.com/meshplus/pier/internal/peermgr"
 	"github.com/meshplus/pier/internal/repo"
+	"github.com/meshplus/pier/internal/rulemgr"
 	"github.com/meshplus/pier/internal/syncer"
 	"github.com/meshplus/pier/internal/txcrypto"
 	"github.com/meshplus/pier/pkg/plugins"
@@ -102,23 +102,13 @@ func NewPier(repoRoot string, config *repo.Config) (*Pier, error) {
 
 		ck = checker.NewDirectChecker(ruleMgr, appchainMgr)
 
-		ok, data := appchainMgr.Mgr.Appchain()
-		if !ok {
-			return nil, fmt.Errorf("appchain not registered")
-		}
-
 		cryptor, err = txcrypto.NewDirectCryptor(appchainMgr, privateKey)
 		if err != nil {
 			return nil, fmt.Errorf("cryptor create: %w", err)
 		}
 
-		chain = &rpcx.Appchain{}
-		if err := json.Unmarshal(data, chain); err != nil {
-			return nil, fmt.Errorf("get appchain info: %s", err.Error())
-		}
-
-		// todo: add cryptor and get meta from other chains
 		meta = &rpcx.Interchain{}
+		lite = &direct_lite.MockLite{}
 	case repo.RelayMode:
 		ck = &checker.MockChecker{}
 
@@ -173,7 +163,7 @@ func NewPier(repoRoot string, config *repo.Config) (*Pier, error) {
 		return nil, fmt.Errorf("marshal interchain meta: %w", err)
 	}
 
-	cli, err := plugins.CreateClient(chain.ID, config, extra)
+	cli, err := plugins.CreateClient(addr.String(), config, extra)
 	if err != nil {
 		return nil, fmt.Errorf("appchain client create: %w", err)
 	}
@@ -183,12 +173,12 @@ func NewPier(repoRoot string, config *repo.Config) (*Pier, error) {
 		return nil, fmt.Errorf("monitor create: %w", err)
 	}
 
-	exec, err := executor.New(cli, chain.ID, store, cryptor)
+	exec, err := executor.New(cli, addr.String(), store, cryptor)
 	if err != nil {
 		return nil, fmt.Errorf("executor create: %w", err)
 	}
 
-	ex, err = exchanger.New(config.Mode.Type, chain.ID, meta,
+	ex, err = exchanger.New(config.Mode.Type, addr.String(), meta,
 		exchanger.WithAgent(ag),
 		exchanger.WithChecker(ck),
 		exchanger.WithExecutor(exec),

@@ -105,7 +105,8 @@ func (swarm *Swarm) Start() error {
 				}
 
 				swarm.logger.WithFields(logrus.Fields{
-					"node": id,
+					"node":     id,
+					"address:": address,
 				}).Info("Connect successfully")
 
 				swarm.connectedPeers.Store(address, addr)

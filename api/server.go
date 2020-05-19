@@ -40,6 +40,7 @@ type response struct {
 
 func NewServer(appchainMgr *appchain.Manager, peerMgr peermgr.PeerManager, config *repo.Config) (*Server, error) {
 	ctx, cancel := context.WithCancel(context.Background())
+	gin.SetMode(gin.ReleaseMode)
 	router := gin.New()
 	return &Server{
 		router:      router,
@@ -53,7 +54,6 @@ func NewServer(appchainMgr *appchain.Manager, peerMgr peermgr.PeerManager, confi
 }
 
 func (g *Server) Start() error {
-	gin.SetMode(gin.ReleaseMode)
 	g.router.Use(gin.Recovery())
 	v1 := g.router.Group("/v1")
 	{

@@ -363,8 +363,8 @@ github.com/mattn/go-isatty v0.0.11/go.mod h1:PhnuNfih5lzO57/f3n+odYbM4JtupLOxQOA
 github.com/mattn/go-isatty v0.0.12 h1:wuysRhFDzyxgEmMf5xjvJ2M9dZoWAXNNr5LSBS7uHXY=
 github.com/mattn/go-isatty v0.0.12/go.mod h1:cbi8OIDigv2wuxKPP5vlRcQ1OAZbq2CE4Kysco4FUpU=
 github.com/matttproud/golang_protobuf_extensions v1.0.1/go.mod h1:D8He9yQNgCq6Z5Ld7szi9bcBfOoFv/3dc6xSMkL2PC0=
-github.com/meshplus/bitxhub-core v0.1.0-rc1.0.20200513081655-9e99eb6078ff h1:Fu4ZmtyeU1Z9jazX0yTEvlZvOsrlMvVvyPIgJygoYcY=
-github.com/meshplus/bitxhub-core v0.1.0-rc1.0.20200513081655-9e99eb6078ff/go.mod h1:JAxVCppTLwO6+NG6z0ycK0RuZZvNFavsx5vqrsV2ewM=
+github.com/meshplus/bitxhub-core v0.1.0-rc1.0.20200519073726-194263cfe6ab h1:g1QW8TgqmEu7bRFuinFcNurhuDOStBt/ZbRJhDFgHrk=
+github.com/meshplus/bitxhub-core v0.1.0-rc1.0.20200519073726-194263cfe6ab/go.mod h1:JAxVCppTLwO6+NG6z0ycK0RuZZvNFavsx5vqrsV2ewM=
 github.com/meshplus/bitxhub-kit v1.0.0-rc1 h1:gNi8IFU5CMHT3KE2I4ACj5alMW9h/4cV8xOxn7wSmtA=
 github.com/meshplus/bitxhub-kit v1.0.0-rc1/go.mod h1:ra/AhOkPvpElI+wXrB9G6DjdcrdxFU3vMwA5MYKr9D0=
 github.com/meshplus/bitxhub-kit v1.0.0 h1:+RHGTqW50CLZlEQAUm89fQHicYcjqkdYa+QMAktxGd4=
