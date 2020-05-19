@@ -11,10 +11,11 @@ import (
 	appchainmgr "github.com/meshplus/bitxhub-core/appchain-mgr"
 	"github.com/meshplus/bitxhub-kit/crypto"
 	"github.com/meshplus/bitxhub-kit/key"
+	"github.com/meshplus/bitxhub-kit/types"
+	"github.com/meshplus/bitxhub-kit/wasm"
 	"github.com/meshplus/pier/internal/repo"
 	"github.com/urfave/cli"
 )
-
 
 type Approve struct {
 	Id         string `json:"id"`
@@ -308,8 +309,19 @@ func registerAppchainRule(ctx *cli.Context) error {
 		return fmt.Errorf("get public key: %w", err)
 	}
 	addr, _ := pubKey.Address()
+
+	contract := wasm.Contract{
+		Code: data,
+		Hash: types.Bytes2Hash(data),
+	}
+
+	code, err := json.Marshal(contract)
+	if err != nil {
+		return fmt.Errorf("marshal contarct: %w", err)
+	}
+
 	rule := rulemgr.Rule{
-		Code:    data,
+		Code:    code,
 		Address: addr.String(),
 	}
 	postData, err := json.Marshal(rule)
