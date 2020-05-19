@@ -16,9 +16,12 @@ type RelayCryptor struct {
 }
 
 func NewRelayCryptor(client rpcx.Client, privKey crypto.PrivateKey) (Cryptor, error) {
+	keyMap := make(map[string][]byte)
+
 	return &RelayCryptor{
 		client:  client,
 		privKey: privKey,
+		keyMap:  keyMap,
 	}, nil
 }
 
@@ -39,6 +42,7 @@ func (c *RelayCryptor) Decrypt(content []byte, address string) ([]byte, error) {
 }
 
 func (c *RelayCryptor) getDesKey(address string) (crypto.SymmetricKey, error) {
+
 	pubKey, ok := c.keyMap[address]
 	if !ok {
 		ret, err := c.client.InvokeBVMContract(rpcx.AppchainMgrContractAddr, "GetPubKeyByChainID", rpcx.String(address))
