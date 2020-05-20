@@ -3,13 +3,11 @@ package appchain
 import (
 	"encoding/json"
 
-	"github.com/meshplus/pier/internal/peermgr"
-
-	"github.com/sirupsen/logrus"
-
 	"github.com/libp2p/go-libp2p-core/network"
 	appchainmgr "github.com/meshplus/bitxhub-core/appchain-mgr"
+	"github.com/meshplus/pier/internal/peermgr"
 	peerproto "github.com/meshplus/pier/internal/peermgr/proto"
+	"github.com/sirupsen/logrus"
 )
 
 func (mgr *Manager) handleMessage(s network.Stream, msg *peerproto.Message) {
@@ -36,18 +34,24 @@ func (mgr *Manager) handleMessage(s network.Stream, msg *peerproto.Message) {
 		logger.Error(m)
 	}
 
-	ackMsg := peermgr.Message(peerproto.Message_ACK, ok, res)
+	ackMsg := peermgr.Message(msg.Type, ok, res)
 	err := mgr.PeerManager.SendWithStream(s, ackMsg)
 	if err != nil {
 		logger.Error(err)
 	}
 
+	appchainRes := &appchainmgr.Appchain{}
+	if err := json.Unmarshal(res, appchainRes); err != nil {
+		logger.Error(err)
+		return
+	}
+
 	logger.WithFields(logrus.Fields{
 		"type":           msg.Type,
-		"from_id":        app.ID,
-		"name":           app.Name,
-		"desc":           app.Desc,
-		"chain_type":     app.ChainType,
-		"consensus_type": app.ConsensusType,
+		"from_id":        appchainRes.ID,
+		"name":           appchainRes.Name,
+		"desc":           appchainRes.Desc,
+		"chain_type":     appchainRes.ChainType,
+		"consensus_type": appchainRes.ConsensusType,
 	}).Info("Handle appchain message")
 }

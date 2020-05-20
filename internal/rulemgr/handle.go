@@ -3,10 +3,9 @@ package rulemgr
 import (
 	"encoding/json"
 
-	"github.com/meshplus/pier/internal/peermgr"
-
 	"github.com/libp2p/go-libp2p-core/network"
 	"github.com/meshplus/bitxhub-kit/types"
+	"github.com/meshplus/pier/internal/peermgr"
 	peerproto "github.com/meshplus/pier/internal/peermgr/proto"
 )
 
@@ -25,8 +24,7 @@ func (rm *RuleMgr) handleRule(net network.Stream, msg *peerproto.Message) {
 	}
 
 	res := RuleResponse{
-		Ok:      ok,
-		Content: err.Error(),
+		Ok: ok,
 	}
 
 	ackData, err := json.Marshal(res)

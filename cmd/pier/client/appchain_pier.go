@@ -6,14 +6,13 @@ import (
 	"io/ioutil"
 	"strconv"
 
-	"github.com/meshplus/pier/internal/rulemgr"
-
 	appchainmgr "github.com/meshplus/bitxhub-core/appchain-mgr"
 	"github.com/meshplus/bitxhub-kit/crypto"
 	"github.com/meshplus/bitxhub-kit/key"
 	"github.com/meshplus/bitxhub-kit/types"
 	"github.com/meshplus/bitxhub-kit/wasm"
 	"github.com/meshplus/pier/internal/repo"
+	"github.com/meshplus/pier/internal/rulemgr"
 	"github.com/urfave/cli"
 )
 
@@ -69,7 +68,7 @@ var clientCMD = cli.Command{
 			Usage: "Update appchain in pier",
 			Flags: []cli.Flag{
 				cli.StringFlag{
-					Name:     "pier",
+					Name:     "pier_id",
 					Usage:    "Specific target pier id",
 					Required: true,
 				},
@@ -128,13 +127,8 @@ var clientCMD = cli.Command{
 			Usage: "Get appchain info",
 			Flags: []cli.Flag{
 				cli.StringFlag{
-					Name:     "pier",
+					Name:     "pier_id",
 					Usage:    "Specific target pier id",
-					Required: true,
-				},
-				cli.StringFlag{
-					Name:     "id",
-					Usage:    "Specific appchain id",
 					Required: true,
 				},
 			},
@@ -150,7 +144,7 @@ var clientCMD = cli.Command{
 					Required: true,
 				},
 				cli.StringFlag{
-					Name:     "pier",
+					Name:     "pier_id",
 					Usage:    "Specific target pier id",
 					Required: true,
 				},
@@ -207,7 +201,7 @@ func auditPierAppchain(ctx *cli.Context) error {
 }
 
 func savePierAppchain(ctx *cli.Context, path string) error {
-	pier := ctx.String("pier")
+	pier := ctx.String("pier_id")
 	name := ctx.String("name")
 	typ := ctx.String("type")
 	desc := ctx.String("desc")
@@ -230,7 +224,7 @@ func savePierAppchain(ctx *cli.Context, path string) error {
 	}
 	addr, _ := pubKey.Address()
 	pubKeyBytes, _ := pubKey.Bytes()
-	appchain := appchainmgr.Appchain{
+	appchain := &appchainmgr.Appchain{
 		ID:            addr.String(),
 		Name:          name,
 		Validators:    string(data),
@@ -246,7 +240,7 @@ func savePierAppchain(ctx *cli.Context, path string) error {
 		return fmt.Errorf("marshal appchain error: %w", err)
 	}
 
-	url, err := getURL(ctx, fmt.Sprintf("%s?pier=%s", path, pier))
+	url, err := getURL(ctx, fmt.Sprintf("%s?pier_id=%s", path, pier))
 	if err != nil {
 		return err
 	}
@@ -261,10 +255,9 @@ func savePierAppchain(ctx *cli.Context, path string) error {
 }
 
 func getPierAppchain(ctx *cli.Context) error {
-	pier := ctx.String("pier")
-	id := ctx.String("id")
+	targetPierID := ctx.String("pier_id")
 
-	url, err := getURL(ctx, fmt.Sprintf("%s?pier=%s&id=%s", GetAppchainUrl, pier, id))
+	url, err := getURL(ctx, fmt.Sprintf("%s?pier_id=%s", GetAppchainUrl, targetPierID))
 	if err != nil {
 		return err
 	}
@@ -293,7 +286,7 @@ func getPubKey(keyPath string) (crypto.PublicKey, error) {
 
 func registerAppchainRule(ctx *cli.Context) error {
 	path := ctx.String("path")
-	pier := ctx.String("pier")
+	pier := ctx.String("pier_id")
 
 	data, err := ioutil.ReadFile(path)
 	if err != nil {
@@ -319,8 +312,7 @@ func registerAppchainRule(ctx *cli.Context) error {
 	if err != nil {
 		return fmt.Errorf("marshal contarct: %w", err)
 	}
-
-	rule := rulemgr.Rule{
+	rule := &rulemgr.Rule{
 		Code:    code,
 		Address: addr.String(),
 	}
@@ -329,7 +321,7 @@ func registerAppchainRule(ctx *cli.Context) error {
 		return fmt.Errorf("marshal rule error: %w", err)
 	}
 
-	url, err := getURL(ctx, fmt.Sprintf("%s?pier=%s", RegisterRuleUrl, pier))
+	url, err := getURL(ctx, fmt.Sprintf("%s?pier_id=%s", RegisterRuleUrl, pier))
 	if err != nil {
 		return err
 	}
