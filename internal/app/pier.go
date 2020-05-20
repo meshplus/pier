@@ -107,6 +107,11 @@ func NewPier(repoRoot string, config *repo.Config) (*Pier, error) {
 			return nil, fmt.Errorf("appchain not registered")
 		}
 
+		cryptor, err = txcrypto.NewDirectCryptor(appchainMgr, privateKey)
+		if err != nil {
+			return nil, fmt.Errorf("cryptor create: %w", err)
+		}
+
 		chain = &rpcx.Appchain{}
 		if err := json.Unmarshal(data, chain); err != nil {
 			return nil, fmt.Errorf("get appchain info: %s", err.Error())
