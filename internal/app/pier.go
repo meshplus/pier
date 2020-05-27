@@ -186,6 +186,7 @@ func NewPier(repoRoot string, config *repo.Config) (*Pier, error) {
 		exchanger.WithPeerMgr(peerManager),
 		exchanger.WithSyncer(sync),
 		exchanger.WithAPIServer(apiServer),
+		exchanger.WithStorage(store),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("exchanger create: %w", err)

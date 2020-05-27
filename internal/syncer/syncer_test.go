@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/cbergoon/merkletree"
 	"github.com/golang/mock/gomock"
-	"github.com/meshplus/bitxhub-kit/merkle/merkletree"
 	"github.com/meshplus/bitxhub-kit/storage/leveldb"
 	"github.com/meshplus/bitxhub-kit/types"
 	"github.com/meshplus/bitxhub-model/pb"
@@ -95,15 +95,15 @@ func prepare(t *testing.T) (*WrapperSyncer, *mock_agent.MockAgent, *mock_lite.Mo
 }
 
 func getBlockHeader(t *testing.T, txs []*pb.Transaction, number uint64) *pb.BlockHeader {
-	hashes := make([]interface{}, 0, len(txs))
+	hashes := make([]merkletree.Content, 0, len(txs))
 	for i := 0; i < len(txs); i++ {
 		hash := txs[i].Hash()
 		hashes = append(hashes, pb.TransactionHash(hash.Bytes()))
 	}
 
-	tree := merkletree.NewMerkleTree()
-	require.Nil(t, tree.InitMerkleTree(hashes))
-	root := tree.GetMerkleRoot()
+	tree, err := merkletree.NewTree(hashes)
+	require.Nil(t, err)
+	root := tree.MerkleRoot()
 
 	wrapper := &pb.BlockHeader{
 		Number:     number,

@@ -56,13 +56,21 @@ func (ex *Exchanger) handleSendIBTPMessage(stream network.Stream, msg *peerMsg.M
 		}
 
 		receipt := ex.exec.HandleIBTP(ibtp)
+		if receipt == nil {
+			retMsg := peermgr.Message(peerMsg.Message_ACK, true, nil)
+			err = ex.peerMgr.SendWithStream(stream, retMsg)
+			if err != nil {
+				return fmt.Errorf("send back ibtp: %w", err)
+			}
+			return nil
+		}
+
 		data, err := receipt.Marshal()
 		if err != nil {
 			return fmt.Errorf("marshal ibtp receipt: %w", err)
 		}
 
 		retMsg := peermgr.Message(peerMsg.Message_ACK, true, data)
-
 		err = ex.peerMgr.SendWithStream(stream, retMsg)
 		if err != nil {
 			return fmt.Errorf("send back ibtp: %w", err)
