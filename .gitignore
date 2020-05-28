@@ -1,7 +1,5 @@
-
 .DS_Store
 .idea
-*.so
 *.tar
 logs/*
 internal/repo/a_repo-packr.go
