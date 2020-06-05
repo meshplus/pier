@@ -206,9 +206,13 @@ func (ex *Exchanger) sendIBTP(ibtp *pb.IBTP) error {
 			}
 
 			if !retMsg.Payload.Ok {
-				logger.Errorf("send ibtp: %s", string(retMsg.Payload.Data))
+				entry.Errorf("send ibtp: %w", fmt.Errorf(string(retMsg.Payload.Data)))
 				return fmt.Errorf("send ibtp: %w", fmt.Errorf(string(retMsg.Payload.Data)))
 			}
+
+			entry.WithFields(logrus.Fields{
+				"status": retMsg.Payload.Ok,
+			}).Info("Send ibtp")
 
 			// ignore msg for receipt type
 			if ibtp.Type == pb.IBTP_RECEIPT {
