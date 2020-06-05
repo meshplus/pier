@@ -24,12 +24,6 @@ RUN cd .. && \
     make fabric1.4 && \
     cp build/fabric-client-1.4.so /go/bin/fabric-client-1.4.so
 
-#RUN cd .. && \
-#    git clone https://github.com/meshplus/pier-client-ethereum.git && \
-#    cd pier-client-ethereum && \
-#    make eth && \
-#    cp build/eth-client.so /go/bin/eth-client.so
-
 # Final image
 FROM frolvlad/alpine-glibc
 
