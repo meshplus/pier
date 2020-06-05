@@ -9,8 +9,8 @@ import (
 
 	"github.com/Rican7/retry"
 	"github.com/Rican7/retry/strategy"
+	"github.com/cbergoon/merkletree"
 	"github.com/meshplus/bitxhub-kit/log"
-	"github.com/meshplus/bitxhub-kit/merkle/merkletree"
 	"github.com/meshplus/bitxhub-kit/storage"
 	"github.com/meshplus/bitxhub-kit/types"
 	"github.com/meshplus/bitxhub-model/pb"
@@ -284,21 +284,20 @@ func (syncer *WrapperSyncer) verifyWrapper(w *pb.InterchainTxWrapper) (bool, err
 	}
 
 	// validate if the txs is committed in bitxhub
-	hashes := make([]interface{}, 0, len(w.TransactionHashes))
+	hashes := make([]merkletree.Content, 0, len(w.TransactionHashes))
 	existM := make(map[string]bool)
 	for _, hash := range w.TransactionHashes {
 		hashes = append(hashes, pb.TransactionHash(hash.Bytes()))
 		existM[hash.String()] = true
 	}
 
-	tree := merkletree.NewMerkleTree()
-	if err := tree.InitMerkleTree(hashes); err != nil {
-		return false, err
+	tree, err := merkletree.NewTree(hashes)
+	if err != nil {
+		return false, fmt.Errorf("init merkle tree: %w", err)
 	}
 
 	var (
 		header *pb.BlockHeader
-		err    error
 	)
 	if err := retry.Retry(func(attempt uint) error {
 		header, err = syncer.lite.QueryHeader(w.Height)
@@ -315,7 +314,7 @@ func (syncer *WrapperSyncer) verifyWrapper(w *pb.InterchainTxWrapper) (bool, err
 	}
 
 	// verify tx root
-	if types.Bytes2Hash(tree.GetMerkleRoot()) != header.TxRoot {
+	if types.Bytes2Hash(tree.MerkleRoot()) != header.TxRoot {
 		return false, fmt.Errorf("tx wrapper is wrong")
 	}
 

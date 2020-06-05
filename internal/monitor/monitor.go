@@ -154,7 +154,7 @@ func (m *AppchainMonitor) handleIBTP(ibtp *pb.IBTP) {
 	logger.WithFields(logrus.Fields{
 		"index": ibtp.Index,
 		"to":    types.String2Address(ibtp.To).ShortString(),
-	}).Info("Send out ibtp")
+	}).Info("Pass ibtp to exchanger")
 
 	m.interchainCounter[ibtp.To]++
 	m.recvCh <- ibtp

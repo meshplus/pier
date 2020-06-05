@@ -48,6 +48,7 @@ func (ex *Exchanger) recoverDirect(dstPierID string, interchainIndex uint64, rec
 	mntMeta := ex.mnt.QueryLatestMeta()
 	index, ok := mntMeta[dstPierID]
 	if !ok {
+		logger.Infof("Appchain %s not exist", dstPierID)
 		return
 	}
 	if err := ex.handleMissingIBTP(dstPierID, interchainIndex+1, index+1); err != nil {

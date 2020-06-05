@@ -66,6 +66,12 @@ func WithAPIServer(apiServer *api.Server) Option {
 	}
 }
 
+func WithStorage(store storage.Storage) Option {
+	return func(config *Config) {
+		config.store = store
+	}
+}
+
 func GenerateConfig(opts ...Option) (*Config, error) {
 	config := &Config{}
 	for _, opt := range opts {

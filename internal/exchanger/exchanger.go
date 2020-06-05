@@ -3,6 +3,7 @@ package exchanger
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/Rican7/retry"
@@ -191,14 +192,42 @@ func (ex *Exchanger) sendIBTP(ibtp *pb.IBTP) error {
 			}
 			msg := peermgr.Message(peerMsg.Message_IBTP_SEND, true, data)
 
-			retMsg, err := ex.peerMgr.Send(ibtp.To, msg)
+			var dst string
+			if ibtp.Type == pb.IBTP_RECEIPT {
+				dst = strings.ToLower(ibtp.From)
+			} else {
+				dst = strings.ToLower(ibtp.To)
+			}
+
+			retMsg, err := ex.peerMgr.Send(dst, msg)
 			if err != nil {
+				logger.Infof("Send ibtp to pier %s: %s", dst, err.Error())
 				return err
 			}
 
 			if !retMsg.Payload.Ok {
+				logger.Errorf("send ibtp: %w", fmt.Errorf(string(retMsg.Payload.Data)))
 				return fmt.Errorf("send ibtp: %w", fmt.Errorf(string(retMsg.Payload.Data)))
 			}
+
+			// ignore msg for receipt type
+			if ibtp.Type == pb.IBTP_RECEIPT {
+				return nil
+			}
+
+			// handle receipt message from pier
+			receipt := &pb.IBTP{}
+			if err := receipt.Unmarshal(retMsg.Payload.Data); err != nil {
+				logger.Errorf("unmarshal receipt: %s", err.Error())
+				return err
+			}
+
+			//if err := ex.checker.Check(receipt); err != nil {
+			//	logger.Errorf("check ibtp: %s", err.Error())
+			//	return err
+			//}
+
+			ex.exec.HandleIBTP(receipt)
 
 			return nil
 		}, strategy.Wait(1*time.Second)); err != nil {
@@ -210,7 +239,6 @@ func (ex *Exchanger) sendIBTP(ibtp *pb.IBTP) error {
 
 func (ex *Exchanger) queryIBTP(from string, idx uint64) (*pb.IBTP, error) {
 	ibtp := &pb.IBTP{}
-	var err error
 	id := fmt.Sprintf("%s-%s-%d", from, ex.pierID, idx)
 
 	v, err := ex.store.Get(model.IBTPKey(id))
