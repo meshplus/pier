@@ -96,6 +96,7 @@ github.com/go-playground/universal-translator v0.17.0/go.mod h1:UkSxE5sNxxRwHyU+
 github.com/go-playground/validator/v10 v10.2.0 h1:KgJ0snyC2R9VXYN2rneOtQcw5aHQB1Vv0sFl1UcHBOY=
 github.com/go-playground/validator/v10 v10.2.0/go.mod h1:uOYAAleCW8F/7oMFd6aG0GOhaH6EGOAJShg8Id5JGkI=
 github.com/go-stack/stack v1.8.0/go.mod h1:v0f6uXyyMGvRgIKkXu+yp6POWl0qKG85gN/melR3HDY=
+github.com/gobuffalo/envy v1.7.0 h1:GlXgaiBkmrYMHco6t4j7SacKO4XUjvh5pwXh0f4uxXU=
 github.com/gobuffalo/envy v1.7.0/go.mod h1:n7DRkBerg/aorDM8kbduw5dN3oXGswK5liaSCx4T5NI=
 github.com/gobuffalo/logger v1.0.0 h1:xw9Ko9EcC5iAFprrjJ6oZco9UpzS5MQ4jAwghsLHdy4=
 github.com/gobuffalo/logger v1.0.0/go.mod h1:2zbswyIUa45I+c+FLXuWl9zSWEiVuthsk8ze5s8JvPs=
@@ -372,6 +373,8 @@ github.com/meshplus/bitxhub-model v1.0.0-rc4.0.20200429111056-62b55c3d4260 h1:C8
 github.com/meshplus/bitxhub-model v1.0.0-rc4.0.20200429111056-62b55c3d4260/go.mod h1:QK8aACbxtZEA3Hk1BOCirW0uxMWLsMrLDpWz9FweIKM=
 github.com/meshplus/bitxhub-model v1.0.0-rc4.0.20200514093243-7e8ae60d1c19 h1:D0n0/NqaueI6r+/cJIjYzWwjZ9j/5l36r/c8MYqTdXg=
 github.com/meshplus/bitxhub-model v1.0.0-rc4.0.20200514093243-7e8ae60d1c19/go.mod h1:QK8aACbxtZEA3Hk1BOCirW0uxMWLsMrLDpWz9FweIKM=
+github.com/meshplus/bitxhub-model v1.0.0-rc4.0.20200608065824-2fbc63639e92 h1:koeroK50gwpBNdrnMHlc2hL02DMCzHB35kG1deyibR4=
+github.com/meshplus/bitxhub-model v1.0.0-rc4.0.20200608065824-2fbc63639e92/go.mod h1:QK8aACbxtZEA3Hk1BOCirW0uxMWLsMrLDpWz9FweIKM=
 github.com/meshplus/go-bitxhub-client v1.0.0-rc4.0.20200509065005-851bf8c357e4 h1:w8HvTcg1C4D2t0Txy4T+/7kVA6Z5VeBicxm/da6G9h4=
 github.com/meshplus/go-bitxhub-client v1.0.0-rc4.0.20200509065005-851bf8c357e4/go.mod h1:JIfB02707GTRV97lMdw09GStYlK4upf1kn3B4DvwQYA=
 github.com/mgutz/ansi v0.0.0-20170206155736-9520e82c474b/go.mod h1:01TrycV0kFyexm33Z7vhZRXopbI8J3TDReVlkTgMUxE=
@@ -476,6 +479,7 @@ github.com/rifflock/lfshook v0.0.0-20180920164130-b9218ef580f5/go.mod h1:GEXHk5H
 github.com/rogpeppe/fastuuid v0.0.0-20150106093220-6724a57986af/go.mod h1:XWv6SoW27p1b0cqNHllgS5HIMJraePCO15w5zCzIWYg=
 github.com/rogpeppe/fastuuid v1.2.0/go.mod h1:jVj6XXZzXRy/MSR5jhDC/2q6DgLz+nrA6LYCDYWNEvQ=
 github.com/rogpeppe/go-internal v1.1.0/go.mod h1:M8bDsm7K2OlrFYOpmOWEs/qY81heoFRclV5y23lUDJ4=
+github.com/rogpeppe/go-internal v1.3.0 h1:RR9dF3JtopPvtkroDZuVD7qquD0bnHlKSqaQhgwt8yk=
 github.com/rogpeppe/go-internal v1.3.0/go.mod h1:M8bDsm7K2OlrFYOpmOWEs/qY81heoFRclV5y23lUDJ4=
 github.com/russross/blackfriday v1.5.2 h1:HyvC0ARfnZBqnXwABFeSZHpKvJHJJfPz81GNueLj0oo=
 github.com/russross/blackfriday v1.5.2/go.mod h1:JO/DiYxRf+HjHt06OyowR9PTA263kcR/rfWxYHBV53g=

@@ -1,6 +1,7 @@
 package syncer
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"strconv"
@@ -271,10 +272,6 @@ func (syncer *WrapperSyncer) RegisterIBTPHandler(handler IBTPHandler) error {
 
 // verifyWrapper verifies the basic of merkle wrapper from bitxhub
 func (syncer *WrapperSyncer) verifyWrapper(w *pb.InterchainTxWrapper) (bool, error) {
-	if w.Height != 1 && w.TransactionHashes == nil {
-		return false, fmt.Errorf("empty wrapper or tx hashes")
-	}
-
 	if w.Height != syncer.getDemandHeight() {
 		return false, fmt.Errorf("wrong height of wrapper from bitxhub")
 	}
@@ -283,22 +280,21 @@ func (syncer *WrapperSyncer) verifyWrapper(w *pb.InterchainTxWrapper) (bool, err
 		return true, nil
 	}
 
-	// validate if the txs is committed in bitxhub
-	hashes := make([]merkletree.Content, 0, len(w.TransactionHashes))
-	existM := make(map[string]bool)
-	for _, hash := range w.TransactionHashes {
-		hashes = append(hashes, pb.TransactionHash(hash.Bytes()))
-		existM[hash.String()] = true
+	if len(w.TransactionHashes) != len(w.Transactions) {
+		return false, fmt.Errorf("wrong size of interchain txs from bitxhub, hashes :%d, txs: %d", len(w.TransactionHashes), len(w.Transactions))
 	}
 
-	tree, err := merkletree.NewTree(hashes)
+	// validate if l2roots are correct
+	l2RootHashes := make([]merkletree.Content, 0, len(w.L2Roots))
+	for _, root := range w.L2Roots {
+		l2RootHashes = append(l2RootHashes, pb.TransactionHash(root.Bytes()))
+	}
+	l1Tree, err := merkletree.NewTree(l2RootHashes)
 	if err != nil {
-		return false, fmt.Errorf("init merkle tree: %w", err)
+		return false, fmt.Errorf("init l1 merkle tree: %w", err)
 	}
 
-	var (
-		header *pb.BlockHeader
-	)
+	var header *pb.BlockHeader
 	if err := retry.Retry(func(attempt uint) error {
 		header, err = syncer.lite.QueryHeader(w.Height)
 		if err != nil {
@@ -314,8 +310,37 @@ func (syncer *WrapperSyncer) verifyWrapper(w *pb.InterchainTxWrapper) (bool, err
 	}
 
 	// verify tx root
-	if types.Bytes2Hash(tree.MerkleRoot()) != header.TxRoot {
+	if types.Bytes2Hash(l1Tree.MerkleRoot()) != header.TxRoot {
 		return false, fmt.Errorf("tx wrapper is wrong")
+	}
+
+	// validate if the txs is committed in bitxhub
+	if len(w.Transactions) == 0 {
+		return true, nil
+	}
+
+	hashes := make([]merkletree.Content, 0, len(w.TransactionHashes))
+	existM := make(map[string]bool)
+	for _, hash := range w.TransactionHashes {
+		hashes = append(hashes, pb.TransactionHash(hash.Bytes()))
+		existM[hash.String()] = true
+	}
+
+	tree, err := merkletree.NewTree(hashes)
+	if err != nil {
+		return false, fmt.Errorf("init merkle tree: %w", err)
+	}
+
+	l2root := tree.MerkleRoot()
+	correctRoot := false
+	for _, rootHash := range w.L2Roots {
+		if bytes.Equal(rootHash.Bytes(), l2root) {
+			correctRoot = true
+			break
+		}
+	}
+	if !correctRoot {
+		return false, fmt.Errorf("incorrect trx hashes!")
 	}
 
 	// verify if every interchain tx is valid
