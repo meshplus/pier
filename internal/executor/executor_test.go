@@ -19,6 +19,7 @@ import (
 
 const (
 	from = "0x3f9d18f7c3a6e5e4c0b877fe3e688ab08840b997"
+	to   = "0x0915fdfc96232c95fb9c62d27cc9dc0f13f50161"
 )
 
 func TestExecute(t *testing.T) {
@@ -48,6 +49,38 @@ func TestExecute(t *testing.T) {
 	require.Nil(t, exec.Stop())
 	meta := exec.QueryLatestMeta()
 	require.Equal(t, uint64(1), meta[from])
+}
+
+func TestQueryReceipt(t *testing.T) {
+	exec, _, cli := prepare(t)
+	defer exec.storage.Close()
+
+	originalIBTP := getIBTP(t, 1, pb.IBTP_INTERCHAIN)
+	args := [][]byte{[]byte("Alice"), []byte("100")}
+
+	cli.EXPECT().GetInMessage(from, uint64(1)).Return(args, nil).AnyTimes()
+
+	receipt, err := exec.QueryReceipt(from, 1, originalIBTP)
+	require.Nil(t, err)
+
+	require.Equal(t, originalIBTP.From, receipt.From)
+	require.Equal(t, originalIBTP.To, receipt.To)
+	require.Equal(t, originalIBTP.Index, receipt.Index)
+
+	receiptPd := &pb.Payload{}
+	require.Nil(t, receiptPd.Unmarshal(receipt.Payload))
+
+	receiptContent := &pb.Content{}
+	require.Nil(t, receiptContent.Unmarshal(receiptPd.Content))
+
+	originalPd := &pb.Payload{}
+	require.Nil(t, originalPd.Unmarshal(originalIBTP.Payload))
+
+	originalContent := &pb.Content{}
+	require.Nil(t, originalContent.Unmarshal(originalPd.Content))
+
+	require.Equal(t, receiptContent.Func, originalContent.Callback)
+	require.Equal(t, receiptContent.Args[1:], args)
 }
 
 func prepare(t *testing.T) (*ChannelExecutor, *mock_agent.MockAgent, *mock_client.MockClient) {
@@ -84,9 +117,10 @@ func getReceipt() *pb.Receipt {
 func getIBTP(t *testing.T, index uint64, typ pb.IBTP_Type) *pb.IBTP {
 	ct := &pb.Content{
 		SrcContractId: from,
-		DstContractId: from,
+		DstContractId: to,
 		Func:          "set",
 		Args:          [][]byte{[]byte("Alice")},
+		Callback:      "interchainConfirm",
 	}
 	c, err := ct.Marshal()
 	require.Nil(t, err)
@@ -100,7 +134,7 @@ func getIBTP(t *testing.T, index uint64, typ pb.IBTP_Type) *pb.IBTP {
 
 	return &pb.IBTP{
 		From:      from,
-		To:        from,
+		To:        to,
 		Payload:   ibtppd,
 		Index:     index,
 		Type:      typ,
