@@ -10,12 +10,12 @@ BUILD_DATE = $(shell date +%FT%T)
 GIT_COMMIT = $(shell git log --pretty=format:'%h' -n 1)
 GIT_BRANCH = $(shell git rev-parse --abbrev-ref HEAD)
 
-LDFLAGS += -X "${VERSION_DIR}.BuildDate=${BUILD_DATE}"
-LDFLAGS += -X "${VERSION_DIR}.CurrentCommit=${GIT_COMMIT}"
-LDFLAGS += -X "${VERSION_DIR}.CurrentBranch=${GIT_BRANCH}"
-LDFLAGS += -X "${VERSION_DIR}.CurrentVersion=${APP_VERSION}"
+GOLDFLAGS += -X "${VERSION_DIR}.BuildDate=${BUILD_DATE}"
+GOLDFLAGS += -X "${VERSION_DIR}.CurrentCommit=${GIT_COMMIT}"
+GOLDFLAGS += -X "${VERSION_DIR}.CurrentBranch=${GIT_BRANCH}"
+GOLDFLAGS += -X "${VERSION_DIR}.CurrentVersion=${APP_VERSION}"
 
-STATIC_LDFLAGS += ${LDFLAGS}
+STATIC_LDFLAGS += ${GOLDFLAGS}
 STATIC_LDFLAGS += -linkmode external -extldflags -static
 
 GO = GO111MODULE=on go
@@ -51,7 +51,7 @@ prepare:
 
 ## make install: Go install the project (hpc)
 install: packr
-	$(GO) install -ldflags '${LDFLAGS}' ./cmd/${APP_NAME}
+	$(GO) install -ldflags '${GOLDFLAGS}' ./cmd/${APP_NAME}
 	@printf "${GREEN}Build pier successfully${NC}\n"
 
 docker-build: packr

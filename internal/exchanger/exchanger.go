@@ -206,7 +206,7 @@ func (ex *Exchanger) sendIBTP(ibtp *pb.IBTP) error {
 			}
 
 			if !retMsg.Payload.Ok {
-				logger.Errorf("send ibtp: %w", fmt.Errorf(string(retMsg.Payload.Data)))
+				logger.Errorf("send ibtp: %s", string(retMsg.Payload.Data))
 				return fmt.Errorf("send ibtp: %w", fmt.Errorf(string(retMsg.Payload.Data)))
 			}
 
