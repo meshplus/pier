@@ -15,7 +15,7 @@ require (
 	github.com/libp2p/go-libp2p-core v0.3.0
 	github.com/meshplus/bitxhub-core v0.1.0-rc1.0.20200526060151-b0efad4a2046
 	github.com/meshplus/bitxhub-kit v1.0.1-0.20200525112026-df2160653e23
-	github.com/meshplus/bitxhub-model v1.0.0-rc4.0.20200514093243-7e8ae60d1c19
+	github.com/meshplus/bitxhub-model v1.0.0-rc4.0.20200608065824-2fbc63639e92
 	github.com/meshplus/go-bitxhub-client v1.0.0-rc4.0.20200509065005-851bf8c357e4
 	github.com/mitchellh/go-homedir v1.1.0
 	github.com/multiformats/go-multiaddr v0.2.0
@@ -31,6 +31,10 @@ require (
 replace github.com/hyperledger/fabric => github.com/hyperledger/fabric v2.0.1+incompatible
 
 replace golang.org/x/net => golang.org/x/net v0.0.0-20200202094626-16171245cfb2
+
+replace golang.org/x/crypto => golang.org/x/crypto v0.0.0-20200311171314-f7b00557c8c4
+
+replace github.com/sirupsen/logrus => github.com/sirupsen/logrus v1.5.0
 
 replace google.golang.org/grpc => google.golang.org/grpc v1.27.1
 

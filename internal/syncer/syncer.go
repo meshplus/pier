@@ -271,15 +271,11 @@ func (syncer *WrapperSyncer) RegisterIBTPHandler(handler IBTPHandler) error {
 
 // verifyWrapper verifies the basic of merkle wrapper from bitxhub
 func (syncer *WrapperSyncer) verifyWrapper(w *pb.InterchainTxWrapper) (bool, error) {
-	if w.Height != 1 && w.TransactionHashes == nil {
-		return false, fmt.Errorf("empty wrapper or tx hashes")
-	}
-
 	if w.Height != syncer.getDemandHeight() {
 		return false, fmt.Errorf("wrong height of wrapper from bitxhub")
 	}
 
-	if w.Height == 1 {
+	if w.Height == 1 || w.TransactionHashes == nil {
 		return true, nil
 	}
 
