@@ -276,7 +276,7 @@ func (syncer *WrapperSyncer) verifyWrapper(w *pb.InterchainTxWrapper) (bool, err
 		return false, fmt.Errorf("wrong height of wrapper from bitxhub")
 	}
 
-	if w.Height == 1 {
+	if w.Height == 1 || w.TransactionHashes == nil {
 		return true, nil
 	}
 
