@@ -32,6 +32,7 @@ func main() {
 		idCMD,
 		initCMD,
 		interchainCMD,
+		p2pCMD,
 		ruleCMD,
 		startCMD,
 		versionCMD,
