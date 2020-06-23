@@ -34,6 +34,8 @@ replace golang.org/x/net => golang.org/x/net v0.0.0-20200202094626-16171245cfb2
 
 replace golang.org/x/crypto => golang.org/x/crypto v0.0.0-20200311171314-f7b00557c8c4
 
+replace golang.org/x/sys => golang.org/x/sys v0.0.0-20200509044756-6aff5f38e54f
+
 replace github.com/sirupsen/logrus => github.com/sirupsen/logrus v1.5.0
 
 replace google.golang.org/grpc => google.golang.org/grpc v1.27.1
