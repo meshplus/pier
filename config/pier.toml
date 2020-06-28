@@ -5,7 +5,7 @@ http = 44544
 pprof = 44555
 
 [log]
-level = "debug"
+level = "info"
 dir = "logs"
 filename = "pier.log"
 report_caller = false
