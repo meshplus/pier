@@ -12,6 +12,7 @@ require (
 	github.com/gobuffalo/packr v1.30.1
 	github.com/gogo/protobuf v1.3.1
 	github.com/golang/mock v1.4.3
+	github.com/hashicorp/go-plugin v1.3.0
 	github.com/libp2p/go-libp2p-core v0.3.0
 	github.com/meshplus/bitxhub-core v0.1.0-rc1.0.20200526060151-b0efad4a2046
 	github.com/meshplus/bitxhub-kit v1.0.1-0.20200525112026-df2160653e23
@@ -26,6 +27,7 @@ require (
 	github.com/tidwall/gjson v1.6.0
 	github.com/urfave/cli v1.22.1
 	golang.org/x/sys v0.0.0-20200509044756-6aff5f38e54f // indirect
+	google.golang.org/grpc v1.27.1
 )
 
 replace github.com/hyperledger/fabric => github.com/hyperledger/fabric v2.0.1+incompatible

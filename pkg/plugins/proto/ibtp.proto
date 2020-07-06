@@ -1,0 +1,38 @@
+syntax = "proto3";
+
+package proto;
+
+// Inter-blockchain Transfer Protocol
+message IBTP {
+    enum Type {
+        INTERCHAIN = 0;
+        RECEIPT = 1;
+        CONFIRM = 2;
+    }
+    // ID of sending chain
+    string from = 1;
+    // ID of receiving chain
+    string to = 2;
+    // Index of inter-chain transaction
+    uint64 index = 3;
+    // inter-chain transaction type
+    Type type = 4;
+    // Timestamp of inter-chain events
+    int64 timestamp = 5;
+    // Proof of inter-chain transactions
+    bytes proof = 6;
+    // Encoded content used by inter-chain
+    bytes payload = 7;
+    // Message version
+    string version = 8;
+    // Self-defined fields used by app-chain
+    bytes extra = 9;
+}
+
+message payload {
+    string src_contract_id = 1;
+    string dst_contract_id = 2;
+    string func = 3;
+    repeated bytes args = 4;
+    string callback = 5;
+}

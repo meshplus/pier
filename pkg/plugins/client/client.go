@@ -2,12 +2,15 @@ package client
 
 import (
 	"github.com/meshplus/bitxhub-model/pb"
-	"github.com/meshplus/pier/pkg/model"
+	"github.com/meshplus/pier/pkg/plugins/proto"
 )
 
 // Client defines the interface that interacts with appchain
 //go:generate mockgen -destination mock_client/mock_client.go -package mock_client -source client.go
 type Client interface {
+	// Initialize initialize plugin client
+	Initialize(configPath string, pierID string, extra []byte) error
+
 	// Start starts to listen appchain event
 	Start() error
 
@@ -18,7 +21,7 @@ type Client interface {
 	GetIBTP() chan *pb.IBTP
 
 	// SubmitIBTP submits the interchain ibtp to appchain
-	SubmitIBTP(*pb.IBTP) (*model.PluginResponse, error)
+	SubmitIBTP(*pb.IBTP) (*proto.SubmitIBTPResponse, error)
 
 	// GetOutMessage gets interchain ibtp by index and target chain_id from broker contract
 	GetOutMessage(to string, idx uint64) (*pb.IBTP, error)

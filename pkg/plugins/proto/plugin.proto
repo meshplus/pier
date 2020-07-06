@@ -1,0 +1,60 @@
+syntax = "proto3";
+package proto;
+
+import "ibtp.proto";
+
+message Empty {}
+
+message InitializeRequest {
+    string configPath = 1;
+    string pierID = 2;
+    bytes extra = 3;
+}
+
+message SubmitIBTPResponse {
+    bool status = 1;
+    string message = 2;
+    proto.IBTP result = 3;
+}
+
+message GetOutMessageRequest {
+    string to =1;
+    uint64 idx =2;
+}
+
+message GetInMessageRequest {
+    string from =1;
+    uint64 idx =2;
+}
+
+message GetInMessageResponse {
+    repeated bytes result = 1;
+}
+
+message GetMetaResponse {
+    map<string, uint64> meta = 1;
+}
+
+message NameResponse {
+    string name = 1;
+}
+
+message TypeResponse {
+    string type = 1;
+}
+
+service AppchainPlugin {
+    rpc Initialize(InitializeRequest) returns (Empty);
+    rpc Start(Empty) returns (Empty);
+    rpc Stop(Empty) returns (Empty);
+    rpc GetIBTP(Empty) returns (stream proto.IBTP);
+    rpc SubmitIBTP(proto.IBTP) returns (SubmitIBTPResponse);
+    rpc GetOutMessage(GetOutMessageRequest) returns (proto.IBTP);
+    rpc GetInMessage(GetInMessageRequest) returns (GetInMessageResponse);
+    rpc GetInMeta(Empty) returns (GetMetaResponse);
+    rpc GetOutMeta(Empty) returns (GetMetaResponse);
+    rpc GetCallbackMeta(Empty) returns (GetMetaResponse);
+    rpc CommitCallback(proto.IBTP) returns (Empty);
+    rpc Name(Empty) returns (NameResponse);
+    rpc Type(Empty) returns (TypeResponse);
+}
