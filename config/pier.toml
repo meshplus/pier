@@ -25,5 +25,5 @@ validators = [
 peers = []
 
 [appchain]
-plugin = "fabric-client-1.4.so"
+plugin = "fabric-client-1.4"
 config = "fabric"

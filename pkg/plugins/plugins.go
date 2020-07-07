@@ -33,7 +33,7 @@ func CreateClient(pierID string, config *repo.Config, extra []byte) (appchainPlu
 	}
 
 	// Request the plugin
-	raw, err := rpcClient.Dispense(config.Appchain.Plugin)
+	raw, err := rpcClient.Dispense(appchainPlugin.PluginName)
 	if err != nil {
 		fmt.Println("Error:", err.Error())
 		os.Exit(1)

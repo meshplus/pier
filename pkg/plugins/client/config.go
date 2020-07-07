@@ -4,21 +4,24 @@ import (
 	"context"
 
 	"github.com/hashicorp/go-plugin"
-	"github.com/meshplus/pier/pkg/plugins/proto"
+	"github.com/meshplus/bitxhub-model/pb"
 	"google.golang.org/grpc"
 )
 
 // Handshake is a common handshake that is shared by plugin and host.
-var Handshake = plugin.HandshakeConfig{
-	// This isn't required when using VersionedPlugins
-	ProtocolVersion:  3,
-	MagicCookieKey:   "PIER_APPCHAIN_PLUGIN",
-	MagicCookieValue: "PIER",
-}
+var (
+	Handshake = plugin.HandshakeConfig{
+		// This isn't required when using VersionedPlugins
+		ProtocolVersion:  3,
+		MagicCookieKey:   "PIER_APPCHAIN_PLUGIN",
+		MagicCookieValue: "PIER",
+	}
+	PluginName = "appchain-plugin"
+)
 
 // PluginMap is the map of plugins we can dispense.
 var PluginMap = map[string]plugin.Plugin{
-	"fabric-plugin": &AppchainGRPCPlugin{},
+	PluginName: &AppchainGRPCPlugin{},
 }
 
 // This is the implementation of plugin.GRPCPlugin so we can serve/consume this.
@@ -31,13 +34,13 @@ type AppchainGRPCPlugin struct {
 }
 
 func (p *AppchainGRPCPlugin) GRPCServer(broker *plugin.GRPCBroker, s *grpc.Server) error {
-	proto.RegisterAppchainPluginServer(s, &GRPCServer{Impl: p.Impl})
+	pb.RegisterAppchainPluginServer(s, &GRPCServer{Impl: p.Impl})
 	return nil
 }
 
 func (p *AppchainGRPCPlugin) GRPCClient(ctx context.Context, broker *plugin.GRPCBroker, c *grpc.ClientConn) (interface{}, error) {
 	return &GRPCClient{
-		client:      proto.NewAppchainPluginClient(c),
+		client:      pb.NewAppchainPluginClient(c),
 		doneContect: ctx,
 	}, nil
 }

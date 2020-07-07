@@ -2,7 +2,6 @@ package client
 
 import (
 	"github.com/meshplus/bitxhub-model/pb"
-	"github.com/meshplus/pier/pkg/plugins/proto"
 )
 
 // Client defines the interface that interacts with appchain
@@ -21,7 +20,7 @@ type Client interface {
 	GetIBTP() chan *pb.IBTP
 
 	// SubmitIBTP submits the interchain ibtp to appchain
-	SubmitIBTP(*pb.IBTP) (*proto.SubmitIBTPResponse, error)
+	SubmitIBTP(*pb.IBTP) (*pb.SubmitIBTPResponse, error)
 
 	// GetOutMessage gets interchain ibtp by index and target chain_id from broker contract
 	GetOutMessage(to string, idx uint64) (*pb.IBTP, error)
