@@ -12,19 +12,35 @@ type GRPCServer struct {
 	Impl Client
 }
 
-func (s *GRPCServer) Initialize(context.Context, *proto.InitializeRequest) (*proto.Empty, error) {
-	return nil, nil
+func (s *GRPCServer) Initialize(ctx context.Context, req *proto.InitializeRequest) (*proto.Empty, error) {
+	err := s.Impl.Initialize(req.ConfigPath, req.PierID, req.Extra)
+	return &proto.Empty{}, err
 }
 
 func (s *GRPCServer) Start(context.Context, *proto.Empty) (*proto.Empty, error) {
-	return nil, nil
+	err := s.Impl.Start()
+	return &proto.Empty{}, err
 }
 
 func (s *GRPCServer) Stop(context.Context, *proto.Empty) (*proto.Empty, error) {
-	return nil, nil
+	err := s.Impl.Stop()
+	return &proto.Empty{}, err
 }
 
-func (s *GRPCServer) GetIBTP(in *proto.Empty, sub proto.AppchainPlugin_GetIBTPServer) error {
+func (s *GRPCServer) GetIBTP(in *proto.Empty, conn proto.AppchainPlugin_GetIBTPServer) error {
+	ibtpC := s.Impl.GetIBTP()
+
+	var ibtp *pb.IBTP
+	go func() error{
+		for {
+			ibtp = <- ibtpC
+			err := conn.Send(ibtp)
+			if err != nil {
+				return err
+			}
+		}
+	}()
+
 	return nil
 }
 
