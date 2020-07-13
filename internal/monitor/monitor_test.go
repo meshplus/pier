@@ -8,7 +8,7 @@ import (
 	"github.com/meshplus/bitxhub-kit/types"
 	"github.com/meshplus/bitxhub-model/pb"
 	"github.com/meshplus/pier/internal/txcrypto/mock_txcrypto"
-	"github.com/meshplus/pier/pkg/plugins/client/mock_client"
+	"github.com/meshplus/pier/pkg/plugins/mock_client"
 	"github.com/stretchr/testify/require"
 )
 

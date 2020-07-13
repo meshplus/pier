@@ -1,4 +1,4 @@
-package client
+package plugins
 
 import (
 	"github.com/meshplus/bitxhub-model/pb"

@@ -1,4 +1,4 @@
-package client
+package plugins
 
 import (
 	"context"
@@ -11,8 +11,7 @@ import (
 // Handshake is a common handshake that is shared by plugin and host.
 var (
 	Handshake = plugin.HandshakeConfig{
-		// This isn't required when using VersionedPlugins
-		ProtocolVersion:  3,
+		ProtocolVersion:  4,
 		MagicCookieKey:   "PIER_APPCHAIN_PLUGIN",
 		MagicCookieValue: "PIER",
 	}
@@ -26,7 +25,6 @@ var PluginMap = map[string]plugin.Plugin{
 
 // This is the implementation of plugin.GRPCPlugin so we can serve/consume this.
 type AppchainGRPCPlugin struct {
-	// GRPCPlugin must still implement the Plugin interface
 	plugin.Plugin
 	// Concrete implementation, written in Go. This is only used for plugins
 	// that are written in Go.
@@ -41,6 +39,6 @@ func (p *AppchainGRPCPlugin) GRPCServer(broker *plugin.GRPCBroker, s *grpc.Serve
 func (p *AppchainGRPCPlugin) GRPCClient(ctx context.Context, broker *plugin.GRPCBroker, c *grpc.ClientConn) (interface{}, error) {
 	return &GRPCClient{
 		client:      pb.NewAppchainPluginClient(c),
-		doneContect: ctx,
+		doneContext: ctx,
 	}, nil
 }

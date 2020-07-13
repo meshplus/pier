@@ -27,7 +27,6 @@ import (
 	"github.com/meshplus/pier/internal/syncer"
 	"github.com/meshplus/pier/internal/txcrypto"
 	"github.com/meshplus/pier/pkg/plugins"
-	plugin "github.com/meshplus/pier/pkg/plugins/client"
 	"github.com/sirupsen/logrus"
 )
 
@@ -36,7 +35,7 @@ var logger = log.NewWithModule("app")
 // Pier represents the necessary data for starting the pier app
 type Pier struct {
 	privateKey crypto.PrivateKey
-	plugin     plugin.Client
+	plugin     plugins.Client
 	monitor    monitor.Monitor
 	exec       executor.Executor
 	lite       lite.Lite

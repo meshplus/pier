@@ -1,7 +1,9 @@
-package client
+package plugins
 
 import (
 	"context"
+	"fmt"
+	"io"
 
 	"github.com/meshplus/bitxhub-model/pb"
 )
@@ -27,20 +29,20 @@ func (s *GRPCServer) Stop(context.Context, *pb.Empty) (*pb.Empty, error) {
 }
 
 func (s *GRPCServer) GetIBTP(in *pb.Empty, conn pb.AppchainPlugin_GetIBTPServer) error {
+	ctx := conn.Context()
 	ibtpC := s.Impl.GetIBTP()
 
-	var ibtp *pb.IBTP
-	go func() error {
-		for {
-			ibtp = <-ibtpC
+	for {
+		select {
+		case <-ctx.Done():
+			return nil
+		case ibtp := <-ibtpC:
 			err := conn.Send(ibtp)
 			if err != nil {
-				return err
+				fmt.Printf("plugin send ibtp err: %s\n", err.Error())
 			}
 		}
-	}()
-
-	return nil
+	}
 }
 
 func (s *GRPCServer) SubmitIBTP(ctx context.Context, ibtp *pb.IBTP) (*pb.SubmitIBTPResponse, error) {
@@ -113,11 +115,11 @@ func (s *GRPCServer) Type(context.Context, *pb.Empty) (*pb.TypeResponse, error) 
 // GRPCClient is an implementation of Client that talks over RPC.
 type GRPCClient struct {
 	client      pb.AppchainPluginClient
-	doneContect context.Context
+	doneContext context.Context
 }
 
 func (g *GRPCClient) Initialize(configPath string, pierID string, extra []byte) error {
-	_, err := g.client.Initialize(g.doneContect, &pb.InitializeRequest{
+	_, err := g.client.Initialize(g.doneContext, &pb.InitializeRequest{
 		PierId:     pierID,
 		ConfigPath: configPath,
 		Extra:      extra,
@@ -129,7 +131,7 @@ func (g *GRPCClient) Initialize(configPath string, pierID string, extra []byte) 
 }
 
 func (g *GRPCClient) Start() error {
-	_, err := g.client.Start(g.doneContect, &pb.Empty{})
+	_, err := g.client.Start(g.doneContext, &pb.Empty{})
 	if err != nil {
 		return err
 	}
@@ -137,7 +139,7 @@ func (g *GRPCClient) Start() error {
 }
 
 func (g *GRPCClient) Stop() error {
-	_, err := g.client.Stop(g.doneContect, &pb.Empty{})
+	_, err := g.client.Stop(g.doneContext, &pb.Empty{})
 	if err != nil {
 		return err
 	}
@@ -145,33 +147,45 @@ func (g *GRPCClient) Stop() error {
 }
 
 func (g *GRPCClient) GetIBTP() chan *pb.IBTP {
-	conn, err := g.client.GetIBTP(g.doneContect, &pb.Empty{})
+	conn, err := g.client.GetIBTP(g.doneContext, &pb.Empty{})
 	if err != nil {
 		// todo: more concise panic info
 		panic(err.Error())
 	}
 
-	var ibtpQ chan *pb.IBTP
-	go func() {
-		for {
-			select {
-			case <-g.doneContect.Done():
-				return
-			default:
-				ibtp, err := conn.Recv()
-				if err != nil {
-					return
-				}
-				ibtpQ <- ibtp
-			}
-		}
-	}()
+	ibtpQ := make(chan *pb.IBTP, 10)
+	go g.handleIBTPStream(conn, ibtpQ)
 
 	return ibtpQ
 }
 
+func (g *GRPCClient) handleIBTPStream(conn pb.AppchainPlugin_GetIBTPClient, ibtpQ chan *pb.IBTP) {
+	defer close(ibtpQ)
+
+	for {
+		select {
+		case <-g.doneContext.Done():
+			return
+		default:
+			ibtp, err := conn.Recv()
+			if err != nil {
+				if err != io.EOF {
+					fmt.Println("not a eof err")
+					//out <- &proto.EventResponse{
+					//	Error: grpcutils.HandleReqCtxGrpcErr(err, reqCtx, d.doneCtx),
+					//}
+				}
+				fmt.Println("a eof err, and return")
+				// End the stream
+				return
+			}
+			ibtpQ <- ibtp
+		}
+	}
+}
+
 func (g *GRPCClient) SubmitIBTP(ibtp *pb.IBTP) (*pb.SubmitIBTPResponse, error) {
-	response, err := g.client.SubmitIBTP(g.doneContect, ibtp)
+	response, err := g.client.SubmitIBTP(g.doneContext, ibtp)
 	if err != nil {
 		return &pb.SubmitIBTPResponse{}, err
 	}
@@ -180,14 +194,14 @@ func (g *GRPCClient) SubmitIBTP(ibtp *pb.IBTP) (*pb.SubmitIBTPResponse, error) {
 }
 
 func (g *GRPCClient) GetOutMessage(to string, idx uint64) (*pb.IBTP, error) {
-	return g.client.GetOutMessage(g.doneContect, &pb.GetOutMessageRequest{
+	return g.client.GetOutMessage(g.doneContext, &pb.GetOutMessageRequest{
 		To:  to,
 		Idx: idx,
 	})
 }
 
 func (g *GRPCClient) GetInMessage(from string, idx uint64) ([][]byte, error) {
-	response, err := g.client.GetInMessage(g.doneContect, &pb.GetInMessageRequest{
+	response, err := g.client.GetInMessage(g.doneContext, &pb.GetInMessageRequest{
 		From: from,
 		Idx:  idx,
 	})
@@ -199,7 +213,7 @@ func (g *GRPCClient) GetInMessage(from string, idx uint64) ([][]byte, error) {
 }
 
 func (g *GRPCClient) GetInMeta() (map[string]uint64, error) {
-	response, err := g.client.GetInMeta(g.doneContect, &pb.Empty{})
+	response, err := g.client.GetInMeta(g.doneContext, &pb.Empty{})
 	if err != nil {
 		return nil, err
 	}
@@ -208,7 +222,7 @@ func (g *GRPCClient) GetInMeta() (map[string]uint64, error) {
 }
 
 func (g *GRPCClient) GetOutMeta() (map[string]uint64, error) {
-	response, err := g.client.GetOutMeta(g.doneContect, &pb.Empty{})
+	response, err := g.client.GetOutMeta(g.doneContext, &pb.Empty{})
 	if err != nil {
 		return nil, err
 	}
@@ -217,7 +231,7 @@ func (g *GRPCClient) GetOutMeta() (map[string]uint64, error) {
 }
 
 func (g *GRPCClient) GetCallbackMeta() (map[string]uint64, error) {
-	response, err := g.client.GetOutMeta(g.doneContect, &pb.Empty{})
+	response, err := g.client.GetOutMeta(g.doneContext, &pb.Empty{})
 	if err != nil {
 		return nil, err
 	}
@@ -230,7 +244,7 @@ func (g *GRPCClient) CommitCallback(ibtp *pb.IBTP) error {
 }
 
 func (g *GRPCClient) Name() string {
-	response, err := g.client.Name(g.doneContect, &pb.Empty{})
+	response, err := g.client.Name(g.doneContext, &pb.Empty{})
 	if err != nil {
 		return ""
 	}
@@ -239,7 +253,7 @@ func (g *GRPCClient) Name() string {
 }
 
 func (g *GRPCClient) Type() string {
-	response, err := g.client.Type(g.doneContect, &pb.Empty{})
+	response, err := g.client.Type(g.doneContext, &pb.Empty{})
 	if err != nil {
 		return ""
 	}

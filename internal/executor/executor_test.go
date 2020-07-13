@@ -13,7 +13,7 @@ import (
 	"github.com/meshplus/pier/internal/agent/mock_agent"
 	"github.com/meshplus/pier/internal/txcrypto/mock_txcrypto"
 	"github.com/meshplus/pier/pkg/model"
-	"github.com/meshplus/pier/pkg/plugins/client/mock_client"
+	"github.com/meshplus/pier/pkg/plugins/mock_client"
 	"github.com/stretchr/testify/require"
 )
 

@@ -4,11 +4,12 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/meshplus/pier/pkg/plugins"
+
 	"github.com/meshplus/bitxhub-kit/log"
 	"github.com/meshplus/bitxhub-kit/storage"
 	"github.com/meshplus/bitxhub-model/pb"
 	"github.com/meshplus/pier/internal/txcrypto"
-	"github.com/meshplus/pier/pkg/plugins/client"
 	"github.com/sirupsen/logrus"
 )
 
@@ -16,7 +17,7 @@ var logger = log.NewWithModule("executor")
 
 // ChannelExecutor represents the necessary data for executing interchain txs in appchain
 type ChannelExecutor struct {
-	client       client.Client // the client to interact with appchain
+	client       plugins.Client // the client to interact with appchain
 	storage      storage.Storage
 	id           string            // appchain id
 	executeMeta  map[string]uint64 // pier execute crosschain ibtp index map
@@ -29,7 +30,7 @@ type ChannelExecutor struct {
 // New creates new instance of Executor. agent is for interacting with counterpart chain
 // client is for interacting with appchain, meta is for recording interchain tx meta information
 // and ds is for persisting some runtime messages
-func New(client client.Client, pierID string, storage storage.Storage, cryptor txcrypto.Cryptor) (*ChannelExecutor, error) {
+func New(client plugins.Client, pierID string, storage storage.Storage, cryptor txcrypto.Cryptor) (*ChannelExecutor, error) {
 	execMeta, err := client.GetInMeta()
 	if err != nil {
 		return nil, fmt.Errorf("get in executeMeta: %w", err)

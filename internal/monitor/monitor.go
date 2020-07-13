@@ -8,13 +8,14 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/meshplus/pier/pkg/plugins"
+
 	"github.com/Rican7/retry"
 	"github.com/Rican7/retry/strategy"
 	"github.com/meshplus/bitxhub-kit/log"
 	"github.com/meshplus/bitxhub-kit/types"
 	"github.com/meshplus/bitxhub-model/pb"
 	"github.com/meshplus/pier/internal/txcrypto"
-	"github.com/meshplus/pier/pkg/plugins/client"
 	"github.com/sirupsen/logrus"
 )
 
@@ -22,7 +23,7 @@ var logger = log.NewWithModule("monitor")
 
 // Monitor receives event from blockchain and sends it to network
 type AppchainMonitor struct {
-	client            client.Client
+	client            plugins.Client
 	interchainCounter map[string]uint64
 	recvCh            chan *pb.IBTP
 	suspended         uint64
@@ -32,10 +33,14 @@ type AppchainMonitor struct {
 }
 
 // New creates monitor instance given client interacting with appchain and interchainCounter about appchain.
-func New(client client.Client, cryptor txcrypto.Cryptor) (*AppchainMonitor, error) {
+func New(client plugins.Client, cryptor txcrypto.Cryptor) (*AppchainMonitor, error) {
 	meta, err := client.GetOutMeta()
 	if err != nil {
 		return nil, fmt.Errorf("get out interchainCounter from broker contract :%w", err)
+	}
+
+	if meta == nil {
+		meta = make(map[string]uint64)
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
