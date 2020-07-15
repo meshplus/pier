@@ -2,10 +2,13 @@ package plugins
 
 import (
 	"context"
-	"fmt"
-	"io"
+	"log"
+	"time"
 
+	"github.com/Rican7/retry"
+	"github.com/Rican7/retry/strategy"
 	"github.com/meshplus/bitxhub-model/pb"
+	"github.com/sirupsen/logrus"
 )
 
 // ---- gRPC Server domain ----
@@ -13,7 +16,7 @@ type GRPCServer struct {
 	Impl Client
 }
 
-func (s *GRPCServer) Initialize(ctx context.Context, req *pb.InitializeRequest) (*pb.Empty, error) {
+func (s *GRPCServer) Initialize(_ context.Context, req *pb.InitializeRequest) (*pb.Empty, error) {
 	err := s.Impl.Initialize(req.ConfigPath, req.PierId, req.Extra)
 	return &pb.Empty{}, err
 }
@@ -28,7 +31,7 @@ func (s *GRPCServer) Stop(context.Context, *pb.Empty) (*pb.Empty, error) {
 	return &pb.Empty{}, err
 }
 
-func (s *GRPCServer) GetIBTP(in *pb.Empty, conn pb.AppchainPlugin_GetIBTPServer) error {
+func (s *GRPCServer) GetIBTP(_ *pb.Empty, conn pb.AppchainPlugin_GetIBTPServer) error {
 	ctx := conn.Context()
 	ibtpC := s.Impl.GetIBTP()
 
@@ -37,23 +40,28 @@ func (s *GRPCServer) GetIBTP(in *pb.Empty, conn pb.AppchainPlugin_GetIBTPServer)
 		case <-ctx.Done():
 			return nil
 		case ibtp := <-ibtpC:
-			err := conn.Send(ibtp)
-			if err != nil {
-				fmt.Printf("plugin send ibtp err: %s\n", err.Error())
+			if err := retry.Retry(func(attempt uint) error {
+				if err := conn.Send(ibtp); err != nil {
+					log.Printf("plugin send ibtp err: %s\n", err.Error())
+					return err
+				}
+				return nil
+			}, strategy.Wait(1*time.Second)); err != nil {
+				logger.Errorf("Execution of plugin server sending ibtp failed: %s", err.Error())
 			}
 		}
 	}
 }
 
-func (s *GRPCServer) SubmitIBTP(ctx context.Context, ibtp *pb.IBTP) (*pb.SubmitIBTPResponse, error) {
+func (s *GRPCServer) SubmitIBTP(_ context.Context, ibtp *pb.IBTP) (*pb.SubmitIBTPResponse, error) {
 	return s.Impl.SubmitIBTP(ibtp)
 }
 
-func (s *GRPCServer) GetOutMessage(ctx context.Context, req *pb.GetOutMessageRequest) (*pb.IBTP, error) {
+func (s *GRPCServer) GetOutMessage(_ context.Context, req *pb.GetOutMessageRequest) (*pb.IBTP, error) {
 	return s.Impl.GetOutMessage(req.To, req.Idx)
 }
 
-func (s *GRPCServer) GetInMessage(ctx context.Context, req *pb.GetInMessageRequest) (*pb.GetInMessageResponse, error) {
+func (s *GRPCServer) GetInMessage(_ context.Context, req *pb.GetInMessageRequest) (*pb.GetInMessageResponse, error) {
 	reslut, err := s.Impl.GetInMessage(req.From, req.Idx)
 
 	return &pb.GetInMessageResponse{
@@ -94,7 +102,7 @@ func (s *GRPCServer) GetCallbackMeta(context.Context, *pb.Empty) (*pb.GetMetaRes
 	}, nil
 }
 
-func (s *GRPCServer) CommitCallback(ctx context.Context, ibtp *pb.IBTP) (*pb.Empty, error) {
+func (s *GRPCServer) CommitCallback(_ context.Context, _ *pb.IBTP) (*pb.Empty, error) {
 	return &pb.Empty{}, nil
 }
 
@@ -163,23 +171,28 @@ func (g *GRPCClient) handleIBTPStream(conn pb.AppchainPlugin_GetIBTPClient, ibtp
 	defer close(ibtpQ)
 
 	for {
+		var (
+			ibtp *pb.IBTP
+			err  error
+		)
+		if err := retry.Retry(func(attempt uint) error {
+			ibtp, err = conn.Recv()
+			if err != nil {
+				logger.WithFields(logrus.Fields{
+					"error": err.Error(),
+				}).Error("Plugin grpc client recv ibtp")
+				// End the stream
+				return err
+			}
+			return nil
+		}, strategy.Wait(1*time.Second)); err != nil {
+			logger.Errorf("Execution of client recv failed: %s", err.Error())
+		}
+
 		select {
 		case <-g.doneContext.Done():
 			return
-		default:
-			ibtp, err := conn.Recv()
-			if err != nil {
-				if err != io.EOF {
-					fmt.Println("not a eof err")
-					//out <- &proto.EventResponse{
-					//	Error: grpcutils.HandleReqCtxGrpcErr(err, reqCtx, d.doneCtx),
-					//}
-				}
-				fmt.Println("a eof err, and return")
-				// End the stream
-				return
-			}
-			ibtpQ <- ibtp
+		case ibtpQ <- ibtp:
 		}
 	}
 }
@@ -239,7 +252,7 @@ func (g *GRPCClient) GetCallbackMeta() (map[string]uint64, error) {
 	return response.Meta, nil
 }
 
-func (g *GRPCClient) CommitCallback(ibtp *pb.IBTP) error {
+func (g *GRPCClient) CommitCallback(_ *pb.IBTP) error {
 	return nil
 }
 

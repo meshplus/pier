@@ -56,10 +56,16 @@ func New(client plugins.Client, cryptor txcrypto.Cryptor) (*AppchainMonitor, err
 
 // Start implements Monitor
 func (m *AppchainMonitor) Start() error {
+	if err := m.client.Start(); err != nil {
+		return err
+	}
+
+	ch := m.client.GetIBTP()
+
 	go func() {
 		for {
 			select {
-			case e := <-m.client.GetIBTP():
+			case e := <-ch:
 				for atomic.LoadUint64(&m.suspended) == 1 {
 					time.Sleep(1 * time.Second)
 				}
@@ -70,10 +76,6 @@ func (m *AppchainMonitor) Start() error {
 			}
 		}
 	}()
-
-	if err := m.client.Start(); err != nil {
-		return err
-	}
 
 	logger.Info("Monitor started")
 

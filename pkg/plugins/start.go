@@ -7,8 +7,11 @@ import (
 	"path/filepath"
 
 	"github.com/hashicorp/go-plugin"
+	"github.com/meshplus/bitxhub-kit/log"
 	"github.com/meshplus/pier/internal/repo"
 )
+
+var logger = log.NewWithModule("plugin")
 
 func CreateClient(pierID string, config *repo.Config, extra []byte) (Client, error) {
 	// Pier is the host. Start by launching the plugin process.
