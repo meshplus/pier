@@ -5,7 +5,7 @@ import (
 )
 
 // Client defines the interface that interacts with appchain
-//go:generate mockgen -destination mock_client/mock_client.go -package mock_client -source client.go
+//go:generate mockgen -destination mock_client/mock_client.go -package mock_client -source interface.go
 type Client interface {
 	// Initialize initialize plugin client
 	Initialize(configPath string, pierID string, extra []byte) error

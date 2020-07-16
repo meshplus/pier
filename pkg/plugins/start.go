@@ -6,12 +6,18 @@ import (
 	"os/exec"
 	"path/filepath"
 
+	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-plugin"
-	"github.com/meshplus/bitxhub-kit/log"
 	"github.com/meshplus/pier/internal/repo"
 )
 
-var logger = log.NewWithModule("plugin")
+var logger = hclog.New(&hclog.LoggerOptions{
+	Name:   "plugin",
+	Output: os.Stdout,
+	Level:  hclog.Info,
+})
+
+//var logger = log.NewWithModule("plugin")
 
 func CreateClient(pierID string, config *repo.Config, extra []byte) (Client, error) {
 	// Pier is the host. Start by launching the plugin process.
@@ -19,6 +25,7 @@ func CreateClient(pierID string, config *repo.Config, extra []byte) (Client, err
 		HandshakeConfig: Handshake,
 		Plugins:         PluginMap,
 		Cmd:             exec.Command("sh", "-c", "plugins/appchain_plugin"),
+		Logger:          logger,
 		AllowedProtocols: []plugin.Protocol{
 			plugin.ProtocolNetRPC, plugin.ProtocolGRPC},
 	})
@@ -47,6 +54,9 @@ func CreateClient(pierID string, config *repo.Config, extra []byte) (Client, err
 
 	// initialize our client plugin
 	rootPath, err := repo.PathRoot()
+	if err != nil {
+		return nil, err
+	}
 	pluginConfigPath := filepath.Join(rootPath, config.Appchain.Config)
 	err = appchain.Initialize(pluginConfigPath, pierID, extra)
 	if err != nil {

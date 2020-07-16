@@ -4,12 +4,11 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/meshplus/pier/pkg/plugins"
-
 	"github.com/meshplus/bitxhub-kit/log"
 	"github.com/meshplus/bitxhub-kit/storage"
 	"github.com/meshplus/bitxhub-model/pb"
 	"github.com/meshplus/pier/internal/txcrypto"
+	"github.com/meshplus/pier/pkg/plugins"
 	"github.com/sirupsen/logrus"
 )
 

@@ -8,14 +8,13 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/meshplus/pier/pkg/plugins"
-
 	"github.com/Rican7/retry"
 	"github.com/Rican7/retry/strategy"
 	"github.com/meshplus/bitxhub-kit/log"
 	"github.com/meshplus/bitxhub-kit/types"
 	"github.com/meshplus/bitxhub-model/pb"
 	"github.com/meshplus/pier/internal/txcrypto"
+	"github.com/meshplus/pier/pkg/plugins"
 	"github.com/sirupsen/logrus"
 )
 
@@ -37,10 +36,6 @@ func New(client plugins.Client, cryptor txcrypto.Cryptor) (*AppchainMonitor, err
 	meta, err := client.GetOutMeta()
 	if err != nil {
 		return nil, fmt.Errorf("get out interchainCounter from broker contract :%w", err)
-	}
-
-	if meta == nil {
-		meta = make(map[string]uint64)
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())

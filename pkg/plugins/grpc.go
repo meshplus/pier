@@ -8,7 +8,6 @@ import (
 	"github.com/Rican7/retry"
 	"github.com/Rican7/retry/strategy"
 	"github.com/meshplus/bitxhub-model/pb"
-	"github.com/sirupsen/logrus"
 )
 
 // ---- gRPC Server domain ----
@@ -47,7 +46,7 @@ func (s *GRPCServer) GetIBTP(_ *pb.Empty, conn pb.AppchainPlugin_GetIBTPServer) 
 				}
 				return nil
 			}, strategy.Wait(1*time.Second)); err != nil {
-				logger.Errorf("Execution of plugin server sending ibtp failed: %s", err.Error())
+				logger.Error("Execution of plugin server sending ibtp failed", "error", err)
 			}
 		}
 	}
@@ -178,15 +177,13 @@ func (g *GRPCClient) handleIBTPStream(conn pb.AppchainPlugin_GetIBTPClient, ibtp
 		if err := retry.Retry(func(attempt uint) error {
 			ibtp, err = conn.Recv()
 			if err != nil {
-				logger.WithFields(logrus.Fields{
-					"error": err.Error(),
-				}).Error("Plugin grpc client recv ibtp")
+				logger.Error("Plugin grpc client recv ibtp", "error", err)
 				// End the stream
 				return err
 			}
 			return nil
 		}, strategy.Wait(1*time.Second)); err != nil {
-			logger.Errorf("Execution of client recv failed: %s", err.Error())
+			logger.Error("Execution of client recv failed", "error", err)
 		}
 
 		select {
@@ -240,6 +237,9 @@ func (g *GRPCClient) GetOutMeta() (map[string]uint64, error) {
 		return nil, err
 	}
 
+	if response.Meta == nil {
+		response.Meta = make(map[string]uint64)
+	}
 	return response.Meta, nil
 }
 
