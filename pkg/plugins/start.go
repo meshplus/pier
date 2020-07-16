@@ -17,14 +17,19 @@ var logger = hclog.New(&hclog.LoggerOptions{
 	Level:  hclog.Info,
 })
 
-//var logger = log.NewWithModule("plugin")
-
-func CreateClient(pierID string, config *repo.Config, extra []byte) (Client, error) {
+func CreateClient(pierID, configPath string, extra []byte) (Client, *plugin.Client, error) {
 	// Pier is the host. Start by launching the plugin process.
+	rootPath, err := repo.PathRoot()
+	if err != nil {
+		return nil, nil, err
+	}
+	pluginConfigPath := filepath.Join(rootPath, configPath)
+	pluginPath := filepath.Join(rootPath, "plugins/appchain_plugin")
+
 	client := plugin.NewClient(&plugin.ClientConfig{
 		HandshakeConfig: Handshake,
 		Plugins:         PluginMap,
-		Cmd:             exec.Command("sh", "-c", "plugins/appchain_plugin"),
+		Cmd:             exec.Command("sh", "-c", pluginPath),
 		Logger:          logger,
 		AllowedProtocols: []plugin.Protocol{
 			plugin.ProtocolNetRPC, plugin.ProtocolGRPC},
@@ -49,19 +54,14 @@ func CreateClient(pierID string, config *repo.Config, extra []byte) (Client, err
 	case *GRPCClient:
 		appchain = raw.(*GRPCClient)
 	default:
-		return nil, fmt.Errorf("unsupported client type")
+		return nil, nil, fmt.Errorf("unsupported client type")
 	}
 
 	// initialize our client plugin
-	rootPath, err := repo.PathRoot()
-	if err != nil {
-		return nil, err
-	}
-	pluginConfigPath := filepath.Join(rootPath, config.Appchain.Config)
 	err = appchain.Initialize(pluginConfigPath, pierID, extra)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	return appchain, nil
+	return appchain, client, nil
 }

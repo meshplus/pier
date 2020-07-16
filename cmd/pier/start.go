@@ -5,7 +5,10 @@ import (
 	"net/http"
 	_ "net/http/pprof"
 	"os"
+	"os/signal"
 	"path/filepath"
+	"sync"
+	"syscall"
 	"time"
 
 	"github.com/meshplus/bitxhub-kit/log"
@@ -63,15 +66,35 @@ func start(ctx *cli.Context) error {
 	fmt.Printf("Client Type: %s\n", pier.Type())
 	runPProf(config.Port.PProf)
 
+	var wg sync.WaitGroup
+	wg.Add(1)
+	handleShutdown(pier, &wg)
+
 	if err := pier.Start(); err != nil {
 		return err
 	}
 
-	c := make(chan struct{})
-	<-c
+	wg.Wait()
 
 	logger.Info("Pier exits")
 	return nil
+}
+
+func handleShutdown(pier *app.Pier, wg *sync.WaitGroup) {
+	var stop = make(chan os.Signal)
+	signal.Notify(stop, syscall.SIGTERM)
+	signal.Notify(stop, syscall.SIGINT)
+
+	go func() {
+		<-stop
+		fmt.Println("received interrupt signal, shutting down...")
+		if err := pier.Stop(); err != nil {
+			logger.Error("pier stop: ", err)
+		}
+
+		wg.Done()
+		os.Exit(0)
+	}()
 }
 
 func runPProf(port int64) {

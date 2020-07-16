@@ -80,7 +80,7 @@ func (e *ChannelExecutor) Stop() error {
 
 	logger.Info("Executor stopped")
 
-	return e.client.Stop()
+	return nil
 }
 
 func (e *ChannelExecutor) QueryLatestMeta() map[string]uint64 {
