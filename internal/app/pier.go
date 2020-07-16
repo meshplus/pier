@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"path/filepath"
 
+	"github.com/hashicorp/go-plugin"
 	"github.com/meshplus/bitxhub-kit/crypto"
 	"github.com/meshplus/bitxhub-kit/log"
 	"github.com/meshplus/bitxhub-kit/storage"
@@ -36,6 +37,7 @@ var logger = log.NewWithModule("app")
 type Pier struct {
 	privateKey crypto.PrivateKey
 	plugin     plugins.Client
+	grpcPlugin *plugin.Client
 	monitor    monitor.Monitor
 	exec       executor.Executor
 	lite       lite.Lite
@@ -162,7 +164,7 @@ func NewPier(repoRoot string, config *repo.Config) (*Pier, error) {
 		return nil, fmt.Errorf("marshal interchain meta: %w", err)
 	}
 
-	cli, err := plugins.CreateClient(addr.String(), config, extra)
+	cli, grcpPlugin, err := plugins.CreateClient(addr.String(), config.Appchain.Config, extra)
 	if err != nil {
 		return nil, fmt.Errorf("appchain client create: %w", err)
 	}
@@ -196,6 +198,7 @@ func NewPier(repoRoot string, config *repo.Config) (*Pier, error) {
 	return &Pier{
 		privateKey: privateKey,
 		plugin:     cli,
+		grpcPlugin: grcpPlugin,
 		appchain:   chain,
 		meta:       meta,
 		monitor:    mnt,
@@ -241,6 +244,9 @@ func (pier *Pier) Stop() error {
 	if err := pier.monitor.Stop(); err != nil {
 		return fmt.Errorf("monitor stop: %w", err)
 	}
+
+	// stop appchain plugin first and kill plugin process
+	pier.grpcPlugin.Kill()
 
 	if err := pier.exec.Stop(); err != nil {
 		return fmt.Errorf("executor stop: %w", err)
