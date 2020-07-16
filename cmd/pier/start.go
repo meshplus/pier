@@ -14,11 +14,14 @@ import (
 	"github.com/urfave/cli"
 )
 
-var startCMD = cli.Command{
-	Name:   "start",
-	Usage:  "Start a long-running daemon process",
-	Action: start,
-}
+var (
+	startCMD = cli.Command{
+		Name:   "start",
+		Usage:  "Start a long-running daemon process",
+		Action: start,
+	}
+	pluginName = "appchain_plugin"
+)
 
 func start(ctx *cli.Context) error {
 	fmt.Println(getVersion(true))
@@ -48,7 +51,7 @@ func start(ctx *cli.Context) error {
 		return fmt.Errorf("log initialize: %w", err)
 	}
 
-	if err := checkPlugin(config.Appchain.Plugin); err != nil {
+	if err := checkPlugin(); err != nil {
 		return fmt.Errorf("check plugin: %w", err)
 	}
 
@@ -83,14 +86,14 @@ func runPProf(port int64) {
 	}()
 }
 
-func checkPlugin(name string) error {
+func checkPlugin() error {
 	// check if plugin exists
 	pluginRoot, err := repo.PluginPath()
 	if err != nil {
 		return err
 	}
 
-	pluginPath := filepath.Join(pluginRoot, name)
+	pluginPath := filepath.Join(pluginRoot, pluginName)
 	_, err = os.Stat(pluginPath)
 	if err != nil {
 		if os.IsNotExist(err) {

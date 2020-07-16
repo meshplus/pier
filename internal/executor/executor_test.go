@@ -12,8 +12,7 @@ import (
 	rpcx "github.com/meshplus/go-bitxhub-client"
 	"github.com/meshplus/pier/internal/agent/mock_agent"
 	"github.com/meshplus/pier/internal/txcrypto/mock_txcrypto"
-	"github.com/meshplus/pier/pkg/model"
-	"github.com/meshplus/pier/pkg/plugins/client/mock_client"
+	"github.com/meshplus/pier/pkg/plugins/mock_client"
 	"github.com/stretchr/testify/require"
 )
 
@@ -27,7 +26,7 @@ func TestExecute(t *testing.T) {
 	defer exec.storage.Close()
 
 	// set expect values
-	ret := &model.PluginResponse{
+	ret := &pb.SubmitIBTPResponse{
 		Status: true,
 		Result: getIBTP(t, 1, pb.IBTP_INTERCHAIN),
 	}

@@ -67,7 +67,6 @@ type Log struct {
 
 // Appchain are configs about appchain
 type Appchain struct {
-	Plugin string `toml:"plugin" json:"plugin"`
 	Config string `toml:"config" json:"config"`
 }
 
@@ -108,7 +107,6 @@ func DefaultConfig() *Config {
 			Level:        "info",
 		},
 		Appchain: Appchain{
-			Plugin: "fabric-client-1.4.so",
 			Config: "fabric",
 		},
 	}

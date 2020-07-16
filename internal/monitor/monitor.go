@@ -14,7 +14,7 @@ import (
 	"github.com/meshplus/bitxhub-kit/types"
 	"github.com/meshplus/bitxhub-model/pb"
 	"github.com/meshplus/pier/internal/txcrypto"
-	"github.com/meshplus/pier/pkg/plugins/client"
+	"github.com/meshplus/pier/pkg/plugins"
 	"github.com/sirupsen/logrus"
 )
 
@@ -22,7 +22,7 @@ var logger = log.NewWithModule("monitor")
 
 // Monitor receives event from blockchain and sends it to network
 type AppchainMonitor struct {
-	client            client.Client
+	client            plugins.Client
 	interchainCounter map[string]uint64
 	recvCh            chan *pb.IBTP
 	suspended         uint64
@@ -32,7 +32,7 @@ type AppchainMonitor struct {
 }
 
 // New creates monitor instance given client interacting with appchain and interchainCounter about appchain.
-func New(client client.Client, cryptor txcrypto.Cryptor) (*AppchainMonitor, error) {
+func New(client plugins.Client, cryptor txcrypto.Cryptor) (*AppchainMonitor, error) {
 	meta, err := client.GetOutMeta()
 	if err != nil {
 		return nil, fmt.Errorf("get out interchainCounter from broker contract :%w", err)
@@ -51,10 +51,16 @@ func New(client client.Client, cryptor txcrypto.Cryptor) (*AppchainMonitor, erro
 
 // Start implements Monitor
 func (m *AppchainMonitor) Start() error {
+	if err := m.client.Start(); err != nil {
+		return err
+	}
+
+	ch := m.client.GetIBTP()
+
 	go func() {
 		for {
 			select {
-			case e := <-m.client.GetIBTP():
+			case e := <-ch:
 				for atomic.LoadUint64(&m.suspended) == 1 {
 					time.Sleep(1 * time.Second)
 				}
@@ -65,10 +71,6 @@ func (m *AppchainMonitor) Start() error {
 			}
 		}
 	}()
-
-	if err := m.client.Start(); err != nil {
-		return err
-	}
 
 	logger.Info("Monitor started")
 
