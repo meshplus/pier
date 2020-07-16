@@ -47,7 +47,7 @@ func TestStartRelay(t *testing.T) {
 	missedOutIBTP := getIBTP(t, 1, pb.IBTP_INTERCHAIN)
 	normalOutIBTP := getIBTP(t, 2, pb.IBTP_INTERCHAIN)
 	missedInIBTP := getIBTP(t, 1, pb.IBTP_INTERCHAIN)
-	receipt := getIBTP(t, 1, pb.IBTP_RECEIPT)
+	receipt := getIBTP(t, 1, pb.IBTP_RECEIPT_SUCCESS)
 	bxhReceipt := &pb.Receipt{
 		Status: pb.Receipt_SUCCESS,
 	}
@@ -93,7 +93,7 @@ func TestStartDirect(t *testing.T) {
 	missedOutIBTP := getIBTP(t, 1, pb.IBTP_INTERCHAIN)
 	normalOutIBTP := getIBTP(t, 2, pb.IBTP_INTERCHAIN)
 	//missedInIBTP := getIBTP(t, 1, pb.IBTP_INTERCHAIN)
-	receipt := getIBTP(t, 1, pb.IBTP_RECEIPT)
+	receipt := getIBTP(t, 1, pb.IBTP_RECEIPT_SUCCESS)
 	//bxhReceipt := &pb.Receipt{
 	//	Status: pb.Receipt_SUCCESS,
 	//}

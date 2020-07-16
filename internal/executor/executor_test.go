@@ -41,7 +41,7 @@ func TestExecute(t *testing.T) {
 	//receipts := make([]*pb.Receipt, 0)
 	ibtp1 := getIBTP(t, uint64(1), pb.IBTP_INTERCHAIN)
 	require.NotNil(t, exec.HandleIBTP(ibtp1))
-	ibtp2 := getIBTP(t, uint64(2), pb.IBTP_RECEIPT)
+	ibtp2 := getIBTP(t, uint64(2), pb.IBTP_RECEIPT_SUCCESS)
 	require.Nil(t, exec.HandleIBTP(ibtp2))
 
 	time.Sleep(1 * time.Second)

@@ -193,10 +193,10 @@ func (ex *Exchanger) sendIBTP(ibtp *pb.IBTP) error {
 			msg := peermgr.Message(peerMsg.Message_IBTP_SEND, true, data)
 
 			var dst string
-			if ibtp.Type == pb.IBTP_RECEIPT {
-				dst = strings.ToLower(ibtp.From)
-			} else {
+			if ibtp.Type == pb.IBTP_INTERCHAIN {
 				dst = strings.ToLower(ibtp.To)
+			} else {
+				dst = strings.ToLower(ibtp.From)
 			}
 
 			retMsg, err := ex.peerMgr.Send(dst, msg)
@@ -206,7 +206,7 @@ func (ex *Exchanger) sendIBTP(ibtp *pb.IBTP) error {
 			}
 
 			if !retMsg.Payload.Ok {
-				entry.Errorf("send ibtp: %w", fmt.Errorf(string(retMsg.Payload.Data)))
+				entry.Errorf("send ibtp: %s", string(retMsg.Payload.Data))
 				return fmt.Errorf("send ibtp: %w", fmt.Errorf(string(retMsg.Payload.Data)))
 			}
 
@@ -215,7 +215,7 @@ func (ex *Exchanger) sendIBTP(ibtp *pb.IBTP) error {
 			}).Info("Send ibtp")
 
 			// ignore msg for receipt type
-			if ibtp.Type == pb.IBTP_RECEIPT {
+			if ibtp.Type == pb.IBTP_RECEIPT_SUCCESS || ibtp.Type == pb.IBTP_RECEIPT_FAILURE {
 				return nil
 			}
 
