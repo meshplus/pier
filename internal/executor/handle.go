@@ -27,7 +27,10 @@ func (e *ChannelExecutor) HandleIBTP(ibtp *pb.IBTP) *pb.IBTP {
 	switch ibtp.Type {
 	case pb.IBTP_INTERCHAIN:
 		return e.applyInterchainIBTP(ibtp)
-	case pb.IBTP_RECEIPT:
+	case pb.IBTP_RECEIPT_SUCCESS:
+		// no ack ibtp for receipt
+		e.applyReceiptIBTP(ibtp)
+	case pb.IBTP_RECEIPT_FAILURE:
 		// no ack ibtp for receipt
 		e.applyReceiptIBTP(ibtp)
 	default:

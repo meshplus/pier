@@ -21,14 +21,14 @@ func TestSwarm_Start(t *testing.T) {
 	require.Nil(t, err)
 
 	require.Nil(t, swarm1.Start())
-	time.Sleep(time.Second)
+	time.Sleep(time.Second * 2)
 
 	swarm2, err := New(config, keys[1])
 	require.Nil(t, err)
 
 	require.Nil(t, swarm2.Start())
 
-	time.Sleep(time.Second * 2)
+	time.Sleep(time.Second * 6)
 
 	msgCount := 0
 	err = swarm1.RegisterMsgHandler(peermgr.Message_APPCHAIN_REGISTER, func(stream network.Stream, message *peermgr.Message) {
@@ -69,14 +69,14 @@ func TestSwarm_Stop(t *testing.T) {
 	require.Nil(t, err)
 
 	require.Nil(t, swarm1.Start())
-	time.Sleep(time.Second)
+	time.Sleep(time.Second * 2)
 
 	swarm2, err := New(config, keys[1])
 	require.Nil(t, err)
 
 	require.Nil(t, swarm2.Start())
 
-	time.Sleep(time.Second * 2)
+	time.Sleep(time.Second * 6)
 
 	msgCount := 0
 	err = swarm1.RegisterMsgHandler(peermgr.Message_IBTP_GET, func(stream network.Stream, message *peermgr.Message) {
@@ -89,7 +89,7 @@ func TestSwarm_Stop(t *testing.T) {
 	require.Nil(t, err)
 
 	require.Nil(t, swarm1.Stop())
-	time.Sleep(time.Second)
+	time.Sleep(time.Second * 3)
 
 	msg := &peermgr.Message{Type: peermgr.Message_IBTP_GET}
 	_, err = swarm2.Send(ids[0], msg)

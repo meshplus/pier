@@ -2,6 +2,7 @@ package executor
 
 import (
 	"fmt"
+	"strconv"
 	"time"
 
 	"github.com/meshplus/bitxhub-model/pb"
@@ -62,11 +63,23 @@ func (e *ChannelExecutor) generateCallback(toExecute *pb.IBTP, args [][]byte) (r
 		return nil, err
 	}
 
+	typ := pb.IBTP_RECEIPT_SUCCESS
+	if ct.Func == "interchainCharge" {
+		responseStatus, err := strconv.ParseBool(string(newContent.Args[0]))
+		if err != nil {
+			return nil, err
+		}
+
+		if !responseStatus {
+			typ = pb.IBTP_RECEIPT_FAILURE
+		}
+	}
+
 	return &pb.IBTP{
 		From:      toExecute.From,
 		To:        toExecute.To,
 		Index:     toExecute.Index,
-		Type:      pb.IBTP_RECEIPT,
+		Type:      typ,
 		Timestamp: time.Now().UnixNano(),
 		Proof:     nil,
 		Payload:   pdb,
