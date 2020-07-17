@@ -138,27 +138,32 @@ func (syncer *WrapperSyncer) syncInterchainTxWrapper() {
 	}
 
 	for {
-		ch := syncer.getWrapperChannel()
+		select {
+		case <-syncer.ctx.Done():
+			return
+		default:
+			ch := syncer.getWrapperChannel()
 
-		err := retry.Retry(func(attempt uint) error {
-			chainMeta, err := syncer.agent.GetChainMeta()
+			err := retry.Retry(func(attempt uint) error {
+				chainMeta, err := syncer.agent.GetChainMeta()
+				if err != nil {
+					logger.WithField("error", err).Error("Get chain meta")
+					return err
+				}
+
+				if chainMeta.Height > syncer.height {
+					syncer.recover(syncer.getDemandHeight(), chainMeta.Height)
+				}
+
+				return nil
+			}, strategy.Wait(1*time.Second))
+
 			if err != nil {
-				logger.WithField("error", err).Error("Get chain meta")
-				return err
+				logger.Panic(err)
 			}
 
-			if chainMeta.Height > syncer.height {
-				syncer.recover(syncer.getDemandHeight(), chainMeta.Height)
-			}
-
-			return nil
-		}, strategy.Wait(1*time.Second))
-
-		if err != nil {
-			logger.Panic(err)
+			loop(ch)
 		}
-
-		loop(ch)
 	}
 }
 

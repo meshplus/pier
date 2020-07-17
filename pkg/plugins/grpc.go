@@ -2,7 +2,6 @@ package plugins
 
 import (
 	"context"
-	"log"
 	"time"
 
 	"github.com/Rican7/retry"
@@ -41,7 +40,7 @@ func (s *GRPCServer) GetIBTP(_ *pb.Empty, conn pb.AppchainPlugin_GetIBTPServer) 
 		case ibtp := <-ibtpC:
 			if err := retry.Retry(func(attempt uint) error {
 				if err := conn.Send(ibtp); err != nil {
-					log.Printf("plugin send ibtp err: %s\n", err.Error())
+					logger.Error("plugin send ibtp err", "error", err)
 					return err
 				}
 				return nil
