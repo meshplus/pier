@@ -242,6 +242,15 @@ func (syncer *WrapperSyncer) handleInterchainTxWrapper(w *pb.InterchainTxWrapper
 		return
 	}
 
+	for _, tx := range w.Transactions {
+		ibtp, err := tx.GetIBTP()
+		if err != nil {
+			logger.Errorf("Get ibtp from tx: %s", err.Error())
+			continue
+		}
+		syncer.handler(ibtp)
+	}
+
 	logger.WithFields(logrus.Fields{
 		"height": w.Height,
 		"count":  len(w.Transactions),
@@ -252,15 +261,6 @@ func (syncer *WrapperSyncer) handleInterchainTxWrapper(w *pb.InterchainTxWrapper
 			"height": w.Height,
 			"error":  err,
 		}).Error("Persist interchain tx wrapper")
-	}
-
-	for _, tx := range w.Transactions {
-		ibtp, err := tx.GetIBTP()
-		if err != nil {
-			logger.Errorf("Get ibtp from tx: %s", err.Error())
-			continue
-		}
-		syncer.handler(ibtp)
 	}
 
 	syncer.updateHeight()
