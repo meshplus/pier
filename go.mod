@@ -14,7 +14,7 @@ require (
 	github.com/golang/mock v1.4.3
 	github.com/libp2p/go-libp2p-core v0.3.0
 	github.com/meshplus/bitxhub-core v0.1.0-rc1.0.20200526060151-b0efad4a2046
-	github.com/meshplus/bitxhub-kit v1.0.1-0.20200525112026-df2160653e23
+	github.com/meshplus/bitxhub-kit v1.0.1-0.20200727075316-ea098a3c3411
 	github.com/meshplus/bitxhub-model v1.0.0-rc4.0.20200608065824-2fbc63639e92
 	github.com/meshplus/go-bitxhub-client v1.0.0-rc4.0.20200509065005-851bf8c357e4
 	github.com/mitchellh/go-homedir v1.1.0
@@ -25,7 +25,7 @@ require (
 	github.com/syndtr/goleveldb v1.0.1-0.20190923125748-758128399b1d
 	github.com/tidwall/gjson v1.6.0
 	github.com/urfave/cli v1.22.1
-	golang.org/x/sys v0.0.0-20200509044756-6aff5f38e54f // indirect
+	golang.org/x/sys v0.0.0-20200509044756-6aff5f38e54f
 )
 
 replace github.com/hyperledger/fabric => github.com/hyperledger/fabric v2.0.1+incompatible
