@@ -44,4 +44,6 @@ type Agent interface {
 	GetChainMeta() (*pb.ChainMeta, error)
 
 	GetInterchainMeta() (*rpcx.Interchain, error)
+
+	GetAssetExchangeSigns(id string) ([]byte, error)
 }

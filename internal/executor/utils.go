@@ -64,15 +64,19 @@ func (e *ChannelExecutor) generateCallback(toExecute *pb.IBTP, args [][]byte) (r
 	}
 
 	typ := pb.IBTP_RECEIPT_SUCCESS
-	if ct.Func == "interchainCharge" {
-		responseStatus, err := strconv.ParseBool(string(newContent.Args[0]))
-		if err != nil {
-			return nil, err
-		}
+	if toExecute.Type == pb.IBTP_INTERCHAIN {
+		if ct.Func == "interchainCharge" {
+			responseStatus, err := strconv.ParseBool(string(newContent.Args[0]))
+			if err != nil {
+				return nil, err
+			}
 
-		if !responseStatus {
-			typ = pb.IBTP_RECEIPT_FAILURE
+			if !responseStatus {
+				typ = pb.IBTP_RECEIPT_FAILURE
+			}
 		}
+	} else {
+		typ = pb.IBTP_ASSET_EXCHANGE_RECEIPT
 	}
 
 	return &pb.IBTP{

@@ -27,15 +27,22 @@ func (e *ChannelExecutor) HandleIBTP(ibtp *pb.IBTP) *pb.IBTP {
 	switch ibtp.Type {
 	case pb.IBTP_INTERCHAIN:
 		return e.applyInterchainIBTP(ibtp)
+	case pb.IBTP_ASSET_EXCHANGE_INIT:
+		return e.applyInterchainIBTP(ibtp)
+	case pb.IBTP_ASSET_EXCHANGE_REDEEM:
+		return e.applyInterchainIBTP(ibtp)
+	case pb.IBTP_ASSET_EXCHANGE_REFUND:
+		return e.applyInterchainIBTP(ibtp)
 	case pb.IBTP_RECEIPT_SUCCESS:
-		// no ack ibtp for receipt
 		e.applyReceiptIBTP(ibtp)
 	case pb.IBTP_RECEIPT_FAILURE:
-		// no ack ibtp for receipt
+		e.applyReceiptIBTP(ibtp)
+	case pb.IBTP_ASSET_EXCHANGE_RECEIPT:
 		e.applyReceiptIBTP(ibtp)
 	default:
 		logger.Error("wrong ibtp type")
 	}
+
 	return nil
 }
 
@@ -68,7 +75,7 @@ func (e *ChannelExecutor) applyInterchainIBTP(ibtp *pb.IBTP) *pb.IBTP {
 	}
 
 	if response == nil || response.Result == nil {
-		entry.WithField("error", err).Panic("empty response")
+		//entry.WithField("error", err).Panic("empty response")
 	}
 
 	if !response.Status {
@@ -136,15 +143,17 @@ func (e *ChannelExecutor) execCallback(ibtp *pb.IBTP) error {
 	}
 
 	// no need to send receipt for callback
-	_, err := e.client.SubmitIBTP(ibtp)
+	resp, err := e.client.SubmitIBTP(ibtp)
 	if err != nil {
 		return fmt.Errorf("handle ibtp of callback %w", err)
 	}
 
 	e.callbackMeta[ibtp.From] = ibtp.Index
 	logger.WithFields(logrus.Fields{
-		"index": ibtp.Index,
-		"type":  ibtp.Type,
+		"index":  ibtp.Index,
+		"type":   ibtp.Type,
+		"status": resp.Status,
+		"msg":    resp.Message,
 	}).Info("Execute callback")
 
 	return nil

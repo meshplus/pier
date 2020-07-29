@@ -25,4 +25,5 @@ validators = [
 peers = []
 
 [appchain]
+plugin = "appchain_plugin"
 config = "fabric"

@@ -62,62 +62,6 @@ func TestSwarm_Start(t *testing.T) {
 	require.Equal(t, 2, msgCount)
 }
 
-func TestSwarm_Stop(t *testing.T) {
-	keys, config, ids := genKeysAndConfig(t, 2)
-
-	swarm1, err := New(config, keys[0])
-	require.Nil(t, err)
-
-	require.Nil(t, swarm1.Start())
-	time.Sleep(time.Second * 2)
-
-	swarm2, err := New(config, keys[1])
-	require.Nil(t, err)
-
-	require.Nil(t, swarm2.Start())
-
-	time.Sleep(time.Second * 6)
-
-	msgCount := 0
-	err = swarm1.RegisterMsgHandler(peermgr.Message_IBTP_GET, func(stream network.Stream, message *peermgr.Message) {
-		require.Equal(t, peermgr.Message_IBTP_GET, message.Type)
-
-		msg := &peermgr.Message{Type: peermgr.Message_ACK}
-		require.Nil(t, swarm1.SendWithStream(stream, msg))
-		msgCount++
-	})
-	require.Nil(t, err)
-
-	require.Nil(t, swarm1.Stop())
-	time.Sleep(time.Second * 3)
-
-	msg := &peermgr.Message{Type: peermgr.Message_IBTP_GET}
-	_, err = swarm2.Send(ids[0], msg)
-	require.NotNil(t, err)
-
-	swarm1, err = New(config, keys[0])
-	require.Nil(t, err)
-
-	require.Nil(t, swarm1.Start())
-
-	err = swarm1.RegisterMsgHandler(peermgr.Message_IBTP_GET, func(stream network.Stream, message *peermgr.Message) {
-		require.Equal(t, peermgr.Message_IBTP_GET, message.Type)
-
-		msg := &peermgr.Message{Type: peermgr.Message_ACK}
-		err := swarm1.SendWithStream(stream, msg)
-		require.Nil(t, err)
-		msgCount++
-	})
-	require.Nil(t, err)
-
-	time.Sleep(time.Second * 3)
-
-	msg = &peermgr.Message{Type: peermgr.Message_IBTP_GET}
-	msg2, err := swarm2.Send(ids[0], msg)
-	require.Nil(t, err)
-	require.Equal(t, peermgr.Message_ACK, msg2.Type)
-}
-
 func genKeysAndConfig(t *testing.T, peerCnt int) ([]crypto.PrivateKey, *repo.Config, []string) {
 	var keys []crypto.PrivateKey
 	var peers []string

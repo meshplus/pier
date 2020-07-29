@@ -21,6 +21,16 @@ func (ex *Exchanger) handleIBTP(ibtp *pb.IBTP) {
 		// todo: send receipt back to bitxhub
 		return
 	}
+	if pb.IBTP_ASSET_EXCHANGE_REDEEM == ibtp.Type || pb.IBTP_ASSET_EXCHANGE_REFUND == ibtp.Type {
+		if err := retry.Retry(func(attempt uint) error {
+			if err := ex.fetchSignsToIBTP(ibtp); err != nil {
+				return err
+			}
+			return nil
+		}, strategy.Wait(1*time.Second)); err != nil {
+			logger.Panic(err)
+		}
+	}
 
 	receipt := ex.exec.HandleIBTP(ibtp)
 	if receipt == nil {
@@ -165,4 +175,15 @@ func (ex *Exchanger) handleGetInterchainMessage(stream network.Stream, msg *peer
 		logger.Error(err)
 		return
 	}
+}
+
+func (ex *Exchanger) fetchSignsToIBTP(ibtp *pb.IBTP) error {
+	signs, err := ex.agent.GetAssetExchangeSigns(string(ibtp.Extra))
+	if err != nil {
+		return fmt.Errorf("get asset exchange signs: %w", err)
+	}
+
+	ibtp.Extra = signs
+
+	return nil
 }
