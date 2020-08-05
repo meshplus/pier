@@ -180,3 +180,18 @@ func (mr *MockAgentMockRecorder) GetInterchainMeta() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetInterchainMeta", reflect.TypeOf((*MockAgent)(nil).GetInterchainMeta))
 }
+
+// GetAssetExchangeSigns mocks base method
+func (m *MockAgent) GetAssetExchangeSigns(id string) ([]byte, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetAssetExchangeSigns", id)
+	ret0, _ := ret[0].([]byte)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetAssetExchangeSigns indicates an expected call of GetAssetExchangeSigns
+func (mr *MockAgentMockRecorder) GetAssetExchangeSigns(id interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetAssetExchangeSigns", reflect.TypeOf((*MockAgent)(nil).GetAssetExchangeSigns), id)
+}

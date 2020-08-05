@@ -178,3 +178,21 @@ func (agent *BxhAgent) GetIBTPByID(id string) (*pb.IBTP, error) {
 func (agent *BxhAgent) GetChainMeta() (*pb.ChainMeta, error) {
 	return agent.client.GetChainMeta()
 }
+
+func (agent *BxhAgent) GetAssetExchangeSigns(id string) ([]byte, error) {
+	resp, err := agent.client.GetAssetExchangeSigns(id)
+	if err != nil {
+		return nil, err
+	}
+
+	if resp == nil || resp.Sign == nil {
+		return nil, fmt.Errorf("get empty signatures for asset exchange id %s", id)
+	}
+
+	var signs []byte
+	for _, sign := range resp.Sign {
+		signs = append(signs, sign...)
+	}
+
+	return signs, nil
+}
