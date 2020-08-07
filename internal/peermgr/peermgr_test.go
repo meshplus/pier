@@ -35,7 +35,7 @@ func TestSwarm_Start(t *testing.T) {
 		require.Equal(t, peermgr.Message_APPCHAIN_REGISTER, message.Type)
 
 		msg := &peermgr.Message{Type: peermgr.Message_ACK}
-		require.Nil(t, swarm1.SendWithStream(stream, msg))
+		require.Nil(t, swarm1.AsyncSendWithStream(stream, msg))
 		msgCount++
 	})
 	require.Nil(t, err)

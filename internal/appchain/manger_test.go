@@ -75,7 +75,7 @@ func prepare(t *testing.T) *Manager {
 	mockCtl := gomock.NewController(t)
 	mockPeerMgr := mock_peermgr.NewMockPeerManager(mockCtl)
 	mockPeerMgr.EXPECT().RegisterMultiMsgHandler(gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
-	mockPeerMgr.EXPECT().SendWithStream(gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
+	mockPeerMgr.EXPECT().AsyncSendWithStream(gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
 
 	manager, err := NewManager(pierId, store, mockPeerMgr)
 	require.Nil(t, err)

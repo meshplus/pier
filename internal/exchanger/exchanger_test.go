@@ -122,7 +122,7 @@ func TestStartDirect(t *testing.T) {
 	mockExecutor.EXPECT().QueryReceipt(to, uint64(1), gomock.Any()).Return(receipt, nil).AnyTimes()
 	mockPeerMgr.EXPECT().Send(gomock.Any(), metaMsg).Return(retMetaMsg, nil).AnyTimes()
 	mockPeerMgr.EXPECT().Send(gomock.Any(), gomock.Any()).Return(retMsg, nil).AnyTimes()
-	mockPeerMgr.EXPECT().SendWithStream(gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
+	mockPeerMgr.EXPECT().AsyncSendWithStream(gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
 
 	require.Nil(t, mockExchanger.Start())
 

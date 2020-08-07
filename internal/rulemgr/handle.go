@@ -35,7 +35,7 @@ func (rm *RuleMgr) handleRule(net network.Stream, msg *peerproto.Message) {
 
 	ackMsg := peermgr.Message(peerproto.Message_ACK, true, ackData)
 
-	err = rm.PeerManager.SendWithStream(net, ackMsg)
+	err = rm.PeerManager.AsyncSendWithStream(net, ackMsg)
 	if err != nil {
 		logger.Error(err)
 	}

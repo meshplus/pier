@@ -35,7 +35,7 @@ func (mgr *Manager) handleMessage(s network.Stream, msg *peerproto.Message) {
 	}
 
 	ackMsg := peermgr.Message(msg.Type, ok, res)
-	err := mgr.PeerManager.SendWithStream(s, ackMsg)
+	err := mgr.PeerManager.AsyncSendWithStream(s, ackMsg)
 	if err != nil {
 		logger.Error(err)
 	}

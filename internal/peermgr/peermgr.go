@@ -21,7 +21,10 @@ type PeerManager interface {
 	AsyncSend(string, *peermgr.Message) error
 
 	// SendWithStream sends message using existed stream
-	SendWithStream(network.Stream, *peermgr.Message) error
+	SendWithStream(network.Stream, *peermgr.Message) (*peermgr.Message, error)
+
+	// AsyncSendWithStream sends message using existed stream
+	AsyncSendWithStream(network.Stream, *peermgr.Message) error
 
 	// Send sends message waiting response
 	Send(string, *peermgr.Message) (*peermgr.Message, error)

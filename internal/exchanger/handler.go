@@ -68,7 +68,7 @@ func (ex *Exchanger) handleSendIBTPMessage(stream network.Stream, msg *peerMsg.M
 		receipt := ex.exec.HandleIBTP(ibtp)
 		if receipt == nil {
 			retMsg := peermgr.Message(peerMsg.Message_ACK, true, nil)
-			err = ex.peerMgr.SendWithStream(stream, retMsg)
+			err = ex.peerMgr.AsyncSendWithStream(stream, retMsg)
 			if err != nil {
 				return fmt.Errorf("send back ibtp: %w", err)
 			}
@@ -81,7 +81,7 @@ func (ex *Exchanger) handleSendIBTPMessage(stream network.Stream, msg *peerMsg.M
 		}
 
 		retMsg := peermgr.Message(peerMsg.Message_ACK, true, data)
-		err = ex.peerMgr.SendWithStream(stream, retMsg)
+		err = ex.peerMgr.AsyncSendWithStream(stream, retMsg)
 		if err != nil {
 			return fmt.Errorf("send back ibtp: %w", err)
 		}
@@ -112,7 +112,7 @@ func (ex *Exchanger) handleGetIBTPMessage(stream network.Stream, msg *peerMsg.Me
 
 	retMsg := peermgr.Message(peerMsg.Message_ACK, true, data)
 
-	err = ex.peerMgr.SendWithStream(stream, retMsg)
+	err = ex.peerMgr.AsyncSendWithStream(stream, retMsg)
 	if err != nil {
 		logger.Error(err)
 	}
@@ -171,7 +171,7 @@ func (ex *Exchanger) handleGetInterchainMessage(stream network.Stream, msg *peer
 	}
 
 	retMsg := peermgr.Message(peerMsg.Message_ACK, true, data)
-	if err := ex.peerMgr.SendWithStream(stream, retMsg); err != nil {
+	if err := ex.peerMgr.AsyncSendWithStream(stream, retMsg); err != nil {
 		logger.Error(err)
 		return
 	}

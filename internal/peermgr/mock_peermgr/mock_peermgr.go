@@ -79,17 +79,32 @@ func (mr *MockPeerManagerMockRecorder) AsyncSend(arg0, arg1 interface{}) *gomock
 }
 
 // SendWithStream mocks base method
-func (m *MockPeerManager) SendWithStream(arg0 network.Stream, arg1 *peermgr0.Message) error {
+func (m *MockPeerManager) SendWithStream(arg0 network.Stream, arg1 *peermgr0.Message) (*peermgr0.Message, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "SendWithStream", arg0, arg1)
-	ret0, _ := ret[0].(error)
-	return ret0
+	ret0, _ := ret[0].(*peermgr0.Message)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
 }
 
 // SendWithStream indicates an expected call of SendWithStream
 func (mr *MockPeerManagerMockRecorder) SendWithStream(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SendWithStream", reflect.TypeOf((*MockPeerManager)(nil).SendWithStream), arg0, arg1)
+}
+
+// AsyncSendWithStream mocks base method
+func (m *MockPeerManager) AsyncSendWithStream(arg0 network.Stream, arg1 *peermgr0.Message) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "AsyncSendWithStream", arg0, arg1)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// AsyncSendWithStream indicates an expected call of AsyncSendWithStream
+func (mr *MockPeerManagerMockRecorder) AsyncSendWithStream(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AsyncSendWithStream", reflect.TypeOf((*MockPeerManager)(nil).AsyncSendWithStream), arg0, arg1)
 }
 
 // Send mocks base method
