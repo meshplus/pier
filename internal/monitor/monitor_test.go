@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/golang/mock/gomock"
+	"github.com/meshplus/bitxhub-kit/log"
 	"github.com/meshplus/bitxhub-kit/types"
 	"github.com/meshplus/bitxhub-model/pb"
 	"github.com/meshplus/pier/internal/txcrypto/mock_txcrypto"
@@ -73,7 +74,7 @@ func prepare(t *testing.T) (*mock_client.MockClient, *AppchainMonitor) {
 
 	mockClient.EXPECT().GetOutMeta().Return(make(map[string]uint64), nil).AnyTimes()
 
-	mnt, err := New(mockClient, mockCryptor)
+	mnt, err := New(mockClient, mockCryptor, log.NewWithModule("monitor"))
 	require.Nil(t, err)
 	return mockClient, mnt
 }

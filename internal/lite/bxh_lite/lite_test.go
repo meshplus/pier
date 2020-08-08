@@ -11,6 +11,7 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/meshplus/bitxhub-kit/crypto"
 	"github.com/meshplus/bitxhub-kit/crypto/asym/ecdsa"
+	"github.com/meshplus/bitxhub-kit/log"
 	"github.com/meshplus/bitxhub-kit/storage/leveldb"
 	"github.com/meshplus/bitxhub-kit/types"
 	"github.com/meshplus/bitxhub-model/pb"
@@ -80,7 +81,7 @@ func prepare(t *testing.T) (*BxhLite, *mock_agent.MockAgent, []crypto.PrivateKey
 	require.Nil(t, err)
 
 	keys := getVlts(t)
-	lite, err := New(ag, storage)
+	lite, err := New(ag, storage, log.NewWithModule("bxh_lite"))
 	require.Nil(t, err)
 
 	return lite, ag, keys

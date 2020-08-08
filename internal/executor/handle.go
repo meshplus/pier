@@ -13,11 +13,11 @@ import (
 // applyIBTP handle ibtps of any type
 func (e *ChannelExecutor) HandleIBTP(ibtp *pb.IBTP) *pb.IBTP {
 	if ibtp == nil {
-		logger.Error("empty ibtp structure")
+		e.logger.Error("empty ibtp structure")
 		return nil
 	}
 
-	logger.WithFields(logrus.Fields{
+	e.logger.WithFields(logrus.Fields{
 		"index": ibtp.Index,
 		"type":  ibtp.Type,
 		"from":  ibtp.From,
@@ -40,7 +40,7 @@ func (e *ChannelExecutor) HandleIBTP(ibtp *pb.IBTP) *pb.IBTP {
 	case pb.IBTP_ASSET_EXCHANGE_RECEIPT:
 		e.applyReceiptIBTP(ibtp)
 	default:
-		logger.Error("wrong ibtp type")
+		e.logger.Error("wrong ibtp type")
 	}
 
 	return nil
@@ -51,7 +51,7 @@ func (e *ChannelExecutor) HandleIBTP(ibtp *pb.IBTP) *pb.IBTP {
 // if this interchain tx has callback function, get results from the execution
 // of it and set these results as callback function's args
 func (e *ChannelExecutor) applyInterchainIBTP(ibtp *pb.IBTP) *pb.IBTP {
-	entry := logger.WithFields(logrus.Fields{
+	entry := e.logger.WithFields(logrus.Fields{
 		"from":  ibtp.From,
 		"type":  ibtp.Type,
 		"index": ibtp.Index,
@@ -97,7 +97,7 @@ func (e *ChannelExecutor) applyInterchainIBTP(ibtp *pb.IBTP) *pb.IBTP {
 func (e *ChannelExecutor) applyReceiptIBTP(ibtp *pb.IBTP) {
 	pd := &pb.Payload{}
 	if err := pd.Unmarshal(ibtp.Payload); err != nil {
-		logger.WithField("error", err).Panic("Unmarshal receipt type ibtp payload")
+		e.logger.WithField("error", err).Panic("Unmarshal receipt type ibtp payload")
 	}
 
 	ct := &pb.Content{}
@@ -106,11 +106,11 @@ func (e *ChannelExecutor) applyReceiptIBTP(ibtp *pb.IBTP) {
 	var err error
 	if pd.Encrypted {
 		contentByte, err = e.cryptor.Decrypt(contentByte, ibtp.To)
-		logger.WithField("error", err).Panic("Decrypt the content")
+		e.logger.WithField("error", err).Panic("Decrypt the content")
 	}
 
 	if err := ct.Unmarshal(contentByte); err != nil {
-		logger.WithField("error", err).Panic("Unmarshal receipt type ibtp payload content")
+		e.logger.WithField("error", err).Panic("Unmarshal receipt type ibtp payload content")
 	}
 
 	// if this receipt is for executing callback function
@@ -120,12 +120,12 @@ func (e *ChannelExecutor) applyReceiptIBTP(ibtp *pb.IBTP) {
 		if err := retry.Retry(func(attempt uint) error {
 			err := e.execCallback(ibtp)
 			if err != nil {
-				logger.Errorf("Execute callback tx: %s, retry sending tx", err.Error())
+				e.logger.Errorf("Execute callback tx: %s, retry sending tx", err.Error())
 				return fmt.Errorf("execute callback tx: %w", err)
 			}
 			return nil
 		}, strategy.Wait(1*time.Second)); err != nil {
-			logger.Errorf("Execution of callback function failed: %s", err.Error())
+			e.logger.Errorf("Execution of callback function failed: %s", err.Error())
 		}
 	}
 }
@@ -134,7 +134,7 @@ func (e *ChannelExecutor) applyReceiptIBTP(ibtp *pb.IBTP) {
 func (e *ChannelExecutor) execCallback(ibtp *pb.IBTP) error {
 	ibtp.From, ibtp.To = ibtp.To, ibtp.From
 	if e.callbackMeta[ibtp.From] >= ibtp.Index {
-		logger.WithFields(logrus.Fields{
+		e.logger.WithFields(logrus.Fields{
 			"from":  ibtp.From,
 			"type":  ibtp.Type,
 			"index": ibtp.Index,
@@ -149,7 +149,7 @@ func (e *ChannelExecutor) execCallback(ibtp *pb.IBTP) error {
 	}
 
 	e.callbackMeta[ibtp.From] = ibtp.Index
-	logger.WithFields(logrus.Fields{
+	e.logger.WithFields(logrus.Fields{
 		"index":  ibtp.Index,
 		"type":   ibtp.Type,
 		"status": resp.Status,

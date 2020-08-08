@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/meshplus/bitxhub-kit/log"
 	"github.com/meshplus/bitxhub-kit/storage"
 	"github.com/meshplus/bitxhub-model/pb"
 	"github.com/meshplus/pier/internal/agent"
@@ -12,24 +11,24 @@ import (
 	"github.com/syndtr/goleveldb/leveldb"
 )
 
-var logger = log.NewWithModule("bxh_lite")
-
 const maxChSize = 1024
 
 type BxhLite struct {
 	ag      agent.Agent
 	storage storage.Storage
 	height  uint64
+	logger  logrus.FieldLogger
 	ctx     context.Context
 	cancel  context.CancelFunc
 }
 
-func New(ag agent.Agent, storage storage.Storage) (*BxhLite, error) {
+func New(ag agent.Agent, storage storage.Storage, logger logrus.FieldLogger) (*BxhLite, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	return &BxhLite{
 		ag:      ag,
 		storage: storage,
+		logger:  logger,
 		ctx:     ctx,
 		cancel:  cancel,
 	}, nil
@@ -54,7 +53,7 @@ func (lite *BxhLite) Start() error {
 
 	go lite.syncBlock()
 
-	logger.WithFields(logrus.Fields{
+	lite.logger.WithFields(logrus.Fields{
 		"current_height": lite.height,
 		"bitxhub_height": meta.Height,
 	}).Info("BitXHub lite started")
@@ -65,7 +64,7 @@ func (lite *BxhLite) Start() error {
 func (lite *BxhLite) Stop() error {
 	lite.cancel()
 
-	logger.Info("BitXHub lite stopped")
+	lite.logger.Info("BitXHub lite stopped")
 	return nil
 }
 
@@ -75,7 +74,7 @@ func (lite *BxhLite) QueryHeader(height uint64) (*pb.BlockHeader, error) {
 		if err == leveldb.ErrNotFound {
 			return nil, err
 		}
-		logger.Panicf("Database is unavailable :%s", err.Error())
+		lite.logger.Panicf("Database is unavailable :%s", err.Error())
 	}
 
 	header := &pb.BlockHeader{}
@@ -88,14 +87,14 @@ func (lite *BxhLite) QueryHeader(height uint64) (*pb.BlockHeader, error) {
 
 // recover will recover those missing merkle wrapper when pier is down
 func (lite *BxhLite) recover(begin, end uint64) {
-	logger.WithFields(logrus.Fields{
+	lite.logger.WithFields(logrus.Fields{
 		"begin": begin,
 		"end":   end,
 	}).Info("BitXHub lite recover")
 
 	headerCh := make(chan *pb.BlockHeader, maxChSize)
 	if err := lite.ag.GetBlockHeader(lite.ctx, begin, end, headerCh); err != nil {
-		logger.WithFields(logrus.Fields{
+		lite.logger.WithFields(logrus.Fields{
 			"begin": begin,
 			"end":   end,
 			"error": err,

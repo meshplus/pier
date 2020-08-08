@@ -28,7 +28,7 @@ func (ex *Exchanger) handleIBTP(ibtp *pb.IBTP) {
 			}
 			return nil
 		}, strategy.Wait(1*time.Second)); err != nil {
-			logger.Panic(err)
+			ex.logger.Panic(err)
 		}
 	}
 
@@ -36,7 +36,7 @@ func (ex *Exchanger) handleIBTP(ibtp *pb.IBTP) {
 	if receipt == nil {
 		return
 	}
-	logger.WithFields(logrus.Fields{
+	ex.logger.WithFields(logrus.Fields{
 		"index": ibtp.Index,
 		"from":  ibtp.From,
 	}).Info("Handle ibtp")
@@ -48,7 +48,7 @@ func (ex *Exchanger) handleIBTP(ibtp *pb.IBTP) {
 		}
 		return nil
 	}, strategy.Wait(1*time.Second)); err != nil {
-		logger.Panic(err)
+		ex.logger.Panic(err)
 	}
 }
 
@@ -90,18 +90,18 @@ func (ex *Exchanger) handleSendIBTPMessage(stream network.Stream, msg *peerMsg.M
 	}
 
 	if err := handle(); err != nil {
-		logger.Error(err)
+		ex.logger.Error(err)
 		return
 	}
 
-	logger.Info("Handle ibtp from other pier")
+	ex.logger.Info("Handle ibtp from other pier")
 }
 
 func (ex *Exchanger) handleGetIBTPMessage(stream network.Stream, msg *peerMsg.Message) {
 	ibtpID := string(msg.Payload.Data)
 	ibtp, err := ex.mnt.QueryIBTP(ibtpID)
 	if err != nil {
-		logger.Error("Get wrong ibtp id")
+		ex.logger.Error("Get wrong ibtp id")
 		return
 	}
 
@@ -114,7 +114,7 @@ func (ex *Exchanger) handleGetIBTPMessage(stream network.Stream, msg *peerMsg.Me
 
 	err = ex.peerMgr.SendWithStream(stream, retMsg)
 	if err != nil {
-		logger.Error(err)
+		ex.logger.Error(err)
 	}
 }
 
@@ -147,7 +147,7 @@ func (ex *Exchanger) handleNewConnection(dstPierID string) {
 	if err := retry.Retry(func(attempt uint) error {
 		return loop()
 	}, strategy.Wait(1*time.Second)); err != nil {
-		logger.Panic(err)
+		ex.logger.Panic(err)
 	}
 
 	ex.recoverDirect(dstPierID, indices.InterchainIndex, indices.ReceiptIndex)
@@ -172,7 +172,7 @@ func (ex *Exchanger) handleGetInterchainMessage(stream network.Stream, msg *peer
 
 	retMsg := peermgr.Message(peerMsg.Message_ACK, true, data)
 	if err := ex.peerMgr.SendWithStream(stream, retMsg); err != nil {
-		logger.Error(err)
+		ex.logger.Error(err)
 		return
 	}
 }

@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 
 	appchainmgr "github.com/meshplus/bitxhub-core/appchain-mgr"
-	"github.com/meshplus/bitxhub-kit/log"
 	"github.com/meshplus/bitxhub-kit/storage"
 	"github.com/meshplus/pier/internal/peermgr"
 	peerproto "github.com/meshplus/pier/internal/peermgr/proto"
@@ -12,18 +11,19 @@ import (
 )
 
 var (
-	logger                       = log.NewWithModule("appchain_mgr")
-	_      appchainmgr.Persister = (*Persister)(nil)
+	_ appchainmgr.Persister = (*Persister)(nil)
 )
 
 type Persister struct {
 	addr    string
 	storage storage.Storage
+	logger  logrus.FieldLogger
 }
 
 type Manager struct {
 	PeerManager peermgr.PeerManager
 	Mgr         appchainmgr.AppchainMgr
+	logger      logrus.FieldLogger
 }
 
 func (m Persister) Caller() string {
@@ -31,7 +31,7 @@ func (m Persister) Caller() string {
 }
 
 func (m Persister) Logger() logrus.FieldLogger {
-	return logger
+	return m.logger
 }
 
 func (m Persister) Has(key string) bool {
@@ -89,11 +89,12 @@ func (m Persister) Query(prefix string) (bool, [][]byte) {
 	return len(ret) != 0, ret
 }
 
-func NewManager(addr string, storage storage.Storage, pm peermgr.PeerManager) (*Manager, error) {
-	appchainMgr := appchainmgr.New(&Persister{addr: addr, storage: storage})
+func NewManager(addr string, storage storage.Storage, pm peermgr.PeerManager, logger logrus.FieldLogger) (*Manager, error) {
+	appchainMgr := appchainmgr.New(&Persister{addr: addr, storage: storage, logger: logger})
 	am := &Manager{
 		PeerManager: pm,
 		Mgr:         appchainMgr,
+		logger:      logger,
 	}
 
 	err := pm.RegisterMultiMsgHandler([]peerproto.Message_Type{

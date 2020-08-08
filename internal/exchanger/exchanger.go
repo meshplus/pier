@@ -8,7 +8,6 @@ import (
 
 	"github.com/Rican7/retry"
 	"github.com/Rican7/retry/strategy"
-	"github.com/meshplus/bitxhub-kit/log"
 	"github.com/meshplus/bitxhub-kit/storage"
 	"github.com/meshplus/bitxhub-kit/types"
 	"github.com/meshplus/bitxhub-model/pb"
@@ -27,8 +26,6 @@ import (
 	"github.com/syndtr/goleveldb/leveldb"
 )
 
-var logger = log.NewWithModule("exchanger")
-
 type Exchanger struct {
 	agent             agent.Agent
 	checker           checker.Checker
@@ -42,6 +39,7 @@ type Exchanger struct {
 	pierID            string
 	interchainCounter map[string]uint64
 	sourceReceiptMeta map[string]uint64
+	logger            logrus.FieldLogger
 	ctx               context.Context
 	cancel            context.CancelFunc
 }
@@ -66,6 +64,7 @@ func New(typ, pierID string, meta *rpcx.Interchain, opts ...Option) (*Exchanger,
 		sourceReceiptMeta: meta.SourceReceiptCounter,
 		mode:              typ,
 		pierID:            pierID,
+		logger:            config.logger,
 		ctx:               ctx,
 		cancel:            cancel,
 	}, nil
@@ -118,17 +117,17 @@ func (ex *Exchanger) Start() error {
 				return
 			case ibtp, ok := <-ch:
 				if !ok {
-					logger.Warn("Unexpected closed channel while listening on interchain ibtp")
+					ex.logger.Warn("Unexpected closed channel while listening on interchain ibtp")
 					return
 				}
 				if err := ex.sendIBTP(ibtp); err != nil {
-					logger.Infof("Send ibtp: %s", err.Error())
+					ex.logger.Infof("Send ibtp: %s", err.Error())
 				}
 			}
 		}
 	}()
 
-	logger.Info("Exchanger started")
+	ex.logger.Info("Exchanger started")
 	return nil
 }
 
@@ -149,13 +148,13 @@ func (ex *Exchanger) Stop() error {
 		}
 	}
 
-	logger.Info("Exchanger stopped")
+	ex.logger.Info("Exchanger stopped")
 
 	return nil
 }
 
 func (ex *Exchanger) sendIBTP(ibtp *pb.IBTP) error {
-	entry := logger.WithFields(logrus.Fields{
+	entry := ex.logger.WithFields(logrus.Fields{
 		"index": ibtp.Index,
 		"type":  ibtp.Type,
 		"to":    types.String2Address(ibtp.To).ShortString(),
@@ -181,7 +180,7 @@ func (ex *Exchanger) sendIBTP(ibtp *pb.IBTP) error {
 
 			return nil
 		}, strategy.Wait(1*time.Second)); err != nil {
-			logger.Panic(err)
+			ex.logger.Panic(err)
 		}
 	case repo.DirectMode:
 		// send ibtp to another pier
@@ -201,7 +200,7 @@ func (ex *Exchanger) sendIBTP(ibtp *pb.IBTP) error {
 
 			retMsg, err := ex.peerMgr.Send(dst, msg)
 			if err != nil {
-				logger.Infof("Send ibtp to pier %s: %s", dst, err.Error())
+				ex.logger.Infof("Send ibtp to pier %s: %s", dst, err.Error())
 				return err
 			}
 
@@ -222,7 +221,7 @@ func (ex *Exchanger) sendIBTP(ibtp *pb.IBTP) error {
 			// handle receipt message from pier
 			receipt := &pb.IBTP{}
 			if err := receipt.Unmarshal(retMsg.Payload.Data); err != nil {
-				logger.Errorf("unmarshal receipt: %s", err.Error())
+				ex.logger.Errorf("unmarshal receipt: %s", err.Error())
 				return err
 			}
 
@@ -235,7 +234,7 @@ func (ex *Exchanger) sendIBTP(ibtp *pb.IBTP) error {
 
 			return nil
 		}, strategy.Wait(1*time.Second)); err != nil {
-			logger.Panic(err)
+			ex.logger.Panic(err)
 		}
 	}
 	return nil
@@ -285,7 +284,7 @@ func (ex *Exchanger) queryIBTP(from string, idx uint64) (*pb.IBTP, error) {
 	if err := retry.Retry(func(attempt uint) error {
 		return loop()
 	}, strategy.Wait(1*time.Second)); err != nil {
-		logger.Panic(err)
+		ex.logger.Panic(err)
 	}
 
 	return ibtp, nil

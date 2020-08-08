@@ -8,6 +8,15 @@ pprof = 44555
 level = "info"
 dir = "logs"
 filename = "pier.log"
+[log.module]
+  appchain_mgr = "debug"
+  exchanger = "debug"
+  executor = "debug"
+  bxh_lite = "debug"
+  monitor = "debug"
+  swarm = "debug"
+  rule_mgr = "debug"
+  syncer = "debug"
 report_caller = false
 
 [mode]

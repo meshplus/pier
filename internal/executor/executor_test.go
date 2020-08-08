@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/golang/mock/gomock"
+	"github.com/meshplus/bitxhub-kit/log"
 	"github.com/meshplus/bitxhub-kit/storage/leveldb"
 	"github.com/meshplus/bitxhub-kit/types"
 	"github.com/meshplus/bitxhub-model/pb"
@@ -99,7 +100,7 @@ func prepare(t *testing.T) (*ChannelExecutor, *mock_agent.MockAgent, *mock_clien
 
 	cli.EXPECT().GetInMeta().Return(make(map[string]uint64), nil).AnyTimes()
 	cli.EXPECT().GetCallbackMeta().Return(make(map[string]uint64), nil).AnyTimes()
-	exec, err := New(cli, meta.ID, storage, cryptor)
+	exec, err := New(cli, meta.ID, storage, cryptor, log.NewWithModule("executor"))
 	require.Nil(t, err)
 	return exec, ag, cli
 }

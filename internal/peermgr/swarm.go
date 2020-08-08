@@ -17,7 +17,6 @@ import (
 	"github.com/libp2p/go-libp2p-core/protocol"
 	"github.com/meshplus/bitxhub-kit/crypto"
 	"github.com/meshplus/bitxhub-kit/crypto/asym/ecdsa"
-	"github.com/meshplus/bitxhub-kit/log"
 	"github.com/meshplus/bitxhub-kit/network"
 	peermgr "github.com/meshplus/pier/internal/peermgr/proto"
 	"github.com/meshplus/pier/internal/repo"
@@ -44,7 +43,7 @@ type Swarm struct {
 	cancel context.CancelFunc
 }
 
-func New(config *repo.Config, privKey crypto.PrivateKey) (*Swarm, error) {
+func New(config *repo.Config, privKey crypto.PrivateKey, logger logrus.FieldLogger) (*Swarm, error) {
 	libp2pPrivKey, err := convertToLibp2pPrivKey(privKey)
 	if err != nil {
 		return nil, fmt.Errorf("convert private key: %w", err)
@@ -63,8 +62,6 @@ func New(config *repo.Config, privKey crypto.PrivateKey) (*Swarm, error) {
 	if err != nil {
 		return nil, fmt.Errorf("create p2p: %w", err)
 	}
-
-	var logger = log.NewWithModule("swarm")
 
 	ctx, cancel := context.WithCancel(context.Background())
 

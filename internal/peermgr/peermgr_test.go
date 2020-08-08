@@ -9,6 +9,7 @@ import (
 	peer2 "github.com/libp2p/go-libp2p-core/peer"
 	"github.com/meshplus/bitxhub-kit/crypto"
 	"github.com/meshplus/bitxhub-kit/crypto/asym/ecdsa"
+	"github.com/meshplus/bitxhub-kit/log"
 	peermgr "github.com/meshplus/pier/internal/peermgr/proto"
 	"github.com/meshplus/pier/internal/repo"
 	"github.com/stretchr/testify/require"
@@ -16,14 +17,15 @@ import (
 
 func TestSwarm_Start(t *testing.T) {
 	keys, config, ids := genKeysAndConfig(t, 2)
+	logger := log.NewWithModule("swarm")
 
-	swarm1, err := New(config, keys[0])
+	swarm1, err := New(config, keys[0], logger)
 	require.Nil(t, err)
 
 	require.Nil(t, swarm1.Start())
 	time.Sleep(time.Second * 2)
 
-	swarm2, err := New(config, keys[1])
+	swarm2, err := New(config, keys[1], logger)
 	require.Nil(t, err)
 
 	require.Nil(t, swarm2.Start())

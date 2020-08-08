@@ -8,7 +8,6 @@ import (
 
 	"github.com/hashicorp/go-plugin"
 	"github.com/meshplus/bitxhub-kit/crypto"
-	"github.com/meshplus/bitxhub-kit/log"
 	"github.com/meshplus/bitxhub-kit/storage"
 	"github.com/meshplus/bitxhub-kit/storage/leveldb"
 	rpcx "github.com/meshplus/go-bitxhub-client"
@@ -21,6 +20,7 @@ import (
 	"github.com/meshplus/pier/internal/lite"
 	"github.com/meshplus/pier/internal/lite/bxh_lite"
 	"github.com/meshplus/pier/internal/lite/direct_lite"
+	"github.com/meshplus/pier/internal/loggers"
 	"github.com/meshplus/pier/internal/monitor"
 	"github.com/meshplus/pier/internal/peermgr"
 	"github.com/meshplus/pier/internal/repo"
@@ -30,8 +30,6 @@ import (
 	"github.com/meshplus/pier/pkg/plugins"
 	"github.com/sirupsen/logrus"
 )
-
-var logger = log.NewWithModule("app")
 
 // Pier represents the necessary data for starting the pier app
 type Pier struct {
@@ -43,6 +41,7 @@ type Pier struct {
 	lite       lite.Lite
 	storage    storage.Storage
 	exchanger  exchanger.IExchanger
+	logger     logrus.FieldLogger
 	ctx        context.Context
 	cancel     context.CancelFunc
 	appchain   *rpcx.Appchain
@@ -56,6 +55,7 @@ func NewPier(repoRoot string, config *repo.Config) (*Pier, error) {
 		return nil, fmt.Errorf("read from datastaore %w", err)
 	}
 
+	logger := loggers.Logger(loggers.App)
 	privateKey, err := repo.LoadPrivateKey(repoRoot)
 	if err != nil {
 		return nil, fmt.Errorf("repo load key: %w", err)
@@ -81,17 +81,17 @@ func NewPier(repoRoot string, config *repo.Config) (*Pier, error) {
 
 	switch config.Mode.Type {
 	case repo.DirectMode:
-		peerManager, err = peermgr.New(config, privateKey)
+		peerManager, err = peermgr.New(config, privateKey, loggers.Logger(loggers.Swarm))
 		if err != nil {
 			return nil, fmt.Errorf("peerMgr create: %w", err)
 		}
 
-		ruleMgr, err := rulemgr.New(store, peerManager)
+		ruleMgr, err := rulemgr.New(store, peerManager, loggers.Logger(loggers.RuleMgr))
 		if err != nil {
 			return nil, fmt.Errorf("ruleMgr create: %w", err)
 		}
 
-		appchainMgr, err := appchain.NewManager(addr.String(), store, peerManager)
+		appchainMgr, err := appchain.NewManager(addr.String(), store, peerManager, loggers.Logger(loggers.AppchainMgr))
 		if err != nil {
 			return nil, fmt.Errorf("ruleMgr create: %w", err)
 		}
@@ -145,12 +145,12 @@ func NewPier(repoRoot string, config *repo.Config) (*Pier, error) {
 			return nil, fmt.Errorf("cryptor create: %w", err)
 		}
 
-		lite, err = bxh_lite.New(ag, store)
+		lite, err = bxh_lite.New(ag, store, loggers.Logger(loggers.BxhLite))
 		if err != nil {
 			return nil, fmt.Errorf("lite create: %w", err)
 		}
 
-		sync, err = syncer.New(ag, lite, store)
+		sync, err = syncer.New(ag, lite, store, loggers.Logger(loggers.Syncer))
 		if err != nil {
 			return nil, fmt.Errorf("syncer create: %w", err)
 		}
@@ -169,12 +169,12 @@ func NewPier(repoRoot string, config *repo.Config) (*Pier, error) {
 		return nil, fmt.Errorf("appchain client create: %w", err)
 	}
 
-	mnt, err := monitor.New(cli, cryptor)
+	mnt, err := monitor.New(cli, cryptor, loggers.Logger(loggers.Monitor))
 	if err != nil {
 		return nil, fmt.Errorf("monitor create: %w", err)
 	}
 
-	exec, err := executor.New(cli, addr.String(), store, cryptor)
+	exec, err := executor.New(cli, addr.String(), store, cryptor, loggers.Logger(loggers.Executor))
 	if err != nil {
 		return nil, fmt.Errorf("executor create: %w", err)
 	}
@@ -188,6 +188,7 @@ func NewPier(repoRoot string, config *repo.Config) (*Pier, error) {
 		exchanger.WithSyncer(sync),
 		exchanger.WithAPIServer(apiServer),
 		exchanger.WithStorage(store),
+		exchanger.WithLogger(loggers.Logger(loggers.Exchanger)),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("exchanger create: %w", err)
@@ -206,6 +207,7 @@ func NewPier(repoRoot string, config *repo.Config) (*Pier, error) {
 		exec:       exec,
 		lite:       lite,
 		storage:    store,
+		logger:     logger,
 		ctx:        ctx,
 		cancel:     cancel,
 	}, nil
@@ -213,7 +215,7 @@ func NewPier(repoRoot string, config *repo.Config) (*Pier, error) {
 
 // Start starts three main components of pier app
 func (pier *Pier) Start() error {
-	logger.WithFields(logrus.Fields{
+	pier.logger.WithFields(logrus.Fields{
 		"id":                     pier.meta.ID,
 		"interchain_counter":     pier.meta.InterchainCounter,
 		"receipt_counter":        pier.meta.ReceiptCounter,

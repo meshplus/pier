@@ -9,6 +9,7 @@ import (
 
 	"github.com/cbergoon/merkletree"
 	"github.com/golang/mock/gomock"
+	"github.com/meshplus/bitxhub-kit/log"
 	"github.com/meshplus/bitxhub-kit/storage/leveldb"
 	"github.com/meshplus/bitxhub-kit/types"
 	"github.com/meshplus/bitxhub-model/pb"
@@ -89,7 +90,7 @@ func prepare(t *testing.T) (*WrapperSyncer, *mock_agent.MockAgent, *mock_lite.Mo
 	storage, err := leveldb.New(tmpDir)
 	require.Nil(t, err)
 
-	syncer, err := New(ag, lite, storage)
+	syncer, err := New(ag, lite, storage, log.NewWithModule("syncer"))
 	require.Nil(t, err)
 
 	// register handler for syncer

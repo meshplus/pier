@@ -59,21 +59,28 @@ func (relay *Relay) GetValidators() []types.Address {
 
 // Log are config about log
 type Log struct {
-	Dir          string `toml:"dir" json:"dir"`
-	Filename     string `toml:"filename" json:"filename"`
-	ReportCaller bool   `mapstructure:"report_caller"`
-	Level        string `toml:"level" json:"level"`
+	Dir          string    `toml:"dir" json:"dir"`
+	Filename     string    `toml:"filename" json:"filename"`
+	ReportCaller bool      `mapstructure:"report_caller"`
+	Level        string    `toml:"level" json:"level"`
+	Module       LogModule `toml:"module" json:"module"`
+}
+
+type LogModule struct {
+	AppchainMgr string `mapstructure:"appchain_mgr" toml:"appchain_mgr" json:"appchain_mgr"`
+	RuleMgr     string `mapstructure:"rule_mgr" toml:"rule_mgr" json:"rule_mgr"`
+	BxhLite     string `mapstructure:"bxh_lite" toml:"bxh_lite" json:"bxh_lite"`
+	Exchanger   string `toml:"exchanger" json:"exchanger"`
+	Monitor     string `toml:"monitor" json:"monitor"`
+	Swarm       string `toml:"swarm" json:"swarm"`
+	Syncer      string `toml:"syncer" json:"syncer"`
+	Executor    string `toml:"executor" json:"executor"`
 }
 
 // Appchain are configs about appchain
 type Appchain struct {
 	Config string `toml:"config" json:"config"`
 }
-
-const (
-	// Items
-	LogLevel = "log.level"
-)
 
 // DefaultConfig returns config with default value
 func DefaultConfig() *Config {
@@ -101,10 +108,19 @@ func DefaultConfig() *Config {
 			},
 		},
 		Log: Log{
-			Dir:          "logs",
-			Filename:     "pier.log",
-			ReportCaller: false,
-			Level:        "info",
+			Level:    "info",
+			Dir:      "logs",
+			Filename: "pier.log",
+			Module: LogModule{
+				AppchainMgr: "info",
+				Exchanger:   "info",
+				Executor:    "info",
+				BxhLite:     "info",
+				Monitor:     "info",
+				Swarm:       "info",
+				RuleMgr:     "info",
+				Syncer:      "info",
+			},
 		},
 		Appchain: Appchain{
 			Config: "fabric",

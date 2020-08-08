@@ -13,6 +13,7 @@ import (
 
 	"github.com/meshplus/bitxhub-kit/log"
 	"github.com/meshplus/pier/internal/app"
+	"github.com/meshplus/pier/internal/loggers"
 	"github.com/meshplus/pier/internal/repo"
 	"github.com/urfave/cli"
 )
@@ -53,6 +54,8 @@ func start(ctx *cli.Context) error {
 	if err != nil {
 		return fmt.Errorf("log initialize: %w", err)
 	}
+
+	loggers.InitializeLogger(config)
 
 	if err := checkPlugin(); err != nil {
 		return fmt.Errorf("check plugin: %w", err)

@@ -10,7 +10,6 @@ import (
 
 	"github.com/Rican7/retry"
 	"github.com/Rican7/retry/strategy"
-	"github.com/meshplus/bitxhub-kit/log"
 	"github.com/meshplus/bitxhub-kit/types"
 	"github.com/meshplus/bitxhub-model/pb"
 	"github.com/meshplus/pier/internal/txcrypto"
@@ -18,21 +17,20 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-var logger = log.NewWithModule("monitor")
-
 // Monitor receives event from blockchain and sends it to network
 type AppchainMonitor struct {
 	client            plugins.Client
 	interchainCounter map[string]uint64
 	recvCh            chan *pb.IBTP
 	suspended         uint64
+	logger            logrus.FieldLogger
 	ctx               context.Context
 	cancel            context.CancelFunc
 	cryptor           txcrypto.Cryptor
 }
 
 // New creates monitor instance given client interacting with appchain and interchainCounter about appchain.
-func New(client plugins.Client, cryptor txcrypto.Cryptor) (*AppchainMonitor, error) {
+func New(client plugins.Client, cryptor txcrypto.Cryptor, logger logrus.FieldLogger) (*AppchainMonitor, error) {
 	meta, err := client.GetOutMeta()
 	if err != nil {
 		return nil, fmt.Errorf("get out interchainCounter from broker contract :%w", err)
@@ -44,6 +42,7 @@ func New(client plugins.Client, cryptor txcrypto.Cryptor) (*AppchainMonitor, err
 		interchainCounter: meta,
 		cryptor:           cryptor,
 		recvCh:            make(chan *pb.IBTP, 1024),
+		logger:            logger,
 		ctx:               ctx,
 		cancel:            cancel,
 	}, nil
@@ -72,7 +71,7 @@ func (m *AppchainMonitor) Start() error {
 		}
 	}()
 
-	logger.Info("Monitor started")
+	m.logger.Info("Monitor started")
 
 	return nil
 }
@@ -81,7 +80,7 @@ func (m *AppchainMonitor) Start() error {
 func (m *AppchainMonitor) Stop() error {
 	m.cancel()
 
-	logger.Info("Monitor stopped")
+	m.logger.Info("Monitor stopped")
 
 	return m.client.Stop()
 }
@@ -103,7 +102,7 @@ func (m *AppchainMonitor) QueryIBTP(id string) (*pb.IBTP, error) {
 
 	ibtp, err := m.getIBTP(args[1], idx)
 	if err != nil {
-		logger.WithFields(logrus.Fields{
+		m.logger.WithFields(logrus.Fields{
 			"id": id,
 		}).Error("query ibtp from contract")
 	}
@@ -124,7 +123,7 @@ func (m *AppchainMonitor) QueryLatestMeta() map[string]uint64 {
 func (m *AppchainMonitor) handleIBTP(ibtp *pb.IBTP) {
 	// m.interchainCounter.InterchainCounter[ibtp.To] is the index of top handled tx
 	if m.interchainCounter[ibtp.To] >= ibtp.Index {
-		logger.WithFields(logrus.Fields{
+		m.logger.WithFields(logrus.Fields{
 			"index":   ibtp.Index,
 			"to":      ibtp.To,
 			"ibtp_id": ibtp.ID(),
@@ -133,13 +132,13 @@ func (m *AppchainMonitor) handleIBTP(ibtp *pb.IBTP) {
 	}
 
 	if m.interchainCounter[ibtp.To]+1 < ibtp.Index {
-		logger.WithFields(logrus.Fields{
+		m.logger.WithFields(logrus.Fields{
 			"index": ibtp.Index,
 			"to":    types.String2Address(ibtp.To).ShortString(),
 		}).Info("Get missing ibtp")
 
 		if err := m.handleMissingIBTP(ibtp.To, m.interchainCounter[ibtp.To]+1, ibtp.Index); err != nil {
-			logger.WithFields(logrus.Fields{
+			m.logger.WithFields(logrus.Fields{
 				"index": ibtp.Index,
 				"to":    types.String2Address(ibtp.To).ShortString(),
 			}).Error("Handle missing ibtp")
@@ -147,13 +146,13 @@ func (m *AppchainMonitor) handleIBTP(ibtp *pb.IBTP) {
 	}
 
 	if err := m.checkEnrcyption(ibtp); err != nil {
-		logger.WithFields(logrus.Fields{
+		m.logger.WithFields(logrus.Fields{
 			"index": ibtp.Index,
 			"to":    types.String2Address(ibtp.To).ShortString(),
 		}).Error("check encryption")
 	}
 
-	logger.WithFields(logrus.Fields{
+	m.logger.WithFields(logrus.Fields{
 		"index": ibtp.Index,
 		"to":    types.String2Address(ibtp.To).ShortString(),
 	}).Info("Pass ibtp to exchanger")
@@ -168,7 +167,7 @@ func (m *AppchainMonitor) getIBTP(to string, idx uint64) (*pb.IBTP, error) {
 	if err := retry.Retry(func(attempt uint) error {
 		e, err := m.client.GetOutMessage(to, idx)
 		if err != nil {
-			logger.Errorf("Get out message : %s", err.Error())
+			m.logger.Errorf("Get out message : %s", err.Error())
 			return err
 		}
 
@@ -190,7 +189,7 @@ func (m *AppchainMonitor) handleMissingIBTP(to string, begin, end uint64) error 
 		return fmt.Errorf("begin index for missing ibtp is required >= 1")
 	}
 	for ; begin < end; begin++ {
-		logger.WithFields(logrus.Fields{
+		m.logger.WithFields(logrus.Fields{
 			"to":    to,
 			"index": begin,
 		}).Info("Get missing event from contract")

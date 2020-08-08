@@ -6,6 +6,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/meshplus/bitxhub-kit/log"
+
 	"github.com/golang/mock/gomock"
 	"github.com/libp2p/go-libp2p-core/network"
 	"github.com/meshplus/bitxhub-kit/storage"
@@ -40,6 +42,7 @@ func TestStartRelay(t *testing.T) {
 		WithMonitor(mockMonitor), WithExecutor(mockExecutor),
 		WithSyncer(mockSyncer), WithAgent(mockAgent),
 		WithChecker(mockChecker), WithStorage(store),
+		WithLogger(log.NewWithModule("exchanger")),
 	)
 	require.Nil(t, err)
 
@@ -87,6 +90,7 @@ func TestStartDirect(t *testing.T) {
 		WithMonitor(mockMonitor), WithExecutor(mockExecutor),
 		WithChecker(mockChecker), WithPeerMgr(mockPeerMgr),
 		WithAPIServer(apiServer), WithStorage(store),
+		WithLogger(log.NewWithModule("exchanger")),
 	)
 	require.Nil(t, err)
 
