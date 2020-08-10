@@ -70,7 +70,6 @@ func NewPier(repoRoot string, config *repo.Config) (*Pier, error) {
 	if err != nil {
 		return nil, fmt.Errorf("repo load node key: %w", err)
 	}
-
 	var (
 		ag          agent.Agent
 		ck          checker.Checker

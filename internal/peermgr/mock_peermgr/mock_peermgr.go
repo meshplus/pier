@@ -36,6 +36,35 @@ func (m *MockPeerManager) EXPECT() *MockPeerManagerMockRecorder {
 	return m.recorder
 }
 
+// FindProviders mocks base method
+func (m *MockPeerManager) FindProviders(arg0 string, arg1 int) ([]peer.AddrInfo, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "FindProviders", arg0, arg1)
+	ret0, _ := ret[0].([]peer.AddrInfo)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// FindProviders indicates an expected call of FindProviders
+func (mr *MockPeerManagerMockRecorder) FindProviders(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindProviders", reflect.TypeOf((*MockPeerManager)(nil).FindProviders), arg0, arg1)
+}
+
+// Provider mocks base method
+func (m *MockPeerManager) Provider(arg0 string, arg1 bool) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Provider", arg0, arg1)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Provider indicates an expected call of Provider
+func (mr *MockPeerManagerMockRecorder) Provider(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Provider", reflect.TypeOf((*MockPeerManager)(nil).Provider), arg0, arg1)
+}
+
 // Start mocks base method
 func (m *MockPeerManager) Start() error {
 	m.ctrl.T.Helper()
@@ -176,4 +205,56 @@ func (m *MockPeerManager) RegisterConnectHandler(arg0 peermgr.ConnectHandler) er
 func (mr *MockPeerManagerMockRecorder) RegisterConnectHandler(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RegisterConnectHandler", reflect.TypeOf((*MockPeerManager)(nil).RegisterConnectHandler), arg0)
+}
+
+// MockDHTManager is a mock of DHTManager interface
+type MockDHTManager struct {
+	ctrl     *gomock.Controller
+	recorder *MockDHTManagerMockRecorder
+}
+
+// MockDHTManagerMockRecorder is the mock recorder for MockDHTManager
+type MockDHTManagerMockRecorder struct {
+	mock *MockDHTManager
+}
+
+// NewMockDHTManager creates a new mock instance
+func NewMockDHTManager(ctrl *gomock.Controller) *MockDHTManager {
+	mock := &MockDHTManager{ctrl: ctrl}
+	mock.recorder = &MockDHTManagerMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use
+func (m *MockDHTManager) EXPECT() *MockDHTManagerMockRecorder {
+	return m.recorder
+}
+
+// FindProviders mocks base method
+func (m *MockDHTManager) FindProviders(arg0 string, arg1 int) ([]peer.AddrInfo, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "FindProviders", arg0, arg1)
+	ret0, _ := ret[0].([]peer.AddrInfo)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// FindProviders indicates an expected call of FindProviders
+func (mr *MockDHTManagerMockRecorder) FindProviders(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindProviders", reflect.TypeOf((*MockDHTManager)(nil).FindProviders), arg0, arg1)
+}
+
+// Provider mocks base method
+func (m *MockDHTManager) Provider(arg0 string, arg1 bool) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Provider", arg0, arg1)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Provider indicates an expected call of Provider
+func (mr *MockDHTManagerMockRecorder) Provider(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Provider", reflect.TypeOf((*MockDHTManager)(nil).Provider), arg0, arg1)
 }

@@ -52,6 +52,36 @@ func (ex *Exchanger) handleIBTP(ibtp *pb.IBTP) {
 	}
 }
 
+//handleRouterSendIBTPMessage handles IBTP from union interchain network
+func (ex *Exchanger) handleRouterSendIBTPMessage(stream network.Stream, msg *peerMsg.Message) {
+	handle := func() error {
+		ibtp := &pb.IBTP{}
+		if err := ibtp.Unmarshal(msg.Payload.Data); err != nil {
+			return fmt.Errorf("unmarshal ibtp: %w", err)
+		}
+
+		retMsg := peermgr.Message(peerMsg.Message_ACK, true, nil)
+		err := ex.peerMgr.AsyncSendWithStream(stream, retMsg)
+		if err != nil {
+			return fmt.Errorf("send back ibtp: %w", err)
+		}
+
+		if err := ex.sendIBTP(ibtp); err != nil {
+			logger.Infof("Send ibtp: %s", err.Error())
+		}
+
+		return nil
+
+	}
+
+	if err := handle(); err != nil {
+		logger.Error(err)
+		return
+	}
+
+	logger.Info("Handle ibtp from other pier")
+}
+
 // handleIBTPMessage handle ibtp message from another pier
 func (ex *Exchanger) handleSendIBTPMessage(stream network.Stream, msg *peerMsg.Message) {
 	handle := func() error {
