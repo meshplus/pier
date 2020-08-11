@@ -107,6 +107,20 @@ func (mr *MockPeerManagerMockRecorder) AsyncSend(arg0, arg1 interface{}) *gomock
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AsyncSend", reflect.TypeOf((*MockPeerManager)(nil).AsyncSend), arg0, arg1)
 }
 
+// Connect mocks base method
+func (m *MockPeerManager) Connect(info *peer.AddrInfo) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Connect", info)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Connect indicates an expected call of Connect
+func (mr *MockPeerManagerMockRecorder) Connect(info interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Connect", reflect.TypeOf((*MockPeerManager)(nil).Connect), info)
+}
+
 // SendWithStream mocks base method
 func (m *MockPeerManager) SendWithStream(arg0 network.Stream, arg1 *peermgr0.Message) (*peermgr0.Message, error) {
 	m.ctrl.T.Helper()

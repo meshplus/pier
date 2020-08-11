@@ -101,10 +101,6 @@ func (ex *Exchanger) Start() error {
 		// recover exchanger before relay any interchain msgs
 		ex.recoverRelay()
 
-		if err := ex.peerMgr.Start(); err != nil {
-			return fmt.Errorf("peerMgr start: %w", err)
-		}
-
 		if err := ex.syncer.RegisterIBTPHandler(ex.handleIBTP); err != nil {
 			return fmt.Errorf("register ibtp handler: %w", err)
 		}
@@ -161,18 +157,24 @@ func (ex *Exchanger) listenAndSendIBTP() {
 func (ex *Exchanger) Stop() error {
 	ex.cancel()
 
-	if err := ex.peerMgr.Stop(); err != nil {
-		return fmt.Errorf("peerMgr stop: %w", err)
-	}
-
 	switch ex.mode {
 	case repo.DirectMode:
 		if err := ex.apiServer.Stop(); err != nil {
 			return fmt.Errorf("gin service stop: %w", err)
 		}
+		if err := ex.peerMgr.Stop(); err != nil {
+			return fmt.Errorf("peerMgr stop: %w", err)
+		}
 	case repo.RelayMode:
 		if err := ex.syncer.Stop(); err != nil {
 			return fmt.Errorf("syncer stop: %w", err)
+		}
+	case repo.UnionMode:
+		if err := ex.syncer.Stop(); err != nil {
+			return fmt.Errorf("syncer stop: %w", err)
+		}
+		if err := ex.peerMgr.Stop(); err != nil {
+			return fmt.Errorf("peerMgr stop: %w", err)
 		}
 	}
 
