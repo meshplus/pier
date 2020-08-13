@@ -13,7 +13,7 @@ import (
 
 var logger = hclog.New(&hclog.LoggerOptions{
 	Name:   "plugin",
-	Output: os.Stdout,
+	Output: hclog.DefaultOutput,
 	Level:  hclog.Info,
 })
 

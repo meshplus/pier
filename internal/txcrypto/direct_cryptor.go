@@ -1,9 +1,9 @@
 package txcrypto
 
 import (
-	"crypto/elliptic"
 	"fmt"
 
+	"github.com/btcsuite/btcd/btcec"
 	"github.com/meshplus/bitxhub-kit/crypto"
 	"github.com/meshplus/bitxhub-kit/crypto/ecdh"
 	"github.com/meshplus/bitxhub-kit/crypto/sym"
@@ -52,7 +52,7 @@ func (d *DirectCryptor) getDesKey(address string) (crypto.SymmetricKey, error) {
 		d.keyMap[address] = ret
 		pubKey = ret
 	}
-	ke, err := ecdh.NewEllipticECDH(elliptic.P256())
+	ke, err := ecdh.NewEllipticECDH(btcec.S256())
 	if err != nil {
 		return nil, err
 	}
@@ -60,5 +60,5 @@ func (d *DirectCryptor) getDesKey(address string) (crypto.SymmetricKey, error) {
 	if err != nil {
 		return nil, err
 	}
-	return sym.GenerateKey(sym.ThirdDES, secret)
+	return sym.GenerateSymKey(crypto.ThirdDES, secret)
 }

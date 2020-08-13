@@ -6,7 +6,6 @@ import (
 
 	rpcx "github.com/meshplus/go-bitxhub-client"
 	"github.com/meshplus/pier/internal/repo"
-	"github.com/tidwall/gjson"
 	"github.com/urfave/cli"
 )
 
@@ -52,12 +51,15 @@ func deployRule(ctx *cli.Context) error {
 		return err
 	}
 
-	data, err := ioutil.ReadFile(repo.KeyPath(repoRoot))
+	privateKey, err := repo.LoadPrivateKey(repoRoot)
 	if err != nil {
-		return err
+		return fmt.Errorf("repo load key: %w", err)
 	}
 
-	address := gjson.Get(string(data), "address")
+	address, err := privateKey.PublicKey().Address()
+	if err != nil {
+		return fmt.Errorf("get address from private key %w", err)
+	}
 
 	contractAddr, err := client.DeployContract(contract)
 	if err != nil {
