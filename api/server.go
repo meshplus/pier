@@ -9,7 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	appchainmgr "github.com/meshplus/bitxhub-core/appchain-mgr"
-	"github.com/meshplus/bitxhub-kit/key"
+	"github.com/meshplus/bitxhub-kit/crypto/asym"
 	"github.com/meshplus/bitxhub-kit/log"
 	"github.com/meshplus/bitxhub-model/pb"
 	"github.com/meshplus/pier/cmd/pier/client"
@@ -230,10 +230,16 @@ func (g *Server) handleAckRule(c *gin.Context, msg *peerproto.Message) {
 func (g *Server) getSelfPierID(ctx *gin.Context) (string, error) {
 	repoRoot := g.config.RepoRoot
 	keyPath := filepath.Join(repoRoot, "key.json")
-	key, err := key.LoadKey(keyPath)
+
+	privKey, err := asym.RestorePrivateKey(keyPath, "bitxhub")
 	if err != nil {
 		return "", err
 	}
 
-	return key.Address.Hex(), nil
+	address, err := privKey.PublicKey().Address()
+	if err != nil {
+		return "", err
+	}
+
+	return address.Hex(), nil
 }

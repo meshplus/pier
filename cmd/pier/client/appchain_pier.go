@@ -8,7 +8,7 @@ import (
 
 	appchainmgr "github.com/meshplus/bitxhub-core/appchain-mgr"
 	"github.com/meshplus/bitxhub-kit/crypto"
-	"github.com/meshplus/bitxhub-kit/key"
+	"github.com/meshplus/bitxhub-kit/crypto/asym"
 	"github.com/meshplus/bitxhub-kit/types"
 	"github.com/meshplus/bitxhub-kit/wasm"
 	"github.com/meshplus/pier/internal/repo"
@@ -271,17 +271,12 @@ func getPierAppchain(ctx *cli.Context) error {
 }
 
 func getPubKey(keyPath string) (crypto.PublicKey, error) {
-	key, err := key.LoadKey(keyPath)
+	privKey, err := asym.RestorePrivateKey(keyPath, "bitxhub")
 	if err != nil {
 		return nil, err
 	}
 
-	privateKey, err := key.GetPrivateKey("bitxhub")
-	if err != nil {
-		return nil, err
-	}
-
-	return privateKey.PublicKey(), nil
+	return privKey.PublicKey(), nil
 }
 
 func registerAppchainRule(ctx *cli.Context) error {

@@ -3,11 +3,12 @@ package main
 import (
 	"crypto"
 	"fmt"
+	"io/ioutil"
 
 	crypto2 "github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/libp2p/go-libp2p-core/peer"
+	crypto3 "github.com/meshplus/bitxhub-kit/crypto"
 	"github.com/meshplus/bitxhub-kit/crypto/asym/ecdsa"
-	"github.com/meshplus/bitxhub-kit/key"
 	"github.com/meshplus/pier/internal/repo"
 	"github.com/urfave/cli"
 )
@@ -35,22 +36,22 @@ func p2pID(ctx *cli.Context) error {
 		return fmt.Errorf("init config error: %s", err)
 	}
 
-	k, err := key.LoadKey(repo.KeyPath(repoRoot))
+	data, err := ioutil.ReadFile(repo.NodeKeyPath(repoRoot))
+	if err != nil {
+		return fmt.Errorf("read private key: %w", err)
+	}
+
+	privKey, err := ecdsa.UnmarshalPrivateKey(data, crypto3.ECDSA_P256)
 	if err != nil {
 		return err
 	}
 
-	privateKey, err := k.GetPrivateKey("bitxhub")
+	_, pk, err := crypto2.KeyPairFromStdKey(privKey.K)
 	if err != nil {
 		return err
 	}
 
-	libp2pKey, err := convertToLibp2pPrivKey(privateKey)
-	if err != nil {
-		return err
-	}
-
-	id, err := peer.IDFromPrivateKey(libp2pKey)
+	id, err := peer.IDFromPublicKey(pk)
 	if err != nil {
 		return err
 	}

@@ -4,14 +4,15 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/meshplus/bitxhub-kit/crypto"
 	"github.com/meshplus/bitxhub-kit/crypto/asym"
 	"github.com/stretchr/testify/require"
 )
 
 func TestRelayCryptor(t *testing.T) {
-	privKey1, err := asym.GenerateKey(asym.ECDSASecp256r1)
+	privKey1, err := asym.GenerateKeyPair(crypto.Secp256k1)
 	require.Nil(t, err)
-	privKey2, err := asym.GenerateKey(asym.ECDSASecp256r1)
+	privKey2, err := asym.GenerateKeyPair(crypto.Secp256k1)
 	require.Nil(t, err)
 
 	address2, err := privKey2.PublicKey().Address()
@@ -50,9 +51,9 @@ func TestRelayCryptor(t *testing.T) {
 }
 
 func TestDirectCryptor(t *testing.T) {
-	privKey1, err := asym.GenerateKey(asym.ECDSASecp256r1)
+	privKey1, err := asym.GenerateKeyPair(crypto.Secp256k1)
 	require.Nil(t, err)
-	privKey2, err := asym.GenerateKey(asym.ECDSASecp256r1)
+	privKey2, err := asym.GenerateKeyPair(crypto.Secp256k1)
 	require.Nil(t, err)
 
 	address2, err := privKey2.PublicKey().Address()

@@ -10,7 +10,7 @@ import (
 	"github.com/cbergoon/merkletree"
 	"github.com/golang/mock/gomock"
 	"github.com/meshplus/bitxhub-kit/crypto"
-	"github.com/meshplus/bitxhub-kit/crypto/asym/ecdsa"
+	"github.com/meshplus/bitxhub-kit/crypto/asym"
 	"github.com/meshplus/bitxhub-kit/storage/leveldb"
 	"github.com/meshplus/bitxhub-kit/types"
 	"github.com/meshplus/bitxhub-model/pb"
@@ -110,7 +110,7 @@ func getBlockHeader(t *testing.T, txs []*pb.Transaction, number uint64) *pb.Bloc
 func getVlts(t *testing.T) []crypto.PrivateKey {
 	var keys []crypto.PrivateKey
 	for i := 0; i < 4; i++ {
-		priv, err := ecdsa.GenerateKey(ecdsa.Secp256r1)
+		priv, err := asym.GenerateKeyPair(crypto.Secp256k1)
 		require.Nil(t, err)
 		keys = append(keys, priv)
 	}
