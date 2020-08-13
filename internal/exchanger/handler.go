@@ -52,6 +52,17 @@ func (ex *Exchanger) handleIBTP(ibtp *pb.IBTP) {
 	}
 }
 
+// handleIBTP handle ibtps from bitxhub
+func (ex *Exchanger) handleUnionIBTP(ibtp *pb.IBTP) {
+	err := ex.router.Route(ibtp)
+	if err != nil {
+		logger.WithFields(logrus.Fields{
+			"ibtp": ibtp.ID(),
+			"err":  err,
+		}).Error("handle union ibtp")
+	}
+}
+
 //handleRouterSendIBTPMessage handles IBTP from union interchain network
 func (ex *Exchanger) handleRouterSendIBTPMessage(stream network.Stream, msg *peerMsg.Message) {
 	handle := func() error {

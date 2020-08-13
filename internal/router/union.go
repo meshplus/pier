@@ -26,10 +26,10 @@ type UnionRouter struct {
 	cancel context.CancelFunc
 }
 
-func New(peermgr *peermgr.PeerManager) *UnionRouter {
+func New(peermgr peermgr.PeerManager) *UnionRouter {
 	ctx, cancel := context.WithCancel(context.Background())
 	return &UnionRouter{
-		peermgr: *peermgr,
+		peermgr: peermgr,
 		logger:  logger,
 		ctx:     ctx,
 		cancel:  cancel,

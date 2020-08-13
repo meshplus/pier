@@ -6,6 +6,10 @@ import (
 	"fmt"
 	"path/filepath"
 
+	"github.com/meshplus/pier/internal/router"
+
+	"github.com/sirupsen/logrus"
+
 	"github.com/hashicorp/go-plugin"
 	"github.com/meshplus/bitxhub-kit/crypto"
 	"github.com/meshplus/bitxhub-kit/log"
@@ -28,7 +32,6 @@ import (
 	"github.com/meshplus/pier/internal/syncer"
 	"github.com/meshplus/pier/internal/txcrypto"
 	"github.com/meshplus/pier/pkg/plugins"
-	"github.com/sirupsen/logrus"
 )
 
 var logger = log.NewWithModule("app")
@@ -150,7 +153,7 @@ func NewPier(repoRoot string, config *repo.Config) (*Pier, error) {
 			return nil, fmt.Errorf("lite create: %w", err)
 		}
 
-		sync, err = syncer.New(ag, lite, store)
+		sync, err = syncer.New(ag, lite, store, nil)
 		if err != nil {
 			return nil, fmt.Errorf("syncer create: %w", err)
 		}
@@ -268,16 +271,19 @@ func NewUnionPier(repoRoot string, config *repo.Config) (*Pier, error) {
 		return nil, fmt.Errorf("lite create: %w", err)
 	}
 
-	sync, err = syncer.New(ag, lite, store)
+	sync, err = syncer.New(ag, lite, store, config)
 	if err != nil {
 		return nil, fmt.Errorf("syncer create: %w", err)
 	}
+
+	router := router.New(peerManager)
 
 	ex, err = exchanger.New(config.Mode.Type, addr.String(), meta,
 		exchanger.WithAgent(ag),
 		exchanger.WithPeerMgr(peerManager),
 		exchanger.WithSyncer(sync),
 		exchanger.WithStorage(store),
+		exchanger.WithRouter(router),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("exchanger create: %w", err)
@@ -300,13 +306,14 @@ func NewUnionPier(repoRoot string, config *repo.Config) (*Pier, error) {
 
 // Start starts three main components of pier app
 func (pier *Pier) Start() error {
-	logger.WithFields(logrus.Fields{
-		"id":                     pier.meta.ID,
-		"interchain_counter":     pier.meta.InterchainCounter,
-		"receipt_counter":        pier.meta.ReceiptCounter,
-		"source_receipt_counter": pier.meta.SourceReceiptCounter,
-	}).Info("Pier information")
+
 	if pier.config.Mode.Type != repo.UnionMode {
+		logger.WithFields(logrus.Fields{
+			"id":                     pier.meta.ID,
+			"interchain_counter":     pier.meta.InterchainCounter,
+			"receipt_counter":        pier.meta.ReceiptCounter,
+			"source_receipt_counter": pier.meta.SourceReceiptCounter,
+		}).Info("Pier information")
 		if err := pier.monitor.Start(); err != nil {
 			return fmt.Errorf("monitor start: %w", err)
 		}

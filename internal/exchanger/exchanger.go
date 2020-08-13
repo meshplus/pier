@@ -6,6 +6,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/meshplus/pier/internal/router"
+
 	"github.com/Rican7/retry"
 	"github.com/Rican7/retry/strategy"
 	"github.com/meshplus/bitxhub-kit/log"
@@ -37,6 +39,7 @@ type Exchanger struct {
 	mnt               monitor.Monitor
 	exec              executor.Executor
 	syncer            syncer.Syncer
+	router            router.Router
 	apiServer         *api.Server
 	mode              string
 	pierID            string
@@ -62,6 +65,7 @@ func New(typ, pierID string, meta *rpcx.Interchain, opts ...Option) (*Exchanger,
 		peerMgr:           config.peerMgr,
 		syncer:            config.syncer,
 		store:             config.store,
+		router:            config.router,
 		interchainCounter: meta.InterchainCounter,
 		sourceReceiptMeta: meta.SourceReceiptCounter,
 		mode:              typ,
@@ -114,7 +118,7 @@ func (ex *Exchanger) Start() error {
 			return fmt.Errorf("peerMgr start: %w", err)
 		}
 
-		if err := ex.syncer.RegisterIBTPHandler(ex.handleIBTP); err != nil {
+		if err := ex.syncer.RegisterIBTPHandler(ex.handleUnionIBTP); err != nil {
 			return fmt.Errorf("register ibtp handler: %w", err)
 		}
 

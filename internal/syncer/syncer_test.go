@@ -89,7 +89,7 @@ func prepare(t *testing.T) (*WrapperSyncer, *mock_agent.MockAgent, *mock_lite.Mo
 	storage, err := leveldb.New(tmpDir)
 	require.Nil(t, err)
 
-	syncer, err := New(ag, lite, storage)
+	syncer, err := New(ag, lite, storage, nil)
 	require.Nil(t, err)
 
 	// register handler for syncer

@@ -62,6 +62,7 @@ func New(config *repo.Config, privKey crypto.PrivateKey) (*Swarm, error) {
 	default:
 		return nil, fmt.Errorf("unsupport mode type")
 	}
+	var logger = log.NewWithModule("swarm")
 
 	var protocolIDs = []string{protocolID}
 
@@ -70,12 +71,11 @@ func New(config *repo.Config, privKey crypto.PrivateKey) (*Swarm, error) {
 		network.WithPrivateKey(libp2pPrivKey),
 		network.WithBootstrap(config.Mode.Relay.BootStraps),
 		network.WithProtocolIDs(protocolIDs),
+		network.WithLogger(logger),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("create p2p: %w", err)
 	}
-
-	var logger = log.NewWithModule("swarm")
 
 	ctx, cancel := context.WithCancel(context.Background())
 

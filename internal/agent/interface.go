@@ -24,11 +24,15 @@ type Agent interface {
 
 	// SyncInterchainTxWrapper tries to get an channel of interchain tx wrapper from bitxhub.
 	// Note: only the interchain tx wrappers beyond the height of sync-header request moment will be sent to this channel
-	SyncInterchainTxWrapper(ctx context.Context, ch chan *pb.InterchainTxWrapper) error
+	SyncInterchainTxWrappers(ctx context.Context, ch chan *pb.InterchainTxWrappers) error
+
+	// SyncUnionInterchainTxWrapper tries to get an channel of union interchain tx wrapper from bitxhub.
+	// Note: only the union interchain tx wrappers beyond the height of sync-header request moment will be sent to this channel
+	SyncUnionInterchainTxWrappers(ctx context.Context, txCh chan *pb.InterchainTxWrappers) error
 
 	// GetInterchainTxWrapper tries to get txWrappers whose height is in the interval of [begin, end]
 	// All these wrappers will be sent the channel.
-	GetInterchainTxWrapper(ctx context.Context, begin, end uint64, ch chan *pb.InterchainTxWrapper) error
+	GetInterchainTxWrappers(ctx context.Context, begin, end uint64, ch chan *pb.InterchainTxWrappers) error
 
 	// SendTransaction sends the wrapped interchain tx to bitxhub
 	SendTransaction(tx *pb.Transaction) (*pb.Receipt, error)

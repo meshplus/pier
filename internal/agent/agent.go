@@ -109,8 +109,9 @@ func (agent *BxhAgent) GetBlockHeader(ctx context.Context, begin, end uint64, ch
 	return nil
 }
 
-func (agent *BxhAgent) SyncInterchainTxWrapper(ctx context.Context, txCh chan *pb.InterchainTxWrapper) error {
-	ch, err := agent.client.Subscribe(ctx, pb.SubscriptionRequest_INTERCHAIN_TX_WRAPPER, agent.from.Bytes())
+func (agent *BxhAgent) SyncInterchainTxWrappers(ctx context.Context, txCh chan *pb.InterchainTxWrappers) error {
+	subscriptType := pb.SubscriptionRequest_INTERCHAIN_TX_WRAPPER
+	ch, err := agent.client.Subscribe(ctx, subscriptType, agent.from.Bytes())
 	if err != nil {
 		return err
 	}
@@ -125,7 +126,32 @@ func (agent *BxhAgent) SyncInterchainTxWrapper(ctx context.Context, txCh chan *p
 					close(txCh)
 					return
 				}
-				txCh <- h.(*pb.InterchainTxWrapper)
+				txCh <- h.(*pb.InterchainTxWrappers)
+			}
+		}
+	}()
+
+	return nil
+}
+
+func (agent *BxhAgent) SyncUnionInterchainTxWrappers(ctx context.Context, txCh chan *pb.InterchainTxWrappers) error {
+	subscriptType := pb.SubscriptionRequest_UNION_INTERCHAIN_TX_WRAPPER
+	ch, err := agent.client.Subscribe(ctx, subscriptType, agent.from.Bytes())
+	if err != nil {
+		return err
+	}
+
+	go func() {
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case h, ok := <-ch:
+				if !ok {
+					close(txCh)
+					return
+				}
+				txCh <- h.(*pb.InterchainTxWrappers)
 			}
 		}
 	}()
@@ -134,8 +160,8 @@ func (agent *BxhAgent) SyncInterchainTxWrapper(ctx context.Context, txCh chan *p
 }
 
 // GetInterchainTxWrapper implements Agent
-func (agent *BxhAgent) GetInterchainTxWrapper(ctx context.Context, begin, end uint64, ch chan *pb.InterchainTxWrapper) error {
-	return agent.client.GetInterchainTxWrapper(ctx, agent.from.String(), begin, end, ch)
+func (agent *BxhAgent) GetInterchainTxWrappers(ctx context.Context, begin, end uint64, ch chan *pb.InterchainTxWrappers) error {
+	return agent.client.GetInterchainTxWrappers(ctx, agent.from.String(), begin, end, ch)
 }
 
 // SendTransaction implements Agent
