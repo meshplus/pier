@@ -31,6 +31,7 @@ require (
 	github.com/syndtr/goleveldb v1.0.1-0.20190923125748-758128399b1d
 	github.com/tidwall/gjson v1.6.0
 	github.com/urfave/cli v1.22.1
+	github.com/wonderivan/logger v1.0.0
 	golang.org/x/sys v0.0.0-20200509044756-6aff5f38e54f // indirect
 	google.golang.org/grpc v1.27.1
 )

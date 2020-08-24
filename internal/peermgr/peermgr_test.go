@@ -15,15 +15,15 @@ import (
 )
 
 func TestSwarm_Start(t *testing.T) {
-	keys, config, _ := genKeysAndConfig(t, 2)
+	nodeKeys, privKeys, config := genKeysAndConfig(t, 2)
 
-	swarm1, err := New(config, keys[0])
+	swarm1, err := New(config, nodeKeys[0], privKeys[0])
 	require.Nil(t, err)
 
 	require.Nil(t, swarm1.Start())
 	time.Sleep(time.Second * 2)
 
-	swarm2, err := New(config, keys[1])
+	swarm2, err := New(config, nodeKeys[1], privKeys[1])
 	require.Nil(t, err)
 
 	require.Nil(t, swarm2.Start())
@@ -63,19 +63,16 @@ func TestSwarm_Start(t *testing.T) {
 	//require.Equal(t, 2, msgCount)
 }
 
-func genKeysAndConfig(t *testing.T, peerCnt int) ([]crypto.PrivateKey, *repo.Config, []string) {
-	var keys []crypto.PrivateKey
+func genKeysAndConfig(t *testing.T, peerCnt int) ([]crypto.PrivateKey, []crypto.PrivateKey, *repo.Config) {
+	var nodeKeys []crypto.PrivateKey
+	var privKeys []crypto.PrivateKey
 	var peers []string
-	var ids []string
 	port := 5001
 
 	for i := 0; i < peerCnt; i++ {
 		key, err := asym.GenerateKeyPair(crypto.ECDSA_P256)
 		require.Nil(t, err)
-		keys = append(keys, key)
-		addr, err := key.PublicKey().Address()
-		require.Nil(t, err)
-		ids = append(ids, addr.String())
+		nodeKeys = append(nodeKeys, key)
 
 		libp2pKey, err := convertToLibp2pPrivKey(key)
 		require.Nil(t, err)
@@ -85,11 +82,17 @@ func genKeysAndConfig(t *testing.T, peerCnt int) ([]crypto.PrivateKey, *repo.Con
 
 		peer := fmt.Sprintf("/ip4/127.0.0.1/tcp/%d/p2p/%s", port, id)
 		peers = append(peers, peer)
+
+		privKey, err := asym.GenerateKeyPair(crypto.Secp256k1)
+		require.Nil(t, err)
+
+		privKeys = append(privKeys, privKey)
+
 		port++
 	}
 
 	config := &repo.Config{}
 	config.Mode.Direct.Peers = peers
 
-	return keys, config, ids
+	return nodeKeys, privKeys, config
 }
