@@ -66,6 +66,11 @@ func NewPier(repoRoot string, config *repo.Config) (*Pier, error) {
 		return nil, fmt.Errorf("get address from private key %w", err)
 	}
 
+	nodePrivKey, err := repo.LoadNodePrivateKey(repoRoot)
+	if err != nil {
+		return nil, fmt.Errorf("repo load node key: %w", err)
+	}
+
 	var (
 		ag          agent.Agent
 		ck          checker.Checker
@@ -81,7 +86,7 @@ func NewPier(repoRoot string, config *repo.Config) (*Pier, error) {
 
 	switch config.Mode.Type {
 	case repo.DirectMode:
-		peerManager, err = peermgr.New(config, privateKey)
+		peerManager, err = peermgr.New(config, nodePrivKey, privateKey)
 		if err != nil {
 			return nil, fmt.Errorf("peerMgr create: %w", err)
 		}

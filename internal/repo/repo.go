@@ -1,6 +1,8 @@
 package repo
 
 import (
+	"crypto/x509"
+	"encoding/pem"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -68,6 +70,10 @@ func Initialize(repoRoot string) error {
 	keyPath := filepath.Join(repoRoot, KeyName)
 	if err := asym.StorePrivateKey(privKey, keyPath, KeyPassword); err != nil {
 		return fmt.Errorf("persist key: %s", err)
+	}
+
+	if err := generateNodePrivateKey(repoRoot, crypto.ECDSA_P256); err != nil {
+		return fmt.Errorf("create node private key error: %s", err)
 	}
 
 	if err := box.Walk(func(s string, file packd.File) error {
@@ -167,4 +173,54 @@ func GetAPI(repoRoot string) (string, error) {
 	}
 
 	return string(data), nil
+}
+
+func generateNodePrivateKey(target string, opt crypto.KeyType) error {
+	privKey, err := asym.GenerateKeyPair(opt)
+	if err != nil {
+		return fmt.Errorf("generate key: %w", err)
+	}
+
+	priKeyEncode, err := privKey.Bytes()
+	if err != nil {
+		return fmt.Errorf("marshal key: %w", err)
+	}
+
+	path := filepath.Join(target, NodeKeyName)
+	f, err := os.Create(path)
+	if err != nil {
+		return fmt.Errorf("create file: %w", err)
+	}
+
+	err = pem.Encode(f, &pem.Block{Type: "EC PRIVATE KEY", Bytes: priKeyEncode})
+	if err != nil {
+		return fmt.Errorf("pem encode: %w", err)
+	}
+
+	return nil
+}
+
+func LoadNodePrivateKey(repoRoot string) (crypto.PrivateKey, error) {
+	keyPath := filepath.Join(repoRoot, NodeKeyName)
+
+	data, err := ioutil.ReadFile(keyPath)
+	if err != nil {
+		return nil, fmt.Errorf("read private key: %w", err)
+	}
+
+	if data == nil {
+		return nil, fmt.Errorf("empty data")
+	}
+
+	block, _ := pem.Decode(data)
+	if block == nil {
+		return nil, fmt.Errorf("empty block")
+	}
+
+	privKey, err := x509.ParseECPrivateKey(block.Bytes)
+	if err != nil {
+		return nil, err
+	}
+
+	return asym.PrivateKeyFromStdKey(privKey)
 }
