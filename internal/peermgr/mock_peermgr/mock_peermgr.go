@@ -6,8 +6,8 @@ package mock_peermgr
 
 import (
 	gomock "github.com/golang/mock/gomock"
-	network "github.com/libp2p/go-libp2p-core/network"
 	peer "github.com/libp2p/go-libp2p-core/peer"
+	network "github.com/meshplus/go-lightp2p"
 	peermgr "github.com/meshplus/pier/internal/peermgr"
 	peermgr0 "github.com/meshplus/pier/internal/peermgr/proto"
 	reflect "reflect"
@@ -108,11 +108,12 @@ func (mr *MockPeerManagerMockRecorder) AsyncSend(arg0, arg1 interface{}) *gomock
 }
 
 // Connect mocks base method
-func (m *MockPeerManager) Connect(info *peer.AddrInfo) error {
+func (m *MockPeerManager) Connect(info *peer.AddrInfo) (string, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Connect", info)
-	ret0, _ := ret[0].(error)
-	return ret0
+	ret0, _ := ret[0].(string)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
 }
 
 // Connect indicates an expected call of Connect

@@ -44,6 +44,11 @@ var appchainBxhCMD = cli.Command{
 					Usage:    "Specific appchain validators path",
 					Required: true,
 				},
+				cli.StringFlag{
+					Name:     "addr",
+					Usage:    "Specific bitxhub node address",
+					Required: false,
+				},
 			},
 			Action: registerAppchain,
 		},
@@ -80,6 +85,7 @@ func registerAppchain(ctx *cli.Context) error {
 	desc := ctx.String("desc")
 	version := ctx.String("version")
 	validatorsPath := ctx.String("validators")
+	bxhAddr := ctx.String("addr")
 
 	data, err := ioutil.ReadFile(validatorsPath)
 	if err != nil {
@@ -96,7 +102,10 @@ func registerAppchain(ctx *cli.Context) error {
 		return fmt.Errorf("init config error: %s", err)
 	}
 
-	client, err := loadClient(repo.KeyPath(repoRoot), config.Mode.Relay.Addr)
+	if bxhAddr == "" {
+		bxhAddr = config.Mode.Relay.Addr
+	}
+	client, err := loadClient(repo.KeyPath(repoRoot), bxhAddr)
 	if err != nil {
 		return fmt.Errorf("load client: %w", err)
 	}

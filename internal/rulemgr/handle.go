@@ -3,8 +3,8 @@ package rulemgr
 import (
 	"encoding/json"
 
-	"github.com/libp2p/go-libp2p-core/network"
 	"github.com/meshplus/bitxhub-kit/types"
+	network "github.com/meshplus/go-lightp2p"
 	"github.com/meshplus/pier/internal/peermgr"
 	peerproto "github.com/meshplus/pier/internal/peermgr/proto"
 )

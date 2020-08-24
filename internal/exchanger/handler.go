@@ -7,8 +7,8 @@ import (
 
 	"github.com/Rican7/retry"
 	"github.com/Rican7/retry/strategy"
-	"github.com/libp2p/go-libp2p-core/network"
 	"github.com/meshplus/bitxhub-model/pb"
+	network "github.com/meshplus/go-lightp2p"
 	"github.com/meshplus/pier/internal/peermgr"
 	peerMsg "github.com/meshplus/pier/internal/peermgr/proto"
 	"github.com/sirupsen/logrus"
@@ -54,43 +54,77 @@ func (ex *Exchanger) handleIBTP(ibtp *pb.IBTP) {
 
 // handleIBTP handle ibtps from bitxhub
 func (ex *Exchanger) handleUnionIBTP(ibtp *pb.IBTP) {
-	err := ex.router.Route(ibtp)
-	if err != nil {
-		logger.WithFields(logrus.Fields{
-			"ibtp": ibtp.ID(),
-			"err":  err,
-		}).Error("handle union ibtp")
+	ibtp.From = ex.pierID + "-" + ibtp.From
+	var signs []byte
+	if err := retry.Retry(func(attempt uint) error {
+		var err error
+		signs, err = ex.agent.GetIBTPSigns(ibtp)
+		if err != nil {
+			return err
+		}
+		return nil
+	}, strategy.Wait(1*time.Second)); err != nil {
+		logger.Panic(err)
 	}
+
+	ibtp.Proof = signs
+
+	go ex.router.Route(ibtp)
+
+	logger.WithFields(logrus.Fields{
+		"index": ibtp.Index,
+		"type":  ibtp.Type,
+		"from":  ibtp.From,
+		"id":    ibtp.ID(),
+	}).Info("Route tx successful")
+}
+
+func (ex *Exchanger) handleProviderAppchains() error {
+	appchains, err := ex.agent.GetAppchains()
+	if err != nil {
+		return fmt.Errorf("get appchains:%w", err)
+	}
+	return ex.router.AddAppchains(appchains)
 }
 
 //handleRouterSendIBTPMessage handles IBTP from union interchain network
 func (ex *Exchanger) handleRouterSendIBTPMessage(stream network.Stream, msg *peerMsg.Message) {
 	handle := func() error {
+
 		ibtp := &pb.IBTP{}
 		if err := ibtp.Unmarshal(msg.Payload.Data); err != nil {
 			return fmt.Errorf("unmarshal ibtp: %w", err)
 		}
 
+		entry := logger.WithFields(logrus.Fields{
+			"index": ibtp.Index,
+			"type":  ibtp.Type,
+			"from":  ibtp.From,
+			"id":    ibtp.ID(),
+		})
 		retMsg := peermgr.Message(peerMsg.Message_ACK, true, nil)
+		if !ex.router.ExistAppchain(ibtp.To) {
+			logger.WithField("appchain", ibtp.To).Errorf("cannot found appchain in relay network")
+			retMsg.Payload.Ok = false
+		}
+
 		err := ex.peerMgr.AsyncSendWithStream(stream, retMsg)
 		if err != nil {
+			entry.Errorf("send back ibtp: %w", err)
 			return fmt.Errorf("send back ibtp: %w", err)
 		}
 
 		if err := ex.sendIBTP(ibtp); err != nil {
-			logger.Infof("Send ibtp: %s", err.Error())
+			entry.Infof("Send ibtp: %s", err.Error())
+			return err
 		}
-
 		return nil
-
 	}
 
 	if err := handle(); err != nil {
 		logger.Error(err)
 		return
 	}
-
-	logger.Info("Handle ibtp from other pier")
 }
 
 // handleIBTPMessage handle ibtp message from another pier

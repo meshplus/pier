@@ -1,8 +1,8 @@
 package peermgr
 
 import (
-	"github.com/libp2p/go-libp2p-core/network"
 	"github.com/libp2p/go-libp2p-core/peer"
+	network "github.com/meshplus/go-lightp2p"
 	peermgr "github.com/meshplus/pier/internal/peermgr/proto"
 )
 
@@ -22,7 +22,7 @@ type PeerManager interface {
 	// AsyncSend sends message to peer with peer info.
 	AsyncSend(string, *peermgr.Message) error
 
-	Connect(info *peer.AddrInfo) error
+	Connect(info *peer.AddrInfo) (string, error)
 
 	// SendWithStream sends message using existed stream
 	SendWithStream(network.Stream, *peermgr.Message) (*peermgr.Message, error)

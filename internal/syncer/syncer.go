@@ -31,13 +31,14 @@ const maxChSize = 1 << 10
 
 // WrapperSyncer represents the necessary data for sync tx wrappers from bitxhub
 type WrapperSyncer struct {
-	height    uint64
-	agent     agent.Agent
-	lite      lite.Lite
-	storage   storage.Storage
-	wrappersC chan *pb.InterchainTxWrappers
-	handler   IBTPHandler
-	config    *repo.Config
+	height        uint64
+	agent         agent.Agent
+	lite          lite.Lite
+	storage       storage.Storage
+	wrappersC     chan *pb.InterchainTxWrappers
+	handler       IBTPHandler
+	routerHandler RouterHandler
+	config        *repo.Config
 
 	ctx    context.Context
 	cancel context.CancelFunc
@@ -96,6 +97,10 @@ func (syncer *WrapperSyncer) recover(begin, end uint64) {
 		"begin": begin,
 		"end":   end,
 	}).Info("Syncer recover")
+
+	if err := syncer.routerHandler(); err != nil {
+		logger.WithField("err", err).Errorf("Router handle")
+	}
 
 	ch := make(chan *pb.InterchainTxWrappers, maxChSize)
 
@@ -203,6 +208,13 @@ func (syncer *WrapperSyncer) listenInterchainTxWrappers() {
 	for {
 		select {
 		case wrappers := <-syncer.wrappersC:
+			if err := syncer.routerHandler(); err != nil {
+				logger.WithField("err", err).Errorf("Router handle")
+			}
+			if len(wrappers.InterchainTxWrappers) == 0 {
+				logger.WithField("interchain_tx_wrappers", 0).Errorf("InterchainTxWrappers")
+				continue
+			}
 			w := wrappers.InterchainTxWrappers[0]
 			if w.Height < syncer.getDemandHeight() {
 				logger.WithField("height", w.Height).Warn("Discard wrong wrapper")
@@ -291,6 +303,15 @@ func (syncer *WrapperSyncer) RegisterIBTPHandler(handler IBTPHandler) error {
 	}
 
 	syncer.handler = handler
+	return nil
+}
+
+func (syncer *WrapperSyncer) RegisterRouterHandler(handler RouterHandler) error {
+	if handler == nil {
+		return fmt.Errorf("register router handler: empty handler")
+	}
+
+	syncer.routerHandler = handler
 	return nil
 }
 
@@ -400,7 +421,7 @@ func (syncer *WrapperSyncer) getDemandHeight() uint64 {
 	return atomic.LoadUint64(&syncer.height) + 1
 }
 
-// updateHeight updates sync height and
+// updateHeight updates sync height
 func (syncer *WrapperSyncer) updateHeight() {
 	atomic.AddUint64(&syncer.height, 1)
 }

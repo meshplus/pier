@@ -276,7 +276,7 @@ func NewUnionPier(repoRoot string, config *repo.Config) (*Pier, error) {
 		return nil, fmt.Errorf("syncer create: %w", err)
 	}
 
-	router := router.New(peerManager)
+	router := router.New(peerManager, store, config.Mode.Union.Providers)
 
 	ex, err = exchanger.New(config.Mode.Type, addr.String(), meta,
 		exchanger.WithAgent(ag),

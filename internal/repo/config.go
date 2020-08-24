@@ -42,7 +42,6 @@ type Mode struct {
 // Relay are configs about bitxhub
 type Relay struct {
 	Addr       string   `toml:"addr" json:"addr"`
-	BootStraps []string `toml:"bootstraps" json:"bootstraps"`
 	Quorum     uint64   `toml:"quorum" json:"quorum"`
 	Validators []string `toml:"validators" json:"validators"`
 }
@@ -53,6 +52,7 @@ type Direct struct {
 
 type Union struct {
 	Connectors []string `toml:"connectors" json:"connectors"`
+	Providers  uint64   `toml:"providers" json:"providers"`
 }
 
 // GetValidators gets validator address of bitxhub
@@ -94,9 +94,8 @@ func DefaultConfig() *Config {
 		Mode: Mode{
 			Type: "relay",
 			Relay: Relay{
-				Addr:       "localhost:60011",
-				BootStraps: []string{},
-				Quorum:     2,
+				Addr:   "localhost:60011",
+				Quorum: 2,
 				Validators: []string{
 					"0x000f1a7a08ccc48e5d30f80850cf1cf283aa3abd",
 					"0xe93b92f1da08f925bdee44e91e7768380ae83307",
@@ -109,6 +108,7 @@ func DefaultConfig() *Config {
 			},
 			Union: Union{
 				Connectors: []string{},
+				Providers:  1,
 			},
 		},
 		Log: Log{

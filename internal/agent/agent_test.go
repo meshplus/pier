@@ -54,35 +54,41 @@ func TestSyncBlock(t *testing.T) {
 	wrapper := &pb.InterchainTxWrapper{
 		TransactionHashes: []types.Hash{hash, hash},
 	}
+
+	txWrappers := make([]*pb.InterchainTxWrapper, 0)
+	txWrappers = append(txWrappers, wrapper)
+	wrappers := &pb.InterchainTxWrappers{
+		InterchainTxWrappers: txWrappers,
+	}
 	subHeaderCh := make(chan interface{}, 1)
 	syncHeaderCh := make(chan *pb.BlockHeader, 1)
 	subWrapperCh := make(chan interface{}, 1)
-	syncWrapperCh := make(chan *pb.InterchainTxWrapper, 1)
+	syncWrapperCh := make(chan *pb.InterchainTxWrappers, 1)
 	getHeaderCh := make(chan *pb.BlockHeader, 1)
-	getWrapperCh := make(chan *pb.InterchainTxWrapper, 1)
+	getWrapperCh := make(chan *pb.InterchainTxWrappers, 1)
 
 	subHeaderCh <- header
 	subWrapperCh <- wrapper
 
 	mockClient.EXPECT().Subscribe(gomock.Any(), pb.SubscriptionRequest_BLOCK_HEADER, gomock.Any()).Return(subHeaderCh, nil).AnyTimes()
 	mockClient.EXPECT().Subscribe(gomock.Any(), pb.SubscriptionRequest_INTERCHAIN_TX_WRAPPER, gomock.Any()).Return(subWrapperCh, nil).AnyTimes()
-	mockClient.EXPECT().GetInterchainTxWrapper(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
+	mockClient.EXPECT().GetInterchainTxWrappers(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
 	mockClient.EXPECT().GetBlockHeader(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
 
 	require.Nil(t, ag.SyncBlockHeader(context.Background(), syncHeaderCh))
-	require.Nil(t, ag.SyncInterchainTxWrapper(context.Background(), syncWrapperCh))
+	require.Nil(t, ag.SyncInterchainTxWrappers(context.Background(), syncWrapperCh))
 
 	require.Equal(t, header, <-syncHeaderCh)
-	require.Equal(t, wrapper, <-syncWrapperCh)
+	require.Equal(t, wrappers, <-syncWrapperCh)
 
-	getWrapperCh <- wrapper
+	getWrapperCh <- wrappers
 	getHeaderCh <- header
 
 	require.Nil(t, ag.GetBlockHeader(context.Background(), 1, 2, getHeaderCh))
-	require.Nil(t, ag.GetInterchainTxWrapper(context.Background(), 1, 2, getWrapperCh))
+	require.Nil(t, ag.GetInterchainTxWrappers(context.Background(), 1, 2, getWrapperCh))
 
 	require.Equal(t, header, <-getHeaderCh)
-	require.Equal(t, wrapper, <-getWrapperCh)
+	require.Equal(t, wrappers, <-getWrapperCh)
 }
 
 func TestSendTransaction(t *testing.T) {

@@ -208,7 +208,7 @@ func (agent *BxhAgent) GetChainMeta() (*pb.ChainMeta, error) {
 }
 
 func (agent *BxhAgent) GetAssetExchangeSigns(id string) ([]byte, error) {
-	resp, err := agent.client.GetAssetExchangeSigns(id)
+	resp, err := agent.client.GetMultiSigns(id, pb.GetMultiSignsRequest_ASSET_EXCHANGE)
 	if err != nil {
 		return nil, err
 	}
@@ -231,4 +231,47 @@ func (agent *BxhAgent) GetAssetExchangeSigns(id string) ([]byte, error) {
 	}
 
 	return signs, nil
+}
+
+func (agent *BxhAgent) GetIBTPSigns(ibtp *pb.IBTP) ([]byte, error) {
+	hash := ibtp.Hash()
+	resp, err := agent.client.GetMultiSigns(hash.String(), pb.GetMultiSignsRequest_IBTP)
+	if err != nil {
+		return nil, err
+	}
+
+	if resp == nil || resp.Sign == nil {
+		return nil, fmt.Errorf("get empty signatures for ibtp %s", ibtp.ID())
+	}
+	signs, err := resp.Marshal()
+	if err != nil {
+		return nil, err
+	}
+
+	return signs, nil
+}
+
+func (agent *BxhAgent) GetAppchains() ([]*rpcx.Appchain, error) {
+	tx, err := agent.client.GenerateContractTx(pb.TransactionData_BVM, rpcx.AppchainMgrContractAddr, "Appchains")
+	if err != nil {
+		return nil, err
+	}
+	receipt, err := agent.client.SendView(tx)
+	if err != nil {
+		return nil, err
+	}
+	ret := make([]*rpcx.Appchain, 0)
+	if receipt.Ret == nil {
+		return ret, nil
+	}
+	if err := json.Unmarshal(receipt.Ret, &ret); err != nil {
+		return nil, err
+	}
+	appchains := make([]*rpcx.Appchain, 0)
+	for _, appchain := range ret {
+		if appchain.ChainType != repo.BitxhubType {
+			appchains = append(appchains, appchain)
+		}
+	}
+	return appchains, nil
 }

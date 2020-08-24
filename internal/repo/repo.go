@@ -46,6 +46,9 @@ const (
 
 	// API name
 	APIName = "api"
+
+	// Bitxhub type
+	BitxhubType = "bitxhub"
 )
 
 var RootPath string

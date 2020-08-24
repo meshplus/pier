@@ -118,18 +118,25 @@ func (ex *Exchanger) Start() error {
 			return fmt.Errorf("peerMgr start: %w", err)
 		}
 
+		if err := ex.peerMgr.RegisterMsgHandler(peerMsg.Message_ROUTER_IBTP_SEND, ex.handleRouterSendIBTPMessage); err != nil {
+			return fmt.Errorf("register ibtp handler: %w", err)
+		}
+
 		if err := ex.syncer.RegisterIBTPHandler(ex.handleUnionIBTP); err != nil {
 			return fmt.Errorf("register ibtp handler: %w", err)
+		}
+
+		if err := ex.syncer.RegisterRouterHandler(ex.handleProviderAppchains); err != nil {
+			return fmt.Errorf("register ibtp handler: %w", err)
+		}
+
+		if err := ex.router.Start(); err != nil {
+			return fmt.Errorf("router start: %w", err)
 		}
 
 		if err := ex.syncer.Start(); err != nil {
 			return fmt.Errorf("syncer start: %w", err)
 		}
-
-		if err := ex.peerMgr.RegisterMsgHandler(peerMsg.Message_ROUTER_IBTP_SEND, ex.handleRouterSendIBTPMessage); err != nil {
-			return fmt.Errorf("register ibtp handler: %w", err)
-		}
-
 	}
 
 	if ex.mode != repo.UnionMode {
@@ -179,6 +186,9 @@ func (ex *Exchanger) Stop() error {
 		}
 		if err := ex.peerMgr.Stop(); err != nil {
 			return fmt.Errorf("peerMgr stop: %w", err)
+		}
+		if err := ex.router.Stop(); err != nil {
+			return fmt.Errorf("router stop:%w", err)
 		}
 	}
 

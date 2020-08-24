@@ -40,8 +40,7 @@ type Agent interface {
 	// SendIBTP sends wrapped ibtp to bitxhub internal VM to execute
 	SendIBTP(ibtp *pb.IBTP) (*pb.Receipt, error)
 
-	// GetIBTPByID queries interchain ibtp package record
-	// given an unique id of ibtp from bitxhub
+	// GetIBTPByID queries interchain ibtp package record given an unique id of ibtp from bitxhub
 	GetIBTPByID(id string) (*pb.IBTP, error)
 
 	// GetChainMeta gets chain meta of relay chain
@@ -50,4 +49,10 @@ type Agent interface {
 	GetInterchainMeta() (*rpcx.Interchain, error)
 
 	GetAssetExchangeSigns(id string) ([]byte, error)
+
+	//GetIBTPSigns gets ibtp signs from bitxhub cluster
+	GetIBTPSigns(ibtp *pb.IBTP) ([]byte, error)
+
+	//GetAppchains gets appchains from bitxhub node
+	GetAppchains() ([]*rpcx.Appchain, error)
 }

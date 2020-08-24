@@ -1,8 +1,12 @@
 package syncer
 
-import "github.com/meshplus/bitxhub-model/pb"
+import (
+	"github.com/meshplus/bitxhub-model/pb"
+)
 
 type IBTPHandler func(ibtp *pb.IBTP)
+
+type RouterHandler func() error
 
 //go:generate mockgen -destination mock_syncer/mock_syncer.go -package mock_syncer -source interface.go
 type Syncer interface {
@@ -13,4 +17,6 @@ type Syncer interface {
 	Stop() error
 
 	RegisterIBTPHandler(handler IBTPHandler) error
+
+	RegisterRouterHandler(handler RouterHandler) error
 }
