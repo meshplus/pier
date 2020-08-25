@@ -14,7 +14,8 @@ message Message {
         IBTP_RECEIPT_SEND = 7;
         ROUTER_IBTP_SEND = 8;
         ROUTER_IBTP_RECEIPT_SEND = 9;
-        ACK = 10;
+        ADDRESS_GET = 10;
+        ACK = 11;
     }
     Type type = 1;
     Payload payload = 2;

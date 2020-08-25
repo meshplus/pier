@@ -69,6 +69,12 @@ func NewPier(repoRoot string, config *repo.Config) (*Pier, error) {
 	if err != nil {
 		return nil, fmt.Errorf("get address from private key %w", err)
 	}
+
+	nodePrivKey, err := repo.LoadNodePrivateKey(repoRoot)
+	if err != nil {
+		return nil, fmt.Errorf("repo load node key: %w", err)
+	}
+
 	var (
 		ag          agent.Agent
 		ck          checker.Checker
@@ -84,7 +90,7 @@ func NewPier(repoRoot string, config *repo.Config) (*Pier, error) {
 
 	switch config.Mode.Type {
 	case repo.DirectMode:
-		peerManager, err = peermgr.New(config, privateKey)
+		peerManager, err = peermgr.New(config, nodePrivKey, privateKey)
 		if err != nil {
 			return nil, fmt.Errorf("peerMgr create: %w", err)
 		}
@@ -240,12 +246,15 @@ func NewUnionPier(repoRoot string, config *repo.Config) (*Pier, error) {
 		peerManager peermgr.PeerManager
 	)
 
-	peerManager, err = peermgr.New(config, privateKey)
+	nodePrivKey, err := repo.LoadNodePrivateKey(repoRoot)
+	if err != nil {
+		return nil, fmt.Errorf("repo load node key: %w", err)
+	}
+
+	peerManager, err = peermgr.New(config, nodePrivKey, privateKey)
 	if err != nil {
 		return nil, fmt.Errorf("peerMgr create: %w", err)
 	}
-	// pier register to bitxhub and got meta infos about its related
-	// appchain from bitxhub
 	client, err := rpcx.New(
 		rpcx.WithAddrs([]string{config.Mode.Relay.Addr}),
 		rpcx.WithLogger(logger),
@@ -260,11 +269,7 @@ func NewUnionPier(repoRoot string, config *repo.Config) (*Pier, error) {
 		return nil, fmt.Errorf("create agent error: %w", err)
 	}
 
-	// agent queries appchain info from bitxhub
-	meta, err = ag.GetInterchainMeta()
-	if err != nil {
-		return nil, err
-	}
+	meta = &rpcx.Interchain{}
 
 	lite, err = bxh_lite.New(ag, store)
 	if err != nil {

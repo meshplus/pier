@@ -72,7 +72,7 @@ func (u *UnionRouter) Stop() error {
 
 //Route sends ibtp to the union pier in target relay chain
 func (u *UnionRouter) Route(ibtp *pb.IBTP) error {
-	if ok, _ := u.store.Has([]byte(ibtp.ID())); ok {
+	if ok, _ := u.store.Has(ibtpKey(ibtp.ID())); ok {
 		u.logger.WithField("ibtp", ibtp.ID()).Info("IBTP has routed by this pier")
 		return nil
 	}
