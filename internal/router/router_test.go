@@ -2,8 +2,12 @@ package router
 
 import (
 	"encoding/json"
+	"io/ioutil"
+	"path/filepath"
+	"testing"
+	"time"
+
 	"github.com/golang/mock/gomock"
-	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/meshplus/bitxhub-kit/storage/leveldb"
 	"github.com/meshplus/bitxhub-model/pb"
 	rpcx "github.com/meshplus/go-bitxhub-client"
@@ -12,10 +16,6 @@ import (
 	peerproto "github.com/meshplus/pier/internal/peermgr/proto"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"io/ioutil"
-	"path/filepath"
-	"testing"
-	"time"
 )
 
 const (
@@ -28,11 +28,8 @@ func TestUnionRouter_Route(t *testing.T) {
 	mockCtl := gomock.NewController(t)
 	mockPeerManager := mock_peermgr.NewMockPeerManager(mockCtl)
 
-	addrInfo, err := peermgr.AddrToPeerInfo("/ip4/127.0.0.1/tcp/4001/p2p/QmXi58fp9ZczF3Z5iz1yXAez3Hy5NYo1R8STHWKEM9XnTL")
-	require.Nil(t, err)
-
 	message := peermgr.Message(peerproto.Message_ACK, true, nil)
-	mockPeerManager.EXPECT().FindProviders(gomock.Any(), gomock.Any()).Return([]peer.AddrInfo{*addrInfo}, nil)
+	mockPeerManager.EXPECT().FindProviders(gomock.Any()).Return(other, nil)
 	mockPeerManager.EXPECT().Connect(gomock.Any()).Return(other, nil)
 	mockPeerManager.EXPECT().Send(gomock.Any(), gomock.Any()).Return(message, nil)
 
@@ -40,7 +37,7 @@ func TestUnionRouter_Route(t *testing.T) {
 	assert.Nil(t, err)
 	storage, err := leveldb.New(filepath.Join(repoRoot, "storage"))
 
-	router := New(mockPeerManager, storage, defaultProvidersNum)
+	router := New(mockPeerManager, storage)
 
 	ibtp := mockIBTP(t, 1, pb.IBTP_INTERCHAIN)
 	err = router.Route(ibtp)
@@ -56,7 +53,7 @@ func TestUnionRouter_AddAppchains(t *testing.T) {
 	assert.Nil(t, err)
 	storage, err := leveldb.New(filepath.Join(repoRoot, "storage"))
 
-	router := New(mockPeerManager, storage, defaultProvidersNum)
+	router := New(mockPeerManager, storage)
 
 	appchains := make([]*rpcx.Appchain, 0)
 	app := &rpcx.Appchain{

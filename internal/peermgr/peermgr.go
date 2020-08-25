@@ -48,9 +48,7 @@ type PeerManager interface {
 
 type DHTManager interface {
 	// Search for peers who are able to provide a given key
-	// When count is 0, this method will return an unbounded number of
-	// results.
-	FindProviders(string, int) ([]peer.AddrInfo, error)
+	FindProviders(id string) (string, error)
 
 	// Provide adds the given cid to the content routing system. If 'true' is
 	// passed, it also announces it, otherwise it is just kept in the local

@@ -88,3 +88,17 @@ func (mr *MockSyncerMockRecorder) RegisterRouterHandler(handler interface{}) *go
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RegisterRouterHandler", reflect.TypeOf((*MockSyncer)(nil).RegisterRouterHandler), handler)
 }
+
+// RegisterRecoverHandler mocks base method
+func (m *MockSyncer) RegisterRecoverHandler(handleRecover syncer.RecoverUnionHandler) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "RegisterRecoverHandler", handleRecover)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// RegisterRecoverHandler indicates an expected call of RegisterRecoverHandler
+func (mr *MockSyncerMockRecorder) RegisterRecoverHandler(handleRecover interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RegisterRecoverHandler", reflect.TypeOf((*MockSyncer)(nil).RegisterRecoverHandler), handleRecover)
+}

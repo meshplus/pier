@@ -2,11 +2,14 @@ package syncer
 
 import (
 	"github.com/meshplus/bitxhub-model/pb"
+	rpcx "github.com/meshplus/go-bitxhub-client"
 )
 
 type IBTPHandler func(ibtp *pb.IBTP)
 
 type RouterHandler func() error
+
+type RecoverUnionHandler func(ibtp *pb.IBTP) (*rpcx.Interchain, error)
 
 //go:generate mockgen -destination mock_syncer/mock_syncer.go -package mock_syncer -source interface.go
 type Syncer interface {
@@ -19,4 +22,6 @@ type Syncer interface {
 	RegisterIBTPHandler(handler IBTPHandler) error
 
 	RegisterRouterHandler(handler RouterHandler) error
+
+	RegisterRecoverHandler(handleRecover RecoverUnionHandler) error
 }

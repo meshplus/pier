@@ -7,6 +7,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/ipfs/go-cid"
+
 	"github.com/Rican7/retry"
 	"github.com/Rican7/retry/strategy"
 	crypto2 "github.com/libp2p/go-libp2p-core/crypto"
@@ -22,7 +24,8 @@ import (
 )
 
 const (
-	protocolID = "/pier/1.0.0" // magic protocol
+	protocolID          = "/pier/1.0.0" // magic protocol
+	defaultProvidersNum = 1
 )
 
 var _ PeerManager = (*Swarm)(nil)
@@ -33,6 +36,7 @@ type Swarm struct {
 	peers           map[string]*peer.AddrInfo
 	connectedPeers  sync.Map
 	msgHandlers     sync.Map
+	providers       uint64
 	connectHandlers []ConnectHandler
 	privKey         crypto.PrivateKey
 
@@ -41,7 +45,7 @@ type Swarm struct {
 	cancel context.CancelFunc
 }
 
-func New(config *repo.Config, nodePrivKey crypto.PrivateKey, privKey crypto.PrivateKey) (*Swarm, error) {
+func New(config *repo.Config, nodePrivKey crypto.PrivateKey, privKey crypto.PrivateKey, providers uint64) (*Swarm, error) {
 	libp2pPrivKey, err := convertToLibp2pPrivKey(nodePrivKey)
 	if err != nil {
 		return nil, fmt.Errorf("convert private key: %w", err)
@@ -76,15 +80,20 @@ func New(config *repo.Config, nodePrivKey crypto.PrivateKey, privKey crypto.Priv
 		return nil, fmt.Errorf("create p2p: %w", err)
 	}
 
+	if providers == 0 {
+		providers = defaultProvidersNum
+	}
+
 	ctx, cancel := context.WithCancel(context.Background())
 
 	return &Swarm{
-		p2p:     p2p,
-		logger:  logger,
-		peers:   remotes,
-		privKey: privKey,
-		ctx:     ctx,
-		cancel:  cancel,
+		providers: providers,
+		p2p:       p2p,
+		logger:    logger,
+		peers:     remotes,
+		privKey:   privKey,
+		ctx:       ctx,
+		cancel:    cancel,
 	}, nil
 }
 
@@ -399,16 +408,35 @@ func (swarm *Swarm) RegisterConnectHandler(handler ConnectHandler) error {
 
 	return nil
 }
-func (swarm *Swarm) FindProviders(key string, count int) ([]peer.AddrInfo, error) {
-	peerC, err := swarm.p2p.FindProvidersAsync(key, count)
+func (swarm *Swarm) FindProviders(id string) (string, error) {
+	format := cid.V0Builder{}
+	toCid, err := format.Sum([]byte(id))
 	if err != nil {
-		return nil, err
+		return "", err
 	}
-	peers := make([]peer.AddrInfo, 0)
-	for p := range peerC {
-		peers = append(peers, p)
+	providers, err := swarm.p2p.FindProvidersAsync(toCid.String(), int(swarm.providers))
+	if err != nil {
+		swarm.logger.WithFields(logrus.Fields{
+			"id": id,
+		}).Error("Not find providers")
+		return "", err
 	}
-	return peers, nil
+
+	for provider := range providers {
+		swarm.logger.WithFields(logrus.Fields{
+			"id":  id,
+			"cid": provider.ID.String(),
+		}).Info("Find providers")
+
+		pierId, err := swarm.Connect(&provider)
+		if err != nil {
+			swarm.logger.WithFields(logrus.Fields{"peerId": pierId,
+				"cid": provider.ID.String()}).Error("connect error")
+			continue
+		}
+		return pierId, nil
+	}
+	return "", nil
 }
 
 func (swarm *Swarm) Provider(key string, passed bool) error {

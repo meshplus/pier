@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"time"
 
+	rpcx "github.com/meshplus/go-bitxhub-client"
+
 	"github.com/Rican7/retry"
 	"github.com/Rican7/retry/strategy"
 	"github.com/meshplus/bitxhub-model/pb"
@@ -69,8 +71,15 @@ func (ex *Exchanger) handleUnionIBTP(ibtp *pb.IBTP) {
 
 	ibtp.Proof = signs
 
-	go ex.router.Route(ibtp)
-
+	if err := retry.Retry(func(attempt uint) error {
+		err := ex.router.Route(ibtp)
+		if err != nil {
+			return err
+		}
+		return nil
+	}, strategy.Wait(1*time.Second)); err != nil {
+		logger.Panic(err)
+	}
 	logger.WithFields(logrus.Fields{
 		"index": ibtp.Index,
 		"type":  ibtp.Type,
@@ -102,6 +111,7 @@ func (ex *Exchanger) handleRouterSendIBTPMessage(stream network.Stream, msg *pee
 			"from":  ibtp.From,
 			"id":    ibtp.ID(),
 		})
+
 		retMsg := peermgr.Message(peerMsg.Message_ACK, true, nil)
 		if !ex.router.ExistAppchain(ibtp.To) {
 			logger.WithField("appchain", ibtp.To).Errorf("cannot found appchain in relay network")
@@ -226,6 +236,37 @@ func (ex *Exchanger) handleNewConnection(dstPierID string) {
 	}
 
 	ex.recoverDirect(dstPierID, indices.InterchainIndex, indices.ReceiptIndex)
+}
+
+func (ex *Exchanger) handleRecover(ibtp *pb.IBTP) (*rpcx.Interchain, error) {
+	pierId, err := ex.peerMgr.FindProviders(ibtp.To)
+	if err != nil {
+		return nil, err
+	}
+	msg := peermgr.Message(peerMsg.Message_ROUTER_INTERCHAIN_SEND, true, []byte(ibtp.From))
+	res, err := ex.peerMgr.Send(pierId, msg)
+	if err != nil {
+		return nil, fmt.Errorf("router interchain:%v", err)
+	}
+	var interchain *rpcx.Interchain
+	err = json.Unmarshal(res.Payload.Data, interchain)
+	if err != nil {
+		return nil, err
+	}
+	return interchain, nil
+}
+
+func (ex *Exchanger) handleRouterInterchain(s network.Stream, msg *peerMsg.Message) {
+	ic := ex.agent.GetInterchainById(string(msg.Payload.Data))
+	data, err := json.Marshal(ic)
+	if err != nil {
+		panic(err)
+	}
+	retMsg := peermgr.Message(peerMsg.Message_ACK, true, data)
+	err = ex.peerMgr.AsyncSendWithStream(s, retMsg)
+	if err != nil {
+		logger.Error(err)
+	}
 }
 
 func (ex *Exchanger) handleGetInterchainMessage(stream network.Stream, msg *peerMsg.Message) {

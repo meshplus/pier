@@ -2,11 +2,11 @@ package appchain
 
 import (
 	"encoding/json"
+	network "github.com/meshplus/go-lightp2p"
 	"io/ioutil"
 	"testing"
 
 	"github.com/golang/mock/gomock"
-	"github.com/libp2p/go-libp2p-core/network"
 	appchainmgr "github.com/meshplus/bitxhub-core/appchain-mgr"
 	"github.com/meshplus/bitxhub-kit/storage/leveldb"
 	"github.com/meshplus/pier/internal/peermgr"

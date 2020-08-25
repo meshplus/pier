@@ -275,3 +275,20 @@ func (agent *BxhAgent) GetAppchains() ([]*rpcx.Appchain, error) {
 	}
 	return appchains, nil
 }
+
+func (agent *BxhAgent) GetInterchainById(from string) *rpcx.Interchain {
+	ic := &rpcx.Interchain{}
+	tx, err := agent.client.GenerateContractTx(pb.TransactionData_BVM, rpcx.InterchainContractAddr, "GetInterchain", rpcx.String(from))
+	if err != nil {
+		return ic
+	}
+	receipt, err := agent.client.SendView(tx)
+	if err != nil {
+		return ic
+	}
+	var interchain *rpcx.Interchain
+	if err := json.Unmarshal(receipt.Ret, interchain); err != nil {
+		return ic
+	}
+	return interchain
+}

@@ -239,3 +239,17 @@ func (mr *MockAgentMockRecorder) GetAppchains() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetAppchains", reflect.TypeOf((*MockAgent)(nil).GetAppchains))
 }
+
+// GetInterchainById mocks base method
+func (m *MockAgent) GetInterchainById(from string) *rpcx.Interchain {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetInterchainById", from)
+	ret0, _ := ret[0].(*rpcx.Interchain)
+	return ret0
+}
+
+// GetInterchainById indicates an expected call of GetInterchainById
+func (mr *MockAgentMockRecorder) GetInterchainById(from interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetInterchainById", reflect.TypeOf((*MockAgent)(nil).GetInterchainById), from)
+}

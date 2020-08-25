@@ -37,18 +37,18 @@ func (m *MockPeerManager) EXPECT() *MockPeerManagerMockRecorder {
 }
 
 // FindProviders mocks base method
-func (m *MockPeerManager) FindProviders(arg0 string, arg1 int) ([]peer.AddrInfo, error) {
+func (m *MockPeerManager) FindProviders(id string) (string, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "FindProviders", arg0, arg1)
-	ret0, _ := ret[0].([]peer.AddrInfo)
+	ret := m.ctrl.Call(m, "FindProviders", id)
+	ret0, _ := ret[0].(string)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // FindProviders indicates an expected call of FindProviders
-func (mr *MockPeerManagerMockRecorder) FindProviders(arg0, arg1 interface{}) *gomock.Call {
+func (mr *MockPeerManagerMockRecorder) FindProviders(id interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindProviders", reflect.TypeOf((*MockPeerManager)(nil).FindProviders), arg0, arg1)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindProviders", reflect.TypeOf((*MockPeerManager)(nil).FindProviders), id)
 }
 
 // Provider mocks base method
@@ -246,18 +246,18 @@ func (m *MockDHTManager) EXPECT() *MockDHTManagerMockRecorder {
 }
 
 // FindProviders mocks base method
-func (m *MockDHTManager) FindProviders(arg0 string, arg1 int) ([]peer.AddrInfo, error) {
+func (m *MockDHTManager) FindProviders(id string) (string, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "FindProviders", arg0, arg1)
-	ret0, _ := ret[0].([]peer.AddrInfo)
+	ret := m.ctrl.Call(m, "FindProviders", id)
+	ret0, _ := ret[0].(string)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // FindProviders indicates an expected call of FindProviders
-func (mr *MockDHTManagerMockRecorder) FindProviders(arg0, arg1 interface{}) *gomock.Call {
+func (mr *MockDHTManagerMockRecorder) FindProviders(id interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindProviders", reflect.TypeOf((*MockDHTManager)(nil).FindProviders), arg0, arg1)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindProviders", reflect.TypeOf((*MockDHTManager)(nil).FindProviders), id)
 }
 
 // Provider mocks base method

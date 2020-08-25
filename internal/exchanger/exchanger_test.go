@@ -2,12 +2,12 @@ package exchanger
 
 import (
 	"encoding/json"
+	network "github.com/meshplus/go-lightp2p"
 	"io/ioutil"
 	"testing"
 	"time"
 
 	"github.com/golang/mock/gomock"
-	"github.com/libp2p/go-libp2p-core/network"
 	"github.com/meshplus/bitxhub-kit/storage"
 	"github.com/meshplus/bitxhub-kit/storage/leveldb"
 	"github.com/meshplus/bitxhub-model/pb"

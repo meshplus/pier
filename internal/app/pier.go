@@ -90,7 +90,7 @@ func NewPier(repoRoot string, config *repo.Config) (*Pier, error) {
 
 	switch config.Mode.Type {
 	case repo.DirectMode:
-		peerManager, err = peermgr.New(config, nodePrivKey, privateKey)
+		peerManager, err = peermgr.New(config, nodePrivKey, privateKey, 1)
 		if err != nil {
 			return nil, fmt.Errorf("peerMgr create: %w", err)
 		}
@@ -251,7 +251,7 @@ func NewUnionPier(repoRoot string, config *repo.Config) (*Pier, error) {
 		return nil, fmt.Errorf("repo load node key: %w", err)
 	}
 
-	peerManager, err = peermgr.New(config, nodePrivKey, privateKey)
+	peerManager, err = peermgr.New(config, nodePrivKey, privateKey, config.Mode.Union.Providers)
 	if err != nil {
 		return nil, fmt.Errorf("peerMgr create: %w", err)
 	}
@@ -281,7 +281,7 @@ func NewUnionPier(repoRoot string, config *repo.Config) (*Pier, error) {
 		return nil, fmt.Errorf("syncer create: %w", err)
 	}
 
-	router := router.New(peerManager, store, config.Mode.Union.Providers)
+	router := router.New(peerManager, store)
 
 	ex, err = exchanger.New(config.Mode.Type, addr.String(), meta,
 		exchanger.WithAgent(ag),

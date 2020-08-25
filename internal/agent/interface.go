@@ -55,4 +55,7 @@ type Agent interface {
 
 	//GetAppchains gets appchains from bitxhub node
 	GetAppchains() ([]*rpcx.Appchain, error)
+
+	//GetInterchainById gets interchain meta by appchain id
+	GetInterchainById(from string) *rpcx.Interchain
 }

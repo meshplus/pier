@@ -25,14 +25,11 @@ import (
 var logger = log.NewWithModule("union_router")
 var _ Router = (*UnionRouter)(nil)
 
-const defaultProvidersNum = 1
-
 type UnionRouter struct {
 	peermgr   peermgr.PeerManager
 	syncer    syncer.Syncer
 	logger    logrus.FieldLogger
 	store     storage.Storage
-	providers uint64
 	appchains map[string]*rpcx.Appchain
 	pbTable   sync.Map
 
@@ -40,15 +37,11 @@ type UnionRouter struct {
 	cancel context.CancelFunc
 }
 
-func New(peermgr peermgr.PeerManager, store storage.Storage, providers uint64) *UnionRouter {
-	if providers == 0 {
-		providers = defaultProvidersNum
-	}
+func New(peermgr peermgr.PeerManager, store storage.Storage) *UnionRouter {
 	ctx, cancel := context.WithCancel(context.Background())
 	return &UnionRouter{
 		peermgr:   peermgr,
 		store:     store,
-		providers: providers,
 		appchains: make(map[string]*rpcx.Appchain),
 		logger:    logger,
 		ctx:       ctx,
@@ -72,7 +65,7 @@ func (u *UnionRouter) Stop() error {
 
 //Route sends ibtp to the union pier in target relay chain
 func (u *UnionRouter) Route(ibtp *pb.IBTP) error {
-	if ok, _ := u.store.Has(ibtpKey(ibtp.ID())); ok {
+	if ok, _ := u.store.Has(RouteIBTPKey(ibtp.ID())); ok {
 		u.logger.WithField("ibtp", ibtp.ID()).Info("IBTP has routed by this pier")
 		return nil
 	}
@@ -85,40 +78,17 @@ func (u *UnionRouter) Route(ibtp *pb.IBTP) error {
 	message := peermgr.Message(peerproto.Message_ROUTER_IBTP_SEND, true, data)
 
 	handle := func() error {
-		format := cid.V0Builder{}
-		toCid, err := format.Sum([]byte(ibtp.To))
+		pierId, err := u.peermgr.FindProviders(ibtp.To)
 		if err != nil {
 			return err
 		}
-		providers, err := u.peermgr.FindProviders(toCid.String(), int(u.providers))
-		if err != nil {
-			u.logger.WithFields(logrus.Fields{
-				"ibtp_to": ibtp.To,
-			}).Info("Not find providers")
-			return err
+		res, err := u.peermgr.Send(pierId, message)
+		if err != nil || res.Type != peerproto.Message_ACK || !res.Payload.Ok {
+			u.logger.Errorf("send ibtp error:%v", err)
 		}
-
-		for _, provider := range providers {
-			u.logger.WithFields(logrus.Fields{
-				"ibtp_to": ibtp.To,
-				"cid":     provider.ID.String(),
-			}).Info("Find providers")
-			pierId, err := u.peermgr.Connect(&provider)
-			if err != nil {
-				u.logger.WithFields(logrus.Fields{"peerId": pierId,
-					"cid": provider.ID.String()}).Error("connect error")
-				continue
-			}
-			res, err := u.peermgr.Send(pierId, message)
-			if err != nil || res.Type != peerproto.Message_ACK || !res.Payload.Ok {
-				u.logger.Errorf("send ibtp error:%v", err)
-				continue
-			}
-			u.pbTable.Store(ibtp.To, pierId)
-			if err := u.store.Put([]byte(ibtp.ID()), []byte("")); err != nil {
-				return err
-			}
-			break
+		u.pbTable.Store(ibtp.To, pierId)
+		if err := u.store.Put([]byte(ibtp.ID()), []byte("")); err != nil {
+			return err
 		}
 		return nil
 	}
@@ -127,7 +97,7 @@ func (u *UnionRouter) Route(ibtp *pb.IBTP) error {
 	if unionPierId, ok := u.pbTable.Load(ibtp.To); ok {
 		res, err := u.peermgr.Send(unionPierId.(string), message)
 		if err == nil && res.Type == peerproto.Message_ACK && res.Payload.Ok {
-			if err := u.store.Put(ibtpKey(ibtp.ID()), []byte("")); err != nil {
+			if err := u.store.Put(RouteIBTPKey(ibtp.ID()), []byte("")); err != nil {
 				return err
 			}
 			return nil
@@ -139,7 +109,7 @@ func (u *UnionRouter) Route(ibtp *pb.IBTP) error {
 		u.logger.Errorf("send ibtp error:%v", err)
 		return err
 	}
-	if err := u.store.Put(ibtpKey(ibtp.ID()), []byte("")); err != nil {
+	if err := u.store.Put(RouteIBTPKey(ibtp.ID()), []byte("")); err != nil {
 		return err
 	}
 
@@ -193,6 +163,6 @@ func (u *UnionRouter) ExistAppchain(id string) bool {
 	return ok
 }
 
-func ibtpKey(id string) []byte {
-	return []byte(fmt.Sprintf("ibtp-%s", id))
+func RouteIBTPKey(id string) []byte {
+	return []byte(fmt.Sprintf("route-ibtp-%s", id))
 }

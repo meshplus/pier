@@ -6,8 +6,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/meshplus/pier/internal/router"
-
 	"github.com/Rican7/retry"
 	"github.com/Rican7/retry/strategy"
 	"github.com/meshplus/bitxhub-kit/log"
@@ -23,6 +21,7 @@ import (
 	"github.com/meshplus/pier/internal/peermgr"
 	peerMsg "github.com/meshplus/pier/internal/peermgr/proto"
 	"github.com/meshplus/pier/internal/repo"
+	"github.com/meshplus/pier/internal/router"
 	"github.com/meshplus/pier/internal/syncer"
 	"github.com/meshplus/pier/pkg/model"
 	"github.com/sirupsen/logrus"
@@ -119,7 +118,11 @@ func (ex *Exchanger) Start() error {
 		}
 
 		if err := ex.peerMgr.RegisterMsgHandler(peerMsg.Message_ROUTER_IBTP_SEND, ex.handleRouterSendIBTPMessage); err != nil {
-			return fmt.Errorf("register ibtp handler: %w", err)
+			return fmt.Errorf("register router ibtp handler: %w", err)
+		}
+
+		if err := ex.peerMgr.RegisterMsgHandler(peerMsg.Message_ROUTER_INTERCHAIN_SEND, ex.handleRouterInterchain); err != nil {
+			return fmt.Errorf("register router interchain handler: %w", err)
 		}
 
 		if err := ex.syncer.RegisterIBTPHandler(ex.handleUnionIBTP); err != nil {
@@ -127,7 +130,11 @@ func (ex *Exchanger) Start() error {
 		}
 
 		if err := ex.syncer.RegisterRouterHandler(ex.handleProviderAppchains); err != nil {
-			return fmt.Errorf("register ibtp handler: %w", err)
+			return fmt.Errorf("register router handler: %w", err)
+		}
+
+		if err := ex.syncer.RegisterRecoverHandler(ex.handleRecover); err != nil {
+			return fmt.Errorf("register recover handler: %w", err)
 		}
 
 		if err := ex.router.Start(); err != nil {

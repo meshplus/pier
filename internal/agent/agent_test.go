@@ -68,7 +68,7 @@ func TestSyncBlock(t *testing.T) {
 	getWrapperCh := make(chan *pb.InterchainTxWrappers, 1)
 
 	subHeaderCh <- header
-	subWrapperCh <- wrapper
+	subWrapperCh <- wrappers
 
 	mockClient.EXPECT().Subscribe(gomock.Any(), pb.SubscriptionRequest_BLOCK_HEADER, gomock.Any()).Return(subHeaderCh, nil).AnyTimes()
 	mockClient.EXPECT().Subscribe(gomock.Any(), pb.SubscriptionRequest_INTERCHAIN_TX_WRAPPER, gomock.Any()).Return(subWrapperCh, nil).AnyTimes()

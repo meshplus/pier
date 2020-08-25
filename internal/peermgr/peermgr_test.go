@@ -2,12 +2,12 @@ package peermgr
 
 import (
 	"fmt"
-	"github.com/meshplus/bitxhub-kit/crypto/asym"
 	"testing"
 	"time"
 
 	peer2 "github.com/libp2p/go-libp2p-core/peer"
 	"github.com/meshplus/bitxhub-kit/crypto"
+	"github.com/meshplus/bitxhub-kit/crypto/asym"
 	network "github.com/meshplus/go-lightp2p"
 	peermgr "github.com/meshplus/pier/internal/peermgr/proto"
 	"github.com/meshplus/pier/internal/repo"
@@ -17,16 +17,15 @@ import (
 func TestSwarm_Start(t *testing.T) {
 	nodeKeys, privKeys, config := genKeysAndConfig(t, 2)
 
-	swarm1, err := New(config, nodeKeys[0], privKeys[0])
+	swarm1, err := New(config, nodeKeys[0], privKeys[0], 0)
 	require.Nil(t, err)
 
-	require.Nil(t, swarm1.Start())
-	time.Sleep(time.Second * 2)
+	go swarm1.Start()
 
-	swarm2, err := New(config, nodeKeys[1], privKeys[1])
+	swarm2, err := New(config, nodeKeys[1], privKeys[1], 0)
 	require.Nil(t, err)
 
-	require.Nil(t, swarm2.Start())
+	go swarm2.Start()
 
 	time.Sleep(time.Second * 6)
 
@@ -35,7 +34,9 @@ func TestSwarm_Start(t *testing.T) {
 		require.Equal(t, peermgr.Message_APPCHAIN_REGISTER, message.Type)
 
 		msg := &peermgr.Message{Type: peermgr.Message_ACK}
-		require.Nil(t, swarm1.AsyncSendWithStream(stream, msg))
+		data, err := msg.Marshal()
+		require.Nil(t, err)
+		require.Nil(t, stream.AsyncSend(data))
 		msgCount++
 	})
 	require.Nil(t, err)
@@ -46,6 +47,7 @@ func TestSwarm_Start(t *testing.T) {
 	})
 	require.Nil(t, err)
 
+	// TODO
 	//msg := &peermgr.Message{Type: peermgr.Message_APPCHAIN_REGISTER}
 	//msg2, err := swarm2.Send(ids[0], msg)
 	//require.Nil(t, err)
@@ -91,6 +93,7 @@ func genKeysAndConfig(t *testing.T, peerCnt int) ([]crypto.PrivateKey, []crypto.
 	}
 
 	config := &repo.Config{}
+	config.Mode.Type = repo.DirectMode
 	config.Mode.Direct.Peers = peers
 
 	return nodeKeys, privKeys, config

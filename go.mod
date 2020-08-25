@@ -19,7 +19,7 @@ require (
 	github.com/lestrrat-go/strftime v1.0.3 // indirect
 	github.com/libp2p/go-libp2p-core v0.5.6
 	github.com/meshplus/bitxhub-core v0.1.0-rc1.0.20200728032028-8dba332fa0ed
-	github.com/meshplus/bitxhub-kit v1.0.1-0.20200813112754-a341f7bc198d
+	github.com/meshplus/bitxhub-kit v1.0.1-0.20200813124031-6f6bdc99564f
 	github.com/meshplus/bitxhub-model v1.0.0-rc4.0.20200820031846-1f77b9fd43fd
 	github.com/meshplus/go-bitxhub-client v1.0.0-rc4.0.20200824072647-22f68440fd3c
 	github.com/meshplus/go-lightp2p v0.0.0-20200817105923-6b3aee40fa54
