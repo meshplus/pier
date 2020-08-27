@@ -24,11 +24,15 @@ type Agent interface {
 
 	// SyncInterchainTxWrapper tries to get an channel of interchain tx wrapper from bitxhub.
 	// Note: only the interchain tx wrappers beyond the height of sync-header request moment will be sent to this channel
-	SyncInterchainTxWrapper(ctx context.Context, ch chan *pb.InterchainTxWrapper) error
+	SyncInterchainTxWrappers(ctx context.Context, ch chan *pb.InterchainTxWrappers) error
+
+	// SyncUnionInterchainTxWrapper tries to get an channel of union interchain tx wrapper from bitxhub.
+	// Note: only the union interchain tx wrappers beyond the height of sync-header request moment will be sent to this channel
+	SyncUnionInterchainTxWrappers(ctx context.Context, txCh chan *pb.InterchainTxWrappers) error
 
 	// GetInterchainTxWrapper tries to get txWrappers whose height is in the interval of [begin, end]
 	// All these wrappers will be sent the channel.
-	GetInterchainTxWrapper(ctx context.Context, begin, end uint64, ch chan *pb.InterchainTxWrapper) error
+	GetInterchainTxWrappers(ctx context.Context, begin, end uint64, ch chan *pb.InterchainTxWrappers) error
 
 	// SendTransaction sends the wrapped interchain tx to bitxhub
 	SendTransaction(tx *pb.Transaction) (*pb.Receipt, error)
@@ -36,8 +40,7 @@ type Agent interface {
 	// SendIBTP sends wrapped ibtp to bitxhub internal VM to execute
 	SendIBTP(ibtp *pb.IBTP) (*pb.Receipt, error)
 
-	// GetIBTPByID queries interchain ibtp package record
-	// given an unique id of ibtp from bitxhub
+	// GetIBTPByID queries interchain ibtp package record given an unique id of ibtp from bitxhub
 	GetIBTPByID(id string) (*pb.IBTP, error)
 
 	// GetChainMeta gets chain meta of relay chain
@@ -46,4 +49,13 @@ type Agent interface {
 	GetInterchainMeta() (*rpcx.Interchain, error)
 
 	GetAssetExchangeSigns(id string) ([]byte, error)
+
+	//GetIBTPSigns gets ibtp signs from bitxhub cluster
+	GetIBTPSigns(ibtp *pb.IBTP) ([]byte, error)
+
+	//GetAppchains gets appchains from bitxhub node
+	GetAppchains() ([]*rpcx.Appchain, error)
+
+	//GetInterchainById gets interchain meta by appchain id
+	GetInterchainById(from string) *rpcx.Interchain
 }

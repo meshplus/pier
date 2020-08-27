@@ -8,6 +8,7 @@ import (
 	"github.com/meshplus/pier/internal/executor"
 	"github.com/meshplus/pier/internal/monitor"
 	"github.com/meshplus/pier/internal/peermgr"
+	"github.com/meshplus/pier/internal/router"
 	"github.com/meshplus/pier/internal/syncer"
 )
 
@@ -16,6 +17,7 @@ type Config struct {
 	checker   checker.Checker
 	store     storage.Storage
 	peerMgr   peermgr.PeerManager
+	router    router.Router
 	mnt       monitor.Monitor
 	exec      executor.Executor
 	syncer    syncer.Syncer
@@ -51,6 +53,12 @@ func WithMonitor(mnt monitor.Monitor) Option {
 func WithPeerMgr(mgr peermgr.PeerManager) Option {
 	return func(config *Config) {
 		config.peerMgr = mgr
+	}
+}
+
+func WithRouter(router router.Router) Option {
+	return func(config *Config) {
+		config.router = router
 	}
 }
 

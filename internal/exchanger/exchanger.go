@@ -21,6 +21,7 @@ import (
 	"github.com/meshplus/pier/internal/peermgr"
 	peerMsg "github.com/meshplus/pier/internal/peermgr/proto"
 	"github.com/meshplus/pier/internal/repo"
+	"github.com/meshplus/pier/internal/router"
 	"github.com/meshplus/pier/internal/syncer"
 	"github.com/meshplus/pier/pkg/model"
 	"github.com/sirupsen/logrus"
@@ -37,6 +38,7 @@ type Exchanger struct {
 	mnt               monitor.Monitor
 	exec              executor.Executor
 	syncer            syncer.Syncer
+	router            router.Router
 	apiServer         *api.Server
 	mode              string
 	pierID            string
@@ -62,6 +64,7 @@ func New(typ, pierID string, meta *rpcx.Interchain, opts ...Option) (*Exchanger,
 		peerMgr:           config.peerMgr,
 		syncer:            config.syncer,
 		store:             config.store,
+		router:            config.router,
 		interchainCounter: meta.InterchainCounter,
 		sourceReceiptMeta: meta.SourceReceiptCounter,
 		mode:              typ,
@@ -108,28 +111,65 @@ func (ex *Exchanger) Start() error {
 		if err := ex.syncer.Start(); err != nil {
 			return fmt.Errorf("syncer start: %w", err)
 		}
+
+	case repo.UnionMode:
+		if err := ex.peerMgr.Start(); err != nil {
+			return fmt.Errorf("peerMgr start: %w", err)
+		}
+
+		if err := ex.peerMgr.RegisterMsgHandler(peerMsg.Message_ROUTER_IBTP_SEND, ex.handleRouterSendIBTPMessage); err != nil {
+			return fmt.Errorf("register router ibtp handler: %w", err)
+		}
+
+		if err := ex.peerMgr.RegisterMsgHandler(peerMsg.Message_ROUTER_INTERCHAIN_SEND, ex.handleRouterInterchain); err != nil {
+			return fmt.Errorf("register router interchain handler: %w", err)
+		}
+
+		if err := ex.syncer.RegisterIBTPHandler(ex.handleUnionIBTP); err != nil {
+			return fmt.Errorf("register ibtp handler: %w", err)
+		}
+
+		if err := ex.syncer.RegisterAppchainHandler(ex.handleProviderAppchains); err != nil {
+			return fmt.Errorf("register router handler: %w", err)
+		}
+
+		if err := ex.syncer.RegisterRecoverHandler(ex.handleRecover); err != nil {
+			return fmt.Errorf("register recover handler: %w", err)
+		}
+
+		if err := ex.router.Start(); err != nil {
+			return fmt.Errorf("router start: %w", err)
+		}
+
+		if err := ex.syncer.Start(); err != nil {
+			return fmt.Errorf("syncer start: %w", err)
+		}
 	}
 
-	go func() {
-		ch := ex.mnt.ListenOnIBTP()
-		for {
-			select {
-			case <-ex.ctx.Done():
-				return
-			case ibtp, ok := <-ch:
-				if !ok {
-					logger.Warn("Unexpected closed channel while listening on interchain ibtp")
-					return
-				}
-				if err := ex.sendIBTP(ibtp); err != nil {
-					logger.Infof("Send ibtp: %s", err.Error())
-				}
-			}
-		}
-	}()
+	if ex.mode != repo.UnionMode {
+		go ex.listenAndSendIBTP()
+	}
 
 	logger.Info("Exchanger started")
 	return nil
+}
+
+func (ex *Exchanger) listenAndSendIBTP() {
+	ch := ex.mnt.ListenOnIBTP()
+	for {
+		select {
+		case <-ex.ctx.Done():
+			return
+		case ibtp, ok := <-ch:
+			if !ok {
+				logger.Warn("Unexpected closed channel while listening on interchain ibtp")
+				return
+			}
+			if err := ex.sendIBTP(ibtp); err != nil {
+				logger.Infof("Send ibtp: %s", err.Error())
+			}
+		}
+	}
 }
 
 func (ex *Exchanger) Stop() error {
@@ -137,15 +177,25 @@ func (ex *Exchanger) Stop() error {
 
 	switch ex.mode {
 	case repo.DirectMode:
-		if err := ex.peerMgr.Stop(); err != nil {
-			return fmt.Errorf("peerMgr stop: %w", err)
-		}
 		if err := ex.apiServer.Stop(); err != nil {
 			return fmt.Errorf("gin service stop: %w", err)
+		}
+		if err := ex.peerMgr.Stop(); err != nil {
+			return fmt.Errorf("peerMgr stop: %w", err)
 		}
 	case repo.RelayMode:
 		if err := ex.syncer.Stop(); err != nil {
 			return fmt.Errorf("syncer stop: %w", err)
+		}
+	case repo.UnionMode:
+		if err := ex.syncer.Stop(); err != nil {
+			return fmt.Errorf("syncer stop: %w", err)
+		}
+		if err := ex.peerMgr.Stop(); err != nil {
+			return fmt.Errorf("peerMgr stop: %w", err)
+		}
+		if err := ex.router.Stop(); err != nil {
+			return fmt.Errorf("router stop:%w", err)
 		}
 	}
 
@@ -163,6 +213,8 @@ func (ex *Exchanger) sendIBTP(ibtp *pb.IBTP) error {
 	})
 
 	switch ex.mode {
+	case repo.UnionMode:
+		fallthrough
 	case repo.RelayMode:
 		if err := retry.Retry(func(attempt uint) error {
 			receipt, err := ex.agent.SendIBTP(ibtp)

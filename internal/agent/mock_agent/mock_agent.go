@@ -78,32 +78,46 @@ func (mr *MockAgentMockRecorder) GetBlockHeader(ctx, begin, end, ch interface{})
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetBlockHeader", reflect.TypeOf((*MockAgent)(nil).GetBlockHeader), ctx, begin, end, ch)
 }
 
-// SyncInterchainTxWrapper mocks base method
-func (m *MockAgent) SyncInterchainTxWrapper(ctx context.Context, ch chan *pb.InterchainTxWrapper) error {
+// SyncInterchainTxWrappers mocks base method
+func (m *MockAgent) SyncInterchainTxWrappers(ctx context.Context, ch chan *pb.InterchainTxWrappers) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "SyncInterchainTxWrapper", ctx, ch)
+	ret := m.ctrl.Call(m, "SyncInterchainTxWrappers", ctx, ch)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// SyncInterchainTxWrapper indicates an expected call of SyncInterchainTxWrapper
-func (mr *MockAgentMockRecorder) SyncInterchainTxWrapper(ctx, ch interface{}) *gomock.Call {
+// SyncInterchainTxWrappers indicates an expected call of SyncInterchainTxWrappers
+func (mr *MockAgentMockRecorder) SyncInterchainTxWrappers(ctx, ch interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SyncInterchainTxWrapper", reflect.TypeOf((*MockAgent)(nil).SyncInterchainTxWrapper), ctx, ch)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SyncInterchainTxWrappers", reflect.TypeOf((*MockAgent)(nil).SyncInterchainTxWrappers), ctx, ch)
 }
 
-// GetInterchainTxWrapper mocks base method
-func (m *MockAgent) GetInterchainTxWrapper(ctx context.Context, begin, end uint64, ch chan *pb.InterchainTxWrapper) error {
+// SyncUnionInterchainTxWrappers mocks base method
+func (m *MockAgent) SyncUnionInterchainTxWrappers(ctx context.Context, txCh chan *pb.InterchainTxWrappers) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetInterchainTxWrapper", ctx, begin, end, ch)
+	ret := m.ctrl.Call(m, "SyncUnionInterchainTxWrappers", ctx, txCh)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// GetInterchainTxWrapper indicates an expected call of GetInterchainTxWrapper
-func (mr *MockAgentMockRecorder) GetInterchainTxWrapper(ctx, begin, end, ch interface{}) *gomock.Call {
+// SyncUnionInterchainTxWrappers indicates an expected call of SyncUnionInterchainTxWrappers
+func (mr *MockAgentMockRecorder) SyncUnionInterchainTxWrappers(ctx, txCh interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetInterchainTxWrapper", reflect.TypeOf((*MockAgent)(nil).GetInterchainTxWrapper), ctx, begin, end, ch)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SyncUnionInterchainTxWrappers", reflect.TypeOf((*MockAgent)(nil).SyncUnionInterchainTxWrappers), ctx, txCh)
+}
+
+// GetInterchainTxWrappers mocks base method
+func (m *MockAgent) GetInterchainTxWrappers(ctx context.Context, begin, end uint64, ch chan *pb.InterchainTxWrappers) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetInterchainTxWrappers", ctx, begin, end, ch)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// GetInterchainTxWrappers indicates an expected call of GetInterchainTxWrappers
+func (mr *MockAgentMockRecorder) GetInterchainTxWrappers(ctx, begin, end, ch interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetInterchainTxWrappers", reflect.TypeOf((*MockAgent)(nil).GetInterchainTxWrappers), ctx, begin, end, ch)
 }
 
 // SendTransaction mocks base method
@@ -194,4 +208,48 @@ func (m *MockAgent) GetAssetExchangeSigns(id string) ([]byte, error) {
 func (mr *MockAgentMockRecorder) GetAssetExchangeSigns(id interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetAssetExchangeSigns", reflect.TypeOf((*MockAgent)(nil).GetAssetExchangeSigns), id)
+}
+
+// GetIBTPSigns mocks base method
+func (m *MockAgent) GetIBTPSigns(ibtp *pb.IBTP) ([]byte, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetIBTPSigns", ibtp)
+	ret0, _ := ret[0].([]byte)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetIBTPSigns indicates an expected call of GetIBTPSigns
+func (mr *MockAgentMockRecorder) GetIBTPSigns(ibtp interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetIBTPSigns", reflect.TypeOf((*MockAgent)(nil).GetIBTPSigns), ibtp)
+}
+
+// GetAppchains mocks base method
+func (m *MockAgent) GetAppchains() ([]*rpcx.Appchain, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetAppchains")
+	ret0, _ := ret[0].([]*rpcx.Appchain)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetAppchains indicates an expected call of GetAppchains
+func (mr *MockAgentMockRecorder) GetAppchains() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetAppchains", reflect.TypeOf((*MockAgent)(nil).GetAppchains))
+}
+
+// GetInterchainById mocks base method
+func (m *MockAgent) GetInterchainById(from string) *rpcx.Interchain {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetInterchainById", from)
+	ret0, _ := ret[0].(*rpcx.Interchain)
+	return ret0
+}
+
+// GetInterchainById indicates an expected call of GetInterchainById
+func (mr *MockAgentMockRecorder) GetInterchainById(from interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetInterchainById", reflect.TypeOf((*MockAgent)(nil).GetInterchainById), from)
 }

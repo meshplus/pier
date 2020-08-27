@@ -7,6 +7,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/meshplus/pier/internal/repo"
+
 	"github.com/cbergoon/merkletree"
 	"github.com/golang/mock/gomock"
 	"github.com/meshplus/bitxhub-kit/storage/leveldb"
@@ -38,18 +40,18 @@ func TestSyncHeader(t *testing.T) {
 	h2 := getBlockHeader(root, 2)
 	// mock invalid tx wrapper
 	w3, _ := getTxWrapper(txs, txs1, 3)
-	w3.TransactionHashes = w3.TransactionHashes[1:]
+	w3.InterchainTxWrappers[0].TransactionHashes = w3.InterchainTxWrappers[0].TransactionHashes[1:]
 
 	meta := &pb.ChainMeta{
 		Height:    1,
 		BlockHash: types.String2Hash(from),
 	}
-	ag.EXPECT().SyncInterchainTxWrapper(gomock.Any(), gomock.Any()).Do(func(ctx context.Context, ch chan *pb.InterchainTxWrapper) {
+	ag.EXPECT().SyncInterchainTxWrappers(gomock.Any(), gomock.Any()).Do(func(ctx context.Context, ch chan *pb.InterchainTxWrappers) {
 		ch <- w2
 		ch <- w3
 	}).AnyTimes()
-	ag.EXPECT().GetInterchainTxWrapper(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Do(
-		func(ctx context.Context, begin, end uint64, ch chan *pb.InterchainTxWrapper) {
+	ag.EXPECT().GetInterchainTxWrappers(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Do(
+		func(ctx context.Context, begin, end uint64, ch chan *pb.InterchainTxWrappers) {
 			ch <- w1
 			close(ch)
 		}).AnyTimes()
@@ -66,7 +68,7 @@ func TestSyncHeader(t *testing.T) {
 	time.Sleep(1 * time.Second)
 
 	// recover should have persist height 1 wrapper
-	receiveWrapper := &pb.InterchainTxWrapper{}
+	receiveWrapper := &pb.InterchainTxWrappers{}
 	val, err := syncer.storage.Get(model.WrapperKey(2))
 	require.Nil(t, err)
 
@@ -84,16 +86,20 @@ func prepare(t *testing.T) (*WrapperSyncer, *mock_agent.MockAgent, *mock_lite.Mo
 	ag := mock_agent.NewMockAgent(mockCtl)
 	lite := mock_lite.NewMockLite(mockCtl)
 
+	config := &repo.Config{}
+	config.Mode.Type = repo.DirectMode
+
 	tmpDir, err := ioutil.TempDir("", "storage")
 	require.Nil(t, err)
 	storage, err := leveldb.New(tmpDir)
 	require.Nil(t, err)
 
-	syncer, err := New(ag, lite, storage)
+	syncer, err := New(ag, lite, storage, config)
 	require.Nil(t, err)
 
 	// register handler for syncer
 	require.Nil(t, syncer.RegisterIBTPHandler(func(ibtp *pb.IBTP) {}))
+	require.Nil(t, syncer.RegisterAppchainHandler(func() error { return nil }))
 	return syncer, ag, lite
 }
 
@@ -108,7 +114,7 @@ func getBlockHeader(root types.Hash, number uint64) *pb.BlockHeader {
 	return wrapper
 }
 
-func getTxWrapper(interchainTxs []*pb.Transaction, innerchainTxs []*pb.Transaction, number uint64) (*pb.InterchainTxWrapper, types.Hash) {
+func getTxWrapper(interchainTxs []*pb.Transaction, innerchainTxs []*pb.Transaction, number uint64) (*pb.InterchainTxWrappers, types.Hash) {
 	var l2roots []types.Hash
 	var interchainTxHashes []types.Hash
 	hashes := make([]merkletree.Content, 0, len(interchainTxs))
@@ -133,14 +139,18 @@ func getTxWrapper(interchainTxs []*pb.Transaction, innerchainTxs []*pb.Transacti
 	tree, _ = merkletree.NewTree(contents)
 	l1root := tree.MerkleRoot()
 
+	wrappers := make([]*pb.InterchainTxWrapper, 0, 1)
 	wrapper := &pb.InterchainTxWrapper{
 		Transactions:      interchainTxs,
 		TransactionHashes: interchainTxHashes,
 		Height:            number,
 		L2Roots:           l2roots,
 	}
-
-	return wrapper, types.Bytes2Hash(l1root)
+	wrappers = append(wrappers, wrapper)
+	itw := &pb.InterchainTxWrappers{
+		InterchainTxWrappers: wrappers,
+	}
+	return itw, types.Bytes2Hash(l1root)
 }
 
 func getTx(t *testing.T) *pb.Transaction {

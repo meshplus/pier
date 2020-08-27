@@ -8,6 +8,10 @@ import (
 	"sync/atomic"
 	"time"
 
+	rpcx "github.com/meshplus/go-bitxhub-client"
+
+	"github.com/meshplus/pier/internal/repo"
+
 	"github.com/Rican7/retry"
 	"github.com/Rican7/retry/strategy"
 	"github.com/cbergoon/merkletree"
@@ -29,12 +33,16 @@ const maxChSize = 1 << 10
 
 // WrapperSyncer represents the necessary data for sync tx wrappers from bitxhub
 type WrapperSyncer struct {
-	height   uint64
-	agent    agent.Agent
-	lite     lite.Lite
-	storage  storage.Storage
-	wrapperC chan *pb.InterchainTxWrapper
-	handler  IBTPHandler
+	isRecover       bool
+	height          uint64
+	agent           agent.Agent
+	lite            lite.Lite
+	storage         storage.Storage
+	wrappersC       chan *pb.InterchainTxWrappers
+	handler         IBTPHandler
+	appchainHandler AppchainHandler
+	recoverHandler  RecoverUnionHandler
+	config          *repo.Config
 
 	ctx    context.Context
 	cancel context.CancelFunc
@@ -42,17 +50,20 @@ type WrapperSyncer struct {
 
 // New creates instance of WrapperSyncer given agent interacting with bitxhub,
 // validators addresses of bitxhub and local storage
-func New(ag agent.Agent, lite lite.Lite, storage storage.Storage) (*WrapperSyncer, error) {
+func New(ag agent.Agent, lite lite.Lite, storage storage.Storage, config *repo.Config) (*WrapperSyncer, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 
-	return &WrapperSyncer{
-		wrapperC: make(chan *pb.InterchainTxWrapper, maxChSize),
-		agent:    ag,
-		lite:     lite,
-		storage:  storage,
-		ctx:      ctx,
-		cancel:   cancel,
-	}, nil
+	ws := &WrapperSyncer{
+		wrappersC: make(chan *pb.InterchainTxWrappers, maxChSize),
+		agent:     ag,
+		lite:      lite,
+		storage:   storage,
+		config:    config,
+		ctx:       ctx,
+		cancel:    cancel,
+	}
+
+	return ws, nil
 }
 
 // Start implements Syncer
@@ -73,8 +84,8 @@ func (syncer *WrapperSyncer) Start() error {
 		syncer.recover(syncer.getDemandHeight(), meta.Height)
 	}
 
-	go syncer.syncInterchainTxWrapper()
-	go syncer.listenInterchainTxWrapper()
+	go syncer.syncInterchainTxWrappers()
+	go syncer.listenInterchainTxWrappers()
 
 	logger.WithFields(logrus.Fields{
 		"current_height": syncer.height,
@@ -86,14 +97,26 @@ func (syncer *WrapperSyncer) Start() error {
 
 // recover will recover those missing merkle wrapper when pier is down
 func (syncer *WrapperSyncer) recover(begin, end uint64) {
+	syncer.isRecover = true
+	defer func() {
+		syncer.isRecover = false
+	}()
+
+	icm := make(map[string]*rpcx.Interchain, 0)
+
 	logger.WithFields(logrus.Fields{
 		"begin": begin,
 		"end":   end,
 	}).Info("Syncer recover")
 
-	ch := make(chan *pb.InterchainTxWrapper, maxChSize)
+	if syncer.isUnionMode() {
+		if err := syncer.appchainHandler(); err != nil {
+			logger.WithField("err", err).Errorf("Router handle")
+		}
+	}
 
-	if err := syncer.agent.GetInterchainTxWrapper(syncer.ctx, begin, end, ch); err != nil {
+	ch := make(chan *pb.InterchainTxWrappers, maxChSize)
+	if err := syncer.agent.GetInterchainTxWrappers(syncer.ctx, begin, end, ch); err != nil {
 		logger.WithFields(logrus.Fields{
 			"begin": begin,
 			"end":   end,
@@ -101,8 +124,8 @@ func (syncer *WrapperSyncer) recover(begin, end uint64) {
 		}).Warn("get interchain tx wrapper")
 	}
 
-	for w := range ch {
-		syncer.handleInterchainTxWrapper(w)
+	for wrappers := range ch {
+		syncer.handleInterchainWrapperAndPersist(wrappers, icm)
 	}
 }
 
@@ -115,21 +138,21 @@ func (syncer *WrapperSyncer) Stop() error {
 	return nil
 }
 
-// syncInterchainTxWrapper queries to bitxhub and syncs confirmed interchain txs
+// syncInterchainTxWrappers queries to bitxhub and syncs confirmed interchain txs
 // whose destination is the same as pierID.
 // Note: only interchain txs generated after the connection to bitxhub
 // being established will be sent to syncer
-func (syncer *WrapperSyncer) syncInterchainTxWrapper() {
-	loop := func(ch <-chan *pb.InterchainTxWrapper) {
+func (syncer *WrapperSyncer) syncInterchainTxWrappers() {
+	loop := func(ch <-chan *pb.InterchainTxWrappers) {
 		for {
 			select {
-			case wrapper, ok := <-ch:
+			case wrappers, ok := <-ch:
 				if !ok {
 					logger.Warn("Unexpected closed channel while syncing interchain tx wrapper")
 					return
 				}
 
-				syncer.wrapperC <- wrapper
+				syncer.wrappersC <- wrappers
 			case <-syncer.ctx.Done():
 				return
 			}
@@ -142,7 +165,7 @@ func (syncer *WrapperSyncer) syncInterchainTxWrapper() {
 		case <-syncer.ctx.Done():
 			return
 		default:
-			ch := syncer.getWrapperChannel()
+			ch := syncer.getWrappersChannel()
 
 			err := retry.Retry(func(attempt uint) error {
 				chainMeta, err := syncer.agent.GetChainMeta()
@@ -167,15 +190,20 @@ func (syncer *WrapperSyncer) syncInterchainTxWrapper() {
 	}
 }
 
-// getWrapperChannel gets a syncing merkle wrapper channel
-func (syncer *WrapperSyncer) getWrapperChannel() chan *pb.InterchainTxWrapper {
-	ch := make(chan *pb.InterchainTxWrapper, maxChSize)
+// getWrappersChannel gets a syncing merkle wrapper channel
+func (syncer *WrapperSyncer) getWrappersChannel() chan *pb.InterchainTxWrappers {
+	ch := make(chan *pb.InterchainTxWrappers, maxChSize)
 
 	if err := retry.Retry(func(attempt uint) error {
-		if err := syncer.agent.SyncInterchainTxWrapper(syncer.ctx, ch); err != nil {
-			return err
+		if syncer.config.Mode.Type == repo.UnionMode {
+			if err := syncer.agent.SyncUnionInterchainTxWrappers(syncer.ctx, ch); err != nil {
+				return err
+			}
+		} else {
+			if err := syncer.agent.SyncInterchainTxWrappers(syncer.ctx, ch); err != nil {
+				return err
+			}
 		}
-
 		return nil
 	}, strategy.Wait(2*time.Second)); err != nil {
 		panic(err)
@@ -184,11 +212,22 @@ func (syncer *WrapperSyncer) getWrapperChannel() chan *pb.InterchainTxWrapper {
 	return ch
 }
 
-// listenInterchainTxWrapper listen on the wrapper channel for handling
-func (syncer *WrapperSyncer) listenInterchainTxWrapper() {
+// listenInterchainTxWrappers listen on the wrapper channel for handling
+func (syncer *WrapperSyncer) listenInterchainTxWrappers() {
 	for {
 		select {
-		case w := <-syncer.wrapperC:
+		case wrappers := <-syncer.wrappersC:
+			if syncer.isUnionMode() {
+				if err := syncer.appchainHandler(); err != nil {
+					logger.WithField("err", err).Errorf("Router handle")
+				}
+			}
+
+			if len(wrappers.InterchainTxWrappers) == 0 {
+				logger.WithField("interchain_tx_wrappers", 0).Errorf("InterchainTxWrappers")
+				continue
+			}
+			w := wrappers.InterchainTxWrappers[0]
 			if w.Height < syncer.getDemandHeight() {
 				logger.WithField("height", w.Height).Warn("Discard wrong wrapper")
 				continue
@@ -200,8 +239,8 @@ func (syncer *WrapperSyncer) listenInterchainTxWrapper() {
 					"end":   w.Height,
 				}).Info("Get interchain tx wrapper")
 
-				ch := make(chan *pb.InterchainTxWrapper, maxChSize)
-				if err := syncer.agent.GetInterchainTxWrapper(syncer.ctx, syncer.getDemandHeight(), w.Height, ch); err != nil {
+				ch := make(chan *pb.InterchainTxWrappers, maxChSize)
+				if err := syncer.agent.GetInterchainTxWrappers(syncer.ctx, syncer.getDemandHeight(), w.Height, ch); err != nil {
 					logger.WithFields(logrus.Fields{
 						"begin": syncer.height,
 						"end":   w.Height,
@@ -209,29 +248,45 @@ func (syncer *WrapperSyncer) listenInterchainTxWrapper() {
 					}).Warn("Get interchain tx wrapper")
 				}
 
-				for w := range ch {
-					syncer.handleInterchainTxWrapper(w)
+				for ws := range ch {
+					syncer.handleInterchainWrapperAndPersist(ws, nil)
 				}
 				continue
 			}
 
-			syncer.handleInterchainTxWrapper(w)
+			syncer.handleInterchainWrapperAndPersist(wrappers, nil)
 		case <-syncer.ctx.Done():
 			return
 		}
 	}
 }
 
+func (syncer *WrapperSyncer) handleInterchainWrapperAndPersist(ws *pb.InterchainTxWrappers, icm map[string]*rpcx.Interchain) {
+	for i, wrapper := range ws.InterchainTxWrappers {
+		ok := syncer.handleInterchainTxWrapper(wrapper, i, icm)
+		if !ok {
+			return
+		}
+	}
+	if err := syncer.persist(ws); err != nil {
+		logger.WithFields(logrus.Fields{
+			"height": ws.InterchainTxWrappers[0].Height,
+			"error":  err,
+		}).Error("Persist interchain tx wrapper")
+	}
+	syncer.updateHeight()
+}
+
 // handleInterchainTxWrapper is the handler for interchain tx wrapper
-func (syncer *WrapperSyncer) handleInterchainTxWrapper(w *pb.InterchainTxWrapper) {
+func (syncer *WrapperSyncer) handleInterchainTxWrapper(w *pb.InterchainTxWrapper, i int, icm map[string]*rpcx.Interchain) bool {
 	if w == nil {
 		logger.WithField("height", syncer.height).Error("empty interchain tx wrapper")
-		return
+		return false
 	}
 
 	if w.Height < syncer.getDemandHeight() {
 		logger.Warn("wrong height")
-		return
+		return false
 	}
 
 	if ok, err := syncer.verifyWrapper(w); !ok {
@@ -239,7 +294,7 @@ func (syncer *WrapperSyncer) handleInterchainTxWrapper(w *pb.InterchainTxWrapper
 			"height": w.Height,
 			"error":  err,
 		}).Warn("Invalid wrapper")
-		return
+		return false
 	}
 
 	for _, tx := range w.Transactions {
@@ -248,22 +303,32 @@ func (syncer *WrapperSyncer) handleInterchainTxWrapper(w *pb.InterchainTxWrapper
 			logger.Errorf("Get ibtp from tx: %s", err.Error())
 			continue
 		}
+		if syncer.isRecover && syncer.isUnionMode() {
+			ic, ok := icm[ibtp.From]
+			if !ok {
+				ic, err := syncer.recoverHandler(ibtp)
+				if err != nil {
+					logger.Error(err)
+					continue
+				}
+				icm[ibtp.From] = ic
+			}
+			if index, ok := ic.InterchainCounter[ibtp.To]; ok {
+				if ibtp.Index <= index {
+					continue
+				}
+			}
+
+		}
 		syncer.handler(ibtp)
 	}
 
 	logger.WithFields(logrus.Fields{
 		"height": w.Height,
 		"count":  len(w.Transactions),
+		"index":  i,
 	}).Info("Persist interchain tx wrapper")
-
-	if err := syncer.persist(w); err != nil {
-		logger.WithFields(logrus.Fields{
-			"height": w.Height,
-			"error":  err,
-		}).Error("Persist interchain tx wrapper")
-	}
-
-	syncer.updateHeight()
+	return true
 }
 
 func (syncer *WrapperSyncer) RegisterIBTPHandler(handler IBTPHandler) error {
@@ -272,6 +337,23 @@ func (syncer *WrapperSyncer) RegisterIBTPHandler(handler IBTPHandler) error {
 	}
 
 	syncer.handler = handler
+	return nil
+}
+
+func (syncer *WrapperSyncer) RegisterRecoverHandler(handleRecover RecoverUnionHandler) error {
+	if handleRecover == nil {
+		return fmt.Errorf("register recover handler: empty handler")
+	}
+	syncer.recoverHandler = handleRecover
+	return nil
+}
+
+func (syncer *WrapperSyncer) RegisterAppchainHandler(handler AppchainHandler) error {
+	if handler == nil {
+		return fmt.Errorf("register router handler: empty handler")
+	}
+
+	syncer.appchainHandler = handler
 	return nil
 }
 
@@ -381,7 +463,11 @@ func (syncer *WrapperSyncer) getDemandHeight() uint64 {
 	return atomic.LoadUint64(&syncer.height) + 1
 }
 
-// updateHeight updates sync height and
+// updateHeight updates sync height
 func (syncer *WrapperSyncer) updateHeight() {
 	atomic.AddUint64(&syncer.height, 1)
+}
+
+func (syncer *WrapperSyncer) isUnionMode() bool {
+	return syncer.config.Mode.Type == repo.UnionMode
 }

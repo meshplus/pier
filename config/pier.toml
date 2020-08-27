@@ -11,7 +11,7 @@ filename = "pier.log"
 report_caller = false
 
 [mode]
-type = "relay" # relay or direct
+type = "relay" # relay, direct or union
 [mode.relay]
 addr = "localhost:60011"
 quorum = 2
@@ -23,6 +23,10 @@ validators = [
 ]
 [mode.direct]
 peers = []
+
+[mode.union]
+connectors = []
+providers = 1
 
 [appchain]
 plugin = "appchain_plugin"

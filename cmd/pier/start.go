@@ -54,13 +54,25 @@ func start(ctx *cli.Context) error {
 		return fmt.Errorf("log initialize: %w", err)
 	}
 
-	if err := checkPlugin(); err != nil {
-		return fmt.Errorf("check plugin: %w", err)
-	}
+	var pier *app.Pier
 
-	pier, err := app.NewPier(repoRoot, config)
-	if err != nil {
-		return err
+	switch config.Mode.Type {
+	case repo.RelayMode:
+		fallthrough
+	case repo.DirectMode:
+		if err := checkPlugin(); err != nil {
+			return fmt.Errorf("check plugin: %w", err)
+		}
+
+		pier, err = app.NewPier(repoRoot, config)
+		if err != nil {
+			return err
+		}
+	case repo.UnionMode:
+		pier, err = app.NewUnionPier(repoRoot, config)
+		if err != nil {
+			return err
+		}
 	}
 
 	fmt.Printf("Client Type: %s\n", pier.Type())

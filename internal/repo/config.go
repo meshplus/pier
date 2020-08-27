@@ -29,12 +29,14 @@ type Port struct {
 const (
 	DirectMode = "direct"
 	RelayMode  = "relay"
+	UnionMode  = "union"
 )
 
 type Mode struct {
 	Type   string `toml:"type" json:"type"`
 	Relay  Relay  `toml:"relay" json:"relay"`
 	Direct Direct `toml:"direct" json:"direct"`
+	Union  Union  `toml:"union" json:"union"`
 }
 
 // Relay are configs about bitxhub
@@ -46,6 +48,11 @@ type Relay struct {
 
 type Direct struct {
 	Peers []string `toml:"peers" json:"peers"`
+}
+
+type Union struct {
+	Connectors []string `toml:"connectors" json:"connectors"`
+	Providers  uint64   `toml:"providers" json:"providers"`
 }
 
 // GetValidators gets validator address of bitxhub
@@ -98,6 +105,10 @@ func DefaultConfig() *Config {
 			},
 			Direct: Direct{
 				Peers: []string{},
+			},
+			Union: Union{
+				Connectors: []string{},
+				Providers:  1,
 			},
 		},
 		Log: Log{

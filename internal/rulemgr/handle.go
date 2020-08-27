@@ -3,8 +3,8 @@ package rulemgr
 import (
 	"encoding/json"
 
-	"github.com/libp2p/go-libp2p-core/network"
 	"github.com/meshplus/bitxhub-kit/types"
+	network "github.com/meshplus/go-lightp2p"
 	"github.com/meshplus/pier/internal/peermgr"
 	peerproto "github.com/meshplus/pier/internal/peermgr/proto"
 )
@@ -35,7 +35,7 @@ func (rm *RuleMgr) handleRule(net network.Stream, msg *peerproto.Message) {
 
 	ackMsg := peermgr.Message(peerproto.Message_ACK, true, ackData)
 
-	err = rm.PeerManager.SendWithStream(net, ackMsg)
+	err = rm.PeerManager.AsyncSendWithStream(net, ackMsg)
 	if err != nil {
 		logger.Error(err)
 	}

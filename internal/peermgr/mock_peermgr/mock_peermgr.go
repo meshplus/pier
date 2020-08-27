@@ -6,8 +6,8 @@ package mock_peermgr
 
 import (
 	gomock "github.com/golang/mock/gomock"
-	network "github.com/libp2p/go-libp2p-core/network"
 	peer "github.com/libp2p/go-libp2p-core/peer"
+	network "github.com/meshplus/go-lightp2p"
 	peermgr "github.com/meshplus/pier/internal/peermgr"
 	peermgr0 "github.com/meshplus/pier/internal/peermgr/proto"
 	reflect "reflect"
@@ -34,6 +34,35 @@ func NewMockPeerManager(ctrl *gomock.Controller) *MockPeerManager {
 // EXPECT returns an object that allows the caller to indicate expected use
 func (m *MockPeerManager) EXPECT() *MockPeerManagerMockRecorder {
 	return m.recorder
+}
+
+// FindProviders mocks base method
+func (m *MockPeerManager) FindProviders(id string) (string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "FindProviders", id)
+	ret0, _ := ret[0].(string)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// FindProviders indicates an expected call of FindProviders
+func (mr *MockPeerManagerMockRecorder) FindProviders(id interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindProviders", reflect.TypeOf((*MockPeerManager)(nil).FindProviders), id)
+}
+
+// Provider mocks base method
+func (m *MockPeerManager) Provider(arg0 string, arg1 bool) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Provider", arg0, arg1)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Provider indicates an expected call of Provider
+func (mr *MockPeerManagerMockRecorder) Provider(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Provider", reflect.TypeOf((*MockPeerManager)(nil).Provider), arg0, arg1)
 }
 
 // Start mocks base method
@@ -78,18 +107,48 @@ func (mr *MockPeerManagerMockRecorder) AsyncSend(arg0, arg1 interface{}) *gomock
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AsyncSend", reflect.TypeOf((*MockPeerManager)(nil).AsyncSend), arg0, arg1)
 }
 
+// Connect mocks base method
+func (m *MockPeerManager) Connect(info *peer.AddrInfo) (string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Connect", info)
+	ret0, _ := ret[0].(string)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// Connect indicates an expected call of Connect
+func (mr *MockPeerManagerMockRecorder) Connect(info interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Connect", reflect.TypeOf((*MockPeerManager)(nil).Connect), info)
+}
+
 // SendWithStream mocks base method
-func (m *MockPeerManager) SendWithStream(arg0 network.Stream, arg1 *peermgr0.Message) error {
+func (m *MockPeerManager) SendWithStream(arg0 network.Stream, arg1 *peermgr0.Message) (*peermgr0.Message, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "SendWithStream", arg0, arg1)
-	ret0, _ := ret[0].(error)
-	return ret0
+	ret0, _ := ret[0].(*peermgr0.Message)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
 }
 
 // SendWithStream indicates an expected call of SendWithStream
 func (mr *MockPeerManagerMockRecorder) SendWithStream(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SendWithStream", reflect.TypeOf((*MockPeerManager)(nil).SendWithStream), arg0, arg1)
+}
+
+// AsyncSendWithStream mocks base method
+func (m *MockPeerManager) AsyncSendWithStream(arg0 network.Stream, arg1 *peermgr0.Message) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "AsyncSendWithStream", arg0, arg1)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// AsyncSendWithStream indicates an expected call of AsyncSendWithStream
+func (mr *MockPeerManagerMockRecorder) AsyncSendWithStream(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AsyncSendWithStream", reflect.TypeOf((*MockPeerManager)(nil).AsyncSendWithStream), arg0, arg1)
 }
 
 // Send mocks base method
@@ -161,4 +220,56 @@ func (m *MockPeerManager) RegisterConnectHandler(arg0 peermgr.ConnectHandler) er
 func (mr *MockPeerManagerMockRecorder) RegisterConnectHandler(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RegisterConnectHandler", reflect.TypeOf((*MockPeerManager)(nil).RegisterConnectHandler), arg0)
+}
+
+// MockDHTManager is a mock of DHTManager interface
+type MockDHTManager struct {
+	ctrl     *gomock.Controller
+	recorder *MockDHTManagerMockRecorder
+}
+
+// MockDHTManagerMockRecorder is the mock recorder for MockDHTManager
+type MockDHTManagerMockRecorder struct {
+	mock *MockDHTManager
+}
+
+// NewMockDHTManager creates a new mock instance
+func NewMockDHTManager(ctrl *gomock.Controller) *MockDHTManager {
+	mock := &MockDHTManager{ctrl: ctrl}
+	mock.recorder = &MockDHTManagerMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use
+func (m *MockDHTManager) EXPECT() *MockDHTManagerMockRecorder {
+	return m.recorder
+}
+
+// FindProviders mocks base method
+func (m *MockDHTManager) FindProviders(id string) (string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "FindProviders", id)
+	ret0, _ := ret[0].(string)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// FindProviders indicates an expected call of FindProviders
+func (mr *MockDHTManagerMockRecorder) FindProviders(id interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindProviders", reflect.TypeOf((*MockDHTManager)(nil).FindProviders), id)
+}
+
+// Provider mocks base method
+func (m *MockDHTManager) Provider(arg0 string, arg1 bool) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Provider", arg0, arg1)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Provider indicates an expected call of Provider
+func (mr *MockDHTManagerMockRecorder) Provider(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Provider", reflect.TypeOf((*MockDHTManager)(nil).Provider), arg0, arg1)
 }
