@@ -68,14 +68,14 @@ func TestSyncHeader(t *testing.T) {
 	time.Sleep(1 * time.Second)
 
 	// recover should have persist height 1 wrapper
-	receiveWrapper := &pb.InterchainTxWrapper{}
-	val, err := syncer.storage.Get(model.WrapperKey(2, 0))
+	receiveWrapper := &pb.InterchainTxWrappers{}
+	val, err := syncer.storage.Get(model.WrapperKey(2))
 	require.Nil(t, err)
 
 	require.Nil(t, receiveWrapper.Unmarshal(val))
-	require.Equal(t, w2.InterchainTxWrappers[0], receiveWrapper)
+	require.Equal(t, w2, receiveWrapper)
 	done <- true
-	require.Equal(t, uint64(3), syncer.height)
+	require.Equal(t, uint64(2), syncer.height)
 	require.Nil(t, syncer.Stop())
 }
 
@@ -99,7 +99,7 @@ func prepare(t *testing.T) (*WrapperSyncer, *mock_agent.MockAgent, *mock_lite.Mo
 
 	// register handler for syncer
 	require.Nil(t, syncer.RegisterIBTPHandler(func(ibtp *pb.IBTP) {}))
-	require.Nil(t, syncer.RegisterRouterHandler(func() error { return nil }))
+	require.Nil(t, syncer.RegisterAppchainHandler(func() error { return nil }))
 	return syncer, ag, lite
 }
 

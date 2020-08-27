@@ -129,7 +129,7 @@ func (ex *Exchanger) Start() error {
 			return fmt.Errorf("register ibtp handler: %w", err)
 		}
 
-		if err := ex.syncer.RegisterRouterHandler(ex.handleProviderAppchains); err != nil {
+		if err := ex.syncer.RegisterAppchainHandler(ex.handleProviderAppchains); err != nil {
 			return fmt.Errorf("register router handler: %w", err)
 		}
 

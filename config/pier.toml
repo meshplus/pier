@@ -23,10 +23,10 @@ validators = [
 ]
 [mode.direct]
 peers = []
-providers = 1
 
 [mode.union]
 connectors = []
+providers = 1
 
 [appchain]
 plugin = "appchain_plugin"

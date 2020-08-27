@@ -287,7 +287,7 @@ func (agent *BxhAgent) GetInterchainById(from string) *rpcx.Interchain {
 		return ic
 	}
 	var interchain *rpcx.Interchain
-	if err := json.Unmarshal(receipt.Ret, interchain); err != nil {
+	if err := json.Unmarshal(receipt.Ret, &interchain); err != nil {
 		return ic
 	}
 	return interchain

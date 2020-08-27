@@ -7,7 +7,7 @@ import (
 
 type IBTPHandler func(ibtp *pb.IBTP)
 
-type RouterHandler func() error
+type AppchainHandler func() error
 
 type RecoverUnionHandler func(ibtp *pb.IBTP) (*rpcx.Interchain, error)
 
@@ -21,7 +21,7 @@ type Syncer interface {
 
 	RegisterIBTPHandler(handler IBTPHandler) error
 
-	RegisterRouterHandler(handler RouterHandler) error
+	RegisterAppchainHandler(handler AppchainHandler) error
 
 	RegisterRecoverHandler(handleRecover RecoverUnionHandler) error
 }
