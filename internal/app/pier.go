@@ -159,7 +159,7 @@ func NewPier(repoRoot string, config *repo.Config) (*Pier, error) {
 			return nil, fmt.Errorf("lite create: %w", err)
 		}
 
-		sync, err = syncer.New(ag, lite, store, nil)
+		sync, err = syncer.New(ag, lite, store, config)
 		if err != nil {
 			return nil, fmt.Errorf("syncer create: %w", err)
 		}
