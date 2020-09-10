@@ -12,7 +12,7 @@ import (
 	"github.com/gobuffalo/packd"
 	"github.com/gobuffalo/packr"
 	"github.com/meshplus/bitxhub-kit/crypto"
-	"github.com/meshplus/bitxhub-kit/key"
+	"github.com/meshplus/bitxhub-kit/crypto/asym"
 	"github.com/mitchellh/go-homedir"
 	"github.com/spf13/viper"
 )
@@ -36,6 +36,9 @@ const (
 	// KeyName
 	KeyName = "key.json"
 
+	// NodeKeyName
+	NodeKeyName = "node.priv"
+
 	// KeyPassword
 	KeyPassword = "bitxhub"
 
@@ -48,25 +51,22 @@ var RootPath string
 // Initialize creates .pier path and necessary configuration,
 // account file and so on.
 func Initialize(repoRoot string) error {
+	if _, err := os.Stat(repoRoot); os.IsNotExist(err) {
+		err := os.MkdirAll(repoRoot, 0755)
+		if err != nil {
+			return err
+		}
+	}
+
 	box := packr.NewBox(ConfigPath)
 
-	k, err := key.New(KeyPassword)
+	privKey, err := asym.GenerateKeyPair(crypto.Secp256k1)
 	if err != nil {
-		return fmt.Errorf("create account error: %s", err)
-	}
-
-	bytes, err := k.Pretty()
-	if err != nil {
-		return fmt.Errorf("account stringify error: %s", err)
-	}
-
-	if err := os.MkdirAll(repoRoot, os.ModePerm); err != nil {
-		return fmt.Errorf("mkdir repo root error: %s", err)
+		return fmt.Errorf("create private key error: %s", err)
 	}
 
 	keyPath := filepath.Join(repoRoot, KeyName)
-	err = ioutil.WriteFile(keyPath, []byte(bytes), os.ModePerm)
-	if err != nil {
+	if err := asym.StorePrivateKey(privKey, keyPath, KeyPassword); err != nil {
 		return fmt.Errorf("persist key: %s", err)
 	}
 
@@ -149,16 +149,15 @@ func KeyPath(repoRoot string) string {
 	return filepath.Join(repoRoot, KeyName)
 }
 
+func NodeKeyPath(repoRoot string) string {
+	return filepath.Join(repoRoot, NodeKeyName)
+}
+
 // LoadPrivateKey loads private key from config path
 func LoadPrivateKey(repoRoot string) (crypto.PrivateKey, error) {
 	keyPath := filepath.Join(repoRoot, KeyName)
 
-	k, err := key.LoadKey(keyPath)
-	if err != nil {
-		return nil, fmt.Errorf("load key: %w", err)
-	}
-
-	return k.GetPrivateKey(KeyPassword)
+	return asym.RestorePrivateKey(keyPath, "bitxhub")
 }
 
 func GetAPI(repoRoot string) (string, error) {

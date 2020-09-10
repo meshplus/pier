@@ -2,10 +2,12 @@ package agent
 
 import (
 	"context"
+	"encoding/asn1"
 	"encoding/json"
 	"fmt"
 	"strings"
 
+	"github.com/meshplus/bitxhub-kit/crypto/asym/ecdsa"
 	"github.com/meshplus/bitxhub-kit/types"
 	"github.com/meshplus/bitxhub-model/pb"
 	rpcx "github.com/meshplus/go-bitxhub-client"
@@ -191,7 +193,15 @@ func (agent *BxhAgent) GetAssetExchangeSigns(id string) ([]byte, error) {
 
 	var signs []byte
 	for _, sign := range resp.Sign {
-		signs = append(signs, sign...)
+		sigStuct := &ecdsa.Sig{}
+		_, err = asn1.Unmarshal(sign, sigStuct)
+		if err != nil {
+			return nil, err
+		}
+
+		signs = append(signs, sigStuct.Pub...)       // 33 bits
+		signs = append(signs, sigStuct.R.Bytes()...) // 32 bits
+		signs = append(signs, sigStuct.S.Bytes()...) // 32 bits
 	}
 
 	return signs, nil

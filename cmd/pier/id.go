@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"path/filepath"
 
-	"github.com/meshplus/bitxhub-kit/key"
+	"github.com/meshplus/bitxhub-kit/crypto/asym"
 	"github.com/meshplus/pier/internal/repo"
 	"github.com/urfave/cli"
 )
@@ -19,12 +19,18 @@ var idCMD = cli.Command{
 		}
 
 		keyPath := filepath.Join(repoRoot, "key.json")
-		key, err := key.LoadKey(keyPath)
+
+		privKey, err := asym.RestorePrivateKey(keyPath, "bitxhub")
 		if err != nil {
 			return err
 		}
 
-		fmt.Println(key.Address)
+		address, err := privKey.PublicKey().Address()
+		if err != nil {
+			return err
+		}
+
+		fmt.Println(address.String())
 
 		return nil
 	},

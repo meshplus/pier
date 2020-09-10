@@ -5,11 +5,9 @@ import (
 	"fmt"
 	"io/ioutil"
 
-	"github.com/meshplus/bitxhub-kit/key"
-
-	"github.com/meshplus/pier/internal/repo"
-
+	"github.com/meshplus/bitxhub-kit/crypto/asym"
 	rpcx "github.com/meshplus/go-bitxhub-client"
+	"github.com/meshplus/pier/internal/repo"
 	"github.com/urfave/cli"
 )
 
@@ -210,12 +208,7 @@ func getAppchain(ctx *cli.Context) error {
 }
 
 func loadClient(keyPath, grpcAddr string) (rpcx.Client, error) {
-	key, err := key.LoadKey(keyPath)
-	if err != nil {
-		return nil, err
-	}
-
-	privateKey, err := key.GetPrivateKey("bitxhub")
+	privateKey, err := asym.RestorePrivateKey(keyPath, "bitxhub")
 	if err != nil {
 		return nil, err
 	}
@@ -227,15 +220,10 @@ func loadClient(keyPath, grpcAddr string) (rpcx.Client, error) {
 }
 
 func getPubKey(keyPath string) ([]byte, error) {
-	key, err := key.LoadKey(keyPath)
+	privKey, err := asym.RestorePrivateKey(keyPath, "bitxhub")
 	if err != nil {
 		return nil, err
 	}
 
-	privateKey, err := key.GetPrivateKey("bitxhub")
-	if err != nil {
-		return nil, err
-	}
-
-	return privateKey.PublicKey().Bytes()
+	return privKey.PublicKey().Bytes()
 }

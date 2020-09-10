@@ -2,8 +2,6 @@ package peermgr
 
 import (
 	"context"
-	ecdsa2 "crypto/ecdsa"
-	"crypto/x509"
 	"fmt"
 	"strings"
 	"sync"
@@ -317,29 +315,31 @@ func (swarm *Swarm) handleMessage(s network2.Stream, data []byte) {
 	msgHandler(s, m)
 }
 
+// TODO
 func (swarm *Swarm) getRemoteAddress(id peer.ID) (string, error) {
-	pubKey, err := swarm.p2p.GetRemotePubKey(id)
-	if err != nil {
-		return "", err
-	}
-
-	raw, err := pubKey.Raw()
-	if err != nil {
-		return "", err
-	}
-
-	key, err := x509.ParsePKIXPublicKey(raw)
-	if err != nil {
-		return "", err
-	}
-
-	publicKey := ecdsa.NewPublicKey(key.(*ecdsa2.PublicKey))
-	addr, err := publicKey.Address()
-	if err != nil {
-		return "", err
-	}
-
-	return addr.String(), nil
+	//pubKey, err := swarm.p2p.GetRemotePubKey(id)
+	//if err != nil {
+	//	return "", err
+	//}
+	//
+	//raw, err := pubKey.Raw()
+	//if err != nil {
+	//	return "", err
+	//}
+	//
+	//key, err := x509.ParsePKIXPublicKey(raw)
+	//if err != nil {
+	//	return "", err
+	//}
+	//
+	//publicKey := ecdsa.NewPublicKey(key.(*ecdsa2.PublicKey))
+	//addr, err := publicKey.Address()
+	//if err != nil {
+	//	return "", err
+	//}
+	//
+	//return addr.String(), nil
+	return "", nil
 }
 
 func (swarm *Swarm) RegisterConnectHandler(handler ConnectHandler) error {
