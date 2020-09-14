@@ -89,6 +89,20 @@ func (mr *MockExecutorMockRecorder) QueryLatestMeta() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "QueryLatestMeta", reflect.TypeOf((*MockExecutor)(nil).QueryLatestMeta))
 }
 
+// QueryLatestCallbackMeta mocks base method
+func (m *MockExecutor) QueryLatestCallbackMeta() map[string]uint64 {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "QueryLatestCallbackMeta")
+	ret0, _ := ret[0].(map[string]uint64)
+	return ret0
+}
+
+// QueryLatestCallbackMeta indicates an expected call of QueryLatestCallbackMeta
+func (mr *MockExecutorMockRecorder) QueryLatestCallbackMeta() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "QueryLatestCallbackMeta", reflect.TypeOf((*MockExecutor)(nil).QueryLatestCallbackMeta))
+}
+
 // QueryReceipt mocks base method
 func (m *MockExecutor) QueryReceipt(from string, idx uint64, originalIBTP *pb.IBTP) (*pb.IBTP, error) {
 	m.ctrl.T.Helper()

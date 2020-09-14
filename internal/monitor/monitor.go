@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
-	"sync/atomic"
 	"time"
 
 	"github.com/Rican7/retry"
@@ -42,7 +41,7 @@ func New(client plugins.Client, cryptor txcrypto.Cryptor) (*AppchainMonitor, err
 		client:            client,
 		interchainCounter: meta,
 		cryptor:           cryptor,
-		recvCh:            make(chan *pb.IBTP, 1024),
+		recvCh:            make(chan *pb.IBTP, 30720),
 		ctx:               ctx,
 		cancel:            cancel,
 	}, nil
@@ -60,9 +59,9 @@ func (m *AppchainMonitor) Start() error {
 		for {
 			select {
 			case e := <-ch:
-				for atomic.LoadUint64(&m.suspended) == 1 {
-					time.Sleep(1 * time.Second)
-				}
+				//for atomic.LoadUint64(&m.suspended) == 1 {
+				//	time.Sleep(1 * time.Second)
+				//}
 
 				m.handleIBTP(e)
 			case <-m.ctx.Done():
@@ -124,9 +123,9 @@ func (m *AppchainMonitor) handleIBTP(ibtp *pb.IBTP) {
 	// m.interchainCounter.InterchainCounter[ibtp.To] is the index of top handled tx
 	if m.interchainCounter[ibtp.To] >= ibtp.Index {
 		logger.WithFields(logrus.Fields{
-			"index":   ibtp.Index,
-			"to":      ibtp.To,
-			"ibtp_id": ibtp.ID(),
+			"index":      ibtp.Index,
+			"to counter": m.interchainCounter[ibtp.To],
+			"ibtp_id":    ibtp.ID(),
 		}).Info("Ignore ibtp")
 		return
 	}

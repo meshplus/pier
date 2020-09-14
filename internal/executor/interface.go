@@ -19,6 +19,9 @@ type Executor interface {
 	// QueryLatestMeta queries latest index map of ibtps executed on appchain
 	QueryLatestMeta() map[string]uint64
 
+	// QueryLatestCallbackMeta queries latest callback index map of ibtps executed on appchain
+	QueryLatestCallbackMeta() map[string]uint64
+
 	// QueryReceipt query receipt for original interchain ibtp
 	QueryReceipt(from string, idx uint64, originalIBTP *pb.IBTP) (*pb.IBTP, error)
 }

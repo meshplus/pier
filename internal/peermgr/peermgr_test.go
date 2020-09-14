@@ -201,44 +201,28 @@ func TestSwarm_RegisterMsgHandler(t *testing.T) {
 		msgCount++
 	})
 	require.Nil(t, err)
-}
 
-func TestSwarm_RegisterMultiMsgHandler(t *testing.T) {
-	swarm, _, _, _, _, _ := prepare(t)
-	msgCount := 0
-
-	// test with empty handler
-	err := swarm.RegisterMultiMsgHandler([]peerproto.Message_Type{peerproto.Message_APPCHAIN_REGISTER}, nil)
-	require.NotNil(t, err)
-
-	// test in right way
-	err = swarm.RegisterMultiMsgHandler([]peerproto.Message_Type{peerproto.Message_APPCHAIN_REGISTER}, func(stream network.Stream, message *peermgr.Message) {
-		require.Equal(t, peermgr.Message_APPCHAIN_REGISTER, message.Type)
-
-		msg := &peermgr.Message{Type: peermgr.Message_ACK}
-		data, err := msg.Marshal()
-		require.Nil(t, err)
-		require.Nil(t, stream.AsyncSend(data))
+	err = swarm2.RegisterMsgHandler(peermgr.Message_IBTP_GET, func(stream network.Stream, message *peermgr.Message) {
+		require.Equal(t, peermgr.Message_IBTP_GET, message.Type)
 		msgCount++
 	})
 	require.Nil(t, err)
-}
 
-func TestSwarm_RegisterConnectHandler(t *testing.T) {
-	swarm, _, _, _, _, _ := prepare(t)
-
-	err := swarm.RegisterConnectHandler(nil)
-	require.Nil(t, err)
-}
-
-func TestSwarm_FindProviders(t *testing.T) {
-	_, _, mockSwarm, _, _, mockId := prepare(t)
-
-	pierId, err := mockSwarm.FindProviders(mockId)
-	require.Nil(t, err)
-	require.Equal(t, "QmSoLV4Bbm51jM9C4gDYZQ9Cy3U6aXMJDAbzgu2fzawe34", pierId)
-}
-
+	// TODO
+	//msg := &peermgr.Message{Type: peermgr.Message_APPCHAIN_REGISTER}
+	//msg2, err := swarm2.Send(addrs[0], msg)
+	//require.Nil(t, err)
+	//require.Equal(t, peermgr.Message_ACK, msg2.Type)
+	//
+	//msg = &peermgr.Message{Type: peermgr.Message_IBTP_GET}
+	//require.Nil(t, swarm1.AsyncSend(addrs[1], msg))
+	//
+	//msg2, err = swarm1.Send("123", msg)
+	//require.NotNil(t, err)
+	//require.Nil(t, msg2)
+	//
+	//time.Sleep(time.Second)
+	//require.Equal(t, 2, msgCount)
 func TestSwarm_Provider(t *testing.T) {
 	_, _, mockSwarm, _, _, mockId := prepare(t)
 
@@ -268,7 +252,6 @@ func genKeysAndConfig(t *testing.T, peerCnt int, mode string) ([]crypto.PrivateK
 	var privKeys []crypto.PrivateKey
 	var peers []string
 	port := 5001
-	var ids []string
 
 	for i := 0; i < peerCnt; i++ {
 		key, err := asym.GenerateKeyPair(crypto.ECDSA_P256)
@@ -289,6 +272,11 @@ func genKeysAndConfig(t *testing.T, peerCnt int, mode string) ([]crypto.PrivateK
 		require.Nil(t, err)
 
 		privKeys = append(privKeys, privKey)
+
+		addr, err := privKey.PublicKey().Address()
+		require.Nil(t, err)
+
+		addrs = append(addrs, addr.String())
 
 		port++
 	}
@@ -402,6 +390,7 @@ func (mph *MockPeerHandler) PeersNum() int {
 	return 0
 }
 
+	return nodeKeys, privKeys, config, addrs
 // check if have an open connection to peer
 func (mph *MockPeerHandler) IsConnected(peerID string) bool {
 	return false

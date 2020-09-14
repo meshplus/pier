@@ -2,8 +2,8 @@ package exchanger
 
 import (
 	"context"
-	"errors"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/Rican7/retry"
@@ -23,6 +23,7 @@ import (
 	"github.com/meshplus/pier/internal/syncer"
 	"github.com/meshplus/pier/pkg/model"
 	"github.com/sirupsen/logrus"
+	"github.com/syndtr/goleveldb/leveldb"
 )
 
 var logger = log.NewWithModule("exchanger")
@@ -41,8 +42,22 @@ type Exchanger struct {
 	pierID            string
 	interchainCounter map[string]uint64
 	sourceReceiptMeta map[string]uint64
+	ibtps             sync.Map
+	receipts          sync.Map
 	ctx               context.Context
 	cancel            context.CancelFunc
+}
+
+type Pool struct {
+	ibtps *sync.Map
+	ch    chan *pb.IBTP
+}
+
+func NewPool() *Pool {
+	return &Pool{
+		ibtps: &sync.Map{},
+		ch:    make(chan *pb.IBTP, 1024),
+	}
 }
 
 func New(typ, pierID string, meta *pb.Interchain, opts ...Option) (*Exchanger, error) {
@@ -79,10 +94,6 @@ func (ex *Exchanger) Start() error {
 			return fmt.Errorf("peerMgr start: %w", err)
 		}
 
-		if err := ex.peerMgr.Start(); err != nil {
-			return fmt.Errorf("peerMgr start: %w", err)
-		}
-
 		if err := ex.peerMgr.RegisterConnectHandler(ex.handleNewConnection); err != nil {
 			return fmt.Errorf("register on connection handler: %w", err)
 		}
@@ -94,9 +105,19 @@ func (ex *Exchanger) Start() error {
 		if err := ex.peerMgr.RegisterMsgHandler(peerMsg.Message_IBTP_SEND, ex.handleSendIBTPMessage); err != nil {
 			return fmt.Errorf("register ibtp handler: %w", err)
 		}
+
+		if err := ex.peerMgr.RegisterMsgHandler(peerMsg.Message_IBTP_RECEIPT_SEND, ex.handleSendIBTPReceiptMessage); err != nil {
+			return fmt.Errorf("register ibtp handler: %w", err)
+		}
+
 		if err := ex.peerMgr.RegisterMsgHandler(peerMsg.Message_IBTP_GET, ex.handleGetIBTPMessage); err != nil {
 			return fmt.Errorf("register ibtp receipt handler: %w", err)
 		}
+
+		if err := ex.peerMgr.Start(); err != nil {
+			return fmt.Errorf("peerMgr start: %w", err)
+		}
+
 	case repo.RelayMode:
 		// recover exchanger before relay any interchain msgs
 		ex.recoverRelay()
@@ -247,6 +268,7 @@ func (ex *Exchanger) sendIBTP(ibtp *pb.IBTP) error {
 				dst = ibtp.To
 			} else {
 				dst = ibtp.From
+				dst = ibtp.From
 			}
 
 			retMsg, err := ex.peerMgr.Send(dst, msg)
@@ -260,22 +282,11 @@ func (ex *Exchanger) sendIBTP(ibtp *pb.IBTP) error {
 				return fmt.Errorf("send ibtp: %w", fmt.Errorf(string(retMsg.Payload.Data)))
 			}
 
-			entry.WithFields(logrus.Fields{
-				"status": retMsg.Payload.Ok,
-			}).Info("Send ibtp")
-
-			// ignore msg for receipt type
-			if ibtp.Type == pb.IBTP_RECEIPT_SUCCESS || ibtp.Type == pb.IBTP_RECEIPT_FAILURE {
-				return nil
-			}
-
-			// handle receipt message from pier
-			receipt := &pb.IBTP{}
-			if err := receipt.Unmarshal(retMsg.Payload.Data); err != nil {
-				logger.Errorf("unmarshal receipt: %s", err.Error())
+			if err := ex.peerMgr.AsyncSend(dst, msg); err != nil {
+				logger.Infof("Send ibtp to pier %s: %s", ibtp.ID(), err.Error())
 				return err
 			}
-			ex.exec.HandleIBTP(receipt)
+
 			return nil
 		}, strategy.Wait(1*time.Second)); err != nil {
 			logger.Panic(err)
@@ -332,4 +343,81 @@ func (ex *Exchanger) queryIBTP(from string, idx uint64) (*pb.IBTP, error) {
 	}
 
 	return ibtp, nil
+}
+
+func (ex *Exchanger) feedIBTP(ibtp *pb.IBTP) {
+	act, loaded := ex.ibtps.LoadOrStore(ibtp.From, NewPool())
+	pool := act.(*Pool)
+	pool.feed(ibtp)
+
+	if !loaded {
+		go func(pool *Pool) {
+			inMeta := ex.exec.QueryLatestMeta()
+			counter := uint64(0)
+			for ibtp := range pool.ch {
+				counter++
+				if ibtp.Index <= inMeta[ibtp.From] {
+					logger.Warn("ignore ibtp with invalid index")
+					continue
+				}
+				if inMeta[ibtp.From]+1 == ibtp.Index {
+					receipt := ex.exec.HandleIBTP(ibtp)
+					ex.postHandleIBTP(ibtp.From, receipt)
+
+					index := ibtp.Index + 1
+					for ibtp := pool.get(index); ibtp != nil; index++ {
+						receipt := ex.exec.HandleIBTP(ibtp)
+						ex.postHandleIBTP(ibtp.From, receipt)
+					}
+				} else {
+					pool.put(ibtp)
+				}
+			}
+		}(pool)
+	}
+}
+
+func (ex *Exchanger) feedReceipt(receipt *pb.IBTP) {
+	act, loaded := ex.receipts.LoadOrStore(receipt.To, NewPool())
+	pool := act.(*Pool)
+	pool.feed(receipt)
+
+	if !loaded {
+		go func(pool *Pool) {
+			callbackMeta := ex.exec.QueryLatestCallbackMeta()
+			for ibtp := range pool.ch {
+				if ibtp.Index <= callbackMeta[ibtp.To] {
+					logger.Warn("ignore ibtp with invalid index")
+					continue
+				}
+				if callbackMeta[ibtp.To]+1 == ibtp.Index {
+					ex.exec.HandleIBTP(ibtp)
+
+					index := ibtp.Index + 1
+					for ibtp := pool.get(index); ibtp != nil; index++ {
+						ex.exec.HandleIBTP(ibtp)
+					}
+				} else {
+					pool.put(ibtp)
+				}
+			}
+		}(pool)
+	}
+}
+
+func (pool *Pool) feed(ibtp *pb.IBTP) {
+	pool.ch <- ibtp
+}
+
+func (pool *Pool) put(ibtp *pb.IBTP) {
+	pool.ibtps.Store(ibtp.Index, ibtp)
+}
+
+func (pool *Pool) get(index uint64) *pb.IBTP {
+	ibtp, ok := pool.ibtps.Load(index)
+	if !ok {
+		return nil
+	}
+
+	return ibtp.(*pb.IBTP)
 }

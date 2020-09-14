@@ -119,6 +119,7 @@ func (ex *Exchanger) handleRouterSendIBTPMessage(stream network.Stream, msg *pee
 
 		err := ex.peerMgr.AsyncSendWithStream(stream, retMsg)
 		if err != nil {
+			entry.Error("send back ibtp: %w", err)
 			return fmt.Errorf("send back ibtp: %w", err)
 		}
 
@@ -135,49 +136,68 @@ func (ex *Exchanger) handleRouterSendIBTPMessage(stream network.Stream, msg *pee
 	}
 }
 
-// handleIBTPMessage handle ibtp message from another pier
-func (ex *Exchanger) handleSendIBTPMessage(stream network.Stream, msg *peerMsg.Message) {
-	handle := func() error {
-		ibtp := &pb.IBTP{}
-		if err := ibtp.Unmarshal(msg.Payload.Data); err != nil {
-			return fmt.Errorf("unmarshal ibtp: %w", err)
-		}
-
-		err := ex.checker.Check(ibtp)
+func (ex *Exchanger) postHandleIBTP(from string, receipt *pb.IBTP) {
+	logger.Infof("postHandleIBTP, %s-%s-%d", receipt.From, receipt.To, receipt.Index)
+	if receipt == nil {
+		retMsg := peermgr.Message(peerMsg.Message_IBTP_RECEIPT_SEND, true, nil)
+		err := ex.peerMgr.AsyncSend(from, retMsg)
 		if err != nil {
-			return fmt.Errorf("check ibtp: %w", err)
+			logger.Error("send back empty ibtp receipt: %w", err)
 		}
-
-		receipt := ex.exec.HandleIBTP(ibtp)
-		if receipt == nil {
-			retMsg := peermgr.Message(peerMsg.Message_ACK, true, nil)
-			err = ex.peerMgr.AsyncSendWithStream(stream, retMsg)
-			if err != nil {
-				return fmt.Errorf("send back ibtp: %w", err)
-			}
-			return nil
-		}
-
-		data, err := receipt.Marshal()
-		if err != nil {
-			return fmt.Errorf("marshal ibtp receipt: %w", err)
-		}
-
-		retMsg := peermgr.Message(peerMsg.Message_ACK, true, data)
-		err = ex.peerMgr.AsyncSendWithStream(stream, retMsg)
-		if err != nil {
-			return fmt.Errorf("send back ibtp: %w", err)
-		}
-
-		return nil
 	}
 
-	if err := handle(); err != nil {
-		logger.Error(err)
+	data, err := receipt.Marshal()
+	if err != nil {
+		logger.Error("marshal ibtp receipt: %w", err)
+	}
+
+	retMsg := peermgr.Message(peerMsg.Message_IBTP_RECEIPT_SEND, true, data)
+	err = ex.peerMgr.AsyncSend(from, retMsg)
+	if err != nil {
+		logger.Error("send back ibtp receipt: %w", err)
+	}
+}
+
+func (ex *Exchanger) handleSendIBTPMessage(stream network.Stream, msg *peerMsg.Message) {
+	ibtp := &pb.IBTP{}
+	if err := ibtp.Unmarshal(msg.Payload.Data); err != nil {
+		logger.Error("unmarshal ibtp: %w", err)
 		return
 	}
 
-	logger.Info("Handle ibtp from other pier")
+	err := ex.checker.Check(ibtp)
+	if err != nil {
+		logger.Error("check ibtp: %w", err)
+		return
+	}
+
+	ex.feedIBTP(ibtp)
+
+	logger.Info("Receive ibtp from other pier")
+}
+
+func (ex *Exchanger) handleSendIBTPReceiptMessage(stream network.Stream, msg *peerMsg.Message) {
+	receipt := &pb.IBTP{}
+	if err := receipt.Unmarshal(msg.Payload.Data); err != nil {
+		logger.Error("unmarshal ibtp: %w", err)
+		return
+	}
+
+	// ignore msg for receipt type
+	if receipt.Type == pb.IBTP_RECEIPT_SUCCESS || receipt.Type == pb.IBTP_RECEIPT_FAILURE {
+		logger.Warn("ignore receipt ibtp")
+		return
+	}
+
+	err := ex.checker.Check(receipt)
+	if err != nil {
+		logger.Error("check ibtp: %w", err)
+		return
+	}
+
+	ex.feedReceipt(receipt)
+
+	logger.Info("Receive ibtp receipt from other pier")
 }
 
 func (ex *Exchanger) handleGetIBTPMessage(stream network.Stream, msg *peerMsg.Message) {

@@ -87,6 +87,10 @@ func (e *ChannelExecutor) QueryLatestMeta() map[string]uint64 {
 	return e.executeMeta
 }
 
+func (e *ChannelExecutor) QueryLatestCallbackMeta() map[string]uint64 {
+	return e.callbackMeta
+}
+
 // getReceipt only generates one receipt given source chain id and interchain tx index
 func (e *ChannelExecutor) QueryReceipt(from string, idx uint64, originalIBTP *pb.IBTP) (*pb.IBTP, error) {
 	ret, err := e.client.GetInMessage(from, idx)
