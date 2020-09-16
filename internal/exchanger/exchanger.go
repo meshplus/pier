@@ -2,6 +2,7 @@ package exchanger
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -100,7 +101,6 @@ func (ex *Exchanger) Start() error {
 	case repo.RelayMode:
 		// recover exchanger before relay any interchain msgs
 		ex.recoverRelay()
-
 		if err := ex.syncer.RegisterIBTPHandler(ex.handleIBTP); err != nil {
 			return fmt.Errorf("register ibtp handler: %w", err)
 		}
@@ -263,6 +263,9 @@ func (ex *Exchanger) queryIBTP(from string, idx uint64) (*pb.IBTP, error) {
 		case repo.RelayMode:
 			ibtp, err = ex.agent.GetIBTPByID(id)
 			if err != nil {
+				if errors.Is(err, agent.ErrIBTPNotFound) {
+					logger.Panicf("query ibtp by id %s from bitxhub: %s", id, err.Error())
+				}
 				return fmt.Errorf("query ibtp from bitxhub: %s", err.Error())
 			}
 		case repo.DirectMode:
