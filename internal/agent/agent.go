@@ -15,7 +15,10 @@ import (
 )
 
 // agent is responsible for interacting with bitxhub
-var _ Agent = (*BxhAgent)(nil)
+var (
+	_               Agent = (*BxhAgent)(nil)
+	ErrIBTPNotFound       = fmt.Errorf("receipt from bitxhub failed")
+)
 
 // BxhAgent represents the necessary data for interacting with bitxhub
 type BxhAgent struct {
@@ -190,6 +193,10 @@ func (agent *BxhAgent) GetIBTPByID(id string) (*pb.IBTP, error) {
 		"GetIBTPByID", rpcx.String(id))
 	if err != nil {
 		return nil, err
+	}
+
+	if !receipt.IsSuccess() {
+		return nil, fmt.Errorf("%w: %s", ErrIBTPNotFound, string(receipt.Ret))
 	}
 
 	hash := types.Bytes2Hash(receipt.Ret)
