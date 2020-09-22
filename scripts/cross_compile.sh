@@ -15,7 +15,7 @@ linux-amd64)
     -v ~/.ssh:/root/.ssh \
     -v ~/.gitconfig:/root/.gitconfig \
     -v $GOPATH/pkg/mod:$GOPATH/pkg/mod \
-    pier-ubuntu/compile \
+    golang:1.14 \
     /bin/bash -c "go env -w GO111MODULE=on &&
       go env -w GOPROXY=https://goproxy.cn,direct &&
       go get -u github.com/gobuffalo/packr/packr &&
@@ -24,8 +24,8 @@ linux-amd64)
       cd /code/pier && make install &&
       mkdir -p /code/pier/bin &&
       cp /go/bin/pier /code/pier/bin/pier_linux-amd64 &&
-      cp /code/pier-client-fabric/build/fabric-client-1.4.so /code/pier/bin/pier-fabric-linux.so &&
-      cp /code/pier-client-ethereum/build/eth-client.so /code/pier/bin/pier-eth-linux.so"
+      cp /code/pier-client-fabric/build/fabric-client-1.4 /code/pier/bin/pier-fabric-linux &&
+      cp /code/pier-client-ethereum/build/eth-client /code/pier/bin/pier-eth-linux"
   ;;
 *)
   print_red "Other architectures are not supported yet"
