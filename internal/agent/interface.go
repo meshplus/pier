@@ -58,4 +58,7 @@ type Agent interface {
 
 	//GetInterchainById gets interchain meta by appchain id
 	GetInterchainById(from string) *rpcx.Interchain
+
+	// GetPendingNonceByAccount get the latest pending nonce of the account
+	GetPendingNonceByAccount(account string) (uint64, error)
 }

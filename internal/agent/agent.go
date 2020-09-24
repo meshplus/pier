@@ -46,7 +46,7 @@ func (agent *BxhAgent) Stop() error {
 
 // Appchain implements Agent
 func (agent *BxhAgent) Appchain() (*rpcx.Appchain, error) {
-	receipt, err := agent.client.InvokeBVMContract(rpcx.AppchainMgrContractAddr, "Appchain")
+	receipt, err := agent.client.InvokeBVMContract(rpcx.AppchainMgrContractAddr, "Appchain", nil)
 	if err != nil {
 		return nil, err
 	}
@@ -64,7 +64,7 @@ func (agent *BxhAgent) Appchain() (*rpcx.Appchain, error) {
 }
 
 func (agent *BxhAgent) GetInterchainMeta() (*rpcx.Interchain, error) {
-	receipt, err := agent.client.InvokeBVMContract(rpcx.InterchainContractAddr, "Interchain")
+	receipt, err := agent.client.InvokeBVMContract(rpcx.InterchainContractAddr, "Interchain", nil)
 	if err != nil {
 		return nil, err
 	}
@@ -170,7 +170,7 @@ func (agent *BxhAgent) GetInterchainTxWrappers(ctx context.Context, begin, end u
 
 // SendTransaction implements Agent
 func (agent *BxhAgent) SendTransaction(tx *pb.Transaction) (*pb.Receipt, error) {
-	return agent.client.SendTransactionWithReceipt(tx)
+	return agent.client.SendTransactionWithReceipt(tx, nil)
 }
 
 // SendIBTP implements Agent
@@ -189,7 +189,10 @@ func (agent *BxhAgent) SendIBTP(ibtp *pb.IBTP) (*pb.Receipt, error) {
 		return nil, fmt.Errorf("generate ibtp tx error:%v", err)
 	}
 	tx.Extra = proof
-	return agent.client.SendTransactionWithReceipt(tx)
+	return agent.client.SendTransactionWithReceipt(tx, &rpcx.TransactOpts{
+		From:      fmt.Sprintf("%s-%s-%d", ibtp.From, ibtp.To, ibtp.Type),
+		IBTPNonce: ibtp.Index,
+	})
 }
 
 // GetReceipt implements Agent
@@ -200,7 +203,7 @@ func (agent *BxhAgent) GetReceipt(hash string) (*pb.Receipt, error) {
 // GetIBTPByID implements Agent
 func (agent *BxhAgent) GetIBTPByID(id string) (*pb.IBTP, error) {
 	receipt, err := agent.client.InvokeContract(pb.TransactionData_BVM, rpcx.InterchainContractAddr,
-		"GetIBTPByID", rpcx.String(id))
+		"GetIBTPByID", nil, rpcx.String(id))
 	if err != nil {
 		return nil, err
 	}
@@ -307,4 +310,8 @@ func (agent *BxhAgent) GetInterchainById(from string) *rpcx.Interchain {
 		return ic
 	}
 	return interchain
+}
+
+func (agent *BxhAgent) GetPendingNonceByAccount(account string) (uint64, error) {
+	return agent.client.GetPendingNonceByAccount(account)
 }

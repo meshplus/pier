@@ -253,3 +253,18 @@ func (mr *MockAgentMockRecorder) GetInterchainById(from interface{}) *gomock.Cal
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetInterchainById", reflect.TypeOf((*MockAgent)(nil).GetInterchainById), from)
 }
+
+// GetPendingNonceByAccount mocks base method
+func (m *MockAgent) GetPendingNonceByAccount(account string) (uint64, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetPendingNonceByAccount", account)
+	ret0, _ := ret[0].(uint64)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetPendingNonceByAccount indicates an expected call of GetPendingNonceByAccount
+func (mr *MockAgentMockRecorder) GetPendingNonceByAccount(account interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetPendingNonceByAccount", reflect.TypeOf((*MockAgent)(nil).GetPendingNonceByAccount), account)
+}
