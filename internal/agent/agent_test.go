@@ -113,11 +113,18 @@ func TestSendTransaction(t *testing.T) {
 func TestSendIBTP(t *testing.T) {
 	ag, mockClient := prepare(t)
 
+	b := types.Address{}
+	b.SetBytes([]byte(from))
+	tx := &pb.Transaction{
+		From: b,
+	}
+
 	r := &pb.Receipt{
 		Ret:    []byte("this is a test"),
 		Status: 0,
 	}
-	mockClient.EXPECT().InvokeContract(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(r, nil).AnyTimes()
+	mockClient.EXPECT().GenerateContractTx(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(tx, nil).AnyTimes()
+	mockClient.EXPECT().SendTransactionWithReceipt(gomock.Any()).Return(r, nil).AnyTimes()
 
 	receipt, err := ag.SendIBTP(&pb.IBTP{})
 	require.Nil(t, err)

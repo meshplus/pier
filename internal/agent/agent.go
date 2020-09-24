@@ -2,6 +2,7 @@ package agent
 
 import (
 	"context"
+	"crypto/sha256"
 	"encoding/asn1"
 	"encoding/json"
 	"fmt"
@@ -174,12 +175,21 @@ func (agent *BxhAgent) SendTransaction(tx *pb.Transaction) (*pb.Receipt, error) 
 
 // SendIBTP implements Agent
 func (agent *BxhAgent) SendIBTP(ibtp *pb.IBTP) (*pb.Receipt, error) {
+	proof := ibtp.GetProof()
+	proofHash := sha256.Sum256(proof)
+	ibtp.Proof = proofHash[:]
+
 	b, err := ibtp.Marshal()
 	if err != nil {
 		return nil, err
 	}
-	return agent.client.InvokeContract(pb.TransactionData_BVM, rpcx.InterchainContractAddr,
+	tx, err := agent.client.GenerateContractTx(pb.TransactionData_BVM, rpcx.InterchainContractAddr,
 		"HandleIBTP", rpcx.Bytes(b))
+	if err != nil {
+		return nil, fmt.Errorf("generate ibtp tx error:%v", err)
+	}
+	tx.Extra = proof
+	return agent.client.SendTransactionWithReceipt(tx)
 }
 
 // GetReceipt implements Agent

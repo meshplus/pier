@@ -75,18 +75,18 @@ func (mr *MockSyncerMockRecorder) RegisterIBTPHandler(handler interface{}) *gomo
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RegisterIBTPHandler", reflect.TypeOf((*MockSyncer)(nil).RegisterIBTPHandler), handler)
 }
 
-// RegisterRouterHandler mocks base method
-func (m *MockSyncer) RegisterRouterHandler(handler syncer.RouterHandler) error {
+// RegisterAppchainHandler mocks base method
+func (m *MockSyncer) RegisterAppchainHandler(handler syncer.AppchainHandler) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "RegisterRouterHandler", handler)
+	ret := m.ctrl.Call(m, "RegisterAppchainHandler", handler)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// RegisterRouterHandler indicates an expected call of RegisterRouterHandler
-func (mr *MockSyncerMockRecorder) RegisterRouterHandler(handler interface{}) *gomock.Call {
+// RegisterAppchainHandler indicates an expected call of RegisterAppchainHandler
+func (mr *MockSyncerMockRecorder) RegisterAppchainHandler(handler interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RegisterRouterHandler", reflect.TypeOf((*MockSyncer)(nil).RegisterRouterHandler), handler)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RegisterAppchainHandler", reflect.TypeOf((*MockSyncer)(nil).RegisterAppchainHandler), handler)
 }
 
 // RegisterRecoverHandler mocks base method
