@@ -3,6 +3,11 @@ package checker
 import (
 	"encoding/json"
 	"fmt"
+	"sync"
+
+	"github.com/meshplus/bitxhub-core/validator"
+
+	"github.com/meshplus/bitxhub-kit/types"
 
 	appchainmgr "github.com/meshplus/bitxhub-core/appchain-mgr"
 	"github.com/meshplus/bitxhub-model/pb"
@@ -11,8 +16,14 @@ import (
 )
 
 type DirectChecker struct {
-	ruleMgr     *rulemgr.RuleMgr
-	appchainMgr *appchain.Manager
+	ruleMgr       *rulemgr.RuleMgr
+	appchainMgr   *appchain.Manager
+	appchainCache sync.Map
+}
+
+type appchainRule struct {
+	appchain    *appchainmgr.Appchain
+	codeAddress string
 }
 
 func NewDirectChecker(ruleMgr *rulemgr.RuleMgr, appchainMgr *appchain.Manager) Checker {
@@ -28,17 +39,36 @@ func (c *DirectChecker) Check(ibtp *pb.IBTP) error {
 		chainID = ibtp.To
 	}
 
-	ok, appchainByte := c.appchainMgr.Mgr.GetAppchain(chainID)
+	appchainLoad, ok := c.appchainCache.Load(chainID)
+	var appchain *appchainmgr.Appchain
+	var validatorAddr string
 	if !ok {
-		return fmt.Errorf("appchain %s not found", chainID)
+		ok, appchainByte := c.appchainMgr.Mgr.GetAppchain(chainID)
+		if !ok {
+			return fmt.Errorf("appchain %s not found", chainID)
+		}
+
+		appchain = &appchainmgr.Appchain{}
+		if err := json.Unmarshal(appchainByte, appchain); err != nil {
+			return fmt.Errorf("unmarshal appchain: %w", err)
+		}
+		code := c.ruleMgr.Ledger.GetCode(types.String2Address(chainID))
+		if code == nil {
+			if appchain.ChainType == "fabric" {
+				validatorAddr = validator.SimFabricRuleAddr
+			}
+		}
+		c.appchainCache.Store(chainID, &appchainRule{
+			appchain:    appchain,
+			codeAddress: validatorAddr,
+		})
+	} else {
+		appchainRule := appchainLoad.(*appchainRule)
+		appchain = appchainRule.appchain
+		validatorAddr = appchainRule.codeAddress
 	}
 
-	appchain := &appchainmgr.Appchain{}
-	if err := json.Unmarshal(appchainByte, appchain); err != nil {
-		return fmt.Errorf("unmarshal appchain: %w", err)
-	}
-
-	ok, err := c.ruleMgr.Validate(ibtp.From, ibtp.From, ibtp.Proof, ibtp.Payload, appchain.Validators)
+	ok, err := c.ruleMgr.Validate(validatorAddr, ibtp.From, ibtp.Proof, ibtp.Payload, appchain.Validators)
 	if err != nil {
 		return err
 	}

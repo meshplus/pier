@@ -6,6 +6,8 @@ import (
 	"sync"
 	"time"
 
+	"go.uber.org/atomic"
+
 	"github.com/Rican7/retry"
 	"github.com/Rican7/retry/strategy"
 	"github.com/meshplus/bitxhub-kit/log"
@@ -42,10 +44,12 @@ type Exchanger struct {
 	pierID            string
 	interchainCounter map[string]uint64
 	sourceReceiptMeta map[string]uint64
-	ibtps             sync.Map
-	receipts          sync.Map
-	ctx               context.Context
-	cancel            context.CancelFunc
+
+	sendIBTPCounter atomic.Uint64
+	ibtps           sync.Map
+	receipts        sync.Map
+	ctx             context.Context
+	cancel          context.CancelFunc
 }
 
 type Pool struct {
@@ -352,12 +356,17 @@ func (ex *Exchanger) feedIBTP(ibtp *pb.IBTP) {
 
 	if !loaded {
 		go func(pool *Pool) {
+			defer func() {
+				if e := recover(); e != nil {
+					logger.Error(fmt.Errorf("%v", e))
+				}
+			}()
 			inMeta := ex.exec.QueryLatestMeta()
 			counter := uint64(0)
 			for ibtp := range pool.ch {
 				counter++
 				if ibtp.Index <= inMeta[ibtp.From] {
-					logger.Warn("ignore ibtp with invalid index")
+					logger.Warn("ignore ibtp with invalid index:{}", ibtp.Index)
 					continue
 				}
 				if inMeta[ibtp.From]+1 == ibtp.Index {
@@ -384,6 +393,11 @@ func (ex *Exchanger) feedReceipt(receipt *pb.IBTP) {
 
 	if !loaded {
 		go func(pool *Pool) {
+			defer func() {
+				if e := recover(); e != nil {
+					logger.Error(fmt.Errorf("%v", e))
+				}
+			}()
 			callbackMeta := ex.exec.QueryLatestCallbackMeta()
 			for ibtp := range pool.ch {
 				if ibtp.Index <= callbackMeta[ibtp.To] {

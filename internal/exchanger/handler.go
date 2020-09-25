@@ -159,6 +159,7 @@ func (ex *Exchanger) postHandleIBTP(from string, receipt *pb.IBTP) {
 }
 
 func (ex *Exchanger) handleSendIBTPMessage(stream network.Stream, msg *peerMsg.Message) {
+
 	ibtp := &pb.IBTP{}
 	if err := ibtp.Unmarshal(msg.Payload.Data); err != nil {
 		logger.Error("unmarshal ibtp: %w", err)
@@ -170,10 +171,13 @@ func (ex *Exchanger) handleSendIBTPMessage(stream network.Stream, msg *peerMsg.M
 		logger.Error("check ibtp: %w", err)
 		return
 	}
+	ex.sendIBTPCounter.Inc()
+	if ex.sendIBTPCounter.Load()%5000 == 0 {
+		logger.Info("Receive ibtp from other pier counter:", ex.sendIBTPCounter.Load())
+	}
 
 	ex.feedIBTP(ibtp)
 
-	logger.Info("Receive ibtp from other pier")
 }
 
 func (ex *Exchanger) handleSendIBTPReceiptMessage(stream network.Stream, msg *peerMsg.Message) {
