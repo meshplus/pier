@@ -3,7 +3,6 @@ package syncer
 import (
 	"context"
 	"io/ioutil"
-	"math/rand"
 	"testing"
 	"time"
 
@@ -173,10 +172,9 @@ func getTx(t *testing.T) *pb.Transaction {
 	faddr := types.Address{}
 	faddr.SetBytes([]byte(from))
 	tx := &pb.Transaction{
-		From:  faddr,
-		To:    faddr,
-		Data:  data,
-		Nonce: rand.Int63(),
+		From: faddr,
+		To:   faddr,
+		Data: data,
 	}
 	return tx
 }

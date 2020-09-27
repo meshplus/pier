@@ -220,6 +220,7 @@ func (ex *Exchanger) sendIBTP(ibtp *pb.IBTP) error {
 		if err := retry.Retry(func(attempt uint) error {
 			receipt, err := ex.agent.SendIBTP(ibtp)
 			if err != nil {
+				entry.Errorf("send ibtp to bitxhub: %s", err.Error())
 				return fmt.Errorf("send ibtp to bitxhub: %s", err.Error())
 			}
 

@@ -104,7 +104,7 @@ func TestSendTransaction(t *testing.T) {
 		Status: 0,
 	}
 
-	mockClient.EXPECT().SendTransactionWithReceipt(gomock.Any()).Return(r, nil)
+	mockClient.EXPECT().SendTransactionWithReceipt(gomock.Any(), gomock.Any()).Return(r, nil)
 	receipt, err := ag.SendTransaction(tx)
 	require.Nil(t, err)
 	require.Equal(t, r, receipt)
@@ -124,7 +124,7 @@ func TestSendIBTP(t *testing.T) {
 		Status: 0,
 	}
 	mockClient.EXPECT().GenerateContractTx(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(tx, nil).AnyTimes()
-	mockClient.EXPECT().SendTransactionWithReceipt(gomock.Any()).Return(r, nil).AnyTimes()
+	mockClient.EXPECT().SendTransactionWithReceipt(gomock.Any(), gomock.Any()).Return(r, nil).AnyTimes()
 
 	receipt, err := ag.SendIBTP(&pb.IBTP{})
 	require.Nil(t, err)
@@ -136,7 +136,7 @@ func TestGetIBTPByID(t *testing.T) {
 
 	r := &pb.Receipt{
 		Ret:    []byte(from),
-		Status: 0,
+		Status: pb.Receipt_SUCCESS,
 	}
 	origin := &pb.IBTP{
 		From:      from,
@@ -160,7 +160,7 @@ func TestGetIBTPByID(t *testing.T) {
 	tx := &pb.Transaction{
 		Data: data,
 	}
-	mockClient.EXPECT().InvokeContract(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(r, nil).AnyTimes()
+	mockClient.EXPECT().InvokeContract(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(r, nil).AnyTimes()
 	mockClient.EXPECT().GetTransaction(gomock.Any()).Return(&pb.GetTransactionResponse{Tx: tx}, nil)
 
 	ibtp, err := ag.GetIBTPByID(from)

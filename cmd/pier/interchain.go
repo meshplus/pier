@@ -56,7 +56,7 @@ func getIBTP(ctx *cli.Context) error {
 
 	receipt, err := client.InvokeBVMContract(
 		rpcx.InterchainContractAddr,
-		"GetIBTPByID",
+		"GetIBTPByID", nil,
 		rpcx.String(id),
 	)
 	if err != nil {

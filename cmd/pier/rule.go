@@ -61,14 +61,14 @@ func deployRule(ctx *cli.Context) error {
 		return fmt.Errorf("get address from private key %w", err)
 	}
 
-	contractAddr, err := client.DeployContract(contract)
+	contractAddr, err := client.DeployContract(contract, nil)
 	if err != nil {
 		return fmt.Errorf("deploy rule: %w", err)
 	}
 
 	_, err = client.InvokeBVMContract(
 		rpcx.RuleManagerContractAddr,
-		"RegisterRule",
+		"RegisterRule", nil,
 		rpcx.String(address.String()),
 		rpcx.String(contractAddr.String()))
 	if err != nil {

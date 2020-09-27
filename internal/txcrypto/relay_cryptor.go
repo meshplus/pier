@@ -44,7 +44,7 @@ func (c *RelayCryptor) getDesKey(address string) (crypto.SymmetricKey, error) {
 
 	pubKey, ok := c.keyMap[address]
 	if !ok {
-		ret, err := c.client.InvokeBVMContract(rpcx.AppchainMgrContractAddr, "GetPubKeyByChainID", rpcx.String(address))
+		ret, err := c.client.InvokeBVMContract(rpcx.AppchainMgrContractAddr, "GetPubKeyByChainID", nil, rpcx.String(address))
 		if err != nil {
 			return nil, err
 		}

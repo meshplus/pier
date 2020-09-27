@@ -117,7 +117,7 @@ func registerAppchain(ctx *cli.Context) error {
 
 	receipt, err := client.InvokeBVMContract(
 		rpcx.AppchainMgrContractAddr,
-		"Register", rpcx.String(string(data)),
+		"Register", nil, rpcx.String(string(data)),
 		rpcx.Int32(1),
 		rpcx.String(typ),
 		rpcx.String(name),
@@ -163,7 +163,7 @@ func auditAppchain(ctx *cli.Context) error {
 
 	receipt, err := client.InvokeBVMContract(
 		rpcx.AppchainMgrContractAddr,
-		"Audit",
+		"Audit", nil,
 		rpcx.String(id),
 		rpcx.Int32(1),
 		rpcx.String("Audit passed"),
@@ -200,7 +200,7 @@ func getAppchain(ctx *cli.Context) error {
 
 	receipt, err := client.InvokeBVMContract(
 		rpcx.AppchainMgrContractAddr,
-		"Appchain",
+		"Appchain", nil,
 	)
 
 	if err != nil {
