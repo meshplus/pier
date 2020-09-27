@@ -21,8 +21,9 @@ RUN make install
 RUN cd .. && \
     git clone https://github.com/meshplus/pier-client-fabric.git && \
     cd pier-client-fabric && \
+    git checkout v1.1.0-rc1 && \
     make fabric1.4 && \
-    cp build/fabric-client-1.4.so /go/bin/fabric-client-1.4.so
+    cp build/fabric-client-1.4 /go/bin/fabric-client-1.4
 
 # Final image
 FROM frolvlad/alpine-glibc
@@ -37,11 +38,11 @@ ENV LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/lib
 RUN ["pier", "init"]
 
 RUN mkdir -p /root/.pier/plugins
-COPY --from=builder /go/bin/*.so /root/.pier/plugins/
+COPY --from=builder /go/bin/fabric-client-1.4 /root/.pier/plugins/appchain_plugin
 COPY scripts/docker_entrypoint.sh /usr/local/bin/
 RUN chmod +x /usr/local/bin/docker_entrypoint.sh
 
-ENV APPCHAIN_NAME=fabric-client-1.4.so \
+ENV APPCHAIN_NAME=fabric-client-1.4 \
     PLUGIN_CONFIG=fabric
 
 EXPOSE 44555 44544
