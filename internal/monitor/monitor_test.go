@@ -34,13 +34,15 @@ func TestHandleIBTP(t *testing.T) {
 	//	Status:  0,
 	//	Events:  nil,
 	//}
-	queryIbtp, err := createIBTP(2, pb.IBTP_INTERCHAIN, "get", name, "setCallback")
+	ignoreIbtp, err := createIBTP(2, pb.IBTP_INTERCHAIN, "get", name, "setCallback")
 	require.Nil(t, err)
+	missingIbtp, err := createIBTP(3, pb.IBTP_INTERCHAIN, "get", name, "setCallback")
+	normalIbtp, err := createIBTP(4, pb.IBTP_INTERCHAIN, "get", name, "setCallback")
 
 	ibtpCh := make(chan *pb.IBTP, 2)
 
 	mockClient.EXPECT().CommitCallback(gomock.Any()).Return(nil).AnyTimes()
-	mockClient.EXPECT().GetOutMessage(gomock.Any(), gomock.Any()).Return(queryIbtp, nil)
+	mockClient.EXPECT().GetOutMessage(gomock.Any(), gomock.Any()).Return(missingIbtp, nil).AnyTimes()
 	mockClient.EXPECT().Start().Return(nil).AnyTimes()
 	mockClient.EXPECT().Stop().Return(nil).AnyTimes()
 	mockClient.EXPECT().GetIBTP().Return(ibtpCh).AnyTimes()
@@ -48,18 +50,26 @@ func TestHandleIBTP(t *testing.T) {
 	//start appchain monitor
 	require.Nil(t, mnt.Start())
 
-	// handle correct sequence number ibtp
-	ibtp, err := createIBTP(1, pb.IBTP_INTERCHAIN, "set", name, "")
-	require.Nil(t, err)
-	ibtpCh <- ibtp
+	// handle should ignored ibtp
+	ibtpCh <- ignoreIbtp
+	ibtpCh <- normalIbtp
 
 	time.Sleep(500 * time.Millisecond)
+	// check if latest out meta is 4
 	meta := mnt.QueryLatestMeta()
-	require.Equal(t, uint64(1), meta[to])
+	require.Equal(t, uint64(4), meta[to])
 
-	recv, err := mnt.QueryIBTP(queryIbtp.ID())
+	recv := mnt.ListenOnIBTP()
+	// check if missed and normal ibtp is handled
+	require.Equal(t, 2, len(recv))
+	close(mnt.recvCh)
+	require.Equal(t, missingIbtp, <-recv)
+	require.Equal(t, normalIbtp, <-recv)
+
+	// check if missed ibtp is stored
+	recvd, err := mnt.QueryIBTP(missingIbtp.ID())
 	require.Nil(t, err)
-	require.Equal(t, queryIbtp, recv)
+	require.Equal(t, missingIbtp, recvd)
 
 	require.Nil(t, mnt.Stop())
 }
@@ -70,8 +80,8 @@ func prepare(t *testing.T) (*mock_client.MockClient, *AppchainMonitor) {
 
 	mockClient := mock_client.NewMockClient(mockCtl)
 	mockCryptor := mock_txcrypto.NewMockCryptor(mockCtl)
-
-	mockClient.EXPECT().GetOutMeta().Return(make(map[string]uint64), nil).AnyTimes()
+	meta := map[string]uint64{to: 2}
+	mockClient.EXPECT().GetOutMeta().Return(meta, nil).AnyTimes()
 
 	mnt, err := New(mockClient, mockCryptor)
 	require.Nil(t, err)
