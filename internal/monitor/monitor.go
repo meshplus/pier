@@ -204,6 +204,7 @@ func (m *AppchainMonitor) handleMissingIBTP(to string, begin, end uint64) error 
 			return fmt.Errorf("check enrcyption:%w", err)
 		}
 
+		m.interchainCounter[ev.To]++
 		m.recvCh <- ev
 	}
 
