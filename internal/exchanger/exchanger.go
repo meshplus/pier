@@ -279,14 +279,7 @@ func (ex *Exchanger) sendIBTP(ibtp *pb.IBTP) error {
 				logger.Errorf("unmarshal receipt: %s", err.Error())
 				return err
 			}
-
-			//if err := ex.checker.Check(receipt); err != nil {
-			//	logger.Errorf("check ibtp: %s", err.Error())
-			//	return err
-			//}
-
 			ex.exec.HandleIBTP(receipt)
-
 			return nil
 		}, strategy.Wait(1*time.Second)); err != nil {
 			logger.Panic(err)
