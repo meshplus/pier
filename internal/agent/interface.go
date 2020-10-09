@@ -46,7 +46,7 @@ type Agent interface {
 	// GetChainMeta gets chain meta of relay chain
 	GetChainMeta() (*pb.ChainMeta, error)
 
-	GetInterchainMeta() (*rpcx.Interchain, error)
+	GetInterchainMeta() (*pb.Interchain, error)
 
 	GetAssetExchangeSigns(id string) ([]byte, error)
 
@@ -57,7 +57,7 @@ type Agent interface {
 	GetAppchains() ([]*rpcx.Appchain, error)
 
 	//GetInterchainById gets interchain meta by appchain id
-	GetInterchainById(from string) *rpcx.Interchain
+	GetInterchainById(from string) *pb.Interchain
 
 	// GetPendingNonceByAccount get the latest pending nonce of the account
 	GetPendingNonceByAccount(account string) (uint64, error)

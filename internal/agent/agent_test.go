@@ -38,13 +38,13 @@ func TestAppchain(t *testing.T) {
 	}
 	info, err := json.Marshal(chainInfo)
 	require.Nil(t, err)
-	originInterchainMeta := &rpcx.Interchain{
+	originInterchainMeta := &pb.Interchain{
 		ID:                   from,
 		InterchainCounter:    map[string]uint64{from: 1},
 		ReceiptCounter:       map[string]uint64{from: 1},
 		SourceReceiptCounter: map[string]uint64{from: 1},
 	}
-	interchainBytes, err := json.Marshal(originInterchainMeta)
+	interchainBytes, err := originInterchainMeta.Marshal()
 	require.Nil(t, err)
 
 	originalMeta := &pb.ChainMeta{

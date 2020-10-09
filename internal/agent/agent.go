@@ -63,7 +63,7 @@ func (agent *BxhAgent) Appchain() (*rpcx.Appchain, error) {
 	return appchain, nil
 }
 
-func (agent *BxhAgent) GetInterchainMeta() (*rpcx.Interchain, error) {
+func (agent *BxhAgent) GetInterchainMeta() (*pb.Interchain, error) {
 	receipt, err := agent.client.InvokeBVMContract(rpcx.InterchainContractAddr, "Interchain", nil)
 	if err != nil {
 		return nil, err
@@ -73,8 +73,9 @@ func (agent *BxhAgent) GetInterchainMeta() (*rpcx.Interchain, error) {
 		return nil, fmt.Errorf("receipt: %s", receipt.Ret)
 	}
 
-	ret := &rpcx.Interchain{}
-	if err := json.Unmarshal(receipt.Ret, ret); err != nil {
+	ret := &pb.Interchain{}
+
+	if err := ret.Unmarshal(receipt.Ret); err != nil {
 		return nil, fmt.Errorf("unmarshal interchain meta from bitxhub: %w", err)
 	}
 
@@ -295,8 +296,8 @@ func (agent *BxhAgent) GetAppchains() ([]*rpcx.Appchain, error) {
 	return appchains, nil
 }
 
-func (agent *BxhAgent) GetInterchainById(from string) *rpcx.Interchain {
-	ic := &rpcx.Interchain{}
+func (agent *BxhAgent) GetInterchainById(from string) *pb.Interchain {
+	ic := &pb.Interchain{}
 	tx, err := agent.client.GenerateContractTx(pb.TransactionData_BVM, rpcx.InterchainContractAddr, "GetInterchain", rpcx.String(from))
 	if err != nil {
 		return ic
@@ -305,11 +306,11 @@ func (agent *BxhAgent) GetInterchainById(from string) *rpcx.Interchain {
 	if err != nil {
 		return ic
 	}
-	var interchain *rpcx.Interchain
-	if err := json.Unmarshal(receipt.Ret, &interchain); err != nil {
+	var interchain pb.Interchain
+	if err := interchain.Unmarshal(receipt.Ret); err != nil {
 		return ic
 	}
-	return interchain
+	return &interchain
 }
 
 func (agent *BxhAgent) GetPendingNonceByAccount(account string) (uint64, error) {

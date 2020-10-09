@@ -5,16 +5,16 @@ import (
 	"encoding/json"
 	"fmt"
 	"path/filepath"
+	"time"
 
-	"github.com/meshplus/pier/internal/router"
-
-	"github.com/sirupsen/logrus"
-
+	"github.com/Rican7/retry"
+	"github.com/Rican7/retry/strategy"
 	"github.com/hashicorp/go-plugin"
 	"github.com/meshplus/bitxhub-kit/crypto"
 	"github.com/meshplus/bitxhub-kit/log"
 	"github.com/meshplus/bitxhub-kit/storage"
 	"github.com/meshplus/bitxhub-kit/storage/leveldb"
+	"github.com/meshplus/bitxhub-model/pb"
 	rpcx "github.com/meshplus/go-bitxhub-client"
 	"github.com/meshplus/pier/api"
 	"github.com/meshplus/pier/internal/agent"
@@ -28,10 +28,12 @@ import (
 	"github.com/meshplus/pier/internal/monitor"
 	"github.com/meshplus/pier/internal/peermgr"
 	"github.com/meshplus/pier/internal/repo"
+	"github.com/meshplus/pier/internal/router"
 	"github.com/meshplus/pier/internal/rulemgr"
 	"github.com/meshplus/pier/internal/syncer"
 	"github.com/meshplus/pier/internal/txcrypto"
 	"github.com/meshplus/pier/pkg/plugins"
+	"github.com/sirupsen/logrus"
 )
 
 var logger = log.NewWithModule("app")
@@ -49,7 +51,7 @@ type Pier struct {
 	ctx        context.Context
 	cancel     context.CancelFunc
 	appchain   *rpcx.Appchain
-	meta       *rpcx.Interchain
+	meta       *pb.Interchain
 	config     *repo.Config
 }
 
@@ -83,7 +85,7 @@ func NewPier(repoRoot string, config *repo.Config) (*Pier, error) {
 		lite        lite.Lite
 		sync        syncer.Syncer
 		apiServer   *api.Server
-		meta        *rpcx.Interchain
+		meta        *pb.Interchain
 		chain       *rpcx.Appchain
 		peerManager peermgr.PeerManager
 	)
@@ -117,7 +119,7 @@ func NewPier(repoRoot string, config *repo.Config) (*Pier, error) {
 			return nil, fmt.Errorf("cryptor create: %w", err)
 		}
 
-		meta = &rpcx.Interchain{}
+		meta = &pb.Interchain{}
 		lite = &direct_lite.MockLite{}
 	case repo.RelayMode:
 		ck = &checker.MockChecker{}
@@ -173,9 +175,17 @@ func NewPier(repoRoot string, config *repo.Config) (*Pier, error) {
 		return nil, fmt.Errorf("marshal interchain meta: %w", err)
 	}
 
-	cli, grcpPlugin, err := plugins.CreateClient(addr.String(), config.Appchain.Config, extra)
+	var cli plugins.Client
+	var grpcPlugin *plugin.Client
+	err = retry.Retry(func(attempt uint) error {
+		cli, grpcPlugin, err = plugins.CreateClient(addr.String(), config.Appchain.Config, extra)
+		if err != nil {
+			logger.Errorf("client plugin create:%s", err)
+		}
+		return err
+	}, strategy.Wait(3*time.Second))
 	if err != nil {
-		return nil, fmt.Errorf("appchain client create: %w", err)
+		logger.Panic(err)
 	}
 
 	mnt, err := monitor.New(cli, cryptor)
@@ -207,7 +217,7 @@ func NewPier(repoRoot string, config *repo.Config) (*Pier, error) {
 	return &Pier{
 		privateKey: privateKey,
 		plugin:     cli,
-		grpcPlugin: grcpPlugin,
+		grpcPlugin: grpcPlugin,
 		appchain:   chain,
 		meta:       meta,
 		monitor:    mnt,
@@ -241,7 +251,7 @@ func NewUnionPier(repoRoot string, config *repo.Config) (*Pier, error) {
 		ex          exchanger.IExchanger
 		lite        lite.Lite
 		sync        syncer.Syncer
-		meta        *rpcx.Interchain
+		meta        *pb.Interchain
 		chain       *rpcx.Appchain
 		peerManager peermgr.PeerManager
 	)
@@ -269,7 +279,7 @@ func NewUnionPier(repoRoot string, config *repo.Config) (*Pier, error) {
 		return nil, fmt.Errorf("create agent error: %w", err)
 	}
 
-	meta = &rpcx.Interchain{}
+	meta = &pb.Interchain{}
 
 	lite, err = bxh_lite.New(ag, store)
 	if err != nil {
@@ -311,7 +321,6 @@ func NewUnionPier(repoRoot string, config *repo.Config) (*Pier, error) {
 
 // Start starts three main components of pier app
 func (pier *Pier) Start() error {
-
 	if pier.config.Mode.Type != repo.UnionMode {
 		logger.WithFields(logrus.Fields{
 			"id":                     pier.meta.ID,

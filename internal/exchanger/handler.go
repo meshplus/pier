@@ -120,7 +120,6 @@ func (ex *Exchanger) handleRouterSendIBTPMessage(stream network.Stream, msg *pee
 
 		err := ex.peerMgr.AsyncSendWithStream(stream, retMsg)
 		if err != nil {
-			entry.Errorf("send back ibtp: %w", err)
 			return fmt.Errorf("send back ibtp: %w", err)
 		}
 
@@ -258,7 +257,7 @@ func (ex *Exchanger) handleRecover(ibtp *pb.IBTP) (*rpcx.Interchain, error) {
 
 func (ex *Exchanger) handleRouterInterchain(s network.Stream, msg *peerMsg.Message) {
 	ic := ex.agent.GetInterchainById(string(msg.Payload.Data))
-	data, err := json.Marshal(ic)
+	data, err := ic.Marshal()
 	if err != nil {
 		panic(err)
 	}
