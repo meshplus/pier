@@ -248,7 +248,7 @@ func (ex *Exchanger) handleRecover(ibtp *pb.IBTP) (*rpcx.Interchain, error) {
 	if err != nil {
 		return nil, fmt.Errorf("router interchain:%v", err)
 	}
-	var interchain *rpcx.Interchain
+	interchain := &rpcx.Interchain{}
 	err = json.Unmarshal(res.Payload.Data, interchain)
 	if err != nil {
 		return nil, err

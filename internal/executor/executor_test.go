@@ -26,28 +26,68 @@ func TestExecute(t *testing.T) {
 	defer exec.storage.Close()
 
 	// set expect values
-	ret := &pb.SubmitIBTPResponse{
+	ibtp1 := getIBTP(t, uint64(1), pb.IBTP_INTERCHAIN)
+	ibtp1Receipt := getIBTPReceipt(t, uint64(1), pb.IBTP_RECEIPT_SUCCESS)
+	ibtp2 := getIBTP(t, uint64(2), pb.IBTP_INTERCHAIN)
+	ibtp2Receipt := getIBTPReceipt(t, uint64(2), pb.IBTP_RECEIPT_FAILURE)
+	wrongIndexedIbtp := getIBTP(t, uint64(4), pb.IBTP_INTERCHAIN)
+	wrongIndexedIbtpReceipt := getIBTPReceipt(t, uint64(2), pb.IBTP_RECEIPT_SUCCESS)
+	ret1 := &pb.SubmitIBTPResponse{
 		Status: true,
-		Result: getIBTP(t, 1, pb.IBTP_INTERCHAIN),
+		Result: ibtp1Receipt,
+	}
+	ret2 := &pb.SubmitIBTPResponse{
+		Status: false,
+		Result: ibtp2Receipt,
 	}
 	ag.EXPECT().SendIBTP(gomock.Any()).Return(getReceipt(), nil).AnyTimes()
 	ag.EXPECT().GetIBTPByID(gomock.Any()).Return(getIBTP(t, 2, pb.IBTP_INTERCHAIN), nil).Times(1)
-	cli.EXPECT().SubmitIBTP(gomock.Any()).Return(ret, nil).AnyTimes()
+	cli.EXPECT().SubmitIBTP(ibtp1).Return(ret1, nil).AnyTimes()
+	cli.EXPECT().SubmitIBTP(ibtp2).Return(ret2, nil).AnyTimes()
+	cli.EXPECT().SubmitIBTP(ibtp1Receipt).Return(ret1, nil).AnyTimes()
+	cli.EXPECT().SubmitIBTP(ibtp2Receipt).Return(ret2, nil).AnyTimes()
+	cli.EXPECT().SubmitIBTP(wrongIndexedIbtp).Return(ret1, nil).AnyTimes()
+	cli.EXPECT().SubmitIBTP(wrongIndexedIbtpReceipt).Return(ret1, nil).AnyTimes()
 	cli.EXPECT().Stop().Return(nil).AnyTimes()
 
 	// start executor
 	require.Nil(t, exec.Start())
 
-	//receipts := make([]*pb.Receipt, 0)
-	ibtp1 := getIBTP(t, uint64(1), pb.IBTP_INTERCHAIN)
+	// test for normal ibtp execution
 	require.NotNil(t, exec.HandleIBTP(ibtp1))
-	ibtp2 := getIBTP(t, uint64(2), pb.IBTP_RECEIPT_SUCCESS)
-	require.Nil(t, exec.HandleIBTP(ibtp2))
-
-	time.Sleep(1 * time.Second)
-	require.Nil(t, exec.Stop())
+	require.Nil(t, exec.HandleIBTP(ibtp1Receipt))
 	meta := exec.QueryLatestMeta()
 	require.Equal(t, uint64(1), meta[from])
+
+	// test for replayed ibtp and receipt
+	replayedIBTP := ibtp1
+	replayedIBTPReceipt := ibtp1Receipt
+	require.Nil(t, exec.HandleIBTP(replayedIBTP))
+	require.Nil(t, exec.HandleIBTP(replayedIBTPReceipt))
+	meta = exec.QueryLatestMeta()
+	require.Equal(t, uint64(1), meta[from])
+	//callbackMeta :
+	require.Equal(t, uint64(1), exec.callbackMeta[from])
+
+	// test for ibtp execute failure
+	require.NotNil(t, exec.HandleIBTP(ibtp2))
+	require.Nil(t, exec.HandleIBTP(ibtp2Receipt))
+	meta = exec.QueryLatestMeta()
+	require.Equal(t, uint64(2), meta[from])
+	require.Equal(t, uint64(2), exec.callbackMeta[from])
+
+	// test for wrong index ibtp and receipt
+	//require.Nil(t, exec.HandleIBTP(wrongIndexedIbtp))
+	require.Panics(t, func() {
+		exec.HandleIBTP(wrongIndexedIbtp)
+	})
+	require.Nil(t, exec.HandleIBTP(wrongIndexedIbtpReceipt))
+	meta = exec.QueryLatestMeta()
+	require.Equal(t, uint64(2), meta[from])
+	require.Equal(t, uint64(2), exec.callbackMeta[from])
+
+	time.Sleep(500 * time.Microsecond)
+	require.Nil(t, exec.Stop())
 }
 
 func TestQueryReceipt(t *testing.T) {
@@ -111,6 +151,11 @@ func getReceipt() *pb.Receipt {
 		Ret:     nil,
 		Status:  0,
 	}
+}
+func getIBTPReceipt(t *testing.T, index uint64, typ pb.IBTP_Type) *pb.IBTP {
+	receipt := getIBTP(t, index, typ)
+	receipt.From, receipt.To = receipt.To, receipt.From
+	return receipt
 }
 
 func getIBTP(t *testing.T, index uint64, typ pb.IBTP_Type) *pb.IBTP {

@@ -5,6 +5,7 @@ import (
 	rpcx "github.com/meshplus/go-bitxhub-client"
 )
 
+//go:generate mockgen -destination mock_router/mock_router.go -package mock_router -source router.go
 type Router interface {
 	// Start starts the router module
 	Start() error
@@ -18,7 +19,7 @@ type Router interface {
 	//Route sends ibtp to the union pier in target relay chain
 	Route(ibtp *pb.IBTP) error
 
-	//ExistAppchain returns if appchain id exit in route map
+	//ExistAppchain returns if appchain id exist in route map
 	ExistAppchain(id string) bool
 
 	//AddAppchains adds appchains to route map and broadcast them to union network
