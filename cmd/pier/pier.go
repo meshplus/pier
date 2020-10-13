@@ -24,6 +24,10 @@ func main() {
 			Name:  "repo",
 			Usage: "Pier repository path",
 		},
+		cli.BoolFlag{
+			Name:  "tls",
+			Usage: "enable tls between pier and bitxhub or not",
+		},
 	}
 
 	app.Commands = []cli.Command{

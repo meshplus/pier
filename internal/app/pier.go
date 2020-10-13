@@ -126,11 +126,18 @@ func NewPier(repoRoot string, config *repo.Config) (*Pier, error) {
 
 		// pier register to bitxhub and got meta infos about its related
 		// appchain from bitxhub
-		client, err := rpcx.New(
-			rpcx.WithAddrs([]string{config.Mode.Relay.Addr}),
+		opts := []rpcx.Option{
 			rpcx.WithLogger(logger),
 			rpcx.WithPrivateKey(privateKey),
-		)
+		}
+		nodeInfo := &rpcx.NodeInfo{Addr: config.Mode.Relay.Addr}
+		if config.Security.EnableTLS {
+			nodeInfo.CertPath = filepath.Join(config.RepoRoot, config.Security.Tlsca)
+			nodeInfo.EnableTLS = config.Security.EnableTLS
+			nodeInfo.IssuerName = config.Security.IssuerName
+		}
+		opts = append(opts, rpcx.WithNodesInfo(nodeInfo))
+		client, err := rpcx.New(opts...)
 		if err != nil {
 			return nil, fmt.Errorf("create bitxhub client: %w", err)
 		}
@@ -265,11 +272,19 @@ func NewUnionPier(repoRoot string, config *repo.Config) (*Pier, error) {
 	if err != nil {
 		return nil, fmt.Errorf("peerMgr create: %w", err)
 	}
-	client, err := rpcx.New(
-		rpcx.WithAddrs([]string{config.Mode.Relay.Addr}),
+
+	opts := []rpcx.Option{
 		rpcx.WithLogger(logger),
 		rpcx.WithPrivateKey(privateKey),
-	)
+	}
+	nodeInfo := &rpcx.NodeInfo{Addr: config.Mode.Relay.Addr}
+	if config.Security.EnableTLS {
+		nodeInfo.CertPath = filepath.Join(config.RepoRoot, config.Security.Tlsca)
+		nodeInfo.EnableTLS = config.Security.EnableTLS
+		nodeInfo.IssuerName = config.Security.IssuerName
+	}
+	opts = append(opts, rpcx.WithNodesInfo(nodeInfo))
+	client, err := rpcx.New(opts...)
 	if err != nil {
 		return nil, fmt.Errorf("create bitxhub client: %w", err)
 	}
