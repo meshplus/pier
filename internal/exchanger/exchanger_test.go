@@ -38,7 +38,7 @@ const (
 func TestStartRelay(t *testing.T) {
 	mode := repo.RelayMode
 	mockMonitor, mockExecutor, mockSyncer, mockAgent, mockChecker, store := prepareRelay(t)
-	meta := &rpcx.Interchain{}
+	meta := &pb.Interchain{}
 
 	mockExchanger, err := New(mode, from, meta,
 		WithMonitor(mockMonitor), WithExecutor(mockExecutor),
@@ -100,7 +100,7 @@ func TestStartRelay(t *testing.T) {
 func TestStartDirect(t *testing.T) {
 	mode := repo.DirectMode
 	mockMonitor, mockExecutor, mockChecker, mockPeerMgr, apiServer, store := prepareDirect(t)
-	meta := &rpcx.Interchain{}
+	meta := &pb.Interchain{}
 
 	mockExchanger, err := New(mode, from, meta,
 		WithMonitor(mockMonitor), WithExecutor(mockExecutor),
@@ -174,7 +174,7 @@ func TestStartDirect(t *testing.T) {
 func TestStartUnionMode(t *testing.T) {
 	mode := repo.UnionMode
 	mockMonitor, mockExecutor, mockSyncer, mockPeerMgr, mockRouter, mockAgent, store := prepareUnoin(t)
-	meta := &rpcx.Interchain{}
+	meta := &pb.Interchain{}
 
 	mockExchanger, err := New(mode, from, meta,
 		WithMonitor(mockMonitor), WithExecutor(mockExecutor),
@@ -197,7 +197,7 @@ func TestStartUnionMode(t *testing.T) {
 	ibtpMsg := peermgr.Message(peerMsg.Message_ROUTER_IBTP_SEND, true, ibtpBytes)
 	// mock getInterchainMsg for Message_ROUTER_INTERCHAIN_SEND
 	interchainInfoMsg := peermgr.Message(peerMsg.Message_ROUTER_INTERCHAIN_SEND, true, []byte(from))
-	interchainCounter := &rpcx.Interchain{
+	interchainCounter := &pb.Interchain{
 		InterchainCounter:    map[string]uint64{from: 1},
 		ReceiptCounter:       map[string]uint64{from: 1},
 		SourceReceiptCounter: map[string]uint64{from: 1},
@@ -215,7 +215,7 @@ func TestStartUnionMode(t *testing.T) {
 		},
 	}
 	pierID := from
-	icBytes, err := json.Marshal(interchainCounter)
+	icBytes, err := interchainCounter.Marshal()
 	require.Nil(t, err)
 	recoverACKMsg := peermgr.Message(peerMsg.Message_ACK, true, icBytes)
 

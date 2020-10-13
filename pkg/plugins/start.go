@@ -2,7 +2,6 @@ package plugins
 
 import (
 	"fmt"
-	"os"
 	"os/exec"
 	"path/filepath"
 
@@ -38,15 +37,13 @@ func CreateClient(pierID, configPath string, extra []byte) (Client, *plugin.Clie
 	// Connect via RPC
 	rpcClient, err := client.Client()
 	if err != nil {
-		fmt.Println("Error:", err.Error())
-		os.Exit(1)
+		return nil, nil, err
 	}
 
 	// Request the plugin
 	raw, err := rpcClient.Dispense(PluginName)
 	if err != nil {
-		fmt.Println("Error:", err.Error())
-		os.Exit(1)
+		return nil, nil, err
 	}
 
 	var appchain Client

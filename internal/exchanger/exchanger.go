@@ -13,7 +13,6 @@ import (
 	"github.com/meshplus/bitxhub-kit/storage"
 	"github.com/meshplus/bitxhub-kit/types"
 	"github.com/meshplus/bitxhub-model/pb"
-	rpcx "github.com/meshplus/go-bitxhub-client"
 	"github.com/meshplus/pier/api"
 	"github.com/meshplus/pier/internal/agent"
 	"github.com/meshplus/pier/internal/checker"
@@ -49,7 +48,7 @@ type Exchanger struct {
 	cancel            context.CancelFunc
 }
 
-func New(typ, pierID string, meta *rpcx.Interchain, opts ...Option) (*Exchanger, error) {
+func New(typ, pierID string, meta *pb.Interchain, opts ...Option) (*Exchanger, error) {
 	config, err := GenerateConfig(opts...)
 	if err != nil {
 		return nil, err

@@ -181,10 +181,10 @@ func (mr *MockAgentMockRecorder) GetChainMeta() *gomock.Call {
 }
 
 // GetInterchainMeta mocks base method
-func (m *MockAgent) GetInterchainMeta() (*rpcx.Interchain, error) {
+func (m *MockAgent) GetInterchainMeta() (*pb.Interchain, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetInterchainMeta")
-	ret0, _ := ret[0].(*rpcx.Interchain)
+	ret0, _ := ret[0].(*pb.Interchain)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -241,10 +241,10 @@ func (mr *MockAgentMockRecorder) GetAppchains() *gomock.Call {
 }
 
 // GetInterchainById mocks base method
-func (m *MockAgent) GetInterchainById(from string) *rpcx.Interchain {
+func (m *MockAgent) GetInterchainById(from string) *pb.Interchain {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetInterchainById", from)
-	ret0, _ := ret[0].(*rpcx.Interchain)
+	ret0, _ := ret[0].(*pb.Interchain)
 	return ret0
 }
 
