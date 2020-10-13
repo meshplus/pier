@@ -31,7 +31,7 @@ func CreateClient(pierID, configPath string, extra []byte) (Client, *plugin.Clie
 		Cmd:             exec.Command("sh", "-c", pluginPath),
 		Logger:          logger,
 		AllowedProtocols: []plugin.Protocol{
-			plugin.ProtocolNetRPC, plugin.ProtocolGRPC},
+			plugin.ProtocolGRPC},
 	})
 
 	// Connect via RPC

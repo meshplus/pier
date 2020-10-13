@@ -137,15 +137,17 @@ func (ex *Exchanger) handleRouterSendIBTPMessage(stream network.Stream, msg *pee
 }
 
 func (ex *Exchanger) postHandleIBTP(from string, receipt *pb.IBTP) {
-	logger.Infof("postHandleIBTP, %s-%s-%d", receipt.From, receipt.To, receipt.Index)
+
 	if receipt == nil {
 		retMsg := peermgr.Message(peerMsg.Message_IBTP_RECEIPT_SEND, true, nil)
 		err := ex.peerMgr.AsyncSend(from, retMsg)
 		if err != nil {
 			logger.Error("send back empty ibtp receipt: %w", err)
 		}
+		return
 	}
 
+	//logger.Infof("postHandleIBTP, %s-%s-%d", receipt.From, receipt.To, receipt.Index)
 	data, err := receipt.Marshal()
 	if err != nil {
 		logger.Error("marshal ibtp receipt: %w", err)
@@ -159,28 +161,27 @@ func (ex *Exchanger) postHandleIBTP(from string, receipt *pb.IBTP) {
 }
 
 func (ex *Exchanger) handleSendIBTPMessage(stream network.Stream, msg *peerMsg.Message) {
-
-	ibtp := &pb.IBTP{}
-	if err := ibtp.Unmarshal(msg.Payload.Data); err != nil {
-		logger.Error("unmarshal ibtp: %w", err)
-		return
-	}
-
-	err := ex.checker.Check(ibtp)
-	if err != nil {
-		logger.Error("check ibtp: %w", err)
-		return
-	}
-	ex.sendIBTPCounter.Inc()
-	if ex.sendIBTPCounter.Load()%5000 == 0 {
-		logger.Info("Receive ibtp from other pier counter:", ex.sendIBTPCounter.Load())
-	}
-
-	ex.feedIBTP(ibtp)
+	go func() {
+		ibtp := &pb.IBTP{}
+		if err := ibtp.Unmarshal(msg.Payload.Data); err != nil {
+			logger.Error("unmarshal ibtp: %w", err)
+			return
+		}
+		err := ex.checker.Check(ibtp)
+		if err != nil {
+			logger.Error("check ibtp: %w", err)
+			return
+		}
+		ex.exec.HandleIBTP(ibtp)
+		ex.sendIBTPCounter.Inc()
+	}()
 
 }
 
 func (ex *Exchanger) handleSendIBTPReceiptMessage(stream network.Stream, msg *peerMsg.Message) {
+	if msg.Payload.Data == nil {
+		return
+	}
 	receipt := &pb.IBTP{}
 	if err := receipt.Unmarshal(msg.Payload.Data); err != nil {
 		logger.Error("unmarshal ibtp: %w", err)
@@ -189,7 +190,7 @@ func (ex *Exchanger) handleSendIBTPReceiptMessage(stream network.Stream, msg *pe
 
 	// ignore msg for receipt type
 	if receipt.Type == pb.IBTP_RECEIPT_SUCCESS || receipt.Type == pb.IBTP_RECEIPT_FAILURE {
-		logger.Warn("ignore receipt ibtp")
+		//logger.Warn("ignore receipt ibtp")
 		return
 	}
 
@@ -300,8 +301,15 @@ func (ex *Exchanger) handleGetInterchainMessage(stream network.Stream, msg *peer
 		ReceiptIndex    uint64 `json:"receipt_index"`
 	}{}
 
-	indices.InterchainIndex = execMeta[string(msg.Payload.Data)]
-	indices.ReceiptIndex = mntMeta[string(msg.Payload.Data)]
+	execLoad, ok := execMeta.Load(string(msg.Payload.Data))
+	if ok {
+		indices.InterchainIndex = execLoad.(uint64)
+	}
+
+	mntLoad, ok := mntMeta.Load(string(msg.Payload.Data))
+	if ok {
+		indices.InterchainIndex = mntLoad.(uint64)
+	}
 
 	data, err := json.Marshal(indices)
 	if err != nil {

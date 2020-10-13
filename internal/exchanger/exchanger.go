@@ -60,7 +60,7 @@ type Pool struct {
 func NewPool() *Pool {
 	return &Pool{
 		ibtps: &sync.Map{},
-		ch:    make(chan *pb.IBTP, 1024),
+		ch:    make(chan *pb.IBTP, 40960),
 	}
 }
 
@@ -122,6 +122,8 @@ func (ex *Exchanger) Start() error {
 			return fmt.Errorf("peerMgr start: %w", err)
 		}
 
+		go ex.analysisDirectTPS()
+
 	case repo.RelayMode:
 		// recover exchanger before relay any interchain msgs
 		ex.recoverRelay()
@@ -174,6 +176,28 @@ func (ex *Exchanger) Start() error {
 
 	logger.Info("Exchanger started")
 	return nil
+}
+
+func (ex *Exchanger) analysisDirectTPS() {
+	ticker := time.NewTicker(time.Second)
+	defer ticker.Stop()
+
+	current := time.Now()
+	counter := ex.sendIBTPCounter.Load()
+	for {
+		select {
+		case <-ticker.C:
+			tps := ex.sendIBTPCounter.Load() - counter
+			counter = ex.sendIBTPCounter.Load()
+			logger.WithFields(logrus.Fields{
+				"tps":     tps,
+				"tps_sum": counter,
+				"tps_avg": float64(counter) / time.Since(current).Seconds(),
+			}).Info("analysis")
+		case <-ex.ctx.Done():
+			return
+		}
+	}
 }
 
 func (ex *Exchanger) listenAndSendIBTP() {
@@ -358,25 +382,26 @@ func (ex *Exchanger) feedIBTP(ibtp *pb.IBTP) {
 		go func(pool *Pool) {
 			defer func() {
 				if e := recover(); e != nil {
-					logger.Error(fmt.Errorf("%v", e))
+					logger.Panic(e)
 				}
 			}()
 			inMeta := ex.exec.QueryLatestMeta()
-			counter := uint64(0)
 			for ibtp := range pool.ch {
-				counter++
-				if ibtp.Index <= inMeta[ibtp.From] {
+				idx := executor.LoadSyncMap(inMeta, ibtp.From)
+				if ibtp.Index <= idx {
 					logger.Warn("ignore ibtp with invalid index:{}", ibtp.Index)
 					continue
 				}
-				if inMeta[ibtp.From]+1 == ibtp.Index {
+				if idx+1 == ibtp.Index {
 					receipt := ex.exec.HandleIBTP(ibtp)
 					ex.postHandleIBTP(ibtp.From, receipt)
-
 					index := ibtp.Index + 1
-					for ibtp := pool.get(index); ibtp != nil; index++ {
+					ibtp := pool.get(index)
+					for ibtp != nil {
 						receipt := ex.exec.HandleIBTP(ibtp)
 						ex.postHandleIBTP(ibtp.From, receipt)
+						index++
+						ibtp = pool.get(index)
 					}
 				} else {
 					pool.put(ibtp)
@@ -400,16 +425,20 @@ func (ex *Exchanger) feedReceipt(receipt *pb.IBTP) {
 			}()
 			callbackMeta := ex.exec.QueryLatestCallbackMeta()
 			for ibtp := range pool.ch {
-				if ibtp.Index <= callbackMeta[ibtp.To] {
+				if ibtp.Index <= executor.LoadSyncMap(callbackMeta, ibtp.To) {
 					logger.Warn("ignore ibtp with invalid index")
 					continue
 				}
-				if callbackMeta[ibtp.To]+1 == ibtp.Index {
+				if executor.LoadSyncMap(callbackMeta, ibtp.To)+1 == ibtp.Index {
 					ex.exec.HandleIBTP(ibtp)
 
 					index := ibtp.Index + 1
-					for ibtp := pool.get(index); ibtp != nil; index++ {
-						ex.exec.HandleIBTP(ibtp)
+					ibtp := pool.get(index)
+					for ibtp != nil {
+						receipt := ex.exec.HandleIBTP(ibtp)
+						ex.postHandleIBTP(ibtp.From, receipt)
+						index++
+						ibtp = pool.get(index)
 					}
 				} else {
 					pool.put(ibtp)

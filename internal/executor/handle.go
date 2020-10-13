@@ -2,6 +2,7 @@ package executor
 
 import (
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/Rican7/retry"
@@ -17,12 +18,12 @@ func (e *ChannelExecutor) HandleIBTP(ibtp *pb.IBTP) *pb.IBTP {
 		return nil
 	}
 
-	logger.WithFields(logrus.Fields{
-		"index": ibtp.Index,
-		"type":  ibtp.Type,
-		"from":  ibtp.From,
-		"id":    ibtp.ID(),
-	}).Info("Apply tx")
+	//logger.WithFields(logrus.Fields{
+	//	"index": ibtp.Index,
+	//	"type":  ibtp.Type,
+	//	"from":  ibtp.From,
+	//	"id":    ibtp.ID(),
+	//}).Info("Apply tx")
 
 	switch ibtp.Type {
 	case pb.IBTP_INTERCHAIN:
@@ -57,16 +58,17 @@ func (e *ChannelExecutor) applyInterchainIBTP(ibtp *pb.IBTP) *pb.IBTP {
 		"index": ibtp.Index,
 	})
 
-	if e.executeMeta[ibtp.From] >= ibtp.Index {
-		entry.Warn("Ignore tx")
-		return nil
-	}
-
-	if e.executeMeta[ibtp.From]+1 < ibtp.Index {
-		entry.WithFields(logrus.Fields{
-			"required": e.executeMeta[ibtp.From] + 1,
-		}).Panic("Wrong ibtp index")
-	}
+	idx := LoadSyncMap(&e.executeMeta, ibtp.From)
+	//if idx >= ibtp.Index {
+	//	entry.Warn("Ignore tx")
+	//	return nil
+	//}
+	//
+	//if idx+1 < ibtp.Index {
+	//	entry.WithFields(logrus.Fields{
+	//		"required": idx + 1,
+	//	}).Panic("Wrong ibtp index")
+	//}
 
 	// execute interchain tx, and if execution failed, try to rollback
 	response, err := e.client.SubmitIBTP(ibtp)
@@ -76,6 +78,7 @@ func (e *ChannelExecutor) applyInterchainIBTP(ibtp *pb.IBTP) *pb.IBTP {
 
 	if response == nil || response.Result == nil {
 		//entry.WithField("error", err).Panic("empty response")
+		return nil
 	}
 
 	if !response.Status {
@@ -90,7 +93,7 @@ func (e *ChannelExecutor) applyInterchainIBTP(ibtp *pb.IBTP) *pb.IBTP {
 		}).Warn("Get wrong response")
 	}
 
-	e.executeMeta[ibtp.From]++
+	e.executeMeta.Store(ibtp.From, idx+1)
 	return response.Result
 }
 
@@ -133,7 +136,9 @@ func (e *ChannelExecutor) applyReceiptIBTP(ibtp *pb.IBTP) {
 // execCallback is the handler for callback function of one interchain tx
 func (e *ChannelExecutor) execCallback(ibtp *pb.IBTP) error {
 	ibtp.From, ibtp.To = ibtp.To, ibtp.From
-	if e.callbackMeta[ibtp.From] >= ibtp.Index {
+
+	idx := LoadSyncMap(&e.callbackMeta, ibtp.From)
+	if idx >= ibtp.Index {
 		logger.WithFields(logrus.Fields{
 			"from":  ibtp.From,
 			"type":  ibtp.Type,
@@ -148,7 +153,7 @@ func (e *ChannelExecutor) execCallback(ibtp *pb.IBTP) error {
 		return fmt.Errorf("handle ibtp of callback %w", err)
 	}
 
-	e.callbackMeta[ibtp.From] = ibtp.Index
+	e.callbackMeta.Store(ibtp.From, ibtp.Index)
 	logger.WithFields(logrus.Fields{
 		"index":  ibtp.Index,
 		"type":   ibtp.Type,
@@ -157,4 +162,15 @@ func (e *ChannelExecutor) execCallback(ibtp *pb.IBTP) error {
 	}).Info("Execute callback")
 
 	return nil
+}
+
+func LoadSyncMap(m *sync.Map, key string) uint64 {
+	if m == nil {
+		return 0
+	}
+	load, ok := m.Load(key)
+	if ok {
+		return load.(uint64)
+	}
+	return 0
 }

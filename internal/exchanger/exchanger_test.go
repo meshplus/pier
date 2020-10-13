@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"sync"
 	"testing"
 	"time"
 
@@ -65,8 +66,10 @@ func TestStartRelay(t *testing.T) {
 	outCh := make(chan *pb.IBTP, 1)
 	outCh <- normalOutIBTP
 
-	outMeta := map[string]uint64{to: 1}
-	inMeta := map[string]uint64{to: 1}
+	outMeta := &sync.Map{}
+	outMeta.Store(to, 1)
+	inMeta := &sync.Map{}
+	inMeta.Store(to, 1)
 	mockMonitor.EXPECT().ListenOnIBTP().Return(outCh).AnyTimes()
 	mockMonitor.EXPECT().QueryLatestMeta().Return(outMeta)
 	mockMonitor.EXPECT().QueryIBTP(missedOutIBTP.ID()).Return(missedOutIBTP, nil).AnyTimes()
@@ -135,8 +138,10 @@ func TestStartDirect(t *testing.T) {
 	retMetaMsg := peermgr.Message(peerMsg.Message_INTERCHAIN_META_GET, true, metaBytes)
 	retMsg := peermgr.Message(peerMsg.Message_ACK, true, receiptBytes)
 
-	outMeta := map[string]uint64{to: 1}
-	inMeta := map[string]uint64{to: 1}
+	outMeta := &sync.Map{}
+	outMeta.Store(to, 1)
+	inMeta := &sync.Map{}
+	inMeta.Store(to, 1)
 	mockMonitor.EXPECT().ListenOnIBTP().Return(outCh).AnyTimes()
 	mockMonitor.EXPECT().QueryLatestMeta().Return(outMeta)
 	mockMonitor.EXPECT().QueryIBTP(happyPathMissedOutIBTP.ID()).Return(happyPathMissedOutIBTP, nil).AnyTimes()

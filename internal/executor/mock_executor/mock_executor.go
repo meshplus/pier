@@ -8,6 +8,7 @@ import (
 	gomock "github.com/golang/mock/gomock"
 	pb "github.com/meshplus/bitxhub-model/pb"
 	reflect "reflect"
+	sync "sync"
 )
 
 // MockExecutor is a mock of Executor interface
@@ -76,10 +77,10 @@ func (mr *MockExecutorMockRecorder) HandleIBTP(ibtp interface{}) *gomock.Call {
 }
 
 // QueryLatestMeta mocks base method
-func (m *MockExecutor) QueryLatestMeta() map[string]uint64 {
+func (m *MockExecutor) QueryLatestMeta() *sync.Map {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "QueryLatestMeta")
-	ret0, _ := ret[0].(map[string]uint64)
+	ret0, _ := ret[0].(*sync.Map)
 	return ret0
 }
 
@@ -90,10 +91,10 @@ func (mr *MockExecutorMockRecorder) QueryLatestMeta() *gomock.Call {
 }
 
 // QueryLatestCallbackMeta mocks base method
-func (m *MockExecutor) QueryLatestCallbackMeta() map[string]uint64 {
+func (m *MockExecutor) QueryLatestCallbackMeta() *sync.Map {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "QueryLatestCallbackMeta")
-	ret0, _ := ret[0].(map[string]uint64)
+	ret0, _ := ret[0].(*sync.Map)
 	return ret0
 }
 

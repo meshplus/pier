@@ -56,8 +56,13 @@ func (c *DirectChecker) Check(ibtp *pb.IBTP) error {
 		if code == nil {
 			if appchain.ChainType == "fabric" {
 				validatorAddr = validator.SimFabricRuleAddr
+			} else {
+				return fmt.Errorf("not found rule address from appchain:%s", appchain.ID)
 			}
+		} else {
+			validatorAddr = types.Bytes2Address(code).String()
 		}
+
 		c.appchainCache.Store(chainID, &appchainRule{
 			appchain:    appchain,
 			codeAddress: validatorAddr,
