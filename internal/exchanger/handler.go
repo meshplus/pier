@@ -160,21 +160,32 @@ func (ex *Exchanger) postHandleIBTP(from string, receipt *pb.IBTP) {
 	}
 }
 
+func (ex *Exchanger) timeCost() func() {
+	start := time.Now()
+	return func() {
+		tc := time.Since(start)
+		ex.sendIBTPTimer.Add(tc)
+	}
+}
+
 func (ex *Exchanger) handleSendIBTPMessage(stream network.Stream, msg *peerMsg.Message) {
-	go func() {
-		ibtp := &pb.IBTP{}
-		if err := ibtp.Unmarshal(msg.Payload.Data); err != nil {
-			logger.Error("unmarshal ibtp: %w", err)
-			return
-		}
+	ibtp := &pb.IBTP{}
+	if err := ibtp.Unmarshal(msg.Payload.Data); err != nil {
+		logger.Error("unmarshal ibtp: %w", err)
+		return
+	}
+	ex.ch <- struct{}{}
+	go func(ibtp *pb.IBTP) {
+		defer ex.timeCost()()
 		err := ex.checker.Check(ibtp)
 		if err != nil {
 			logger.Error("check ibtp: %w", err)
 			return
 		}
-		ex.exec.HandleIBTP(ibtp)
-		ex.sendIBTPCounter.Inc()
-	}()
+
+		ex.feedIBTP(ibtp)
+		<-ex.ch
+	}(ibtp)
 
 }
 

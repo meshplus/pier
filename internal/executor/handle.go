@@ -18,12 +18,12 @@ func (e *ChannelExecutor) HandleIBTP(ibtp *pb.IBTP) *pb.IBTP {
 		return nil
 	}
 
-	//logger.WithFields(logrus.Fields{
-	//	"index": ibtp.Index,
-	//	"type":  ibtp.Type,
-	//	"from":  ibtp.From,
-	//	"id":    ibtp.ID(),
-	//}).Info("Apply tx")
+	logger.WithFields(logrus.Fields{
+		"index": ibtp.Index,
+		"type":  ibtp.Type,
+		"from":  ibtp.From,
+		"id":    ibtp.ID(),
+	}).Info("Apply tx")
 
 	switch ibtp.Type {
 	case pb.IBTP_INTERCHAIN:
@@ -59,16 +59,16 @@ func (e *ChannelExecutor) applyInterchainIBTP(ibtp *pb.IBTP) *pb.IBTP {
 	})
 
 	idx := LoadSyncMap(&e.executeMeta, ibtp.From)
-	//if idx >= ibtp.Index {
-	//	entry.Warn("Ignore tx")
-	//	return nil
-	//}
-	//
-	//if idx+1 < ibtp.Index {
-	//	entry.WithFields(logrus.Fields{
-	//		"required": idx + 1,
-	//	}).Panic("Wrong ibtp index")
-	//}
+	if idx >= ibtp.Index {
+		entry.Warn("Ignore tx")
+		return nil
+	}
+
+	if idx+1 < ibtp.Index {
+		entry.WithFields(logrus.Fields{
+			"required": idx + 1,
+		}).Panic("Wrong ibtp index")
+	}
 
 	// execute interchain tx, and if execution failed, try to rollback
 	response, err := e.client.SubmitIBTP(ibtp)

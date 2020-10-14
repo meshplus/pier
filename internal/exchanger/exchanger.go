@@ -46,10 +46,13 @@ type Exchanger struct {
 	sourceReceiptMeta map[string]uint64
 
 	sendIBTPCounter atomic.Uint64
-	ibtps           sync.Map
-	receipts        sync.Map
-	ctx             context.Context
-	cancel          context.CancelFunc
+	sendIBTPTimer   atomic.Duration
+
+	ch       chan struct{}
+	ibtps    sync.Map
+	receipts sync.Map
+	ctx      context.Context
+	cancel   context.CancelFunc
 }
 
 type Pool struct {
@@ -81,6 +84,7 @@ func New(typ, pierID string, meta *pb.Interchain, opts ...Option) (*Exchanger, e
 		syncer:            config.syncer,
 		store:             config.store,
 		router:            config.router,
+		ch:                make(chan struct{}, 100),
 		interchainCounter: meta.InterchainCounter,
 		sourceReceiptMeta: meta.SourceReceiptCounter,
 		mode:              typ,
@@ -189,11 +193,17 @@ func (ex *Exchanger) analysisDirectTPS() {
 		case <-ticker.C:
 			tps := ex.sendIBTPCounter.Load() - counter
 			counter = ex.sendIBTPCounter.Load()
-			logger.WithFields(logrus.Fields{
-				"tps":     tps,
-				"tps_sum": counter,
-				"tps_avg": float64(counter) / time.Since(current).Seconds(),
-			}).Info("analysis")
+			totalTimer := ex.sendIBTPTimer.Load()
+
+			if tps != 0 {
+				logger.WithFields(logrus.Fields{
+					"tps":      tps,
+					"tps_sum":  counter,
+					"tps_time": totalTimer.Milliseconds() / int64(counter),
+					"tps_avg":  float64(counter) / time.Since(current).Seconds(),
+				}).Info("analysis")
+			}
+
 		case <-ex.ctx.Done():
 			return
 		}
@@ -393,13 +403,11 @@ func (ex *Exchanger) feedIBTP(ibtp *pb.IBTP) {
 					continue
 				}
 				if idx+1 == ibtp.Index {
-					receipt := ex.exec.HandleIBTP(ibtp)
-					ex.postHandleIBTP(ibtp.From, receipt)
+					ex.processIBTP(ibtp)
 					index := ibtp.Index + 1
 					ibtp := pool.get(index)
 					for ibtp != nil {
-						receipt := ex.exec.HandleIBTP(ibtp)
-						ex.postHandleIBTP(ibtp.From, receipt)
+						ex.processIBTP(ibtp)
 						index++
 						ibtp = pool.get(index)
 					}
@@ -409,6 +417,12 @@ func (ex *Exchanger) feedIBTP(ibtp *pb.IBTP) {
 			}
 		}(pool)
 	}
+}
+
+func (ex *Exchanger) processIBTP(ibtp *pb.IBTP) {
+	receipt := ex.exec.HandleIBTP(ibtp)
+	ex.postHandleIBTP(ibtp.From, receipt)
+	ex.sendIBTPCounter.Inc()
 }
 
 func (ex *Exchanger) feedReceipt(receipt *pb.IBTP) {
