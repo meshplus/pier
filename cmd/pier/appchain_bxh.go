@@ -240,7 +240,7 @@ func loadClient(keyPath, grpcAddr string, ctx *cli.Context) (rpcx.Client, error)
 	}
 	nodeInfo := &rpcx.NodeInfo{Addr: grpcAddr}
 	if config.Security.EnableTLS {
-		nodeInfo.CertPath = filepath.Join(ctx.String("repo"), "certs/ca.pem")
+		nodeInfo.CertPath = filepath.Join(repoRoot, "certs/ca.pem")
 		nodeInfo.EnableTLS = config.Security.EnableTLS
 		nodeInfo.IssuerName = config.Security.IssuerName
 	}

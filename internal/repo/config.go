@@ -125,6 +125,11 @@ func DefaultConfig() *Config {
 			ReportCaller: false,
 			Level:        "info",
 		},
+		Security: Security{
+			EnableTLS:  false,
+			Tlsca:      "certs/ca.pem",
+			IssuerName: "DM",
+		},
 		Appchain: Appchain{
 			Config: "fabric",
 		},
