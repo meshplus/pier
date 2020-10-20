@@ -28,6 +28,11 @@ peers = []
 connectors = []
 providers = 1
 
+[security]
+enable_tls = false
+tlsca = "certs/ca.pem"
+issuer_name = "DM"
+
 [appchain]
 plugin = "appchain_plugin"
 config = "fabric"

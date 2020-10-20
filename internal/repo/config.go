@@ -18,6 +18,14 @@ type Config struct {
 	Mode     Mode     `toml:"mode" json:"mode"`
 	Log      Log      `toml:"log" json:"log"`
 	Appchain Appchain `toml:"appchain" json:"appchain"`
+	Security Security `toml:"security" json:"security"`
+}
+
+// Security are certs used to setup connection with tls
+type Security struct {
+	EnableTLS  bool   `mapstructure:"enable_tls"`
+	Tlsca      string `toml:"tlsca" json:"tlsca"`
+	IssuerName string `mapstructure:"issuer_name" json:"issuer_name"`
 }
 
 // Port are ports providing http and pprof service
@@ -116,6 +124,11 @@ func DefaultConfig() *Config {
 			Filename:     "pier.log",
 			ReportCaller: false,
 			Level:        "info",
+		},
+		Security: Security{
+			EnableTLS:  false,
+			Tlsca:      "certs/ca.pem",
+			IssuerName: "DM",
 		},
 		Appchain: Appchain{
 			Config: "fabric",

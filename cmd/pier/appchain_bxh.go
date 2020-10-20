@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"path/filepath"
 
 	"github.com/meshplus/bitxhub-kit/crypto/asym"
 	rpcx "github.com/meshplus/go-bitxhub-client"
@@ -105,7 +106,7 @@ func registerAppchain(ctx *cli.Context) error {
 	if bxhAddr == "" {
 		bxhAddr = config.Mode.Relay.Addr
 	}
-	client, err := loadClient(repo.KeyPath(repoRoot), bxhAddr)
+	client, err := loadClient(repo.KeyPath(repoRoot), bxhAddr, ctx)
 	if err != nil {
 		return fmt.Errorf("load client: %w", err)
 	}
@@ -156,7 +157,7 @@ func auditAppchain(ctx *cli.Context) error {
 		return fmt.Errorf("init config error: %s", err)
 	}
 
-	client, err := loadClient(repo.KeyPath(repoRoot), config.Mode.Relay.Addr)
+	client, err := loadClient(repo.KeyPath(repoRoot), config.Mode.Relay.Addr, ctx)
 	if err != nil {
 		return fmt.Errorf("load client: %w", err)
 	}
@@ -193,7 +194,7 @@ func getAppchain(ctx *cli.Context) error {
 		return fmt.Errorf("init config error: %s", err)
 	}
 
-	client, err := loadClient(repo.KeyPath(repoRoot), config.Mode.Relay.Addr)
+	client, err := loadClient(repo.KeyPath(repoRoot), config.Mode.Relay.Addr, ctx)
 	if err != nil {
 		return fmt.Errorf("load client: %w", err)
 	}
@@ -216,16 +217,35 @@ func getAppchain(ctx *cli.Context) error {
 	return nil
 }
 
-func loadClient(keyPath, grpcAddr string) (rpcx.Client, error) {
+func loadClient(keyPath, grpcAddr string, ctx *cli.Context) (rpcx.Client, error) {
+	repoRoot, err := repo.PathRootWithDefault(ctx.GlobalString("repo"))
+	if err != nil {
+		return nil, err
+	}
+
+	repo.SetPath(repoRoot)
+
+	config, err := repo.UnmarshalConfig(repoRoot)
+	if err != nil {
+		return nil, fmt.Errorf("init config error: %s", err)
+	}
+
 	privateKey, err := asym.RestorePrivateKey(keyPath, "bitxhub")
 	if err != nil {
 		return nil, err
 	}
 
-	return rpcx.New(
-		rpcx.WithAddrs([]string{grpcAddr}),
+	opts := []rpcx.Option{
 		rpcx.WithPrivateKey(privateKey),
-	)
+	}
+	nodeInfo := &rpcx.NodeInfo{Addr: grpcAddr}
+	if config.Security.EnableTLS {
+		nodeInfo.CertPath = filepath.Join(repoRoot, "certs/ca.pem")
+		nodeInfo.EnableTLS = config.Security.EnableTLS
+		nodeInfo.IssuerName = config.Security.IssuerName
+	}
+	opts = append(opts, rpcx.WithNodesInfo(nodeInfo))
+	return rpcx.New(opts...)
 }
 
 func getPubKey(keyPath string) ([]byte, error) {
