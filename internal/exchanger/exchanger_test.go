@@ -30,6 +30,7 @@ import (
 )
 
 const (
+	hash      = "0x9f41dd84524bf8a42f8ab58ecfca6e1752d6fd93fe8dc00af4c71963c97db59f"
 	from      = "0x3f9d18f7c3a6e5e4c0b877fe3e688ab08840b997"
 	to        = "0x3f9d18f7c3a6e5e4c0b877fe3e688ab08840b997"
 	assetTxID = "asset exchange id for test"
@@ -54,6 +55,7 @@ func TestStartRelay(t *testing.T) {
 	receipt := getIBTP(t, 1, pb.IBTP_RECEIPT_SUCCESS)
 	bxhReceipt := &pb.Receipt{
 		Status: pb.Receipt_SUCCESS,
+		TxHash: types.NewHashByStr(hash),
 	}
 	outCh := make(chan *pb.IBTP, 1)
 	outCh <- normalOutIBTP
@@ -185,8 +187,7 @@ func TestStartUnionMode(t *testing.T) {
 	require.Nil(t, err)
 
 	receipt := &pb.Receipt{
-		TxHash: types.String2Hash(from),
-		//Ret:    nil,
+		TxHash: types.NewHashByStr(hash),
 		Status: pb.Receipt_SUCCESS,
 	}
 	var stream network.Stream

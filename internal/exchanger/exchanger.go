@@ -11,7 +11,6 @@ import (
 	"github.com/Rican7/retry/strategy"
 	"github.com/meshplus/bitxhub-kit/log"
 	"github.com/meshplus/bitxhub-kit/storage"
-	"github.com/meshplus/bitxhub-kit/types"
 	"github.com/meshplus/bitxhub-model/pb"
 	"github.com/meshplus/pier/api"
 	"github.com/meshplus/pier/internal/agent"
@@ -25,7 +24,6 @@ import (
 	"github.com/meshplus/pier/internal/syncer"
 	"github.com/meshplus/pier/pkg/model"
 	"github.com/sirupsen/logrus"
-	"github.com/syndtr/goleveldb/leveldb"
 )
 
 var logger = log.NewWithModule("exchanger")
@@ -208,7 +206,7 @@ func (ex *Exchanger) sendIBTP(ibtp *pb.IBTP) error {
 	entry := logger.WithFields(logrus.Fields{
 		"index": ibtp.Index,
 		"type":  ibtp.Type,
-		"to":    types.String2Address(ibtp.To).ShortString(),
+		"to":    ibtp.To,
 		"id":    ibtp.ID(),
 	})
 
@@ -229,7 +227,7 @@ func (ex *Exchanger) sendIBTP(ibtp *pb.IBTP) error {
 			}
 
 			entry.WithFields(logrus.Fields{
-				"hash": receipt.TxHash.Hex(),
+				"hash": receipt.TxHash.String(),
 			}).Info("Send ibtp")
 
 			return nil
@@ -291,20 +289,17 @@ func (ex *Exchanger) queryIBTP(from string, idx uint64) (*pb.IBTP, error) {
 	ibtp := &pb.IBTP{}
 	id := fmt.Sprintf("%s-%s-%d", from, ex.pierID, idx)
 
-	v, err := ex.store.Get(model.IBTPKey(id))
-	if err == nil {
+	v := ex.store.Get(model.IBTPKey(id))
+	if v != nil {
 		if err := ibtp.Unmarshal(v); err != nil {
 			return nil, err
 		}
 		return ibtp, nil
 	}
 
-	if err != leveldb.ErrNotFound {
-		panic(err)
-	}
-
 	// query ibtp from counterpart chain
 	loop := func() error {
+		var err error
 		switch ex.mode {
 		case repo.RelayMode:
 			ibtp, err = ex.agent.GetIBTPByID(id)

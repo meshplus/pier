@@ -3,13 +3,12 @@ package agent
 import (
 	"context"
 	"crypto/sha256"
-	"encoding/asn1"
 	"encoding/json"
 	"fmt"
 	"strings"
 
-	"github.com/meshplus/bitxhub-kit/crypto/asym/ecdsa"
 	"github.com/meshplus/bitxhub-kit/types"
+	"github.com/meshplus/bitxhub-model/constant"
 	"github.com/meshplus/bitxhub-model/pb"
 	rpcx "github.com/meshplus/go-bitxhub-client"
 	"github.com/meshplus/pier/internal/repo"
@@ -46,7 +45,7 @@ func (agent *BxhAgent) Stop() error {
 
 // Appchain implements Agent
 func (agent *BxhAgent) Appchain() (*rpcx.Appchain, error) {
-	receipt, err := agent.client.InvokeBVMContract(rpcx.AppchainMgrContractAddr, "Appchain", nil)
+	receipt, err := agent.client.InvokeBVMContract(constant.AppchainMgrContractAddr.Address(), "Appchain", nil)
 	if err != nil {
 		return nil, err
 	}
@@ -64,7 +63,7 @@ func (agent *BxhAgent) Appchain() (*rpcx.Appchain, error) {
 }
 
 func (agent *BxhAgent) GetInterchainMeta() (*pb.Interchain, error) {
-	receipt, err := agent.client.InvokeBVMContract(rpcx.InterchainContractAddr, "Interchain", nil)
+	receipt, err := agent.client.InvokeBVMContract(constant.InterchainContractAddr.Address(), "Interchain", nil)
 	if err != nil {
 		return nil, err
 	}
@@ -184,7 +183,7 @@ func (agent *BxhAgent) SendIBTP(ibtp *pb.IBTP) (*pb.Receipt, error) {
 	if err != nil {
 		return nil, err
 	}
-	tx, err := agent.client.GenerateContractTx(pb.TransactionData_BVM, rpcx.InterchainContractAddr,
+	tx, err := agent.client.GenerateContractTx(pb.TransactionData_BVM, constant.InterchainContractAddr.Address(),
 		"HandleIBTP", rpcx.Bytes(b))
 	if err != nil {
 		return nil, fmt.Errorf("generate ibtp tx error:%v", err)
@@ -203,7 +202,7 @@ func (agent *BxhAgent) GetReceipt(hash string) (*pb.Receipt, error) {
 
 // GetIBTPByID implements Agent
 func (agent *BxhAgent) GetIBTPByID(id string) (*pb.IBTP, error) {
-	receipt, err := agent.client.InvokeContract(pb.TransactionData_BVM, rpcx.InterchainContractAddr,
+	receipt, err := agent.client.InvokeContract(pb.TransactionData_BVM, constant.InterchainContractAddr.Address(),
 		"GetIBTPByID", nil, rpcx.String(id))
 	if err != nil {
 		return nil, err
@@ -212,14 +211,17 @@ func (agent *BxhAgent) GetIBTPByID(id string) (*pb.IBTP, error) {
 	if !receipt.IsSuccess() {
 		return nil, fmt.Errorf("%w: %s", ErrIBTPNotFound, string(receipt.Ret))
 	}
-	hash := types.Bytes2Hash(receipt.Ret)
+	hash := types.NewHash(receipt.Ret)
 
-	response, err := agent.client.GetTransaction(hash.Hex())
+	response, err := agent.client.GetTransaction(hash.String())
 	if err != nil {
 		return nil, err
 	}
-
-	return response.Tx.GetIBTP()
+	ibtp := response.Tx.GetIBTP()
+	if ibtp == nil {
+		return nil, fmt.Errorf("empty ibtp from bitxhub")
+	}
+	return ibtp, nil
 }
 
 // GetChainMeta implements Agent
@@ -239,15 +241,7 @@ func (agent *BxhAgent) GetAssetExchangeSigns(id string) ([]byte, error) {
 
 	var signs []byte
 	for _, sign := range resp.Sign {
-		sigStuct := &ecdsa.Sig{}
-		_, err = asn1.Unmarshal(sign, sigStuct)
-		if err != nil {
-			return nil, err
-		}
-
-		signs = append(signs, sigStuct.Pub...)       // 33 bits
-		signs = append(signs, sigStuct.R.Bytes()...) // 32 bits
-		signs = append(signs, sigStuct.S.Bytes()...) // 32 bits
+		signs = append(signs, sign...)
 	}
 
 	return signs, nil
@@ -272,7 +266,7 @@ func (agent *BxhAgent) GetIBTPSigns(ibtp *pb.IBTP) ([]byte, error) {
 }
 
 func (agent *BxhAgent) GetAppchains() ([]*rpcx.Appchain, error) {
-	tx, err := agent.client.GenerateContractTx(pb.TransactionData_BVM, rpcx.AppchainMgrContractAddr, "Appchains")
+	tx, err := agent.client.GenerateContractTx(pb.TransactionData_BVM, constant.AppchainMgrContractAddr.Address(), "Appchains")
 	if err != nil {
 		return nil, err
 	}
@@ -298,7 +292,7 @@ func (agent *BxhAgent) GetAppchains() ([]*rpcx.Appchain, error) {
 
 func (agent *BxhAgent) GetInterchainById(from string) *pb.Interchain {
 	ic := &pb.Interchain{}
-	tx, err := agent.client.GenerateContractTx(pb.TransactionData_BVM, rpcx.InterchainContractAddr, "GetInterchain", rpcx.String(from))
+	tx, err := agent.client.GenerateContractTx(pb.TransactionData_BVM, constant.InterchainContractAddr.Address(), "GetInterchain", rpcx.String(from))
 	if err != nil {
 		return ic
 	}

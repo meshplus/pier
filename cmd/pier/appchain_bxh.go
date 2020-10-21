@@ -6,6 +6,8 @@ import (
 	"io/ioutil"
 	"path/filepath"
 
+	"github.com/meshplus/bitxhub-model/constant"
+
 	"github.com/meshplus/bitxhub-kit/crypto/asym"
 	rpcx "github.com/meshplus/go-bitxhub-client"
 	"github.com/meshplus/pier/internal/repo"
@@ -117,7 +119,7 @@ func registerAppchain(ctx *cli.Context) error {
 	}
 
 	receipt, err := client.InvokeBVMContract(
-		rpcx.AppchainMgrContractAddr,
+		constant.AppchainMgrContractAddr.Address(),
 		"Register", nil, rpcx.String(string(data)),
 		rpcx.Int32(1),
 		rpcx.String(typ),
@@ -163,7 +165,7 @@ func auditAppchain(ctx *cli.Context) error {
 	}
 
 	receipt, err := client.InvokeBVMContract(
-		rpcx.AppchainMgrContractAddr,
+		constant.AppchainMgrContractAddr.Address(),
 		"Audit", nil,
 		rpcx.String(id),
 		rpcx.Int32(1),
@@ -200,7 +202,7 @@ func getAppchain(ctx *cli.Context) error {
 	}
 
 	receipt, err := client.InvokeBVMContract(
-		rpcx.AppchainMgrContractAddr,
+		constant.AppchainMgrContractAddr.Address(),
 		"Appchain", nil,
 	)
 

@@ -17,7 +17,7 @@ func (rm *RuleMgr) handleRule(net network.Stream, msg *peerproto.Message) {
 		return
 	}
 	ok := true
-	err := rm.Ledger.SetCode(types.String2Address(rule.Address), rule.Code)
+	err := rm.Ledger.SetCode(types.NewAddressByStr(rule.Address), rule.Code)
 	if err != nil {
 		ok = false
 		logger.Error(err)

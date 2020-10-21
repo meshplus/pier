@@ -1,16 +1,11 @@
 package syncer
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"strconv"
 	"sync/atomic"
 	"time"
-
-	rpcx "github.com/meshplus/go-bitxhub-client"
-
-	"github.com/meshplus/pier/internal/repo"
 
 	"github.com/Rican7/retry"
 	"github.com/Rican7/retry/strategy"
@@ -19,8 +14,10 @@ import (
 	"github.com/meshplus/bitxhub-kit/storage"
 	"github.com/meshplus/bitxhub-kit/types"
 	"github.com/meshplus/bitxhub-model/pb"
+	rpcx "github.com/meshplus/go-bitxhub-client"
 	"github.com/meshplus/pier/internal/agent"
 	"github.com/meshplus/pier/internal/lite"
+	"github.com/meshplus/pier/internal/repo"
 	"github.com/sirupsen/logrus"
 	"github.com/syndtr/goleveldb/leveldb"
 )
@@ -298,9 +295,9 @@ func (syncer *WrapperSyncer) handleInterchainTxWrapper(w *pb.InterchainTxWrapper
 	}
 
 	for _, tx := range w.Transactions {
-		ibtp, err := tx.GetIBTP()
-		if err != nil {
-			logger.Errorf("Get ibtp from tx: %s", err.Error())
+		ibtp := tx.GetIBTP()
+		if ibtp == nil {
+			logger.Errorf("empty ibtp in tx")
 			continue
 		}
 		if syncer.isRecover && syncer.isUnionMode() {
@@ -374,7 +371,7 @@ func (syncer *WrapperSyncer) verifyWrapper(w *pb.InterchainTxWrapper) (bool, err
 	// validate if l2roots are correct
 	l2RootHashes := make([]merkletree.Content, 0, len(w.L2Roots))
 	for _, root := range w.L2Roots {
-		l2RootHashes = append(l2RootHashes, pb.TransactionHash(root.Bytes()))
+		l2RootHashes = append(l2RootHashes, &root)
 	}
 	l1Tree, err := merkletree.NewTree(l2RootHashes)
 	if err != nil {
@@ -397,8 +394,8 @@ func (syncer *WrapperSyncer) verifyWrapper(w *pb.InterchainTxWrapper) (bool, err
 	}
 
 	// verify tx root
-	if types.Bytes2Hash(l1Tree.MerkleRoot()) != header.TxRoot {
-		return false, fmt.Errorf("tx wrapper is wrong")
+	if types.NewHash(l1Tree.MerkleRoot()).String() != header.TxRoot.String() {
+		return false, fmt.Errorf("tx wrapper merkle root is wrong")
 	}
 
 	// validate if the txs is committed in bitxhub
@@ -406,11 +403,11 @@ func (syncer *WrapperSyncer) verifyWrapper(w *pb.InterchainTxWrapper) (bool, err
 		return true, nil
 	}
 
-	hashes := make([]merkletree.Content, 0, len(w.TransactionHashes))
+	hashes := make([]merkletree.Content, 0, len(w.Transactions))
 	existM := make(map[string]bool)
-	for _, hash := range w.TransactionHashes {
-		hashes = append(hashes, pb.TransactionHash(hash.Bytes()))
-		existM[hash.String()] = true
+	for _, tx := range w.Transactions {
+		hashes = append(hashes, tx.TransactionHash)
+		existM[tx.TransactionHash.String()] = true
 	}
 
 	tree, err := merkletree.NewTree(hashes)
@@ -418,10 +415,10 @@ func (syncer *WrapperSyncer) verifyWrapper(w *pb.InterchainTxWrapper) (bool, err
 		return false, fmt.Errorf("init merkle tree: %w", err)
 	}
 
-	l2root := tree.MerkleRoot()
+	l2root := types.NewHash(tree.MerkleRoot())
 	correctRoot := false
 	for _, rootHash := range w.L2Roots {
-		if bytes.Equal(rootHash.Bytes(), l2root) {
+		if rootHash.String() == l2root.String() {
 			correctRoot = true
 			break
 		}
@@ -443,13 +440,9 @@ func (syncer *WrapperSyncer) verifyWrapper(w *pb.InterchainTxWrapper) (bool, err
 
 // getLastHeight gets the current working height of Syncer
 func (syncer *WrapperSyncer) getLastHeight() (uint64, error) {
-	v, err := syncer.storage.Get(syncHeightKey())
-	if err != nil {
-		if err == leveldb.ErrNotFound {
-			return 0, nil
-		}
-
-		return 0, fmt.Errorf("get syncer height %w", err)
+	v := syncer.storage.Get(syncHeightKey())
+	if v == nil {
+		return 0, nil
 	}
 
 	return strconv.ParseUint(string(v), 10, 64)

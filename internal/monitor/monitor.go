@@ -11,7 +11,6 @@ import (
 	"github.com/Rican7/retry"
 	"github.com/Rican7/retry/strategy"
 	"github.com/meshplus/bitxhub-kit/log"
-	"github.com/meshplus/bitxhub-kit/types"
 	"github.com/meshplus/bitxhub-model/pb"
 	"github.com/meshplus/pier/internal/txcrypto"
 	"github.com/meshplus/pier/pkg/plugins"
@@ -135,13 +134,13 @@ func (m *AppchainMonitor) handleIBTP(ibtp *pb.IBTP) {
 	if m.interchainCounter[ibtp.To]+1 < ibtp.Index {
 		logger.WithFields(logrus.Fields{
 			"index": ibtp.Index,
-			"to":    types.String2Address(ibtp.To).ShortString(),
+			"to":    ibtp.To,
 		}).Info("Get missing ibtp")
 
 		if err := m.handleMissingIBTP(ibtp.To, m.interchainCounter[ibtp.To]+1, ibtp.Index); err != nil {
 			logger.WithFields(logrus.Fields{
 				"index": ibtp.Index,
-				"to":    types.String2Address(ibtp.To).ShortString(),
+				"to":    ibtp.To,
 			}).Error("Handle missing ibtp")
 		}
 	}
@@ -149,13 +148,13 @@ func (m *AppchainMonitor) handleIBTP(ibtp *pb.IBTP) {
 	if err := m.checkEnrcyption(ibtp); err != nil {
 		logger.WithFields(logrus.Fields{
 			"index": ibtp.Index,
-			"to":    types.String2Address(ibtp.To).ShortString(),
+			"to":    ibtp.To,
 		}).Error("check encryption")
 	}
 
 	logger.WithFields(logrus.Fields{
 		"index": ibtp.Index,
-		"to":    types.String2Address(ibtp.To).ShortString(),
+		"to":    ibtp.To,
 	}).Info("Pass ibtp to exchanger")
 
 	m.interchainCounter[ibtp.To]++

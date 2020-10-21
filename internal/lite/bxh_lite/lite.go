@@ -9,7 +9,6 @@ import (
 	"github.com/meshplus/bitxhub-model/pb"
 	"github.com/meshplus/pier/internal/agent"
 	"github.com/sirupsen/logrus"
-	"github.com/syndtr/goleveldb/leveldb"
 )
 
 var logger = log.NewWithModule("bxh_lite")
@@ -70,12 +69,9 @@ func (lite *BxhLite) Stop() error {
 }
 
 func (lite *BxhLite) QueryHeader(height uint64) (*pb.BlockHeader, error) {
-	v, err := lite.storage.Get(headerKey(height))
-	if err != nil {
-		if err == leveldb.ErrNotFound {
-			return nil, err
-		}
-		logger.Panicf("Database is unavailable :%s", err.Error())
+	v := lite.storage.Get(headerKey(height))
+	if v == nil {
+		return nil, fmt.Errorf("header at %d not found", height)
 	}
 
 	header := &pb.BlockHeader{}

@@ -241,5 +241,5 @@ func (g *Server) getSelfPierID(ctx *gin.Context) (string, error) {
 		return "", err
 	}
 
-	return address.Hex(), nil
+	return address.String(), nil
 }

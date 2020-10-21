@@ -3,6 +3,8 @@ package main
 import (
 	"fmt"
 
+	"github.com/meshplus/bitxhub-model/constant"
+
 	"github.com/meshplus/pier/internal/repo"
 
 	"github.com/meshplus/bitxhub-kit/types"
@@ -55,7 +57,7 @@ func getIBTP(ctx *cli.Context) error {
 	}
 
 	receipt, err := client.InvokeBVMContract(
-		rpcx.InterchainContractAddr,
+		constant.InterchainContractAddr.Address(),
 		"GetIBTPByID", nil,
 		rpcx.String(id),
 	)
@@ -63,11 +65,11 @@ func getIBTP(ctx *cli.Context) error {
 		return err
 	}
 
-	hash := types.Bytes2Hash(receipt.Ret)
+	hash := types.NewHash(receipt.Ret)
 
-	fmt.Printf("Tx hash: %s\n", hash.Hex())
+	fmt.Printf("Tx hash: %s\n", hash.String())
 
-	response, err := client.GetTransaction(hash.Hex())
+	response, err := client.GetTransaction(hash.String())
 	if err != nil {
 		return err
 	}

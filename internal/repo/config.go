@@ -64,10 +64,10 @@ type Union struct {
 }
 
 // GetValidators gets validator address of bitxhub
-func (relay *Relay) GetValidators() []types.Address {
-	validators := make([]types.Address, 0)
+func (relay *Relay) GetValidators() []*types.Address {
+	validators := make([]*types.Address, 0)
 	for _, v := range relay.Validators {
-		validators = append(validators, types.String2Address(v))
+		validators = append(validators, types.NewAddressByStr(v))
 	}
 	return validators
 }

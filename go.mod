@@ -18,16 +18,16 @@ require (
 	github.com/ipfs/go-cid v0.0.5
 	github.com/lestrrat-go/strftime v1.0.3 // indirect
 	github.com/libp2p/go-libp2p-core v0.5.6
-	github.com/meshplus/bitxhub-core v0.1.0-rc1.0.20200728032028-8dba332fa0ed
-	github.com/meshplus/bitxhub-kit v1.0.1-0.20200813124031-6f6bdc99564f
-	github.com/meshplus/bitxhub-model v1.0.0-rc4.0.20201009112846-79d2e6ddf10d
-	github.com/meshplus/go-bitxhub-client v1.0.0-rc4.0.20201020090000-b14a54460ff2
+	github.com/meshplus/bitxhub-core v0.1.0-rc1.0.20201021153523-274a013bfd41
+	github.com/meshplus/bitxhub-kit v1.1.2-0.20201023073721-052e6b89ea39
+	github.com/meshplus/bitxhub-model v1.1.2-0.20201023091417-b6445e44d535
+	github.com/meshplus/go-bitxhub-client v1.0.0-rc4.0.20201023092924-5f9a248146f9
 	github.com/meshplus/go-lightp2p v0.0.0-20200817105923-6b3aee40fa54
 	github.com/mitchellh/go-homedir v1.1.0
 	github.com/multiformats/go-multiaddr v0.2.2
 	github.com/sirupsen/logrus v1.6.0
 	github.com/spf13/viper v1.6.1
-	github.com/stretchr/testify v1.5.1
+	github.com/stretchr/testify v1.6.0
 	github.com/syndtr/goleveldb v1.0.1-0.20190923125748-758128399b1d
 	github.com/tidwall/gjson v1.6.0
 	github.com/urfave/cli v1.22.1

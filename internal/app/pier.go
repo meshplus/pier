@@ -142,7 +142,7 @@ func NewPier(repoRoot string, config *repo.Config) (*Pier, error) {
 			return nil, fmt.Errorf("create bitxhub client: %w", err)
 		}
 
-		ag, err = agent.New(client, addr, config.Mode.Relay)
+		ag, err = agent.New(client, *addr, config.Mode.Relay)
 		if err != nil {
 			return nil, fmt.Errorf("create agent error: %w", err)
 		}
@@ -289,7 +289,7 @@ func NewUnionPier(repoRoot string, config *repo.Config) (*Pier, error) {
 		return nil, fmt.Errorf("create bitxhub client: %w", err)
 	}
 
-	ag, err = agent.New(client, addr, config.Mode.Relay)
+	ag, err = agent.New(client, *addr, config.Mode.Relay)
 	if err != nil {
 		return nil, fmt.Errorf("create agent error: %w", err)
 	}

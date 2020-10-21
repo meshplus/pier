@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"io/ioutil"
 
+	"github.com/meshplus/bitxhub-model/constant"
+
 	rpcx "github.com/meshplus/go-bitxhub-client"
 	"github.com/meshplus/pier/internal/repo"
 	"github.com/urfave/cli"
@@ -67,7 +69,7 @@ func deployRule(ctx *cli.Context) error {
 	}
 
 	_, err = client.InvokeBVMContract(
-		rpcx.RuleManagerContractAddr,
+		constant.RuleManagerContractAddr.Address(),
 		"RegisterRule", nil,
 		rpcx.String(address.String()),
 		rpcx.String(contractAddr.String()))

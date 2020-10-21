@@ -65,7 +65,7 @@ func (u *UnionRouter) Stop() error {
 
 //Route sends ibtp to the union pier in target relay chain
 func (u *UnionRouter) Route(ibtp *pb.IBTP) error {
-	if ok, _ := u.store.Has(RouteIBTPKey(ibtp.ID())); ok {
+	if ok := u.store.Has(RouteIBTPKey(ibtp.ID())); ok {
 		u.logger.WithField("ibtp", ibtp.ID()).Info("IBTP has routed by this pier")
 		return nil
 	}
@@ -87,9 +87,7 @@ func (u *UnionRouter) Route(ibtp *pb.IBTP) error {
 			u.logger.Errorf("send ibtp error:%v", err)
 		}
 		u.pbTable.Store(ibtp.To, pierId)
-		if err := u.store.Put([]byte(ibtp.ID()), []byte("")); err != nil {
-			return err
-		}
+		u.store.Put([]byte(ibtp.ID()), []byte(""))
 		return nil
 	}
 
@@ -97,9 +95,7 @@ func (u *UnionRouter) Route(ibtp *pb.IBTP) error {
 	if unionPierId, ok := u.pbTable.Load(ibtp.To); ok {
 		res, err := u.peermgr.Send(unionPierId.(string), message)
 		if err == nil && res.Type == peerproto.Message_ACK && res.Payload.Ok {
-			if err := u.store.Put(RouteIBTPKey(ibtp.ID()), []byte("")); err != nil {
-				return err
-			}
+			u.store.Put(RouteIBTPKey(ibtp.ID()), []byte(""))
 			return nil
 		}
 	}
@@ -109,9 +105,7 @@ func (u *UnionRouter) Route(ibtp *pb.IBTP) error {
 		u.logger.Errorf("send ibtp error:%v", err)
 		return err
 	}
-	if err := u.store.Put(RouteIBTPKey(ibtp.ID()), []byte("")); err != nil {
-		return err
-	}
+	u.store.Put(RouteIBTPKey(ibtp.ID()), []byte(""))
 
 	return nil
 }

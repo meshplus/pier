@@ -18,7 +18,7 @@ const (
 	tid  = "mychannel-Transfer-001"
 	from = "0x3f9d18f7c3a6e5e4c0b877fe3e688ab08840b997"
 	to   = "0x4d936bf4990d9a28fa61510384400c1c301b2582"
-	hash = "0x4d936bf4990d9a28fa61510384400c1c301b2582"
+	hash = "0x9f41dd84524bf8a42f8ab58ecfca6e1752d6fd93fe8dc00af4c71963c97db59f"
 	name = "Alice"
 )
 

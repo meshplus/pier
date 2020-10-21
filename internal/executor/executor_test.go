@@ -147,7 +147,7 @@ func prepare(t *testing.T) (*ChannelExecutor, *mock_agent.MockAgent, *mock_clien
 func getReceipt() *pb.Receipt {
 	return &pb.Receipt{
 		Version: []byte("0.4.5"),
-		TxHash:  types.Hash{},
+		TxHash:  &types.Hash{},
 		Ret:     nil,
 		Status:  0,
 	}
