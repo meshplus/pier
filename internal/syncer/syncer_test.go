@@ -36,9 +36,6 @@ func TestSyncHeader(t *testing.T) {
 
 	w1, _ := getTxWrapper(t, txs, txs1, 1)
 	w2, root := getTxWrapper(t, txs, txs1, 2)
-	//for _, hash := range w2.InterchainTxWrappers[0].L2Roots {
-	//	logger.Infof("wrapper hash : %v", hash.String())
-	//}
 	h2 := getBlockHeader(root, 2)
 	// mock invalid tx wrapper
 	w3, _ := getTxWrapper(t, txs, txs1, 3)
@@ -127,8 +124,8 @@ func getTxWrapper(t *testing.T, interchainTxs []*pb.Transaction, innerchainTxs [
 	var interchainTxHashes []types.Hash
 	hashes := make([]merkletree.Content, 0, len(interchainTxs))
 	for i := 0; i < len(interchainTxs); i++ {
-		hashes = append(hashes, interchainTxs[i].Hash())
 		interchainHash := interchainTxs[i].Hash()
+		hashes = append(hashes, interchainHash)
 		interchainTxHashes = append(interchainTxHashes, *interchainHash)
 	}
 

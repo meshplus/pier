@@ -19,7 +19,6 @@ import (
 	"github.com/meshplus/pier/internal/lite"
 	"github.com/meshplus/pier/internal/repo"
 	"github.com/sirupsen/logrus"
-	"github.com/syndtr/goleveldb/leveldb"
 )
 
 var _ Syncer = (*WrapperSyncer)(nil)
@@ -382,10 +381,8 @@ func (syncer *WrapperSyncer) verifyWrapper(w *pb.InterchainTxWrapper) (bool, err
 	if err := retry.Retry(func(attempt uint) error {
 		header, err = syncer.lite.QueryHeader(w.Height)
 		if err != nil {
-			if err == leveldb.ErrNotFound {
-				return fmt.Errorf("query block header :%w", err)
-			}
-			panic(err)
+			logger.Warnf("query header: %s", err.Error())
+			return err
 		}
 
 		return nil
@@ -405,9 +402,10 @@ func (syncer *WrapperSyncer) verifyWrapper(w *pb.InterchainTxWrapper) (bool, err
 
 	hashes := make([]merkletree.Content, 0, len(w.Transactions))
 	existM := make(map[string]bool)
-	for _, tx := range w.Transactions {
-		hashes = append(hashes, tx.TransactionHash)
-		existM[tx.TransactionHash.String()] = true
+	for _, hash := range w.TransactionHashes {
+		tmp := hash
+		hashes = append(hashes, &tmp)
+		existM[tmp.String()] = true
 	}
 
 	tree, err := merkletree.NewTree(hashes)
@@ -424,7 +422,7 @@ func (syncer *WrapperSyncer) verifyWrapper(w *pb.InterchainTxWrapper) (bool, err
 		}
 	}
 	if !correctRoot {
-		return false, fmt.Errorf("incorrect trx hashes!")
+		return false, fmt.Errorf("incorrect trx hashes")
 	}
 
 	// verify if every interchain tx is valid

@@ -179,18 +179,13 @@ func (agent *BxhAgent) SendIBTP(ibtp *pb.IBTP) (*pb.Receipt, error) {
 	proofHash := sha256.Sum256(proof)
 	ibtp.Proof = proofHash[:]
 
-	b, err := ibtp.Marshal()
-	if err != nil {
-		return nil, err
-	}
-	tx, err := agent.client.GenerateContractTx(pb.TransactionData_BVM, constant.InterchainContractAddr.Address(),
-		"HandleIBTP", rpcx.Bytes(b))
+	tx, err := agent.client.GenerateIBTPTx(ibtp)
 	if err != nil {
 		return nil, fmt.Errorf("generate ibtp tx error:%v", err)
 	}
 	tx.Extra = proof
 	return agent.client.SendTransactionWithReceipt(tx, &rpcx.TransactOpts{
-		From:      fmt.Sprintf("%s-%s-%d", ibtp.From, ibtp.To, ibtp.Type),
+		From:      fmt.Sprintf("%s-%s-%d", ibtp.From, ibtp.To, ibtp.Category()),
 		IBTPNonce: ibtp.Index,
 	})
 }

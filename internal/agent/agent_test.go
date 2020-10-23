@@ -9,12 +9,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/meshplus/bitxhub-model/constant"
-
 	"github.com/golang/mock/gomock"
 	"github.com/meshplus/bitxhub-kit/crypto"
 	"github.com/meshplus/bitxhub-kit/crypto/asym"
 	"github.com/meshplus/bitxhub-kit/types"
+	"github.com/meshplus/bitxhub-model/constant"
 	"github.com/meshplus/bitxhub-model/pb"
 	rpcx "github.com/meshplus/go-bitxhub-client"
 	"github.com/meshplus/go-bitxhub-client/mock_client"
@@ -194,7 +193,7 @@ func TestSendIBTP(t *testing.T) {
 		Ret:    []byte("this is a test"),
 		Status: 0,
 	}
-	mockClient.EXPECT().GenerateContractTx(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(tx, nil).AnyTimes()
+	mockClient.EXPECT().GenerateIBTPTx(gomock.Any()).Return(tx, nil).AnyTimes()
 	mockClient.EXPECT().SendTransactionWithReceipt(gomock.Any(), gomock.Any()).Return(r, nil).AnyTimes()
 
 	receipt, err := ag.SendIBTP(&pb.IBTP{})

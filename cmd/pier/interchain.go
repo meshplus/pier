@@ -3,12 +3,10 @@ package main
 import (
 	"fmt"
 
-	"github.com/meshplus/bitxhub-model/constant"
-
-	"github.com/meshplus/pier/internal/repo"
-
 	"github.com/meshplus/bitxhub-kit/types"
+	"github.com/meshplus/bitxhub-model/constant"
 	rpcx "github.com/meshplus/go-bitxhub-client"
+	"github.com/meshplus/pier/internal/repo"
 	"github.com/urfave/cli"
 )
 
