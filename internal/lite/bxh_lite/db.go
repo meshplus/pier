@@ -5,7 +5,6 @@ import (
 	"strconv"
 
 	"github.com/meshplus/bitxhub-model/pb"
-	"github.com/syndtr/goleveldb/leveldb"
 )
 
 func (lite *BxhLite) persist(h *pb.BlockHeader) error {
@@ -19,23 +18,17 @@ func (lite *BxhLite) persist(h *pb.BlockHeader) error {
 	batch.Put(headerKey(h.Number), data)
 	batch.Put(headerHeightKey(), []byte(strconv.FormatUint(lite.height, 10)))
 
-	err = batch.Commit()
-	if err != nil {
-		return fmt.Errorf("batch commit: %w", err)
-	}
+	batch.Commit()
 
 	return nil
 }
 
 // getLastHeight gets the current working height of lite
 func (lite *BxhLite) getLastHeight() (uint64, error) {
-	v, err := lite.storage.Get(headerHeightKey())
-	if err != nil {
-		if err == leveldb.ErrNotFound {
-			return 0, nil
-		}
-
-		return 0, fmt.Errorf("get header height %w", err)
+	v := lite.storage.Get(headerHeightKey())
+	if v == nil {
+		// if header height is not set, return default 0
+		return 0, nil
 	}
 
 	return strconv.ParseUint(string(v), 10, 64)

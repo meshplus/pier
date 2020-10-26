@@ -35,16 +35,11 @@ func (m Persister) Logger() logrus.FieldLogger {
 }
 
 func (m Persister) Has(key string) bool {
-	ok, _ := m.storage.Has([]byte(key))
-	return ok
+	return m.storage.Has([]byte(key))
 }
 
 func (m Persister) Get(key string) (bool, []byte) {
-	data, err := m.storage.Get([]byte(key))
-	if err != nil {
-		return false, nil
-	}
-	return true, data
+	return true, m.storage.Get([]byte(key))
 }
 
 func (m Persister) GetObject(key string, ret interface{}) bool {
@@ -57,10 +52,7 @@ func (m Persister) GetObject(key string, ret interface{}) bool {
 }
 
 func (m Persister) Set(key string, value []byte) {
-	err := m.storage.Put([]byte(key), value)
-	if err != nil {
-		panic(err.Error())
-	}
+	m.storage.Put([]byte(key), value)
 }
 
 func (m Persister) SetObject(key string, value interface{}) {
@@ -72,10 +64,7 @@ func (m Persister) SetObject(key string, value interface{}) {
 }
 
 func (m Persister) Delete(key string) {
-	err := m.storage.Delete([]byte(key))
-	if err != nil {
-		panic(err.Error())
-	}
+	m.storage.Delete([]byte(key))
 }
 
 func (m Persister) Query(prefix string) (bool, [][]byte) {

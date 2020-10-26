@@ -34,16 +34,16 @@ func TestSyncHeader(t *testing.T) {
 	txs1 := make([]*pb.Transaction, 0, 2)
 	txs1 = append(txs1, getTx(t), getTx(t))
 
-	w1, _ := getTxWrapper(txs, txs1, 1)
-	w2, root := getTxWrapper(txs, txs1, 2)
+	w1, _ := getTxWrapper(t, txs, txs1, 1)
+	w2, root := getTxWrapper(t, txs, txs1, 2)
 	h2 := getBlockHeader(root, 2)
 	// mock invalid tx wrapper
-	w3, _ := getTxWrapper(txs, txs1, 3)
+	w3, _ := getTxWrapper(t, txs, txs1, 3)
 	w3.InterchainTxWrappers[0].TransactionHashes = w3.InterchainTxWrappers[0].TransactionHashes[1:]
 
 	meta := &pb.ChainMeta{
 		Height:    1,
-		BlockHash: types.String2Hash(from),
+		BlockHash: types.NewHashByStr(from),
 	}
 	ag.EXPECT().SyncInterchainTxWrappers(gomock.Any(), gomock.Any()).Do(func(ctx context.Context, ch chan *pb.InterchainTxWrappers) {
 		ch <- w2
@@ -57,6 +57,11 @@ func TestSyncHeader(t *testing.T) {
 	ag.EXPECT().GetChainMeta().Return(meta, nil).AnyTimes()
 	lite.EXPECT().QueryHeader(gomock.Any()).Return(h2, nil).AnyTimes()
 
+	syncer.height = 1
+	ok, err := syncer.verifyWrapper(w2.InterchainTxWrappers[0])
+	require.Nil(t, err)
+	require.Equal(t, true, ok)
+
 	done := make(chan bool, 1)
 	go func() {
 		err := syncer.Start()
@@ -68,11 +73,12 @@ func TestSyncHeader(t *testing.T) {
 
 	// recover should have persist height 1 wrapper
 	receiveWrapper := &pb.InterchainTxWrappers{}
-	val, err := syncer.storage.Get(model.WrapperKey(2))
-	require.Nil(t, err)
+	val := syncer.storage.Get(model.WrapperKey(2))
 
 	require.Nil(t, receiveWrapper.Unmarshal(val))
-	require.Equal(t, w2, receiveWrapper)
+	for i, tx := range w2.InterchainTxWrappers[0].Transactions {
+		require.Equal(t, tx.TransactionHash.String(), receiveWrapper.InterchainTxWrappers[0].Transactions[i].TransactionHash.String())
+	}
 	done <- true
 	require.Equal(t, uint64(2), syncer.height)
 	require.Nil(t, syncer.Stop())
@@ -86,7 +92,7 @@ func prepare(t *testing.T) (*WrapperSyncer, *mock_agent.MockAgent, *mock_lite.Mo
 	lite := mock_lite.NewMockLite(mockCtl)
 
 	config := &repo.Config{}
-	config.Mode.Type = repo.DirectMode
+	config.Mode.Type = repo.RelayMode
 
 	tmpDir, err := ioutil.TempDir("", "storage")
 	require.Nil(t, err)
@@ -102,38 +108,41 @@ func prepare(t *testing.T) (*WrapperSyncer, *mock_agent.MockAgent, *mock_lite.Mo
 	return syncer, ag, lite
 }
 
-func getBlockHeader(root types.Hash, number uint64) *pb.BlockHeader {
+func getBlockHeader(root *types.Hash, number uint64) *pb.BlockHeader {
 	wrapper := &pb.BlockHeader{
 		Number:     number,
 		Timestamp:  time.Now().UnixNano(),
-		ParentHash: types.String2Hash(from),
+		ParentHash: types.NewHashByStr(from),
 		TxRoot:     root,
 	}
 
 	return wrapper
 }
 
-func getTxWrapper(interchainTxs []*pb.Transaction, innerchainTxs []*pb.Transaction, number uint64) (*pb.InterchainTxWrappers, types.Hash) {
+func getTxWrapper(t *testing.T, interchainTxs []*pb.Transaction, innerchainTxs []*pb.Transaction, number uint64) (*pb.InterchainTxWrappers, *types.Hash) {
 	var l2roots []types.Hash
 	var interchainTxHashes []types.Hash
 	hashes := make([]merkletree.Content, 0, len(interchainTxs))
 	for i := 0; i < len(interchainTxs); i++ {
-		hashes = append(hashes, pb.TransactionHash(interchainTxs[i].Hash().Bytes()))
-		interchainTxHashes = append(interchainTxHashes, interchainTxs[i].Hash())
+		interchainHash := interchainTxs[i].Hash()
+		hashes = append(hashes, interchainHash)
+		interchainTxHashes = append(interchainTxHashes, *interchainHash)
 	}
-	tree, _ := merkletree.NewTree(hashes)
-	l2roots = append(l2roots, types.Bytes2Hash(tree.MerkleRoot()))
+
+	tree, err := merkletree.NewTree(hashes)
+	require.Nil(t, err)
+	l2roots = append(l2roots, *types.NewHash(tree.MerkleRoot()))
 
 	hashes = make([]merkletree.Content, 0, len(innerchainTxs))
 	for i := 0; i < len(innerchainTxs); i++ {
-		hashes = append(hashes, pb.TransactionHash(innerchainTxs[i].Hash().Bytes()))
+		hashes = append(hashes, innerchainTxs[i].Hash())
 	}
 	tree, _ = merkletree.NewTree(hashes)
-	l2roots = append(l2roots, types.Bytes2Hash(tree.MerkleRoot()))
+	l2roots = append(l2roots, *types.NewHash(tree.MerkleRoot()))
 
 	contents := make([]merkletree.Content, 0, len(l2roots))
 	for _, root := range l2roots {
-		contents = append(contents, pb.TransactionHash(root.Bytes()))
+		contents = append(contents, &root)
 	}
 	tree, _ = merkletree.NewTree(contents)
 	l1root := tree.MerkleRoot()
@@ -149,7 +158,7 @@ func getTxWrapper(interchainTxs []*pb.Transaction, innerchainTxs []*pb.Transacti
 	itw := &pb.InterchainTxWrappers{
 		InterchainTxWrappers: wrappers,
 	}
-	return itw, types.Bytes2Hash(l1root)
+	return itw, types.NewHash(l1root)
 }
 
 func getTx(t *testing.T) *pb.Transaction {
@@ -164,18 +173,22 @@ func getTx(t *testing.T) *pb.Transaction {
 	pd, err := tmpIP.Marshal()
 	require.Nil(t, err)
 
-	data := &pb.TransactionData{
+	td := &pb.TransactionData{
 		Type:    pb.TransactionData_INVOKE,
 		Payload: pd,
 	}
+	data, err := td.Marshal()
+	require.Nil(t, err)
 
-	faddr := types.Address{}
+	faddr := &types.Address{}
 	faddr.SetBytes([]byte(from))
 	tx := &pb.Transaction{
-		From: faddr,
-		To:   faddr,
-		Data: data,
+		From:    faddr,
+		To:      faddr,
+		IBTP:    ibtp,
+		Payload: data,
 	}
+	tx.TransactionHash = tx.Hash()
 	return tx
 }
 

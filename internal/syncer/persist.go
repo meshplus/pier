@@ -23,11 +23,10 @@ func (syncer *WrapperSyncer) persist(ws *pb.InterchainTxWrappers) error {
 
 	for _, w := range ws.InterchainTxWrappers {
 		for _, tx := range w.Transactions {
-			ibtp, err := tx.GetIBTP()
-			if err != nil {
-				return fmt.Errorf("get ibtp from tx: %w", err)
+			ibtp := tx.GetIBTP()
+			if ibtp == nil {
+				return fmt.Errorf("empty ibtp in tx")
 			}
-
 			data, err := ibtp.Marshal()
 			if err != nil {
 				return fmt.Errorf("ibtp marshal: %w", err)
@@ -38,10 +37,7 @@ func (syncer *WrapperSyncer) persist(ws *pb.InterchainTxWrappers) error {
 	}
 	batch.Put(syncHeightKey(), []byte(strconv.FormatUint(syncer.height, 10)))
 
-	err = batch.Commit()
-	if err != nil {
-		return fmt.Errorf("batch commit: %w", err)
-	}
+	batch.Commit()
 
 	return nil
 }

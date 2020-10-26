@@ -13,14 +13,12 @@ type CodeLedger struct {
 
 func (l *CodeLedger) GetCode(address types.Address) []byte {
 	key := rulePrefix + address.String()
-	code, err := l.storage.Get([]byte(key))
-	if err != nil {
-		return nil
-	}
+	code := l.storage.Get([]byte(key))
 	return code
 }
 
-func (l *CodeLedger) SetCode(address types.Address, code []byte) error {
+func (l *CodeLedger) SetCode(address *types.Address, code []byte) error {
 	key := rulePrefix + address.String()
-	return l.storage.Put([]byte(key), code)
+	l.storage.Put([]byte(key), code)
+	return nil
 }

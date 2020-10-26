@@ -7,10 +7,10 @@ import (
 	"strconv"
 
 	appchainmgr "github.com/meshplus/bitxhub-core/appchain-mgr"
+	"github.com/meshplus/bitxhub-core/wasm"
 	"github.com/meshplus/bitxhub-kit/crypto"
 	"github.com/meshplus/bitxhub-kit/crypto/asym"
 	"github.com/meshplus/bitxhub-kit/types"
-	"github.com/meshplus/bitxhub-kit/wasm"
 	"github.com/meshplus/pier/internal/repo"
 	"github.com/meshplus/pier/internal/rulemgr"
 	"github.com/urfave/cli"
@@ -300,7 +300,7 @@ func registerAppchainRule(ctx *cli.Context) error {
 
 	contract := wasm.Contract{
 		Code: data,
-		Hash: types.Bytes2Hash(data),
+		Hash: *types.NewHash(data),
 	}
 
 	code, err := json.Marshal(contract)

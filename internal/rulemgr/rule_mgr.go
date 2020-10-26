@@ -1,6 +1,8 @@
 package rulemgr
 
 import (
+	"sync"
+
 	"github.com/meshplus/bitxhub-core/validator"
 	"github.com/meshplus/bitxhub-kit/log"
 	"github.com/meshplus/bitxhub-kit/storage"
@@ -30,7 +32,8 @@ func New(storage storage.Storage, pm peermgr.PeerManager) (*RuleMgr, error) {
 	ledger := &CodeLedger{
 		storage: storage,
 	}
-	ve := validator.NewValidationEngine(ledger, logger)
+	instances := &sync.Map{}
+	ve := validator.NewValidationEngine(ledger, instances, logger)
 	rm := &RuleMgr{
 		Ledger:      ledger,
 		PeerManager: pm,

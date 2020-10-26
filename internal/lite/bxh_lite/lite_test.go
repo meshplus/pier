@@ -33,11 +33,11 @@ func TestSyncHeader(t *testing.T) {
 	h2 := getBlockHeader(t, txs, 2)
 	// mock invalid block header
 	h3 := getBlockHeader(t, txs, 3)
-	h3.TxRoot = types.String2Hash(from)
+	h3.TxRoot = types.NewHashByStr(from)
 
 	meta := &pb.ChainMeta{
 		Height:    1,
-		BlockHash: types.String2Hash(from),
+		BlockHash: types.NewHashByStr(from),
 	}
 	ag.EXPECT().SyncBlockHeader(gomock.Any(), gomock.Any()).Do(func(ctx context.Context, ch chan *pb.BlockHeader) {
 		ch <- h2
@@ -89,7 +89,7 @@ func getBlockHeader(t *testing.T, txs []*pb.Transaction, number uint64) *pb.Bloc
 	hashes := make([]merkletree.Content, 0, len(txs))
 	for i := 0; i < len(txs); i++ {
 		hash := txs[i].Hash()
-		hashes = append(hashes, pb.TransactionHash(hash.Bytes()))
+		hashes = append(hashes, hash)
 	}
 
 	tree, err := merkletree.NewTree(hashes)
@@ -99,8 +99,8 @@ func getBlockHeader(t *testing.T, txs []*pb.Transaction, number uint64) *pb.Bloc
 	wrapper := &pb.BlockHeader{
 		Number:     number,
 		Timestamp:  time.Now().UnixNano(),
-		ParentHash: types.String2Hash(from),
-		TxRoot:     types.Bytes2Hash(root),
+		ParentHash: types.NewHashByStr(from),
+		TxRoot:     types.NewHash(root),
 	}
 
 	return wrapper
@@ -128,17 +128,20 @@ func getTx(t *testing.T) *pb.Transaction {
 	pd, err := tmpIP.Marshal()
 	require.Nil(t, err)
 
-	data := &pb.TransactionData{
+	td := &pb.TransactionData{
 		Type:    pb.TransactionData_INVOKE,
 		Payload: pd,
 	}
+	data, err := td.Marshal()
+	require.Nil(t, err)
 
-	faddr := types.Address{}
+	faddr := &types.Address{}
 	faddr.SetBytes([]byte(from))
 	tx := &pb.Transaction{
-		From: faddr,
-		To:   faddr,
-		Data: data,
+		From:    faddr,
+		To:      faddr,
+		Payload: data,
+		IBTP:    ibtp,
 	}
 	return tx
 }

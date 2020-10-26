@@ -1,8 +1,9 @@
 package agent
 
 import (
+	"bytes"
 	"context"
-	"encoding/asn1"
+	"crypto/sha256"
 	"encoding/json"
 	"fmt"
 	"testing"
@@ -11,8 +12,8 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/meshplus/bitxhub-kit/crypto"
 	"github.com/meshplus/bitxhub-kit/crypto/asym"
-	"github.com/meshplus/bitxhub-kit/crypto/asym/ecdsa"
 	"github.com/meshplus/bitxhub-kit/types"
+	"github.com/meshplus/bitxhub-model/constant"
 	"github.com/meshplus/bitxhub-model/pb"
 	rpcx "github.com/meshplus/go-bitxhub-client"
 	"github.com/meshplus/go-bitxhub-client/mock_client"
@@ -21,6 +22,7 @@ import (
 )
 
 const (
+	hash = "0x9f41dd84524bf8a42f8ab58ecfca6e1752d6fd93fe8dc00af4c71963c97db59f"
 	from = "0x3f9d18f7c3a6e5e4c0b877fe3e688ab08840b997"
 )
 
@@ -49,7 +51,7 @@ func TestAppchain(t *testing.T) {
 
 	originalMeta := &pb.ChainMeta{
 		Height:            1,
-		BlockHash:         types.String2Hash(from),
+		BlockHash:         types.NewHashByStr(hash),
 		InterchainTxCount: 1,
 	}
 	metaReceipt := &pb.Receipt{
@@ -61,9 +63,9 @@ func TestAppchain(t *testing.T) {
 		Status: 0,
 	}
 
-	mockClient.EXPECT().InvokeBVMContract(rpcx.AppchainMgrContractAddr, gomock.Any(), gomock.Any()).Return(metaReceipt, nil)
+	mockClient.EXPECT().InvokeBVMContract(constant.AppchainMgrContractAddr.Address(), gomock.Any(), gomock.Any()).Return(metaReceipt, nil)
 	mockClient.EXPECT().GetChainMeta().Return(originalMeta, nil).AnyTimes()
-	mockClient.EXPECT().InvokeBVMContract(rpcx.InterchainContractAddr, "Interchain", gomock.Any()).
+	mockClient.EXPECT().InvokeBVMContract(constant.InterchainContractAddr.Address(), "Interchain", gomock.Any()).
 		Return(interchainReceipt, nil).AnyTimes()
 	chain, err := ag.Appchain()
 	require.Nil(t, err)
@@ -82,12 +84,12 @@ func TestSyncBlock(t *testing.T) {
 	ag, mockClient := prepare(t)
 	ctx, cancel := context.WithCancel(context.Background())
 
-	hash := types.String2Hash(from)
+	hash := types.NewHashByStr(hash)
 	header := &pb.BlockHeader{
 		Timestamp: time.Now().UnixNano(),
 	}
 	wrapper := &pb.InterchainTxWrapper{
-		TransactionHashes: []types.Hash{hash, hash},
+		TransactionHashes: []types.Hash{*hash, *hash},
 	}
 
 	txWrappers := make([]*pb.InterchainTxWrapper, 0)
@@ -135,9 +137,9 @@ func TestSyncUnionInterchainTxWrappers(t *testing.T) {
 	ag, mockClient := prepare(t)
 	ctx, cancel := context.WithCancel(context.Background())
 
-	hash := types.String2Hash(from)
+	hash := types.NewHashByStr(hash)
 	wrapper := &pb.InterchainTxWrapper{
-		TransactionHashes: []types.Hash{hash, hash},
+		TransactionHashes: []types.Hash{*hash, *hash},
 	}
 
 	txWrappers := make([]*pb.InterchainTxWrapper, 0)
@@ -162,7 +164,7 @@ func TestSyncUnionInterchainTxWrappers(t *testing.T) {
 func TestSendTransaction(t *testing.T) {
 	ag, mockClient := prepare(t)
 
-	b := types.Address{}
+	b := &types.Address{}
 	b.SetBytes([]byte(from))
 	tx := &pb.Transaction{
 		From: b,
@@ -181,7 +183,7 @@ func TestSendTransaction(t *testing.T) {
 func TestSendIBTP(t *testing.T) {
 	ag, mockClient := prepare(t)
 
-	b := types.Address{}
+	b := &types.Address{}
 	b.SetBytes([]byte(from))
 	tx := &pb.Transaction{
 		From: b,
@@ -191,7 +193,7 @@ func TestSendIBTP(t *testing.T) {
 		Ret:    []byte("this is a test"),
 		Status: 0,
 	}
-	mockClient.EXPECT().GenerateContractTx(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(tx, nil).AnyTimes()
+	mockClient.EXPECT().GenerateIBTPTx(gomock.Any()).Return(tx, nil).AnyTimes()
 	mockClient.EXPECT().SendTransactionWithReceipt(gomock.Any(), gomock.Any()).Return(r, nil).AnyTimes()
 
 	receipt, err := ag.SendIBTP(&pb.IBTP{})
@@ -211,22 +213,23 @@ func TestGetIBTPByID(t *testing.T) {
 		Index:     1,
 		Timestamp: time.Now().UnixNano(),
 	}
-	ib, err := origin.Marshal()
-	require.Nil(t, err)
 
 	tmpIP := &pb.InvokePayload{
 		Method: "set",
-		Args:   []*pb.Arg{{Value: ib}},
+		Args:   []*pb.Arg{{Value: []byte("Alice,10")}},
 	}
 	pd, err := tmpIP.Marshal()
 	require.Nil(t, err)
 
-	data := &pb.TransactionData{
+	td := &pb.TransactionData{
 		Payload: pd,
 	}
+	data, err := td.Marshal()
+	require.Nil(t, err)
 
 	tx := &pb.Transaction{
-		Data: data,
+		Payload: data,
+		IBTP:    origin,
 	}
 	mockClient.EXPECT().InvokeContract(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(r, nil).AnyTimes()
 	mockClient.EXPECT().GetTransaction(gomock.Any()).Return(&pb.GetTransactionResponse{Tx: tx}, nil)
@@ -240,27 +243,21 @@ func TestGetAssetExchangeSigns(t *testing.T) {
 	ag, mockClient := prepare(t)
 
 	assetExchangeID := fmt.Sprintf("%s", from)
+	digest := sha256.Sum256([]byte(assetExchangeID))
 	priv, err := asym.GenerateKeyPair(crypto.Secp256k1)
 	require.Nil(t, err)
-	sig, err := priv.Sign([]byte(assetExchangeID))
+	sig, err := priv.Sign(digest[:])
 	require.Nil(t, err)
 	resp := &pb.SignResponse{
 		Sign: map[string][]byte{assetExchangeID: sig},
 	}
-
-	// unwrap sig struct
-	sigStruc := &ecdsa.Sig{}
-	_, err = asn1.Unmarshal(sig, sigStruc)
-	require.Nil(t, err)
 
 	mockClient.EXPECT().GetMultiSigns(assetExchangeID, pb.GetMultiSignsRequest_ASSET_EXCHANGE).
 		Return(resp, nil)
 
 	sigBytes, err := ag.GetAssetExchangeSigns(assetExchangeID)
 	require.Nil(t, err)
-	require.Equal(t, sigStruc.Pub, sigBytes[:33])
-	require.Equal(t, sigStruc.R.Bytes(), sigBytes[33:65])
-	require.Equal(t, sigStruc.S.Bytes(), sigBytes[65:])
+	require.Equal(t, true, bytes.Equal(sigBytes, sigBytes))
 }
 
 func TestGetPendingNonceByAccount(t *testing.T) {

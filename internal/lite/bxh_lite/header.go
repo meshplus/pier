@@ -27,10 +27,6 @@ func (lite *BxhLite) handleBlockHeader(header *pb.BlockHeader) {
 		return
 	}
 
-	logger.WithFields(logrus.Fields{
-		"height": header.Number,
-	}).Info("Persist block header")
-
 	if err := lite.persist(header); err != nil {
 		logger.WithFields(logrus.Fields{
 			"height": header.Number,
@@ -39,6 +35,10 @@ func (lite *BxhLite) handleBlockHeader(header *pb.BlockHeader) {
 	}
 
 	lite.updateHeight()
+
+	logger.WithFields(logrus.Fields{
+		"height": header.Number,
+	}).Info("Persist block header")
 }
 
 func (lite *BxhLite) syncBlock() {
