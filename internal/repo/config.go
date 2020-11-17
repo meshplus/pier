@@ -25,7 +25,7 @@ type Config struct {
 type Security struct {
 	EnableTLS  bool   `mapstructure:"enable_tls"`
 	Tlsca      string `toml:"tlsca" json:"tlsca"`
-	IssuerName string `mapstructure:"issuer_name" json:"issuer_name"`
+	CommonName string `mapstructure:"common_name" json:"common_name"`
 }
 
 // Port are ports providing http and pprof service
@@ -128,7 +128,7 @@ func DefaultConfig() *Config {
 		Security: Security{
 			EnableTLS:  false,
 			Tlsca:      "certs/ca.pem",
-			IssuerName: "DM",
+			CommonName: "localhost",
 		},
 		Appchain: Appchain{
 			Config: "fabric",

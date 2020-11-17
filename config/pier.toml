@@ -31,7 +31,7 @@ providers = 1
 [security]
 enable_tls = false
 tlsca = "certs/ca.pem"
-issuer_name = "DM"
+common_name = "localhost"
 
 [appchain]
 plugin = "appchain_plugin"
