@@ -134,7 +134,7 @@ func NewPier(repoRoot string, config *repo.Config) (*Pier, error) {
 		if config.Security.EnableTLS {
 			nodeInfo.CertPath = filepath.Join(config.RepoRoot, config.Security.Tlsca)
 			nodeInfo.EnableTLS = config.Security.EnableTLS
-			nodeInfo.IssuerName = config.Security.IssuerName
+			nodeInfo.CommonName = config.Security.CommonName
 		}
 		opts = append(opts, rpcx.WithNodesInfo(nodeInfo))
 		client, err := rpcx.New(opts...)
@@ -281,7 +281,7 @@ func NewUnionPier(repoRoot string, config *repo.Config) (*Pier, error) {
 	if config.Security.EnableTLS {
 		nodeInfo.CertPath = filepath.Join(config.RepoRoot, config.Security.Tlsca)
 		nodeInfo.EnableTLS = config.Security.EnableTLS
-		nodeInfo.IssuerName = config.Security.IssuerName
+		nodeInfo.CommonName = config.Security.CommonName
 	}
 	opts = append(opts, rpcx.WithNodesInfo(nodeInfo))
 	client, err := rpcx.New(opts...)
