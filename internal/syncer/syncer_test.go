@@ -103,7 +103,7 @@ func prepare(t *testing.T) (*WrapperSyncer, *mock_agent.MockAgent, *mock_lite.Mo
 	require.Nil(t, err)
 
 	// register handler for syncer
-	require.Nil(t, syncer.RegisterIBTPHandler(func(ibtp *pb.IBTP) {}))
+	require.Nil(t, syncer.RegisterIBTPHandler(func(ibtp *pb.IBTP) error { return nil }))
 	require.Nil(t, syncer.RegisterAppchainHandler(func() error { return nil }))
 	return syncer, ag, lite
 }

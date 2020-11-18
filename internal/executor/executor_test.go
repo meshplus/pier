@@ -77,10 +77,7 @@ func TestExecute(t *testing.T) {
 	require.Equal(t, uint64(2), exec.callbackMeta[from])
 
 	// test for wrong index ibtp and receipt
-	//require.Nil(t, exec.HandleIBTP(wrongIndexedIbtp))
-	require.Panics(t, func() {
-		exec.HandleIBTP(wrongIndexedIbtp)
-	})
+	require.Nil(t, exec.HandleIBTP(wrongIndexedIbtp))
 	require.Nil(t, exec.HandleIBTP(wrongIndexedIbtpReceipt))
 	meta = exec.QueryLatestMeta()
 	require.Equal(t, uint64(2), meta[from])

@@ -65,7 +65,8 @@ func (e *ChannelExecutor) applyInterchainIBTP(ibtp *pb.IBTP) *pb.IBTP {
 	if e.executeMeta[ibtp.From]+1 < ibtp.Index {
 		entry.WithFields(logrus.Fields{
 			"required": e.executeMeta[ibtp.From] + 1,
-		}).Panic("Wrong ibtp index")
+		}).Warning("Wrong ibtp index")
+		return nil
 	}
 
 	// execute interchain tx, and if execution failed, try to rollback

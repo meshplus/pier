@@ -27,7 +27,7 @@ func (e *ChannelExecutor) generateCallback(toExecute *pb.IBTP, args [][]byte) (r
 	if pd.Encrypted {
 		contentByte, err = e.cryptor.Decrypt(contentByte, toExecute.From)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("decrypt ibtp payload %w", err)
 		}
 	}
 
@@ -51,7 +51,7 @@ func (e *ChannelExecutor) generateCallback(toExecute *pb.IBTP, args [][]byte) (r
 	if pd.Encrypted {
 		ctb, err = e.cryptor.Encrypt(ctb, toExecute.To)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("encrypt callback ibtp payload %w", err)
 		}
 	}
 	newPayload := &pb.Payload{

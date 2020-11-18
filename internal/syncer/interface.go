@@ -5,7 +5,7 @@ import (
 	rpcx "github.com/meshplus/go-bitxhub-client"
 )
 
-type IBTPHandler func(ibtp *pb.IBTP)
+type IBTPHandler func(ibtp *pb.IBTP) error
 
 type AppchainHandler func() error
 

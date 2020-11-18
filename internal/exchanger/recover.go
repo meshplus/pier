@@ -12,6 +12,9 @@ import (
 func (ex *Exchanger) recoverRelay() {
 	// recover unsent interchain ibtp
 	mntMeta := ex.mnt.QueryLatestMeta()
+	logger.WithFields(logrus.Fields{
+		"meta": mntMeta,
+	}).Info("Query monitor meta from appchain")
 	for to, idx := range mntMeta {
 		beginIndex, ok := ex.interchainCounter[to]
 		if !ok {
@@ -22,12 +25,15 @@ func (ex *Exchanger) recoverRelay() {
 			logger.WithFields(logrus.Fields{
 				"address": to,
 				"error":   err.Error(),
-			}).Panic("Get missing receipt from contract")
+			}).Error("Get missing receipt from contract")
 		}
 	}
 
 	// recover unsent receipt to counterpart chain
 	execMeta := ex.exec.QueryLatestMeta()
+	logger.WithFields(logrus.Fields{
+		"meta": execMeta,
+	}).Info("Query executor meta from appchain")
 	for from, idx := range execMeta {
 		beginIndex, ok := ex.sourceReceiptMeta[from]
 		if !ok {
@@ -38,7 +44,7 @@ func (ex *Exchanger) recoverRelay() {
 			logger.WithFields(logrus.Fields{
 				"address": from,
 				"error":   err.Error(),
-			}).Panic("Get missing receipt from contract")
+			}).Error("Get missing receipt from contract")
 		}
 	}
 }

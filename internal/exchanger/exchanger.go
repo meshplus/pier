@@ -222,7 +222,11 @@ func (ex *Exchanger) sendIBTP(ibtp *pb.IBTP) error {
 			}
 
 			if !receipt.IsSuccess() {
-				entry.WithField("error", string(receipt.Ret)).Error("Send ibtp")
+				if receipt.Ret != nil && strings.Contains(string(receipt.Ret), "index already exists") {
+					entry.WithField("id", ibtp.ID()).Warnf("IBTP receipt already exists in bitxhub")
+					return nil
+				}
+				entry.WithField("error", string(receipt.Ret)).Error("Send ibtp to bitxhub but got failed receipt")
 				return nil
 			}
 
@@ -231,8 +235,8 @@ func (ex *Exchanger) sendIBTP(ibtp *pb.IBTP) error {
 			}).Info("Send ibtp")
 
 			return nil
-		}, strategy.Wait(1*time.Second)); err != nil {
-			logger.Panic(err)
+		}, strategy.Wait(5*time.Second)); err != nil {
+			logger.Error(err)
 		}
 	case repo.DirectMode:
 		// send ibtp to another pier
@@ -288,6 +292,9 @@ func (ex *Exchanger) sendIBTP(ibtp *pb.IBTP) error {
 func (ex *Exchanger) queryIBTP(from string, idx uint64) (*pb.IBTP, error) {
 	ibtp := &pb.IBTP{}
 	id := fmt.Sprintf("%s-%s-%d", from, ex.pierID, idx)
+	logger.WithFields(logrus.Fields{
+		"id": id,
+	}).Info("Query ibtp")
 
 	v := ex.store.Get(model.IBTPKey(id))
 	if v != nil {

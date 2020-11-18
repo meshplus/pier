@@ -66,12 +66,12 @@ func start(ctx *cli.Context) error {
 
 		pier, err = app.NewPier(repoRoot, config)
 		if err != nil {
-			return err
+			return fmt.Errorf("new pier failed: %w", err)
 		}
 	case repo.UnionMode:
 		pier, err = app.NewUnionPier(repoRoot, config)
 		if err != nil {
-			return err
+			return fmt.Errorf("new pier failed: %w", err)
 		}
 	}
 
@@ -131,10 +131,6 @@ func checkPlugin() error {
 	pluginPath := filepath.Join(pluginRoot, pluginName)
 	_, err = os.Stat(pluginPath)
 	if err != nil {
-		if os.IsNotExist(err) {
-			return fmt.Errorf("plugin file not exist")
-		}
-
 		return fmt.Errorf("get plugin file state error: %w", err)
 	}
 

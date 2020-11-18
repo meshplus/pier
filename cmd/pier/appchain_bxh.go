@@ -128,16 +128,16 @@ func registerAppchain(ctx *cli.Context) error {
 		rpcx.String(string(pubKey)),
 	)
 	if err != nil {
-		return fmt.Errorf("invoke bvm contract: %w", err)
+		return fmt.Errorf("register appchain to bitxhub failed: %w", err)
 	}
 
 	if !receipt.IsSuccess() {
-		return fmt.Errorf("invoke register: %s", receipt.Ret)
+		return fmt.Errorf("register appchain to bitxhub got receipt, but got failed msg: %s", receipt.Ret)
 	}
 
 	appchain := &rpcx.Appchain{}
 	if err := json.Unmarshal(receipt.Ret, appchain); err != nil {
-		return err
+		return fmt.Errorf("unmarshal appchain info fail: %w", err)
 	}
 
 	fmt.Printf("appchain register successfully, id is %s\n", appchain.ID)
@@ -233,7 +233,7 @@ func loadClient(keyPath, grpcAddr string, ctx *cli.Context) (rpcx.Client, error)
 
 	privateKey, err := asym.RestorePrivateKey(keyPath, "bitxhub")
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("restore key from path %s fail: %w", keyPath, err)
 	}
 
 	opts := []rpcx.Option{

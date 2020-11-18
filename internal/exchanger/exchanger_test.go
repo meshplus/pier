@@ -77,8 +77,8 @@ func TestStartRelay(t *testing.T) {
 	// mock one illegal replayed ibtp and one normal ibtp from relay chain
 	replayedInIBTP := getIBTP(t, 1, pb.IBTP_INTERCHAIN)
 	normalInIBTP := getIBTP(t, 2, pb.IBTP_INTERCHAIN)
-	mockExchanger.handleIBTP(normalInIBTP)
-	mockExchanger.handleIBTP(replayedInIBTP)
+	require.Nil(t, mockExchanger.handleIBTP(normalInIBTP))
+	require.Nil(t, mockExchanger.handleIBTP(replayedInIBTP))
 
 	// test for unhappy path, one normal indexed ibtp and will trigger getMissing with error
 	unhappyPathMissedOutIBTPID := fmt.Sprintf("%s-%s-%d", from, to, 3)
@@ -92,7 +92,7 @@ func TestStartRelay(t *testing.T) {
 	mockAgent.EXPECT().GetAssetExchangeSigns(assetTxID).Return(signs, nil).AnyTimes()
 	assetExchangeIBTP := getIBTP(t, 3, pb.IBTP_ASSET_EXCHANGE_REDEEM)
 	assetExchangeIBTP.Extra = []byte(assetTxID)
-	mockExchanger.handleIBTP(assetExchangeIBTP)
+	require.Nil(t, mockExchanger.handleIBTP(assetExchangeIBTP))
 
 	time.Sleep(500 * time.Microsecond)
 	close(outCh)

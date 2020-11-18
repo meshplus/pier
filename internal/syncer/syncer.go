@@ -163,24 +163,6 @@ func (syncer *WrapperSyncer) syncInterchainTxWrappers() {
 		default:
 			ch := syncer.getWrappersChannel()
 
-			err := retry.Retry(func(attempt uint) error {
-				chainMeta, err := syncer.agent.GetChainMeta()
-				if err != nil {
-					logger.WithField("error", err).Error("Get chain meta")
-					return err
-				}
-
-				if chainMeta.Height > syncer.height {
-					syncer.recover(syncer.getDemandHeight(), chainMeta.Height)
-				}
-
-				return nil
-			}, strategy.Wait(1*time.Second))
-
-			if err != nil {
-				logger.Panic(err)
-			}
-
 			loop(ch)
 		}
 	}
@@ -268,8 +250,12 @@ func (syncer *WrapperSyncer) handleInterchainWrapperAndPersist(ws *pb.Interchain
 		logger.WithFields(logrus.Fields{
 			"height": ws.InterchainTxWrappers[0].Height,
 			"error":  err,
-		}).Error("Persist interchain tx wrapper")
+		}).Error("Persist interchain tx wrappers")
 	}
+	logger.WithFields(logrus.Fields{
+		"height": ws.InterchainTxWrappers[0].Height,
+		"count":  len(ws.InterchainTxWrappers),
+	}).Info("Persist interchain tx wrappers")
 	syncer.updateHeight()
 }
 
@@ -281,7 +267,10 @@ func (syncer *WrapperSyncer) handleInterchainTxWrapper(w *pb.InterchainTxWrapper
 	}
 
 	if w.Height < syncer.getDemandHeight() {
-		logger.Warn("wrong height")
+		logger.WithFields(logrus.Fields{
+			"required_height": syncer.getDemandHeight(),
+			"actual_height":   w.Height,
+		}).Warn("wrong height of wrapper from bitxhub")
 		return false
 	}
 
@@ -316,14 +305,11 @@ func (syncer *WrapperSyncer) handleInterchainTxWrapper(w *pb.InterchainTxWrapper
 			}
 
 		}
-		syncer.handler(ibtp)
+		if err := syncer.handler(ibtp); err != nil {
+			// todo: how to handle in the middle of txs list if error occurs
+			continue
+		}
 	}
-
-	logger.WithFields(logrus.Fields{
-		"height": w.Height,
-		"count":  len(w.Transactions),
-		"index":  i,
-	}).Info("Persist interchain tx wrapper")
 	return true
 }
 

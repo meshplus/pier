@@ -50,6 +50,10 @@ func New(client plugins.Client, cryptor txcrypto.Cryptor) (*AppchainMonitor, err
 
 // Start implements Monitor
 func (m *AppchainMonitor) Start() error {
+	logger.WithFields(logrus.Fields{
+		"meta": m.interchainCounter,
+	}).Info("Monitor started")
+
 	if err := m.client.Start(); err != nil {
 		return err
 	}
@@ -107,7 +111,7 @@ func (m *AppchainMonitor) QueryIBTP(id string) (*pb.IBTP, error) {
 		}).Error("query ibtp from contract")
 	}
 
-	if err := m.checkEnrcyption(ibtp); err != nil {
+	if err := m.checkEncryption(ibtp); err != nil {
 		return nil, err
 	}
 	return ibtp, nil
@@ -124,10 +128,11 @@ func (m *AppchainMonitor) handleIBTP(ibtp *pb.IBTP) {
 	// m.interchainCounter.InterchainCounter[ibtp.To] is the index of top handled tx
 	if m.interchainCounter[ibtp.To] >= ibtp.Index {
 		logger.WithFields(logrus.Fields{
-			"index":   ibtp.Index,
-			"to":      ibtp.To,
-			"ibtp_id": ibtp.ID(),
-		}).Info("Ignore ibtp")
+			"required_index": m.interchainCounter[ibtp.To] + 1,
+			"index":          ibtp.Index,
+			"to":             ibtp.To,
+			"ibtp_id":        ibtp.ID(),
+		}).Warn("Ignore ibtp")
 		return
 	}
 
@@ -145,7 +150,7 @@ func (m *AppchainMonitor) handleIBTP(ibtp *pb.IBTP) {
 		}
 	}
 
-	if err := m.checkEnrcyption(ibtp); err != nil {
+	if err := m.checkEncryption(ibtp); err != nil {
 		logger.WithFields(logrus.Fields{
 			"index": ibtp.Index,
 			"to":    ibtp.To,
@@ -170,7 +175,13 @@ func (m *AppchainMonitor) getIBTP(to string, idx uint64) (*pb.IBTP, error) {
 			logger.Errorf("Get out message : %s", err.Error())
 			return err
 		}
-
+		if e == nil {
+			logger.WithFields(logrus.Fields{
+				"ibtp_index": idx,
+				"ibtp_to":    to,
+			}).Warningf("Get empty message")
+			return fmt.Errorf("get empty message")
+		}
 		c <- e
 
 		return nil
@@ -199,7 +210,7 @@ func (m *AppchainMonitor) handleMissingIBTP(to string, begin, end uint64) error 
 			return fmt.Errorf("fetch ibtp:%w", err)
 		}
 
-		if err = m.checkEnrcyption(ev); err != nil {
+		if err = m.checkEncryption(ev); err != nil {
 			return fmt.Errorf("check enrcyption:%w", err)
 		}
 
@@ -210,7 +221,7 @@ func (m *AppchainMonitor) handleMissingIBTP(to string, begin, end uint64) error 
 	return nil
 }
 
-func (m *AppchainMonitor) checkEnrcyption(ibtp *pb.IBTP) error {
+func (m *AppchainMonitor) checkEncryption(ibtp *pb.IBTP) error {
 	pld := &pb.Payload{}
 	if err := pld.Unmarshal(ibtp.Payload); err != nil {
 		return err

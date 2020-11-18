@@ -150,7 +150,7 @@ func NewPier(repoRoot string, config *repo.Config) (*Pier, error) {
 		// agent queries appchain info from bitxhub
 		meta, err = ag.GetInterchainMeta()
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("get interchain meta from bitxhub error: %w", err)
 		}
 
 		chain, err = ag.Appchain()
@@ -338,7 +338,7 @@ func NewUnionPier(repoRoot string, config *repo.Config) (*Pier, error) {
 func (pier *Pier) Start() error {
 	if pier.config.Mode.Type != repo.UnionMode {
 		logger.WithFields(logrus.Fields{
-			"id":                     pier.meta.ID,
+			"pier_id":                pier.meta.ID,
 			"interchain_counter":     pier.meta.InterchainCounter,
 			"receipt_counter":        pier.meta.ReceiptCounter,
 			"source_receipt_counter": pier.meta.SourceReceiptCounter,

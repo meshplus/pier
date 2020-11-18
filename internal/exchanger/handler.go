@@ -3,6 +3,7 @@ package exchanger
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/Rican7/retry"
@@ -16,15 +17,21 @@ import (
 )
 
 // handleIBTP handle ibtps from bitxhub
-func (ex *Exchanger) handleIBTP(ibtp *pb.IBTP) {
+func (ex *Exchanger) handleIBTP(ibtp *pb.IBTP) error {
+	logger.WithFields(logrus.Fields{
+		"id":   ibtp.ID(),
+		"type": ibtp.Type,
+	}).Info("Handle ibtp from bitxhub")
+
 	err := ex.checker.Check(ibtp)
 	if err != nil {
 		// todo: send receipt back to bitxhub
-		return
+		return err
 	}
 	if pb.IBTP_ASSET_EXCHANGE_REDEEM == ibtp.Type || pb.IBTP_ASSET_EXCHANGE_REFUND == ibtp.Type {
 		if err := retry.Retry(func(attempt uint) error {
 			if err := ex.fetchSignsToIBTP(ibtp); err != nil {
+				logger.Errorf("Fetch signs for ibtp %s from bitxhub: %s", ibtp.ID(), err.Error())
 				return err
 			}
 			return nil
@@ -35,26 +42,34 @@ func (ex *Exchanger) handleIBTP(ibtp *pb.IBTP) {
 
 	receipt := ex.exec.HandleIBTP(ibtp)
 	if receipt == nil {
-		return
+		return nil
 	}
-	logger.WithFields(logrus.Fields{
-		"index": ibtp.Index,
-		"from":  ibtp.From,
-	}).Info("Handle ibtp")
 
 	if err := retry.Retry(func(attempt uint) error {
-		_, err = ex.agent.SendIBTP(receipt)
+		rpt, err := ex.agent.SendIBTP(receipt)
 		if err != nil {
+			logger.Errorf("Send ibtp receipt to bitxhub: %s", err.Error())
 			return err
+		}
+		if !rpt.IsSuccess() {
+			if rpt.Ret != nil && strings.Contains(string(rpt.Ret), "index already exists") {
+				logger.WithField("id", ibtp.ID()).Warnf("IBTP receipt already exists in bitxhub")
+			}
+			return nil
 		}
 		return nil
 	}, strategy.Wait(1*time.Second)); err != nil {
 		logger.Panic(err)
 	}
+	logger.WithFields(logrus.Fields{
+		"receipt_id": receipt.ID(),
+		"type":       receipt.Type,
+	}).Info("Send ibtp receipt to bitxhub")
+	return nil
 }
 
 // handleIBTP handle ibtps from bitxhub
-func (ex *Exchanger) handleUnionIBTP(ibtp *pb.IBTP) {
+func (ex *Exchanger) handleUnionIBTP(ibtp *pb.IBTP) error {
 	ibtp.From = ex.pierID + "-" + ibtp.From
 	var signs []byte
 	if err := retry.Retry(func(attempt uint) error {
@@ -85,6 +100,7 @@ func (ex *Exchanger) handleUnionIBTP(ibtp *pb.IBTP) {
 		"from":  ibtp.From,
 		"id":    ibtp.ID(),
 	}).Info("Route tx successful")
+	return nil
 }
 
 func (ex *Exchanger) handleProviderAppchains() error {

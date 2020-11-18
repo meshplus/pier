@@ -67,13 +67,16 @@ func deployRule(ctx *cli.Context) error {
 		return fmt.Errorf("deploy rule: %w", err)
 	}
 
-	_, err = client.InvokeBVMContract(
+	receipt, err := client.InvokeBVMContract(
 		constant.RuleManagerContractAddr.Address(),
 		"RegisterRule", nil,
 		rpcx.String(address.String()),
 		rpcx.String(contractAddr.String()))
 	if err != nil {
-		return fmt.Errorf("register rule")
+		return fmt.Errorf("register rulefail %w", err)
+	}
+	if !receipt.IsSuccess() {
+		return fmt.Errorf("register rule got receipt, but got failed msg: %s", receipt.Ret)
 	}
 
 	fmt.Println("Deploy rule to bitxhub successfully")

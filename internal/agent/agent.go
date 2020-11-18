@@ -47,12 +47,12 @@ func (agent *BxhAgent) Stop() error {
 func (agent *BxhAgent) Appchain() (*rpcx.Appchain, error) {
 	receipt, err := agent.client.InvokeBVMContract(constant.AppchainMgrContractAddr.Address(), "Appchain", nil)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("get Appchain info error: %w", err)
 	}
 
 	appchain := &rpcx.Appchain{}
 	if receipt.Status == pb.Receipt_FAILED {
-		return nil, fmt.Errorf("receipt: %s", receipt.Ret)
+		return nil, fmt.Errorf("get Appchain info got receipt but failed, err msg: %s", receipt.Ret)
 	}
 
 	if err := json.Unmarshal(receipt.Ret, appchain); err != nil {
@@ -65,11 +65,11 @@ func (agent *BxhAgent) Appchain() (*rpcx.Appchain, error) {
 func (agent *BxhAgent) GetInterchainMeta() (*pb.Interchain, error) {
 	receipt, err := agent.client.InvokeBVMContract(constant.InterchainContractAddr.Address(), "Interchain", nil)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("get Interchain info: %w", err)
 	}
 
 	if !receipt.IsSuccess() {
-		return nil, fmt.Errorf("receipt: %s", receipt.Ret)
+		return nil, fmt.Errorf("get Interchain info got receipt but failed, err msg: %s", receipt.Ret)
 	}
 
 	ret := &pb.Interchain{}
@@ -84,7 +84,7 @@ func (agent *BxhAgent) GetInterchainMeta() (*pb.Interchain, error) {
 func (agent *BxhAgent) SyncBlockHeader(ctx context.Context, headerCh chan *pb.BlockHeader) error {
 	ch, err := agent.client.Subscribe(ctx, pb.SubscriptionRequest_BLOCK_HEADER, nil)
 	if err != nil {
-		return err
+		return fmt.Errorf("subscribe for blockheader %w", err)
 	}
 
 	go func() {
@@ -107,7 +107,7 @@ func (agent *BxhAgent) SyncBlockHeader(ctx context.Context, headerCh chan *pb.Bl
 
 func (agent *BxhAgent) GetBlockHeader(ctx context.Context, begin, end uint64, ch chan *pb.BlockHeader) error {
 	if err := agent.client.GetBlockHeader(ctx, begin, end, ch); err != nil {
-		return err
+		return fmt.Errorf("get blockheader from height %d to %d failed %w", begin, end, err)
 	}
 
 	return nil
@@ -117,7 +117,7 @@ func (agent *BxhAgent) SyncInterchainTxWrappers(ctx context.Context, txCh chan *
 	subscriptType := pb.SubscriptionRequest_INTERCHAIN_TX_WRAPPER
 	ch, err := agent.client.Subscribe(ctx, subscriptType, agent.from.Bytes())
 	if err != nil {
-		return err
+		return fmt.Errorf("subscribe for interchain tx wrapper %w", err)
 	}
 
 	go func() {
