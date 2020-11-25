@@ -8,8 +8,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/meshplus/bitxhub-kit/types"
-
 	"github.com/Rican7/retry"
 	"github.com/Rican7/retry/strategy"
 	"github.com/meshplus/bitxhub-kit/log"
@@ -222,7 +220,7 @@ func (m *AppchainMonitor) handleMissingIBTP(to string, begin, end uint64) error 
 			return fmt.Errorf("check enrcyption:%w", err)
 		}
 
-		m.interchainCounter[ev.To]++
+		m.interchainCounter.Store(ev.To, ev.Index)
 		m.recvCh <- ev
 	}
 

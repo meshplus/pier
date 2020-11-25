@@ -30,6 +30,7 @@ require (
 	github.com/stretchr/testify v1.6.0
 	github.com/tidwall/gjson v1.6.0
 	github.com/urfave/cli v1.22.1
+	go.uber.org/atomic v1.6.0
 	golang.org/x/tools v0.0.0-20201009162240-fcf82128ed91 // indirect
 	google.golang.org/grpc v1.27.1
 )

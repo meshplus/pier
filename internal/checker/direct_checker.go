@@ -52,7 +52,9 @@ func (c *DirectChecker) Check(ibtp *pb.IBTP) error {
 		if err := json.Unmarshal(appchainByte, appchain); err != nil {
 			return fmt.Errorf("unmarshal appchain: %w", err)
 		}
-		code := c.ruleMgr.Ledger.GetCode(types.String2Address(chainID))
+
+		chainAddr := types.NewAddressByStr(chainID)
+		code := c.ruleMgr.Ledger.GetCode(*chainAddr)
 		if code == nil {
 			if appchain.ChainType == "fabric" {
 				validatorAddr = validator.SimFabricRuleAddr
@@ -60,7 +62,7 @@ func (c *DirectChecker) Check(ibtp *pb.IBTP) error {
 				return fmt.Errorf("not found rule address from appchain:%s", appchain.ID)
 			}
 		} else {
-			validatorAddr = types.Bytes2Address(code).String()
+			validatorAddr = types.NewAddress(code).String()
 		}
 
 		c.appchainCache.Store(chainID, &appchainRule{
