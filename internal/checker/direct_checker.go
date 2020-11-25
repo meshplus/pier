@@ -3,7 +3,6 @@ package checker
 import (
 	"encoding/json"
 	"fmt"
-	"strings"
 
 	appchainmgr "github.com/meshplus/bitxhub-core/appchain-mgr"
 	"github.com/meshplus/bitxhub-model/pb"
@@ -24,9 +23,9 @@ func NewDirectChecker(ruleMgr *rulemgr.RuleMgr, appchainMgr *appchain.Manager) C
 }
 
 func (c *DirectChecker) Check(ibtp *pb.IBTP) error {
-	chainID := strings.ToLower(ibtp.From)
+	chainID := ibtp.From
 	if ibtp.Type == pb.IBTP_RECEIPT_SUCCESS || ibtp.Type == pb.IBTP_RECEIPT_FAILURE {
-		chainID = strings.ToLower(ibtp.To)
+		chainID = ibtp.To
 	}
 
 	ok, appchainByte := c.appchainMgr.Mgr.GetAppchain(chainID)

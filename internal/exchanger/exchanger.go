@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/Rican7/retry"
@@ -245,9 +244,9 @@ func (ex *Exchanger) sendIBTP(ibtp *pb.IBTP) error {
 
 			var dst string
 			if ibtp.Type == pb.IBTP_INTERCHAIN {
-				dst = strings.ToLower(ibtp.To)
+				dst = ibtp.To
 			} else {
-				dst = strings.ToLower(ibtp.From)
+				dst = ibtp.From
 			}
 
 			retMsg, err := ex.peerMgr.Send(dst, msg)
