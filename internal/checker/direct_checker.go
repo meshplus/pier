@@ -1,15 +1,14 @@
 package checker
 
 import (
+	"crypto/sha256"
 	"encoding/json"
 	"fmt"
 	"sync"
 
-	"github.com/meshplus/bitxhub-core/validator"
-
-	"github.com/meshplus/bitxhub-kit/types"
-
 	appchainmgr "github.com/meshplus/bitxhub-core/appchain-mgr"
+	"github.com/meshplus/bitxhub-core/validator"
+	"github.com/meshplus/bitxhub-kit/types"
 	"github.com/meshplus/bitxhub-model/pb"
 	"github.com/meshplus/pier/internal/appchain"
 	"github.com/meshplus/pier/internal/rulemgr"
@@ -62,7 +61,8 @@ func (c *DirectChecker) Check(ibtp *pb.IBTP) error {
 				return fmt.Errorf("not found rule address from appchain:%s", appchain.ID)
 			}
 		} else {
-			validatorAddr = types.NewAddress(code).String()
+			codeHash := sha256.Sum256(code)
+			validatorAddr = types.NewAddress(codeHash[:]).String()
 		}
 
 		c.appchainCache.Store(chainID, &appchainRule{

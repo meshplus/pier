@@ -66,10 +66,10 @@ func TestStartRelay(t *testing.T) {
 	outCh := make(chan *pb.IBTP, 1)
 	outCh <- normalOutIBTP
 
-	outMeta := &sync.Map{}
-	outMeta.Store(to, 1)
+	outMeta := make(map[string]uint64)
+	outMeta[to] = 1
 	inMeta := &sync.Map{}
-	inMeta.Store(to, 1)
+	inMeta.Store(to, uint64(1))
 	mockMonitor.EXPECT().ListenOnIBTP().Return(outCh).AnyTimes()
 	mockMonitor.EXPECT().QueryLatestMeta().Return(outMeta)
 	mockMonitor.EXPECT().QueryIBTP(missedOutIBTP.ID()).Return(missedOutIBTP, nil).AnyTimes()
@@ -138,16 +138,16 @@ func TestStartDirect(t *testing.T) {
 	retMetaMsg := peermgr.Message(peerMsg.Message_INTERCHAIN_META_GET, true, metaBytes)
 	retMsg := peermgr.Message(peerMsg.Message_ACK, true, receiptBytes)
 
-	outMeta := &sync.Map{}
-	outMeta.Store(to, 1)
+	outMeta := make(map[string]uint64)
+	outMeta[to] = 1
 	inMeta := &sync.Map{}
-	inMeta.Store(to, 1)
+	inMeta.Store(to, uint64(1))
 	mockMonitor.EXPECT().ListenOnIBTP().Return(outCh).AnyTimes()
 	mockMonitor.EXPECT().QueryLatestMeta().Return(outMeta)
 	mockMonitor.EXPECT().QueryIBTP(happyPathMissedOutIBTP.ID()).Return(happyPathMissedOutIBTP, nil).AnyTimes()
 	mockExecutor.EXPECT().HandleIBTP(gomock.Any()).Return(receipt).AnyTimes()
 	mockExecutor.EXPECT().QueryLatestMeta().Return(inMeta).AnyTimes()
-	mockExecutor.EXPECT().QueryLatestCallbackMeta().Return(make(map[string]uint64)).AnyTimes()
+	mockExecutor.EXPECT().QueryLatestCallbackMeta().Return(&sync.Map{}).AnyTimes()
 	mockExecutor.EXPECT().QueryReceipt(to, uint64(1), gomock.Any()).Return(receipt, nil).AnyTimes()
 	mockPeerMgr.EXPECT().Send(gomock.Any(), metaMsg).Return(retMetaMsg, nil).AnyTimes()
 	mockPeerMgr.EXPECT().Send(gomock.Any(), gomock.Any()).Return(retMsg, nil).AnyTimes()
@@ -414,7 +414,7 @@ func TestWithPeerMgr(t *testing.T) {
 	mode := "direct"
 	mockMonitor1, mockExecutor1, mockChecker1, _, apiServer1, store1 := prepareDirect(t)
 	mockMonitor2, mockExecutor2, mockChecker2, _, apiServer2, store2 := prepareDirect(t)
-	meta := &rpcx.Interchain{}
+	meta := &pb.Interchain{}
 
 	nodeKeys, privKeys, config, addrs := genKeysAndConfig(t, 2)
 
@@ -443,15 +443,15 @@ func TestWithPeerMgr(t *testing.T) {
 	outCh := make(chan *pb.IBTP, 1000)
 
 	outMeta := make(map[string]uint64)
-	inMeta := make(map[string]uint64)
+	inMeta := sync.Map{}
 	mockMonitor1.EXPECT().ListenOnIBTP().Return(outCh).AnyTimes()
 	mockMonitor1.EXPECT().QueryLatestMeta().Return(outMeta)
 	for _, ibtp := range normalOutIBTPs {
 		//	mockExecutor1.EXPECT().HandleIBTP(ibtp).Return(normalReceipts[i]).AnyTimes()
 		outCh <- ibtp
 	}
-	mockExecutor1.EXPECT().QueryLatestMeta().Return(inMeta).AnyTimes()
-	mockExecutor1.EXPECT().QueryLatestCallbackMeta().Return(make(map[string]uint64)).AnyTimes()
+	mockExecutor1.EXPECT().QueryLatestMeta().Return(&inMeta).AnyTimes()
+	mockExecutor1.EXPECT().QueryLatestCallbackMeta().Return(&sync.Map{}).AnyTimes()
 
 	mockMonitor2.EXPECT().ListenOnIBTP().Return(make(chan *pb.IBTP)).AnyTimes()
 	mockMonitor2.EXPECT().QueryLatestMeta().Return(outMeta)
@@ -459,8 +459,8 @@ func TestWithPeerMgr(t *testing.T) {
 		mockExecutor2.EXPECT().HandleIBTP(ibtp).Return(normalReceipts[i]).AnyTimes()
 		//outCh <- ibtp
 	}
-	mockExecutor2.EXPECT().QueryLatestMeta().Return(inMeta).AnyTimes()
-	mockExecutor2.EXPECT().QueryLatestCallbackMeta().Return(make(map[string]uint64)).AnyTimes()
+	mockExecutor2.EXPECT().QueryLatestMeta().Return(&inMeta).AnyTimes()
+	mockExecutor2.EXPECT().QueryLatestCallbackMeta().Return(&sync.Map{}).AnyTimes()
 
 	go mockExchanger1.Start()
 	go mockExchanger2.Start()

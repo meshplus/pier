@@ -168,13 +168,7 @@ func (m *AppchainMonitor) handleIBTP(ibtp *pb.IBTP) {
 		}).Error("check encryption")
 	}
 
-	logger.WithFields(logrus.Fields{
-		"index": ibtp.Index,
-		"to":    ibtp.To,
-	}).Info("Pass ibtp to exchanger")
-
-	index++
-	m.interchainCounter.Store(ibtp.To, index)
+	m.interchainCounter.Store(ibtp.To, ibtp.Index)
 	m.recvCh <- ibtp
 }
 

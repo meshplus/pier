@@ -306,22 +306,10 @@ func (ex *Exchanger) sendIBTP(ibtp *pb.IBTP) error {
 				dst = ibtp.To
 			} else {
 				dst = ibtp.From
-				dst = ibtp.From
-			}
-
-			retMsg, err := ex.peerMgr.Send(dst, msg)
-			if err != nil {
-				logger.Infof("Send ibtp to pier %s: %s", dst, err.Error())
-				return err
-			}
-
-			if !retMsg.Payload.Ok {
-				entry.Errorf("send ibtp: %s", string(retMsg.Payload.Data))
-				return fmt.Errorf("send ibtp: %w", fmt.Errorf(string(retMsg.Payload.Data)))
 			}
 
 			if err := ex.peerMgr.AsyncSend(dst, msg); err != nil {
-				logger.Infof("Send ibtp to pier %s: %s", ibtp.ID(), err.Error())
+				logger.Errorf("Send ibtp to pier %s: %s", ibtp.ID(), err.Error())
 				return err
 			}
 
@@ -392,7 +380,7 @@ func (ex *Exchanger) feedIBTP(ibtp *pb.IBTP) {
 		go func(pool *Pool) {
 			defer func() {
 				if e := recover(); e != nil {
-					logger.Panic(e)
+					logger.Error(fmt.Errorf("%v", e))
 				}
 			}()
 			inMeta := ex.exec.QueryLatestMeta()

@@ -29,7 +29,6 @@ func (ex *Exchanger) recoverRelay() {
 	// recover unsent receipt to counterpart chain
 	execMeta := ex.exec.QueryLatestMeta()
 	execMeta.Range(func(from, idx interface{}) bool {
-
 		beginIndex, ok := ex.sourceReceiptMeta[from.(string)]
 		if !ok {
 			beginIndex = 0

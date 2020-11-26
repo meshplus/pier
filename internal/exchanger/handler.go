@@ -137,7 +137,6 @@ func (ex *Exchanger) handleRouterSendIBTPMessage(stream network.Stream, msg *pee
 }
 
 func (ex *Exchanger) postHandleIBTP(from string, receipt *pb.IBTP) {
-
 	if receipt == nil {
 		retMsg := peermgr.Message(peerMsg.Message_IBTP_RECEIPT_SEND, true, nil)
 		err := ex.peerMgr.AsyncSend(from, retMsg)
@@ -169,13 +168,13 @@ func (ex *Exchanger) timeCost() func() {
 }
 
 func (ex *Exchanger) handleSendIBTPMessage(stream network.Stream, msg *peerMsg.Message) {
-	ibtp := &pb.IBTP{}
-	if err := ibtp.Unmarshal(msg.Payload.Data); err != nil {
-		logger.Error("unmarshal ibtp: %w", err)
-		return
-	}
 	ex.ch <- struct{}{}
-	go func(ibtp *pb.IBTP) {
+	go func(msg *peerMsg.Message) {
+		ibtp := &pb.IBTP{}
+		if err := ibtp.Unmarshal(msg.Payload.Data); err != nil {
+			logger.Error("unmarshal ibtp: %w", err)
+			return
+		}
 		defer ex.timeCost()()
 		err := ex.checker.Check(ibtp)
 		if err != nil {
@@ -185,7 +184,7 @@ func (ex *Exchanger) handleSendIBTPMessage(stream network.Stream, msg *peerMsg.M
 
 		ex.feedIBTP(ibtp)
 		<-ex.ch
-	}(ibtp)
+	}(msg)
 
 }
 
