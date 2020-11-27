@@ -81,3 +81,9 @@ config = "fabric"
 ## Usage
 
 More details about usage is in [Pier handbook](https://github.com/meshplus/pier/wiki/Pier%E4%BD%BF%E7%94%A8%E6%96%87%E6%A1%A3)
+
+## License
+
+The Pier library (i.e. all code outside of the cmd and internal directory) is licensed under the GNU Lesser General Public License v3.0, also included in our repository in the LICENSE.LESSER file.
+
+The Pier binaries (i.e. all code inside of the cmd and internal directory) is licensed under the GNU General Public License v3.0, also included in our repository in the LICENSE file.
