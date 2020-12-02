@@ -370,7 +370,8 @@ func (syncer *WrapperSyncer) verifyWrapper(w *pb.InterchainTxWrapper) (bool, err
 	// validate if l2roots are correct
 	l2RootHashes := make([]merkletree.Content, 0, len(w.L2Roots))
 	for _, root := range w.L2Roots {
-		l2RootHashes = append(l2RootHashes, &root)
+		l2root := root
+		l2RootHashes = append(l2RootHashes, &l2root)
 	}
 	l1Tree, err := merkletree.NewTree(l2RootHashes)
 	if err != nil {
