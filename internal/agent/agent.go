@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/json"
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/meshplus/bitxhub-kit/types"
@@ -79,6 +80,24 @@ func (agent *BxhAgent) GetInterchainMeta() (*pb.Interchain, error) {
 	}
 
 	return ret, nil
+}
+
+func (agent *BxhAgent) GetTxStatus(id string) (pb.TransactionStatus, error) {
+	receipt, err := agent.client.InvokeBVMContract(constant.TransactionMgrContractAddr.Address(), "GetStatus", nil, rpcx.String(id))
+	if err != nil {
+		return pb.TransactionStatus_BEGIN, err
+	}
+
+	if !receipt.IsSuccess() {
+		return pb.TransactionStatus_BEGIN, fmt.Errorf("receipt: %s", receipt.Ret)
+	}
+
+	status, err := strconv.Atoi(string(receipt.Ret))
+	if err != nil {
+		return pb.TransactionStatus_BEGIN, err
+	}
+
+	return pb.TransactionStatus(status), nil
 }
 
 func (agent *BxhAgent) SyncBlockHeader(ctx context.Context, headerCh chan *pb.BlockHeader) error {

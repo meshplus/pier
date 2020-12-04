@@ -23,6 +23,7 @@ var logger = log.NewWithModule("monitor")
 type AppchainMonitor struct {
 	client            plugins.Client
 	interchainCounter map[string]uint64
+	srcRollbackMeta   map[string]uint64
 	recvCh            chan *pb.IBTP
 	suspended         uint64
 	ctx               context.Context
@@ -37,10 +38,16 @@ func New(client plugins.Client, cryptor txcrypto.Cryptor) (*AppchainMonitor, err
 		return nil, fmt.Errorf("get out interchainCounter from broker contract :%w", err)
 	}
 
+	srcRollbackMeta, err := client.GetSrcRollbackMeta()
+	if err != nil {
+		return nil, fmt.Errorf("get src rollback meta from broker contract :%w", err)
+	}
+
 	ctx, cancel := context.WithCancel(context.Background())
 	return &AppchainMonitor{
 		client:            client,
 		interchainCounter: meta,
+		srcRollbackMeta:   srcRollbackMeta,
 		cryptor:           cryptor,
 		recvCh:            make(chan *pb.IBTP, 1024),
 		ctx:               ctx,
@@ -117,6 +124,10 @@ func (m *AppchainMonitor) QueryLatestMeta() map[string]uint64 {
 	return m.interchainCounter
 }
 
+func (m *AppchainMonitor) QuerySrcRollbackMeta() map[string]uint64 {
+	return m.srcRollbackMeta
+}
+
 // handleIBTP handle the ibtp package captured by monitor.
 // it will check the index of this package to filter duplicated packages and
 // fetch unfinished ones
@@ -167,7 +178,11 @@ func (m *AppchainMonitor) getIBTP(to string, idx uint64) (*pb.IBTP, error) {
 	if err := retry.Retry(func(attempt uint) error {
 		e, err := m.client.GetOutMessage(to, idx)
 		if err != nil {
-			logger.Errorf("Get out message : %s", err.Error())
+			logger.WithFields(logrus.Fields{
+				"id":    idx,
+				"to":    to,
+				"error": err,
+			}).Error("Get out message")
 			return err
 		}
 

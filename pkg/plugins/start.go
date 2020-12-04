@@ -13,7 +13,7 @@ import (
 var logger = hclog.New(&hclog.LoggerOptions{
 	Name:   "plugin",
 	Output: hclog.DefaultOutput,
-	Level:  hclog.Info,
+	Level:  hclog.Trace,
 })
 
 func CreateClient(pierID, configPath string, extra []byte) (Client, *plugin.Client, error) {

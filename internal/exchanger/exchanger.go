@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/Rican7/retry"
@@ -41,6 +42,7 @@ type Exchanger struct {
 	pierID            string
 	interchainCounter map[string]uint64
 	sourceReceiptMeta map[string]uint64
+	rollbackCh        chan *pb.IBTP
 	ctx               context.Context
 	cancel            context.CancelFunc
 }
@@ -64,6 +66,7 @@ func New(typ, pierID string, meta *pb.Interchain, opts ...Option) (*Exchanger, e
 		router:            config.router,
 		interchainCounter: meta.InterchainCounter,
 		sourceReceiptMeta: meta.SourceReceiptCounter,
+		rollbackCh:        make(chan *pb.IBTP, 1024),
 		mode:              typ,
 		pierID:            pierID,
 		ctx:               ctx,
@@ -103,6 +106,10 @@ func (ex *Exchanger) Start() error {
 
 		if err := ex.syncer.RegisterIBTPHandler(ex.handleIBTP); err != nil {
 			return fmt.Errorf("register ibtp handler: %w", err)
+		}
+
+		if err := ex.syncer.RegisterRollbackHandler(ex.handleRollback); err != nil {
+			return fmt.Errorf("register rollback handler: %w", err)
 		}
 
 		if err := ex.syncer.Start(); err != nil {
@@ -145,6 +152,7 @@ func (ex *Exchanger) Start() error {
 
 	if ex.mode != repo.UnionMode {
 		go ex.listenAndSendIBTP()
+		go ex.sendRollbackedIBTP()
 	}
 
 	logger.Info("Exchanger started")
@@ -164,6 +172,24 @@ func (ex *Exchanger) listenAndSendIBTP() {
 			}
 			if err := ex.sendIBTP(ibtp); err != nil {
 				logger.Infof("Send ibtp: %s", err.Error())
+			}
+		}
+	}
+}
+
+func (ex *Exchanger) sendRollbackedIBTP() {
+	for {
+		select {
+		case <-ex.ctx.Done():
+			return
+		case ibtp, ok := <-ex.rollbackCh:
+			if !ok {
+				logger.Warn("Unexpected closed channel while listening on interchain ibtp")
+				return
+			}
+			ibtp.Type = pb.IBTP_ROLLBACK
+			if err := ex.sendIBTP(ibtp); err != nil {
+				logger.Infof("Send rollbacked ibtp: %s", err.Error())
 			}
 		}
 	}
@@ -203,16 +229,18 @@ func (ex *Exchanger) Stop() error {
 
 func (ex *Exchanger) sendIBTP(ibtp *pb.IBTP) error {
 	entry := logger.WithFields(logrus.Fields{
-		"index": ibtp.Index,
-		"type":  ibtp.Type,
-		"to":    ibtp.To,
-		"id":    ibtp.ID(),
+		"type": ibtp.Type,
+		"id":   ibtp.ID(),
 	})
 
 	switch ex.mode {
 	case repo.UnionMode:
 		fallthrough
 	case repo.RelayMode:
+		strategies := []strategy.Strategy{strategy.Wait(2 * time.Second)}
+		if ibtp.Type != pb.IBTP_ROLLBACK {
+			strategies = append(strategies, strategy.Limit(5))
+		}
 		if err := retry.Retry(func(attempt uint) error {
 			receipt, err := ex.agent.SendIBTP(ibtp)
 			if err != nil {
@@ -221,6 +249,12 @@ func (ex *Exchanger) sendIBTP(ibtp *pb.IBTP) error {
 			}
 
 			if !receipt.IsSuccess() {
+				// If the sending index is larger than the index in BitXHub, means there are some timeout
+				// ibtps to send to bitxhub, so retry until those ibtps sending finished
+				if strings.Contains(string(receipt.Ret), "wrong index") {
+					entry.WithField("error", string(receipt.Ret)).Error("Send ibtp get wrong index")
+					return fmt.Errorf("send ibtp get wrong index")
+				}
 				entry.WithField("error", string(receipt.Ret)).Error("Send ibtp")
 				return nil
 			}
@@ -230,8 +264,9 @@ func (ex *Exchanger) sendIBTP(ibtp *pb.IBTP) error {
 			}).Info("Send ibtp")
 
 			return nil
-		}, strategy.Wait(1*time.Second)); err != nil {
-			logger.Panic(err)
+		}, strategies...); err != nil {
+			ex.exec.Rollback(ibtp, true)
+			ex.rollbackCh <- ibtp
 		}
 	case repo.DirectMode:
 		// send ibtp to another pier

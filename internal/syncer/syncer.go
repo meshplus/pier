@@ -1,8 +1,11 @@
 package syncer
 
 import (
+	"bytes"
 	"context"
+	"crypto/sha256"
 	"fmt"
+	"sort"
 	"strconv"
 	"sync/atomic"
 	"time"
@@ -38,6 +41,7 @@ type WrapperSyncer struct {
 	handler         IBTPHandler
 	appchainHandler AppchainHandler
 	recoverHandler  RecoverUnionHandler
+	rollbackHandler RollbackHandler
 	config          *repo.Config
 
 	ctx    context.Context
@@ -197,6 +201,9 @@ func (syncer *WrapperSyncer) getWrappersChannel() chan *pb.InterchainTxWrappers 
 			}
 		} else {
 			if err := syncer.agent.SyncInterchainTxWrappers(syncer.ctx, ch); err != nil {
+				logger.WithFields(logrus.Fields{
+					"err": err,
+				}).Error("Sync intrechain tx wrapper")
 				return err
 			}
 		}
@@ -293,6 +300,17 @@ func (syncer *WrapperSyncer) handleInterchainTxWrapper(w *pb.InterchainTxWrapper
 		return false
 	}
 
+	for _, ibtpId := range w.TimeoutIbtps {
+		if err := syncer.rollbackHandler(ibtpId); err != nil {
+			logger.WithFields(logrus.Fields{
+				"height": w.Height,
+				"id":     ibtpId,
+				"error":  err,
+			}).Warn("Rollback timeout ibtp")
+			return false
+		}
+	}
+
 	for _, tx := range w.Transactions {
 		ibtp := tx.GetIBTP()
 		if ibtp == nil {
@@ -320,9 +338,10 @@ func (syncer *WrapperSyncer) handleInterchainTxWrapper(w *pb.InterchainTxWrapper
 	}
 
 	logger.WithFields(logrus.Fields{
-		"height": w.Height,
-		"count":  len(w.Transactions),
-		"index":  i,
+		"height":      w.Height,
+		"count":       len(w.Transactions),
+		"index":       i,
+		"timeout IDs": w.TimeoutIbtps,
 	}).Info("Persist interchain tx wrapper")
 	return true
 }
@@ -350,6 +369,15 @@ func (syncer *WrapperSyncer) RegisterAppchainHandler(handler AppchainHandler) er
 	}
 
 	syncer.appchainHandler = handler
+	return nil
+}
+
+func (syncer *WrapperSyncer) RegisterRollbackHandler(handler RollbackHandler) error {
+	if handler == nil {
+		return fmt.Errorf("register rollback handler: empty handler")
+	}
+
+	syncer.rollbackHandler = handler
 	return nil
 }
 
@@ -432,6 +460,67 @@ func (syncer *WrapperSyncer) verifyWrapper(w *pb.InterchainTxWrapper) (bool, err
 			// TODO: how to deal with malicious tx found
 			continue
 		}
+	}
+
+	return syncer.verifyTimeoutIBTPs(w, header)
+}
+
+// verifyWrapper verifies the basic of merkle wrapper from bitxhub
+func (syncer *WrapperSyncer) verifyTimeoutIBTPs(w *pb.InterchainTxWrapper, header *pb.BlockHeader) (bool, error) {
+	// validate if TimeoutL2Roots are correct
+	if len(w.TimeoutL2Roots) == 0 {
+		// verify timeout ibtps root
+		if (&types.Hash{}).String() != header.TimeoutRoot.String() {
+			logger.Errorf("TimeoutRoot: %s, %s", (&types.Hash{}).String(), header.TimeoutRoot.String())
+			return false, fmt.Errorf("tx wrapper empty timeout ibtp merkle root is wrong")
+		}
+	} else {
+		l2RootHashes := make([]merkletree.Content, 0, len(w.TimeoutL2Roots))
+		sort.Slice(w.TimeoutL2Roots, func(i, j int) bool {
+			return bytes.Compare(w.TimeoutL2Roots[i].Bytes(), w.TimeoutL2Roots[j].Bytes()) < 0
+		})
+		for _, root := range w.TimeoutL2Roots {
+			l2root := root
+			l2RootHashes = append(l2RootHashes, &l2root)
+		}
+		l1Tree, err := merkletree.NewTree(l2RootHashes)
+		if err != nil {
+			return false, fmt.Errorf("init timeout l1 merkle tree: %w", err)
+		}
+
+		// verify timeout ibtps root
+		if types.NewHash(l1Tree.MerkleRoot()).String() != header.TimeoutRoot.String() {
+			logger.Errorf("TimeoutRoot: %s, %s", types.NewHash(l1Tree.MerkleRoot()).String(), header.TimeoutRoot.String())
+			return false, fmt.Errorf("tx wrapper timeout ibtps merkle root is wrong")
+		}
+	}
+
+	// validate if the timeout ibtps exists
+	if len(w.TimeoutIbtps) == 0 {
+		return true, nil
+	}
+
+	hashes := make([]merkletree.Content, 0, len(w.TimeoutIbtps))
+	for _, id := range w.TimeoutIbtps {
+		hash := sha256.Sum256([]byte(id))
+		hashes = append(hashes, types.NewHash(hash[:]))
+	}
+
+	tree, err := merkletree.NewTree(hashes)
+	if err != nil {
+		return false, fmt.Errorf("init timeout merkle tree: %w", err)
+	}
+
+	l2root := types.NewHash(tree.MerkleRoot())
+	correctRoot := false
+	for _, rootHash := range w.TimeoutL2Roots {
+		if rootHash.String() == l2root.String() {
+			correctRoot = true
+			break
+		}
+	}
+	if !correctRoot {
+		return false, fmt.Errorf("incorrect timeout ibtps")
 	}
 
 	return true, nil

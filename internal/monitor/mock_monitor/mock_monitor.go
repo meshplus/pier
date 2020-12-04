@@ -103,3 +103,17 @@ func (mr *MockMonitorMockRecorder) QueryLatestMeta() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "QueryLatestMeta", reflect.TypeOf((*MockMonitor)(nil).QueryLatestMeta))
 }
+
+// QuerySrcRollbackMeta mocks base method
+func (m *MockMonitor) QuerySrcRollbackMeta() map[string]uint64 {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "QuerySrcRollbackMeta")
+	ret0, _ := ret[0].(map[string]uint64)
+	return ret0
+}
+
+// QuerySrcRollbackMeta indicates an expected call of QuerySrcRollbackMeta
+func (mr *MockMonitorMockRecorder) QuerySrcRollbackMeta() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "QuerySrcRollbackMeta", reflect.TypeOf((*MockMonitor)(nil).QuerySrcRollbackMeta))
+}

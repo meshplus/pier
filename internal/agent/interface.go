@@ -61,4 +61,6 @@ type Agent interface {
 
 	// GetPendingNonceByAccount get the latest pending nonce of the account
 	GetPendingNonceByAccount(account string) (uint64, error)
+
+	GetTxStatus(id string) (pb.TransactionStatus, error)
 }

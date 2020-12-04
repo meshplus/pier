@@ -11,6 +11,8 @@ type AppchainHandler func() error
 
 type RecoverUnionHandler func(ibtp *pb.IBTP) (*rpcx.Interchain, error)
 
+type RollbackHandler func(ibtpId string) error
+
 //go:generate mockgen -destination mock_syncer/mock_syncer.go -package mock_syncer -source interface.go
 type Syncer interface {
 	// Start starts the service of syncer
@@ -24,4 +26,6 @@ type Syncer interface {
 	RegisterAppchainHandler(handler AppchainHandler) error
 
 	RegisterRecoverHandler(handleRecover RecoverUnionHandler) error
+
+	RegisterRollbackHandler(handler RollbackHandler) error
 }

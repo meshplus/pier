@@ -16,9 +16,14 @@ type Executor interface {
 	// and return the receipt ibtp for ack or callback
 	HandleIBTP(ibtp *pb.IBTP) *pb.IBTP
 
+	// Rollback rollbacks ibtp on appchain
+	Rollback(ibtp *pb.IBTP, isSrcChain bool)
+
 	// QueryLatestMeta queries latest index map of ibtps executed on appchain
 	QueryLatestMeta() map[string]uint64
 
 	// QueryReceipt query receipt for original interchain ibtp
 	QueryReceipt(from string, idx uint64, originalIBTP *pb.IBTP) (*pb.IBTP, error)
+
+	QueryDstRollbackMeta() map[string]uint64
 }

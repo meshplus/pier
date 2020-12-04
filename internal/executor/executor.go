@@ -16,14 +16,16 @@ var logger = log.NewWithModule("executor")
 
 // ChannelExecutor represents the necessary data for executing interchain txs in appchain
 type ChannelExecutor struct {
-	client       plugins.Client // the client to interact with appchain
-	storage      storage.Storage
-	id           string            // appchain id
-	executeMeta  map[string]uint64 // pier execute crosschain ibtp index map
-	callbackMeta map[string]uint64 // pier execute callback index map
-	cryptor      txcrypto.Cryptor
-	ctx          context.Context
-	cancel       context.CancelFunc
+	client          plugins.Client // the client to interact with appchain
+	storage         storage.Storage
+	id              string            // appchain id
+	executeMeta     map[string]uint64 // pier execute crosschain ibtp index map
+	callbackMeta    map[string]uint64 // pier execute callback index map
+	srcRollbackMeta map[string]uint64 // pier execute rollback index map as src chain pier
+	dstRollbackMeta map[string]uint64 // pier execute rollback index map as dst chain pier
+	cryptor         txcrypto.Cryptor
+	ctx             context.Context
+	cancel          context.CancelFunc
 }
 
 // New creates new instance of Executor. agent is for interacting with counterpart chain
@@ -46,17 +48,42 @@ func New(client plugins.Client, pierID string, storage storage.Storage, cryptor 
 		callbackMeta = make(map[string]uint64)
 	}
 
+	srcRollbackMeta, err := client.GetSrcRollbackMeta() // rollback that src chain broker contract has executed
+	if err != nil {
+		return nil, fmt.Errorf("get src rollback executeMeta: %w", err)
+	}
+	if srcRollbackMeta == nil {
+		srcRollbackMeta = make(map[string]uint64)
+	}
+
+	dsrRollbackMeta, err := client.GetDstRollbackMeta() // callback that broker contract has executed
+	if err != nil {
+		return nil, fmt.Errorf("get dst rollback executeMeta: %w", err)
+	}
+	if dsrRollbackMeta == nil {
+		dsrRollbackMeta = make(map[string]uint64)
+	}
+
+	logger.WithFields(logrus.Fields{
+		"inMeta(execMeta)": execMeta,
+		"callbackMeta":     callbackMeta,
+		"srcRollbackMeta":  srcRollbackMeta,
+		"dstRollbackMeta":  dsrRollbackMeta,
+	}).Info("Get meta from broker")
+
 	ctx, cancel := context.WithCancel(context.Background())
 
 	return &ChannelExecutor{
-		client:       client,
-		ctx:          ctx,
-		cancel:       cancel,
-		storage:      storage,
-		id:           pierID,
-		executeMeta:  execMeta,
-		callbackMeta: callbackMeta,
-		cryptor:      cryptor,
+		client:          client,
+		ctx:             ctx,
+		cancel:          cancel,
+		storage:         storage,
+		id:              pierID,
+		executeMeta:     execMeta,
+		callbackMeta:    callbackMeta,
+		srcRollbackMeta: srcRollbackMeta,
+		dstRollbackMeta: dsrRollbackMeta,
+		cryptor:         cryptor,
 	}, nil
 }
 
@@ -85,6 +112,10 @@ func (e *ChannelExecutor) Stop() error {
 
 func (e *ChannelExecutor) QueryLatestMeta() map[string]uint64 {
 	return e.executeMeta
+}
+
+func (e *ChannelExecutor) QueryDstRollbackMeta() map[string]uint64 {
+	return e.dstRollbackMeta
 }
 
 // getReceipt only generates one receipt given source chain id and interchain tx index

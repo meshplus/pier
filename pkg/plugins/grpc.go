@@ -9,6 +9,8 @@ import (
 	"github.com/meshplus/bitxhub-model/pb"
 )
 
+var _ pb.AppchainPluginServer = (*GRPCServer)(nil)
+
 // ---- gRPC Server domain ----
 type GRPCServer struct {
 	Impl Client
@@ -55,6 +57,10 @@ func (s *GRPCServer) SubmitIBTP(_ context.Context, ibtp *pb.IBTP) (*pb.SubmitIBT
 	return s.Impl.SubmitIBTP(ibtp)
 }
 
+func (s *GRPCServer) RollbackIBTP(ctx context.Context, req *pb.RollbackIBTPRequest) (*pb.RollbackIBTPResponse, error) {
+	return s.Impl.RollbackIBTP(req.Ibtp, req.SrcChain)
+}
+
 func (s *GRPCServer) GetOutMessage(_ context.Context, req *pb.GetOutMessageRequest) (*pb.IBTP, error) {
 	return s.Impl.GetOutMessage(req.To, req.Idx)
 }
@@ -91,6 +97,28 @@ func (s *GRPCServer) GetOutMeta(context.Context, *pb.Empty) (*pb.GetMetaResponse
 
 func (s *GRPCServer) GetCallbackMeta(context.Context, *pb.Empty) (*pb.GetMetaResponse, error) {
 	m, err := s.Impl.GetCallbackMeta()
+	if err != nil {
+		return nil, err
+	}
+
+	return &pb.GetMetaResponse{
+		Meta: m,
+	}, nil
+}
+
+func (s *GRPCServer) GetSrcRollbackMeta(ctx context.Context, empty *pb.Empty) (*pb.GetMetaResponse, error) {
+	m, err := s.Impl.GetSrcRollbackMeta()
+	if err != nil {
+		return nil, err
+	}
+
+	return &pb.GetMetaResponse{
+		Meta: m,
+	}, nil
+}
+
+func (s *GRPCServer) GetDstRollbackMeta(ctx context.Context, empty *pb.Empty) (*pb.GetMetaResponse, error) {
+	m, err := s.Impl.GetDstRollbackMeta()
 	if err != nil {
 		return nil, err
 	}
@@ -202,6 +230,18 @@ func (g *GRPCClient) SubmitIBTP(ibtp *pb.IBTP) (*pb.SubmitIBTPResponse, error) {
 	return response, nil
 }
 
+func (g *GRPCClient) RollbackIBTP(ibtp *pb.IBTP, srcChain bool) (*pb.RollbackIBTPResponse, error) {
+	response, err := g.client.RollbackIBTP(g.doneContext, &pb.RollbackIBTPRequest{
+		Ibtp:     ibtp,
+		SrcChain: srcChain,
+	})
+	if err != nil {
+		return &pb.RollbackIBTPResponse{}, err
+	}
+
+	return response, nil
+}
+
 func (g *GRPCClient) GetOutMessage(to string, idx uint64) (*pb.IBTP, error) {
 	return g.client.GetOutMessage(g.doneContext, &pb.GetOutMessageRequest{
 		To:  to,
@@ -244,6 +284,24 @@ func (g *GRPCClient) GetOutMeta() (map[string]uint64, error) {
 
 func (g *GRPCClient) GetCallbackMeta() (map[string]uint64, error) {
 	response, err := g.client.GetOutMeta(g.doneContext, &pb.Empty{})
+	if err != nil {
+		return nil, err
+	}
+
+	return response.Meta, nil
+}
+
+func (g *GRPCClient) GetSrcRollbackMeta() (map[string]uint64, error) {
+	response, err := g.client.GetSrcRollbackMeta(g.doneContext, &pb.Empty{})
+	if err != nil {
+		return nil, err
+	}
+
+	return response.Meta, nil
+}
+
+func (g *GRPCClient) GetDstRollbackMeta() (map[string]uint64, error) {
+	response, err := g.client.GetDstRollbackMeta(g.doneContext, &pb.Empty{})
 	if err != nil {
 		return nil, err
 	}

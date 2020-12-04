@@ -75,6 +75,18 @@ func (mr *MockExecutorMockRecorder) HandleIBTP(ibtp interface{}) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "HandleIBTP", reflect.TypeOf((*MockExecutor)(nil).HandleIBTP), ibtp)
 }
 
+// Rollback mocks base method
+func (m *MockExecutor) Rollback(ibtp *pb.IBTP, isSrcChain bool) {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "Rollback", ibtp, isSrcChain)
+}
+
+// Rollback indicates an expected call of Rollback
+func (mr *MockExecutorMockRecorder) Rollback(ibtp, isSrcChain interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Rollback", reflect.TypeOf((*MockExecutor)(nil).Rollback), ibtp, isSrcChain)
+}
+
 // QueryLatestMeta mocks base method
 func (m *MockExecutor) QueryLatestMeta() map[string]uint64 {
 	m.ctrl.T.Helper()
@@ -102,4 +114,18 @@ func (m *MockExecutor) QueryReceipt(from string, idx uint64, originalIBTP *pb.IB
 func (mr *MockExecutorMockRecorder) QueryReceipt(from, idx, originalIBTP interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "QueryReceipt", reflect.TypeOf((*MockExecutor)(nil).QueryReceipt), from, idx, originalIBTP)
+}
+
+// QueryDstRollbackMeta mocks base method
+func (m *MockExecutor) QueryDstRollbackMeta() map[string]uint64 {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "QueryDstRollbackMeta")
+	ret0, _ := ret[0].(map[string]uint64)
+	return ret0
+}
+
+// QueryDstRollbackMeta indicates an expected call of QueryDstRollbackMeta
+func (mr *MockExecutorMockRecorder) QueryDstRollbackMeta() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "QueryDstRollbackMeta", reflect.TypeOf((*MockExecutor)(nil).QueryDstRollbackMeta))
 }

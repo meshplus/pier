@@ -104,6 +104,21 @@ func (mr *MockClientMockRecorder) SubmitIBTP(arg0 interface{}) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SubmitIBTP", reflect.TypeOf((*MockClient)(nil).SubmitIBTP), arg0)
 }
 
+// RollbackIBTP mocks base method
+func (m *MockClient) RollbackIBTP(arg0 *pb.IBTP, arg1 bool) (*pb.RollbackIBTPResponse, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "RollbackIBTP", arg0, arg1)
+	ret0, _ := ret[0].(*pb.RollbackIBTPResponse)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// RollbackIBTP indicates an expected call of RollbackIBTP
+func (mr *MockClientMockRecorder) RollbackIBTP(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RollbackIBTP", reflect.TypeOf((*MockClient)(nil).RollbackIBTP), arg0, arg1)
+}
+
 // GetOutMessage mocks base method
 func (m *MockClient) GetOutMessage(to string, idx uint64) (*pb.IBTP, error) {
 	m.ctrl.T.Helper()
@@ -177,6 +192,36 @@ func (m *MockClient) GetCallbackMeta() (map[string]uint64, error) {
 func (mr *MockClientMockRecorder) GetCallbackMeta() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetCallbackMeta", reflect.TypeOf((*MockClient)(nil).GetCallbackMeta))
+}
+
+// GetSrcRollbackMeta mocks base method
+func (m *MockClient) GetSrcRollbackMeta() (map[string]uint64, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetSrcRollbackMeta")
+	ret0, _ := ret[0].(map[string]uint64)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetSrcRollbackMeta indicates an expected call of GetSrcRollbackMeta
+func (mr *MockClientMockRecorder) GetSrcRollbackMeta() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetSrcRollbackMeta", reflect.TypeOf((*MockClient)(nil).GetSrcRollbackMeta))
+}
+
+// GetDstRollbackMeta mocks base method
+func (m *MockClient) GetDstRollbackMeta() (map[string]uint64, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetDstRollbackMeta")
+	ret0, _ := ret[0].(map[string]uint64)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetDstRollbackMeta indicates an expected call of GetDstRollbackMeta
+func (mr *MockClientMockRecorder) GetDstRollbackMeta() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetDstRollbackMeta", reflect.TypeOf((*MockClient)(nil).GetDstRollbackMeta))
 }
 
 // CommitCallback mocks base method

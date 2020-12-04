@@ -18,4 +18,7 @@ type Monitor interface {
 
 	// QueryLatestMeta queries latest index map of ibtps executed on appchain
 	QueryLatestMeta() map[string]uint64
+
+	// QuerySrcRollbackMeta queries latest index map of ibtps rollbacked as src appchain
+	QuerySrcRollbackMeta() map[string]uint64
 }

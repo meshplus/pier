@@ -268,3 +268,18 @@ func (mr *MockAgentMockRecorder) GetPendingNonceByAccount(account interface{}) *
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetPendingNonceByAccount", reflect.TypeOf((*MockAgent)(nil).GetPendingNonceByAccount), account)
 }
+
+// GetTxStatus mocks base method
+func (m *MockAgent) GetTxStatus(id string) (pb.TransactionStatus, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetTxStatus", id)
+	ret0, _ := ret[0].(pb.TransactionStatus)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetTxStatus indicates an expected call of GetTxStatus
+func (mr *MockAgentMockRecorder) GetTxStatus(id interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetTxStatus", reflect.TypeOf((*MockAgent)(nil).GetTxStatus), id)
+}

@@ -102,3 +102,17 @@ func (mr *MockSyncerMockRecorder) RegisterRecoverHandler(handleRecover interface
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RegisterRecoverHandler", reflect.TypeOf((*MockSyncer)(nil).RegisterRecoverHandler), handleRecover)
 }
+
+// RegisterRollbackHandler mocks base method
+func (m *MockSyncer) RegisterRollbackHandler(handler syncer.RollbackHandler) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "RegisterRollbackHandler", handler)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// RegisterRollbackHandler indicates an expected call of RegisterRollbackHandler
+func (mr *MockSyncerMockRecorder) RegisterRollbackHandler(handler interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RegisterRollbackHandler", reflect.TypeOf((*MockSyncer)(nil).RegisterRollbackHandler), handler)
+}

@@ -3,6 +3,7 @@ package exchanger
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/Rican7/retry"
@@ -43,9 +44,20 @@ func (ex *Exchanger) handleIBTP(ibtp *pb.IBTP) {
 	}).Info("Handle ibtp")
 
 	if err := retry.Retry(func(attempt uint) error {
-		_, err = ex.agent.SendIBTP(receipt)
+		rcpt, err := ex.agent.SendIBTP(receipt)
 		if err != nil {
+			logger.WithFields(logrus.Fields{
+				"id":    receipt.ID(),
+				"type":  receipt.Type,
+				"error": err,
+			}).Error("Send receipt ibtp to bitxhub")
 			return err
+		}
+
+		if rcpt.Ret != nil && strings.Contains(string(rcpt.Ret), "has been rollback") {
+			logger.WithField("id", ibtp.ID()).Warnf("Tx has been rollback")
+			ex.exec.Rollback(ibtp, false)
+			return nil
 		}
 		return nil
 	}, strategy.Wait(1*time.Second)); err != nil {
@@ -133,6 +145,17 @@ func (ex *Exchanger) handleRouterSendIBTPMessage(stream network.Stream, msg *pee
 		logger.Error(err)
 		return
 	}
+}
+
+func (ex *Exchanger) handleRollback(ibtpId string) error {
+	ibtp, err := ex.mnt.QueryIBTP(ibtpId)
+	if err != nil {
+		return fmt.Errorf("query ibtp by id %s: %v", ibtpId, err)
+	}
+
+	ex.exec.Rollback(ibtp, true)
+
+	return nil
 }
 
 // handleIBTPMessage handle ibtp message from another pier
