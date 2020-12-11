@@ -66,9 +66,9 @@ func (e *ChannelExecutor) generateCallback(toExecute *pb.IBTP, args [][]byte) (r
 	typ := pb.IBTP_RECEIPT_SUCCESS
 	if toExecute.Type == pb.IBTP_INTERCHAIN {
 		if ct.Func == "interchainCharge" {
-			responseStatus, err := strconv.ParseBool(string(newContent.Args[0]))
+			responseStatus, err := strconv.ParseBool(string(args[0]))
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("parsing interchain invoke status: %w", err)
 			}
 
 			if !responseStatus {
