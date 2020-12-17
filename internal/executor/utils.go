@@ -3,6 +3,7 @@ package executor
 import (
 	"fmt"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/meshplus/bitxhub-model/pb"
@@ -66,12 +67,18 @@ func (e *ChannelExecutor) generateCallback(toExecute *pb.IBTP, args [][]byte) (r
 	typ := pb.IBTP_RECEIPT_SUCCESS
 	if toExecute.Type == pb.IBTP_INTERCHAIN {
 		if ct.Func == "interchainCharge" {
-			responseStatus, err := strconv.ParseBool(string(newContent.Args[0]))
+			res := string(args[0])
+			base := 10
+			if strings.HasPrefix(res, "0x") {
+				res = strings.TrimPrefix(res, "0x")
+				base = 16
+			}
+			status, err := strconv.ParseUint(res, base, 64)
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("parsing to uint: %w", err)
 			}
 
-			if !responseStatus {
+			if status == 0 {
 				typ = pb.IBTP_RECEIPT_FAILURE
 			}
 		}
