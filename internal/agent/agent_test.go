@@ -260,6 +260,29 @@ func TestGetAssetExchangeSigns(t *testing.T) {
 	require.Equal(t, true, bytes.Equal(sigBytes, sigBytes))
 }
 
+func TestGetIBTPSigns(t *testing.T) {
+	ag, mockClient := prepare(t)
+
+	ibtp := &pb.IBTP{}
+	hash := ibtp.Hash().String()
+
+	digest := sha256.Sum256([]byte(hash))
+	priv, err := asym.GenerateKeyPair(crypto.Secp256k1)
+	require.Nil(t, err)
+	sig, err := priv.Sign(digest[:])
+	require.Nil(t, err)
+	resp := &pb.SignResponse{
+		Sign: map[string][]byte{hash: sig},
+	}
+
+	mockClient.EXPECT().GetMultiSigns(hash, pb.GetMultiSignsRequest_IBTP).
+		Return(resp, nil)
+
+	sigBytes, err := ag.GetIBTPSigns(ibtp)
+	require.Nil(t, err)
+	require.Equal(t, true, bytes.Equal(sigBytes, sigBytes))
+}
+
 func TestGetPendingNonceByAccount(t *testing.T) {
 	ag, mockClient := prepare(t)
 
