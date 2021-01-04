@@ -3,6 +3,7 @@ package executor
 import (
 	"context"
 	"fmt"
+	"sync"
 
 	"github.com/meshplus/bitxhub-kit/log"
 	"github.com/meshplus/bitxhub-kit/storage"
@@ -18,9 +19,9 @@ var logger = log.NewWithModule("executor")
 type ChannelExecutor struct {
 	client       plugins.Client // the client to interact with appchain
 	storage      storage.Storage
-	id           string            // appchain id
-	executeMeta  map[string]uint64 // pier execute crosschain ibtp index map
-	callbackMeta map[string]uint64 // pier execute callback index map
+	id           string   // appchain id
+	executeMeta  sync.Map // pier execute crosschain ibtp index map
+	callbackMeta sync.Map // pier execute callback index map
 	cryptor      txcrypto.Cryptor
 	ctx          context.Context
 	cancel       context.CancelFunc
@@ -34,16 +35,24 @@ func New(client plugins.Client, pierID string, storage storage.Storage, cryptor 
 	if err != nil {
 		return nil, fmt.Errorf("get in executeMeta: %w", err)
 	}
-	if execMeta == nil {
-		execMeta = make(map[string]uint64)
+
+	executeMeta := sync.Map{}
+	if execMeta != nil {
+		for id, count := range execMeta {
+			executeMeta.Store(id, count)
+		}
 	}
 
-	callbackMeta, err := client.GetCallbackMeta() // callback that broker contract has executed
+	callMeta, err := client.GetCallbackMeta() // callback that broker contract has executed
 	if err != nil {
 		return nil, fmt.Errorf("get callback executeMeta: %w", err)
 	}
-	if callbackMeta == nil {
-		callbackMeta = make(map[string]uint64)
+
+	callbackMeta := sync.Map{}
+	if callMeta != nil {
+		for id, count := range callMeta {
+			callbackMeta.Store(id, count)
+		}
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -54,7 +63,7 @@ func New(client plugins.Client, pierID string, storage storage.Storage, cryptor 
 		cancel:       cancel,
 		storage:      storage,
 		id:           pierID,
-		executeMeta:  execMeta,
+		executeMeta:  executeMeta,
 		callbackMeta: callbackMeta,
 		cryptor:      cryptor,
 	}, nil
@@ -64,13 +73,13 @@ func New(client plugins.Client, pierID string, storage storage.Storage, cryptor 
 func (e *ChannelExecutor) Start() error {
 	logger.Info("Executor started")
 
-	for from, idx := range e.executeMeta {
+	e.executeMeta.Range(func(id, idx interface{}) bool {
 		logger.WithFields(logrus.Fields{
-			"from":  from,
+			"from":  id,
 			"index": idx,
 		}).Info("Execution index in appchain")
-	}
-
+		return true
+	})
 	return nil
 }
 
@@ -83,8 +92,12 @@ func (e *ChannelExecutor) Stop() error {
 	return nil
 }
 
-func (e *ChannelExecutor) QueryLatestMeta() map[string]uint64 {
-	return e.executeMeta
+func (e *ChannelExecutor) QueryLatestMeta() *sync.Map {
+	return &e.executeMeta
+}
+
+func (e *ChannelExecutor) QueryLatestCallbackMeta() *sync.Map {
+	return &e.callbackMeta
 }
 
 // getReceipt only generates one receipt given source chain id and interchain tx index

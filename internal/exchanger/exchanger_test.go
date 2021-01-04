@@ -4,10 +4,16 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"sync"
 	"testing"
 	"time"
 
 	"github.com/golang/mock/gomock"
+	crypto2 "github.com/libp2p/go-libp2p-core/crypto"
+	peer2 "github.com/libp2p/go-libp2p-core/peer"
+	"github.com/meshplus/bitxhub-kit/crypto"
+	"github.com/meshplus/bitxhub-kit/crypto/asym"
+	ecdsa2 "github.com/meshplus/bitxhub-kit/crypto/asym/ecdsa"
 	"github.com/meshplus/bitxhub-kit/storage"
 	"github.com/meshplus/bitxhub-kit/storage/leveldb"
 	"github.com/meshplus/bitxhub-kit/types"
@@ -60,8 +66,10 @@ func TestStartRelay(t *testing.T) {
 	outCh := make(chan *pb.IBTP, 1)
 	outCh <- normalOutIBTP
 
-	outMeta := map[string]uint64{to: 1}
-	inMeta := map[string]uint64{to: 1}
+	outMeta := make(map[string]uint64)
+	outMeta[to] = 1
+	inMeta := &sync.Map{}
+	inMeta.Store(to, uint64(1))
 	mockMonitor.EXPECT().ListenOnIBTP().Return(outCh).AnyTimes()
 	mockMonitor.EXPECT().QueryLatestMeta().Return(outMeta)
 	mockMonitor.EXPECT().QueryIBTP(missedOutIBTP.ID()).Return(missedOutIBTP, nil).AnyTimes()
@@ -130,17 +138,21 @@ func TestStartDirect(t *testing.T) {
 	retMetaMsg := peermgr.Message(peerMsg.Message_INTERCHAIN_META_GET, true, metaBytes)
 	retMsg := peermgr.Message(peerMsg.Message_ACK, true, receiptBytes)
 
-	outMeta := map[string]uint64{to: 1}
-	inMeta := map[string]uint64{to: 1}
+	outMeta := make(map[string]uint64)
+	outMeta[to] = 1
+	inMeta := &sync.Map{}
+	inMeta.Store(to, uint64(1))
 	mockMonitor.EXPECT().ListenOnIBTP().Return(outCh).AnyTimes()
 	mockMonitor.EXPECT().QueryLatestMeta().Return(outMeta)
 	mockMonitor.EXPECT().QueryIBTP(happyPathMissedOutIBTP.ID()).Return(happyPathMissedOutIBTP, nil).AnyTimes()
 	mockExecutor.EXPECT().HandleIBTP(gomock.Any()).Return(receipt).AnyTimes()
-	mockExecutor.EXPECT().QueryLatestMeta().Return(inMeta)
+	mockExecutor.EXPECT().QueryLatestMeta().Return(inMeta).AnyTimes()
+	mockExecutor.EXPECT().QueryLatestCallbackMeta().Return(&sync.Map{}).AnyTimes()
 	mockExecutor.EXPECT().QueryReceipt(to, uint64(1), gomock.Any()).Return(receipt, nil).AnyTimes()
 	mockPeerMgr.EXPECT().Send(gomock.Any(), metaMsg).Return(retMetaMsg, nil).AnyTimes()
 	mockPeerMgr.EXPECT().Send(gomock.Any(), gomock.Any()).Return(retMsg, nil).AnyTimes()
 	mockPeerMgr.EXPECT().AsyncSendWithStream(gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
+	mockPeerMgr.EXPECT().AsyncSend(gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
 
 	require.Nil(t, mockExchanger.Start())
 
@@ -358,4 +370,155 @@ func getIBTP(t *testing.T, index uint64, typ pb.IBTP_Type) *pb.IBTP {
 		Type:      typ,
 		Timestamp: time.Now().UnixNano(),
 	}
+}
+
+func getIBTPWithFromTo(t *testing.T, index uint64, typ pb.IBTP_Type, from, to string) *pb.IBTP {
+	ct := &pb.Content{
+		SrcContractId: from,
+		DstContractId: to,
+		Func:          "set",
+		Args:          [][]byte{[]byte("Alice")},
+	}
+	c, err := ct.Marshal()
+	require.Nil(t, err)
+
+	pd := pb.Payload{
+		Encrypted: false,
+		Content:   c,
+	}
+	ibtppd, err := pd.Marshal()
+	require.Nil(t, err)
+
+	return &pb.IBTP{
+		From:      from,
+		To:        to,
+		Payload:   ibtppd,
+		Index:     index,
+		Type:      typ,
+		Timestamp: time.Now().UnixNano(),
+	}
+}
+
+func getIBTPs(t *testing.T, start, size uint64, typ pb.IBTP_Type, from, to string) []*pb.IBTP {
+	var ibtps []*pb.IBTP
+
+	for i := start; i < start+size; i++ {
+		ibtps = append(ibtps, getIBTPWithFromTo(t, i, typ, from, to))
+	}
+
+	return ibtps
+}
+
+func TestWithPeerMgr(t *testing.T) {
+	ibtpSize := uint64(110)
+	mode := "direct"
+	mockMonitor1, mockExecutor1, mockChecker1, _, apiServer1, store1 := prepareDirect(t)
+	mockMonitor2, mockExecutor2, mockChecker2, _, apiServer2, store2 := prepareDirect(t)
+	meta := &pb.Interchain{}
+
+	nodeKeys, privKeys, config, addrs := genKeysAndConfig(t, 2)
+
+	swarm1, err := peermgr.New(config, nodeKeys[0], privKeys[0], 0)
+	require.Nil(t, err)
+
+	swarm2, err := peermgr.New(config, nodeKeys[1], privKeys[1], 0)
+	require.Nil(t, err)
+
+	mockExchanger1, err := New(mode, addrs[0], meta,
+		WithMonitor(mockMonitor1), WithExecutor(mockExecutor1),
+		WithChecker(mockChecker1), WithPeerMgr(swarm1),
+		WithAPIServer(apiServer1), WithStorage(store1),
+	)
+	require.Nil(t, err)
+
+	mockExchanger2, err := New(mode, addrs[1], meta,
+		WithMonitor(mockMonitor2), WithExecutor(mockExecutor2),
+		WithChecker(mockChecker2), WithPeerMgr(swarm2),
+		WithAPIServer(apiServer2), WithStorage(store2),
+	)
+	require.Nil(t, err)
+
+	normalOutIBTPs := getIBTPs(t, 1, ibtpSize, pb.IBTP_INTERCHAIN, addrs[0], addrs[1])
+	normalReceipts := getIBTPs(t, 1, ibtpSize, pb.IBTP_RECEIPT_SUCCESS, addrs[0], addrs[1])
+	outCh := make(chan *pb.IBTP, 1000)
+
+	outMeta := make(map[string]uint64)
+	inMeta := sync.Map{}
+	mockMonitor1.EXPECT().ListenOnIBTP().Return(outCh).AnyTimes()
+	mockMonitor1.EXPECT().QueryLatestMeta().Return(outMeta)
+	for _, ibtp := range normalOutIBTPs {
+		//	mockExecutor1.EXPECT().HandleIBTP(ibtp).Return(normalReceipts[i]).AnyTimes()
+		outCh <- ibtp
+	}
+	mockExecutor1.EXPECT().QueryLatestMeta().Return(&inMeta).AnyTimes()
+	mockExecutor1.EXPECT().QueryLatestCallbackMeta().Return(&sync.Map{}).AnyTimes()
+
+	mockMonitor2.EXPECT().ListenOnIBTP().Return(make(chan *pb.IBTP)).AnyTimes()
+	mockMonitor2.EXPECT().QueryLatestMeta().Return(outMeta)
+	for i, ibtp := range normalOutIBTPs {
+		mockExecutor2.EXPECT().HandleIBTP(ibtp).Return(normalReceipts[i]).AnyTimes()
+		//outCh <- ibtp
+	}
+	mockExecutor2.EXPECT().QueryLatestMeta().Return(&inMeta).AnyTimes()
+	mockExecutor2.EXPECT().QueryLatestCallbackMeta().Return(&sync.Map{}).AnyTimes()
+
+	go mockExchanger1.Start()
+	go mockExchanger2.Start()
+
+	time.Sleep(10 * time.Second)
+}
+
+func genKeysAndConfig(t *testing.T, peerCnt int) ([]crypto.PrivateKey, []crypto.PrivateKey, *repo.Config, []string) {
+	var nodeKeys []crypto.PrivateKey
+	var privKeys []crypto.PrivateKey
+	var peers []string
+	var addrs []string
+	port := 5001
+
+	for i := 0; i < peerCnt; i++ {
+		key, err := asym.GenerateKeyPair(crypto.ECDSA_P256)
+		require.Nil(t, err)
+		nodeKeys = append(nodeKeys, key)
+
+		libp2pKey, err := convertToLibp2pPrivKey(key)
+		require.Nil(t, err)
+
+		id, err := peer2.IDFromPrivateKey(libp2pKey)
+		require.Nil(t, err)
+
+		peer := fmt.Sprintf("/ip4/127.0.0.1/tcp/%d/p2p/%s", port, id)
+		peers = append(peers, peer)
+
+		privKey, err := asym.GenerateKeyPair(crypto.Secp256k1)
+		require.Nil(t, err)
+
+		privKeys = append(privKeys, privKey)
+
+		addr, err := privKey.PublicKey().Address()
+		require.Nil(t, err)
+
+		addrs = append(addrs, addr.String())
+
+		port++
+	}
+
+	config := &repo.Config{}
+	config.Mode.Type = repo.DirectMode
+	config.Mode.Direct.Peers = peers
+
+	return nodeKeys, privKeys, config, addrs
+}
+
+func convertToLibp2pPrivKey(privateKey crypto.PrivateKey) (crypto2.PrivKey, error) {
+	ecdsaPrivKey, ok := privateKey.(*ecdsa2.PrivateKey)
+	if !ok {
+		return nil, fmt.Errorf("convert to libp2p private key: not ecdsa private key")
+	}
+
+	libp2pPrivKey, _, err := crypto2.ECDSAKeyPairFromKey(ecdsaPrivKey.K)
+	if err != nil {
+		return nil, err
+	}
+
+	return libp2pPrivKey, nil
 }

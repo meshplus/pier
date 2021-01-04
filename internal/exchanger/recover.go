@@ -28,19 +28,20 @@ func (ex *Exchanger) recoverRelay() {
 
 	// recover unsent receipt to counterpart chain
 	execMeta := ex.exec.QueryLatestMeta()
-	for from, idx := range execMeta {
-		beginIndex, ok := ex.sourceReceiptMeta[from]
+	execMeta.Range(func(from, idx interface{}) bool {
+		beginIndex, ok := ex.sourceReceiptMeta[from.(string)]
 		if !ok {
 			beginIndex = 0
 		}
 
-		if err := ex.handleMissingReceipt(from, beginIndex+1, idx+1); err != nil {
+		if err := ex.handleMissingReceipt(from.(string), beginIndex+1, idx.(uint64)+1); err != nil {
 			logger.WithFields(logrus.Fields{
 				"address": from,
 				"error":   err.Error(),
 			}).Panic("Get missing receipt from contract")
 		}
-	}
+		return true
+	})
 }
 
 func (ex *Exchanger) recoverDirect(dstPierID string, interchainIndex uint64, receiptIndex uint64) {
@@ -60,10 +61,11 @@ func (ex *Exchanger) recoverDirect(dstPierID string, interchainIndex uint64, rec
 
 	// recoverDirect unsent receipt to counterpart chain
 	execMeta := ex.exec.QueryLatestMeta()
-	index, ok = execMeta[dstPierID]
+	idx, ok := execMeta.Load(dstPierID)
 	if !ok {
 		return
 	}
+	index = idx.(uint64)
 	if err := ex.handleMissingReceipt(dstPierID, receiptIndex+1, index+1); err != nil {
 		logger.WithFields(logrus.Fields{
 			"address": dstPierID,

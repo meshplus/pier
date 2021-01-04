@@ -57,7 +57,9 @@ func TestExecute(t *testing.T) {
 	require.NotNil(t, exec.HandleIBTP(ibtp1))
 	require.Nil(t, exec.HandleIBTP(ibtp1Receipt))
 	meta := exec.QueryLatestMeta()
-	require.Equal(t, uint64(1), meta[from])
+
+	v, _ := meta.Load(from)
+	require.Equal(t, uint64(1), v.(uint64))
 
 	// test for replayed ibtp and receipt
 	replayedIBTP := ibtp1
@@ -65,16 +67,22 @@ func TestExecute(t *testing.T) {
 	require.Nil(t, exec.HandleIBTP(replayedIBTP))
 	require.Nil(t, exec.HandleIBTP(replayedIBTPReceipt))
 	meta = exec.QueryLatestMeta()
-	require.Equal(t, uint64(1), meta[from])
+	v, _ = meta.Load(from)
+	require.Equal(t, uint64(1), v.(uint64))
 	//callbackMeta :
-	require.Equal(t, uint64(1), exec.callbackMeta[from])
+	v, _ = exec.callbackMeta.Load(from)
+	require.Equal(t, uint64(1), v.(uint64))
 
 	// test for ibtp execute failure
 	require.NotNil(t, exec.HandleIBTP(ibtp2))
 	require.Nil(t, exec.HandleIBTP(ibtp2Receipt))
 	meta = exec.QueryLatestMeta()
-	require.Equal(t, uint64(2), meta[from])
-	require.Equal(t, uint64(2), exec.callbackMeta[from])
+
+	v, _ = meta.Load(from)
+	require.Equal(t, uint64(2), v.(uint64))
+
+	v, _ = exec.callbackMeta.Load(from)
+	require.Equal(t, uint64(2), v.(uint64))
 
 	// test for wrong index ibtp and receipt
 	//require.Nil(t, exec.HandleIBTP(wrongIndexedIbtp))
@@ -83,8 +91,13 @@ func TestExecute(t *testing.T) {
 	})
 	require.Nil(t, exec.HandleIBTP(wrongIndexedIbtpReceipt))
 	meta = exec.QueryLatestMeta()
-	require.Equal(t, uint64(2), meta[from])
-	require.Equal(t, uint64(2), exec.callbackMeta[from])
+
+
+	v, _ = meta.Load(from)
+	require.Equal(t, uint64(2), v.(uint64))
+
+	v, _ = exec.callbackMeta.Load(from)
+	require.Equal(t, uint64(2), v.(uint64))
 
 	time.Sleep(500 * time.Microsecond)
 	require.Nil(t, exec.Stop())

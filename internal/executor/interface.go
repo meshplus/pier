@@ -1,6 +1,8 @@
 package executor
 
 import (
+	"sync"
+
 	"github.com/meshplus/bitxhub-model/pb"
 )
 
@@ -17,7 +19,10 @@ type Executor interface {
 	HandleIBTP(ibtp *pb.IBTP) *pb.IBTP
 
 	// QueryLatestMeta queries latest index map of ibtps executed on appchain
-	QueryLatestMeta() map[string]uint64
+	QueryLatestMeta() *sync.Map
+
+	// QueryLatestCallbackMeta queries latest callback index map of ibtps executed on appchain
+	QueryLatestCallbackMeta() *sync.Map
 
 	// QueryReceipt query receipt for original interchain ibtp
 	QueryReceipt(from string, idx uint64, originalIBTP *pb.IBTP) (*pb.IBTP, error)
