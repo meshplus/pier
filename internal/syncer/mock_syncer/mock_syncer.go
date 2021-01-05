@@ -6,7 +6,7 @@ package mock_syncer
 
 import (
 	gomock "github.com/golang/mock/gomock"
-	syncer "github.com/meshplus/pier/internal/syncer"
+	pb "github.com/meshplus/bitxhub-model/pb"
 	reflect "reflect"
 )
 
@@ -61,44 +61,59 @@ func (mr *MockSyncerMockRecorder) Stop() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Stop", reflect.TypeOf((*MockSyncer)(nil).Stop))
 }
 
-// RegisterIBTPHandler mocks base method
-func (m *MockSyncer) RegisterIBTPHandler(handler syncer.IBTPHandler) error {
+// QueryInterchainMeta mocks base method
+func (m *MockSyncer) QueryInterchainMeta() map[string]uint64 {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "RegisterIBTPHandler", handler)
+	ret := m.ctrl.Call(m, "QueryInterchainMeta")
+	ret0, _ := ret[0].(map[string]uint64)
+	return ret0
+}
+
+// QueryInterchainMeta indicates an expected call of QueryInterchainMeta
+func (mr *MockSyncerMockRecorder) QueryInterchainMeta() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "QueryInterchainMeta", reflect.TypeOf((*MockSyncer)(nil).QueryInterchainMeta))
+}
+
+// QueryIBTP mocks base method
+func (m *MockSyncer) QueryIBTP(ibtpID string) (*pb.IBTP, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "QueryIBTP", ibtpID)
+	ret0, _ := ret[0].(*pb.IBTP)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// QueryIBTP indicates an expected call of QueryIBTP
+func (mr *MockSyncerMockRecorder) QueryIBTP(ibtpID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "QueryIBTP", reflect.TypeOf((*MockSyncer)(nil).QueryIBTP), ibtpID)
+}
+
+// ListenIBTP mocks base method
+func (m *MockSyncer) ListenIBTP() <-chan *pb.IBTP {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ListenIBTP")
+	ret0, _ := ret[0].(<-chan *pb.IBTP)
+	return ret0
+}
+
+// ListenIBTP indicates an expected call of ListenIBTP
+func (mr *MockSyncerMockRecorder) ListenIBTP() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListenIBTP", reflect.TypeOf((*MockSyncer)(nil).ListenIBTP))
+}
+
+// SendIBTP mocks base method
+func (m *MockSyncer) SendIBTP(ibtp *pb.IBTP) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SendIBTP", ibtp)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// RegisterIBTPHandler indicates an expected call of RegisterIBTPHandler
-func (mr *MockSyncerMockRecorder) RegisterIBTPHandler(handler interface{}) *gomock.Call {
+// SendIBTP indicates an expected call of SendIBTP
+func (mr *MockSyncerMockRecorder) SendIBTP(ibtp interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RegisterIBTPHandler", reflect.TypeOf((*MockSyncer)(nil).RegisterIBTPHandler), handler)
-}
-
-// RegisterAppchainHandler mocks base method
-func (m *MockSyncer) RegisterAppchainHandler(handler syncer.AppchainHandler) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "RegisterAppchainHandler", handler)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// RegisterAppchainHandler indicates an expected call of RegisterAppchainHandler
-func (mr *MockSyncerMockRecorder) RegisterAppchainHandler(handler interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RegisterAppchainHandler", reflect.TypeOf((*MockSyncer)(nil).RegisterAppchainHandler), handler)
-}
-
-// RegisterRecoverHandler mocks base method
-func (m *MockSyncer) RegisterRecoverHandler(handleRecover syncer.RecoverUnionHandler) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "RegisterRecoverHandler", handleRecover)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// RegisterRecoverHandler indicates an expected call of RegisterRecoverHandler
-func (mr *MockSyncerMockRecorder) RegisterRecoverHandler(handleRecover interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RegisterRecoverHandler", reflect.TypeOf((*MockSyncer)(nil).RegisterRecoverHandler), handleRecover)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SendIBTP", reflect.TypeOf((*MockSyncer)(nil).SendIBTP), ibtp)
 }
