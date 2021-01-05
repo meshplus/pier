@@ -5,10 +5,11 @@
 package mock_executor
 
 import (
-	gomock "github.com/golang/mock/gomock"
-	pb "github.com/meshplus/bitxhub-model/pb"
 	reflect "reflect"
 	sync "sync"
+
+	gomock "github.com/golang/mock/gomock"
+	pb "github.com/meshplus/bitxhub-model/pb"
 )
 
 // MockExecutor is a mock of Executor interface.

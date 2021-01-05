@@ -5,9 +5,10 @@
 package mock_syncer
 
 import (
+	reflect "reflect"
+
 	gomock "github.com/golang/mock/gomock"
 	syncer "github.com/meshplus/pier/internal/syncer"
-	reflect "reflect"
 )
 
 // MockSyncer is a mock of Syncer interface.
