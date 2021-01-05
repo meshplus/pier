@@ -19,9 +19,17 @@ type Syncer interface {
 	// Stop stops the service of syncer
 	Stop() error
 
-	RegisterIBTPHandler(handler IBTPHandler) error
+	// QueryInterchainMeta queries meta including interchain and receipt related meta from bitxhub
+	QueryInterchainMeta() map[string]uint64
 
-	RegisterAppchainHandler(handler AppchainHandler) error
+	// QueryIBTP query ibtp from bitxhub by its id.
+	// if error occurs, it means this ibtp is not existed on bitxhub
+	QueryIBTP(ibtpID string) (*pb.IBTP, error)
 
-	RegisterRecoverHandler(handleRecover RecoverUnionHandler) error
+	// ListenIBTP listen on the ibtps destined for this pier from bitxhub
+	ListenIBTP() <-chan *pb.IBTP
+
+	// SendIBTP sends interchain or receipt type of ibtp to bitxhub
+	// if error occurs, user need to reconstruct this ibtp cause it means ibtp is invalid on bitxhub
+	SendIBTP(ibtp *pb.IBTP) error
 }
