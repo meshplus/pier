@@ -55,10 +55,10 @@ func TestHandleIBTP(t *testing.T) {
 
 	time.Sleep(500 * time.Millisecond)
 	// check if latest out meta is 4
-	meta := mnt.QueryLatestMeta()
+	meta := mnt.QueryOuterMeta()
 	require.Equal(t, uint64(4), meta[to])
 
-	recv := mnt.ListenOnIBTP()
+	recv := mnt.ListenIBTP()
 	// check if missed and normal ibtp is handled
 	require.Equal(t, 2, len(recv))
 	close(mnt.recvCh)
