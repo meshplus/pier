@@ -13,6 +13,8 @@ import (
 )
 
 type Config struct {
+	typ       string
+	pierID    string
 	agent     agent.Agent
 	checker   checker.Checker
 	store     storage.Storage
@@ -25,6 +27,18 @@ type Config struct {
 }
 
 type Option func(*Config)
+
+func WithType(typ string) Option {
+	return func(config *Config) {
+		config.typ = typ
+	}
+}
+
+func WithPierId(pierId string) Option {
+	return func(config *Config) {
+		config.pierID = pierId
+	}
+}
 
 func WithAgent(ag agent.Agent) Option {
 	return func(config *Config) {

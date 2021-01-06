@@ -61,18 +61,18 @@ func (mr *MockMonitorMockRecorder) Stop() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Stop", reflect.TypeOf((*MockMonitor)(nil).Stop))
 }
 
-// ListenOnIBTP mocks base method
-func (m *MockMonitor) ListenOnIBTP() chan *pb.IBTP {
+// ListenIBTP mocks base method
+func (m *MockMonitor) ListenIBTP() <-chan *pb.IBTP {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ListenOnIBTP")
-	ret0, _ := ret[0].(chan *pb.IBTP)
+	ret := m.ctrl.Call(m, "ListenIBTP")
+	ret0, _ := ret[0].(<-chan *pb.IBTP)
 	return ret0
 }
 
-// ListenOnIBTP indicates an expected call of ListenOnIBTP
-func (mr *MockMonitorMockRecorder) ListenOnIBTP() *gomock.Call {
+// ListenIBTP indicates an expected call of ListenIBTP
+func (mr *MockMonitorMockRecorder) ListenIBTP() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListenOnIBTP", reflect.TypeOf((*MockMonitor)(nil).ListenOnIBTP))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListenIBTP", reflect.TypeOf((*MockMonitor)(nil).ListenIBTP))
 }
 
 // QueryIBTP mocks base method
@@ -90,16 +90,16 @@ func (mr *MockMonitorMockRecorder) QueryIBTP(id interface{}) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "QueryIBTP", reflect.TypeOf((*MockMonitor)(nil).QueryIBTP), id)
 }
 
-// QueryLatestMeta mocks base method
-func (m *MockMonitor) QueryLatestMeta() map[string]uint64 {
+// QueryOuterMeta mocks base method
+func (m *MockMonitor) QueryOuterMeta() map[string]uint64 {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "QueryLatestMeta")
+	ret := m.ctrl.Call(m, "QueryOuterMeta")
 	ret0, _ := ret[0].(map[string]uint64)
 	return ret0
 }
 
-// QueryLatestMeta indicates an expected call of QueryLatestMeta
-func (mr *MockMonitorMockRecorder) QueryLatestMeta() *gomock.Call {
+// QueryOuterMeta indicates an expected call of QueryOuterMeta
+func (mr *MockMonitorMockRecorder) QueryOuterMeta() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "QueryLatestMeta", reflect.TypeOf((*MockMonitor)(nil).QueryLatestMeta))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "QueryOuterMeta", reflect.TypeOf((*MockMonitor)(nil).QueryOuterMeta))
 }
