@@ -2,7 +2,6 @@ package executor
 
 import (
 	"fmt"
-	"sync"
 	"time"
 
 	"github.com/Rican7/retry"
@@ -11,11 +10,15 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-// applyIBTP handle ibtps of any type
-func (e *ChannelExecutor) HandleIBTP(ibtp *pb.IBTP) *pb.IBTP {
+// ExecuteIBTP handles ibtps of any type, which can be categorized into:
+// 1. ibtp for interchain operations, then a ibtp-encoded receipt will be returned.
+// And this receipt should be sent back to counterparty.
+// 2. ibtp for confirmation from counterparty. This kind of ibtp is used to confirm
+// the status of ibtp invoked by this pier, and it will return nothing.
+func (e *ChannelExecutor) ExecuteIBTP(ibtp *pb.IBTP) (*pb.IBTP, error) {
 	if ibtp == nil {
 		logger.Error("empty ibtp structure")
-		return nil
+		return nil, fmt.Errorf("nil ibtp structure")
 	}
 
 	logger.WithFields(logrus.Fields{
@@ -26,50 +29,29 @@ func (e *ChannelExecutor) HandleIBTP(ibtp *pb.IBTP) *pb.IBTP {
 	}).Info("Apply tx")
 
 	switch ibtp.Type {
-	case pb.IBTP_INTERCHAIN:
+	case pb.IBTP_INTERCHAIN, pb.IBTP_ASSET_EXCHANGE_INIT,
+		pb.IBTP_ASSET_EXCHANGE_REDEEM, pb.IBTP_ASSET_EXCHANGE_REFUND:
 		return e.applyInterchainIBTP(ibtp)
-	case pb.IBTP_ASSET_EXCHANGE_INIT:
-		return e.applyInterchainIBTP(ibtp)
-	case pb.IBTP_ASSET_EXCHANGE_REDEEM:
-		return e.applyInterchainIBTP(ibtp)
-	case pb.IBTP_ASSET_EXCHANGE_REFUND:
-		return e.applyInterchainIBTP(ibtp)
-	case pb.IBTP_RECEIPT_SUCCESS:
+	case pb.IBTP_RECEIPT_SUCCESS, pb.IBTP_RECEIPT_FAILURE, pb.IBTP_ASSET_EXCHANGE_RECEIPT:
 		e.applyReceiptIBTP(ibtp)
-	case pb.IBTP_RECEIPT_FAILURE:
-		e.applyReceiptIBTP(ibtp)
-	case pb.IBTP_ASSET_EXCHANGE_RECEIPT:
-		e.applyReceiptIBTP(ibtp)
+		return nil, nil
 	default:
-		logger.Error("wrong ibtp type")
+		return nil, fmt.Errorf("wrong ibtp type")
 	}
-
-	return nil
 }
 
 // applyInterchainIBTP is the handler for interchain tx. every interchain tx will have
 // one receipt-type ibtp sent back to where it comes from.
 // if this interchain tx has callback function, get results from the execution
 // of it and set these results as callback function's args
-func (e *ChannelExecutor) applyInterchainIBTP(ibtp *pb.IBTP) *pb.IBTP {
+func (e *ChannelExecutor) applyInterchainIBTP(ibtp *pb.IBTP) (*pb.IBTP, error) {
 	entry := logger.WithFields(logrus.Fields{
 		"from":  ibtp.From,
 		"type":  ibtp.Type,
 		"index": ibtp.Index,
 	})
 
-	idx := LoadSyncMap(&e.executeMeta, ibtp.From)
-	if idx >= ibtp.Index {
-		entry.Warn("Ignore tx")
-		return nil
-	}
-
-	if idx+1 < ibtp.Index {
-		entry.WithFields(logrus.Fields{
-			"required": idx + 1,
-		}).Panic("Wrong ibtp index")
-	}
-
+	// todo: deal with plugin returned error
 	// execute interchain tx, and if execution failed, try to rollback
 	response, err := e.client.SubmitIBTP(ibtp)
 	if err != nil {
@@ -77,8 +59,7 @@ func (e *ChannelExecutor) applyInterchainIBTP(ibtp *pb.IBTP) *pb.IBTP {
 	}
 
 	if response == nil || response.Result == nil {
-		//entry.WithField("error", err).Panic("empty response")
-		return nil
+		entry.WithField("error", err).Panic("empty response")
 	}
 
 	if !response.Status {
@@ -93,14 +74,13 @@ func (e *ChannelExecutor) applyInterchainIBTP(ibtp *pb.IBTP) *pb.IBTP {
 		}).Warn("Get wrong response")
 	}
 
-	e.executeMeta.Store(ibtp.From, idx+1)
-	return response.Result
+	return response.Result, nil
 }
 
-func (e *ChannelExecutor) applyReceiptIBTP(ibtp *pb.IBTP) {
+func (e *ChannelExecutor) applyReceiptIBTP(ibtp *pb.IBTP) error {
 	pd := &pb.Payload{}
 	if err := pd.Unmarshal(ibtp.Payload); err != nil {
-		logger.WithField("error", err).Panic("Unmarshal receipt type ibtp payload")
+		return fmt.Errorf("unmarshal receipt type ibtp payload: %w", err)
 	}
 
 	ct := &pb.Content{}
@@ -109,11 +89,11 @@ func (e *ChannelExecutor) applyReceiptIBTP(ibtp *pb.IBTP) {
 	var err error
 	if pd.Encrypted {
 		contentByte, err = e.cryptor.Decrypt(contentByte, ibtp.To)
-		logger.WithField("error", err).Panic("Decrypt the content")
+		return fmt.Errorf("decrypt ibtp payload content: %w", err)
 	}
 
 	if err := ct.Unmarshal(contentByte); err != nil {
-		logger.WithField("error", err).Panic("Unmarshal receipt type ibtp payload content")
+		return fmt.Errorf("unmarshal payload content: %w", err)
 	}
 
 	// if this receipt is for executing callback function
@@ -121,8 +101,7 @@ func (e *ChannelExecutor) applyReceiptIBTP(ibtp *pb.IBTP) {
 		// if this is a callback ibtp, retry it until it worked
 		// because it might be rollback in asset
 		if err := retry.Retry(func(attempt uint) error {
-			err := e.execCallback(ibtp)
-			if err != nil {
+			if err := e.execCallback(ibtp); err != nil {
 				logger.Errorf("Execute callback tx: %s, retry sending tx", err.Error())
 				return fmt.Errorf("execute callback tx: %w", err)
 			}
@@ -131,21 +110,12 @@ func (e *ChannelExecutor) applyReceiptIBTP(ibtp *pb.IBTP) {
 			logger.Errorf("Execution of callback function failed: %s", err.Error())
 		}
 	}
+	return nil
 }
 
 // execCallback is the handler for callback function of one interchain tx
 func (e *ChannelExecutor) execCallback(ibtp *pb.IBTP) error {
 	ibtp.From, ibtp.To = ibtp.To, ibtp.From
-
-	idx := LoadSyncMap(&e.callbackMeta, ibtp.From)
-	if idx >= ibtp.Index {
-		logger.WithFields(logrus.Fields{
-			"from":  ibtp.From,
-			"type":  ibtp.Type,
-			"index": ibtp.Index,
-		}).Info("Ignore callback")
-		return nil
-	}
 
 	// no need to send receipt for callback
 	resp, err := e.client.SubmitIBTP(ibtp)
@@ -153,7 +123,6 @@ func (e *ChannelExecutor) execCallback(ibtp *pb.IBTP) error {
 		return fmt.Errorf("handle ibtp of callback %w", err)
 	}
 
-	e.callbackMeta.Store(ibtp.From, ibtp.Index)
 	logger.WithFields(logrus.Fields{
 		"index":  ibtp.Index,
 		"type":   ibtp.Type,
@@ -162,15 +131,4 @@ func (e *ChannelExecutor) execCallback(ibtp *pb.IBTP) error {
 	}).Info("Execute callback")
 
 	return nil
-}
-
-func LoadSyncMap(m *sync.Map, key string) uint64 {
-	if m == nil {
-		return 0
-	}
-	load, ok := m.Load(key)
-	if ok {
-		return load.(uint64)
-	}
-	return 0
 }
