@@ -54,50 +54,34 @@ func TestExecute(t *testing.T) {
 	require.Nil(t, exec.Start())
 
 	// test for normal ibtp execution
-	require.NotNil(t, exec.HandleIBTP(ibtp1))
-	require.Nil(t, exec.HandleIBTP(ibtp1Receipt))
-	meta := exec.QueryLatestMeta()
-
-	v, _ := meta.Load(from)
-	require.Equal(t, uint64(1), v.(uint64))
+	require.NotNil(t, exec.ExecuteIBTP(ibtp1))
+	require.Nil(t, exec.ExecuteIBTP(ibtp1Receipt))
+	meta := exec.QueryMeta()
+	require.Equal(t, uint64(1), meta[from])
 
 	// test for replayed ibtp and receipt
 	replayedIBTP := ibtp1
 	replayedIBTPReceipt := ibtp1Receipt
-	require.Nil(t, exec.HandleIBTP(replayedIBTP))
-	require.Nil(t, exec.HandleIBTP(replayedIBTPReceipt))
-	meta = exec.QueryLatestMeta()
-	v, _ = meta.Load(from)
-	require.Equal(t, uint64(1), v.(uint64))
-	//callbackMeta :
-	v, _ = exec.callbackMeta.Load(from)
-	require.Equal(t, uint64(1), v.(uint64))
+	require.Nil(t, exec.ExecuteIBTP(replayedIBTP))
+	require.Nil(t, exec.ExecuteIBTP(replayedIBTPReceipt))
+	meta = exec.QueryMeta()
+	require.Equal(t, uint64(1), meta[from])
 
 	// test for ibtp execute failure
-	require.NotNil(t, exec.HandleIBTP(ibtp2))
-	require.Nil(t, exec.HandleIBTP(ibtp2Receipt))
-	meta = exec.QueryLatestMeta()
+	require.NotNil(t, exec.ExecuteIBTP(ibtp2))
+	require.Nil(t, exec.ExecuteIBTP(ibtp2Receipt))
+	meta = exec.QueryMeta()
 
-	v, _ = meta.Load(from)
-	require.Equal(t, uint64(2), v.(uint64))
-
-	v, _ = exec.callbackMeta.Load(from)
-	require.Equal(t, uint64(2), v.(uint64))
+	require.Equal(t, uint64(2), meta[from])
 
 	// test for wrong index ibtp and receipt
 	//require.Nil(t, exec.HandleIBTP(wrongIndexedIbtp))
 	require.Panics(t, func() {
-		exec.HandleIBTP(wrongIndexedIbtp)
+		exec.ExecuteIBTP(wrongIndexedIbtp)
 	})
-	require.Nil(t, exec.HandleIBTP(wrongIndexedIbtpReceipt))
-	meta = exec.QueryLatestMeta()
-
-
-	v, _ = meta.Load(from)
-	require.Equal(t, uint64(2), v.(uint64))
-
-	v, _ = exec.callbackMeta.Load(from)
-	require.Equal(t, uint64(2), v.(uint64))
+	require.Nil(t, exec.ExecuteIBTP(wrongIndexedIbtpReceipt))
+	meta = exec.QueryMeta()
+	require.Equal(t, uint64(2), meta[from])
 
 	time.Sleep(500 * time.Microsecond)
 	require.Nil(t, exec.Stop())
@@ -112,8 +96,7 @@ func TestQueryReceipt(t *testing.T) {
 
 	cli.EXPECT().GetInMessage(from, uint64(1)).Return(args, nil).AnyTimes()
 
-	receipt, err := exec.QueryReceipt(from, 1, originalIBTP)
-	require.Nil(t, err)
+	receipt := exec.QueryIBTPReceipt(from, 1, originalIBTP)
 
 	require.Equal(t, originalIBTP.From, receipt.From)
 	require.Equal(t, originalIBTP.To, receipt.To)
@@ -165,6 +148,7 @@ func getReceipt() *pb.Receipt {
 		Status:  0,
 	}
 }
+
 func getIBTPReceipt(t *testing.T, index uint64, typ pb.IBTP_Type) *pb.IBTP {
 	receipt := getIBTP(t, index, typ)
 	receipt.From, receipt.To = receipt.To, receipt.From
