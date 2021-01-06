@@ -5,9 +5,10 @@
 package mock_monitor
 
 import (
+	reflect "reflect"
+
 	gomock "github.com/golang/mock/gomock"
 	pb "github.com/meshplus/bitxhub-model/pb"
-	reflect "reflect"
 )
 
 // MockMonitor is a mock of Monitor interface.

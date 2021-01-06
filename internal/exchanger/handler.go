@@ -33,7 +33,10 @@ func (ex *Exchanger) handleIBTP(ibtp *pb.IBTP) {
 		}
 	}
 
-	receipt := ex.exec.HandleIBTP(ibtp)
+	receipt, err := ex.exec.ExecuteIBTP(ibtp)
+	if err != nil {
+		logger.Errorf("execute ibtp error:%v", err)
+	}
 	if receipt == nil {
 		return
 	}
@@ -42,14 +45,9 @@ func (ex *Exchanger) handleIBTP(ibtp *pb.IBTP) {
 		"from":  ibtp.From,
 	}).Info("Handle ibtp")
 
-	if err := retry.Retry(func(attempt uint) error {
-		_, err = ex.agent.SendIBTP(receipt)
-		if err != nil {
-			return err
-		}
-		return nil
-	}, strategy.Wait(1*time.Second)); err != nil {
-		logger.Panic(err)
+	err = ex.syncer.SendIBTP(receipt)
+	if err != nil {
+		logger.Errorf("send ibtp error:%v", err)
 	}
 }
 
@@ -70,7 +68,7 @@ func (ex *Exchanger) handleUnionIBTP(ibtp *pb.IBTP) {
 	var signs []byte
 	if err := retry.Retry(func(attempt uint) error {
 		var err error
-		signs, err = ex.agent.GetIBTPSigns(ibtp)
+		signs, err = ex.syncer.GetIBTPSigns(ibtp)
 		if err != nil {
 			return err
 		}
@@ -99,7 +97,7 @@ func (ex *Exchanger) handleUnionIBTP(ibtp *pb.IBTP) {
 }
 
 func (ex *Exchanger) handleProviderAppchains() error {
-	appchains, err := ex.agent.GetAppchains()
+	appchains, err := ex.syncer.GetAppchains()
 	if err != nil {
 		return fmt.Errorf("get appchains:%w", err)
 	}
@@ -303,7 +301,7 @@ func (ex *Exchanger) handleRecover(ibtp *pb.IBTP) (*rpcx.Interchain, error) {
 }
 
 func (ex *Exchanger) handleRouterInterchain(s network.Stream, msg *peerMsg.Message) {
-	ic := ex.agent.GetInterchainById(string(msg.Payload.Data))
+	ic := ex.syncer.GetInterchainById(string(msg.Payload.Data))
 	data, err := ic.Marshal()
 	if err != nil {
 		panic(err)
@@ -316,22 +314,22 @@ func (ex *Exchanger) handleRouterInterchain(s network.Stream, msg *peerMsg.Messa
 }
 
 func (ex *Exchanger) handleGetInterchainMessage(stream network.Stream, msg *peerMsg.Message) {
-	mntMeta := ex.exec.QueryLatestMeta()
-	execMeta := ex.exec.QueryLatestMeta()
+	mntMeta := ex.mnt.QueryOuterMeta()
+	execMeta := ex.exec.QueryMeta()
 
 	indices := &struct {
 		InterchainIndex uint64 `json:"interchain_index"`
 		ReceiptIndex    uint64 `json:"receipt_index"`
 	}{}
 
-	execLoad, ok := execMeta.Load(string(msg.Payload.Data))
+	execLoad, ok := execMeta[string(msg.Payload.Data)]
 	if ok {
-		indices.InterchainIndex = execLoad.(uint64)
+		indices.InterchainIndex = execLoad
 	}
 
-	mntLoad, ok := mntMeta.Load(string(msg.Payload.Data))
+	mntLoad, ok := mntMeta[string(msg.Payload.Data)]
 	if ok {
-		indices.InterchainIndex = mntLoad.(uint64)
+		indices.InterchainIndex = mntLoad
 	}
 
 	data, err := json.Marshal(indices)
@@ -347,7 +345,7 @@ func (ex *Exchanger) handleGetInterchainMessage(stream network.Stream, msg *peer
 }
 
 func (ex *Exchanger) fetchSignsToIBTP(ibtp *pb.IBTP) error {
-	signs, err := ex.agent.GetAssetExchangeSigns(string(ibtp.Extra))
+	signs, err := ex.syncer.GetAssetExchangeSigns(string(ibtp.Extra))
 	if err != nil {
 		return fmt.Errorf("get asset exchange signs: %w", err)
 	}
