@@ -194,10 +194,18 @@ func (g *GRPCClient) handleIBTPStream(conn pb.AppchainPlugin_GetIBTPClient, ibtp
 }
 
 func (g *GRPCClient) SubmitIBTP(ibtp *pb.IBTP) (*pb.SubmitIBTPResponse, error) {
-	response, err := g.client.SubmitIBTP(g.doneContext, ibtp)
-	if err != nil {
-		return &pb.SubmitIBTPResponse{}, err
-	}
+	var err error
+	response := &pb.SubmitIBTPResponse{}
+	retry.Retry(func(attempt uint) error {
+		response, err = g.client.SubmitIBTP(g.doneContext, ibtp)
+		if err != nil {
+			logger.Error("submit ibtp to plugin server",
+				"ibtp id", ibtp.ID(),
+				"err", err.Error())
+			return err
+		}
+		return nil
+	}, strategy.Wait(1*time.Second))
 
 	return response, nil
 }
