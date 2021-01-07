@@ -32,4 +32,23 @@ type Syncer interface {
 	// SendIBTP sends interchain or receipt type of ibtp to bitxhub
 	// if error occurs, user need to reconstruct this ibtp cause it means ibtp is invalid on bitxhub
 	SendIBTP(ibtp *pb.IBTP) error
+
+	GetAssetExchangeSigns(id string) ([]byte, error)
+
+	//GetIBTPSigns gets ibtp signs from bitxhub cluster
+	GetIBTPSigns(ibtp *pb.IBTP) ([]byte, error)
+
+	//GetAppchains gets appchains from bitxhub node
+	GetAppchains() ([]*rpcx.Appchain, error)
+
+	GetIBTPByID(id string) (*pb.IBTP, error)
+
+	//GetInterchainById gets interchain meta by appchain id
+	GetInterchainById(from string) *pb.Interchain
+
+	// RegisterRecoverHandler registers handler that recover ibtps from bitxhub
+	RegisterRecoverHandler(RecoverUnionHandler) error
+
+	// RegisterAppchainHandler registers handler that fetch appchains information
+	RegisterAppchainHandler(handler AppchainHandler) error
 }

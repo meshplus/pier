@@ -70,12 +70,12 @@ func TestStartRelay(t *testing.T) {
 	outMeta[to] = 1
 	inMeta := &sync.Map{}
 	inMeta.Store(to, uint64(1))
-	mockMonitor.EXPECT().ListenOnIBTP().Return(outCh).AnyTimes()
-	mockMonitor.EXPECT().QueryLatestMeta().Return(outMeta)
+	mockMonitor.EXPECT().ListenIBTP().Return(outCh).AnyTimes()
+	mockMonitor.EXPECT().QueryOuterMeta().Return(outMeta)
 	mockMonitor.EXPECT().QueryIBTP(missedOutIBTP.ID()).Return(missedOutIBTP, nil).AnyTimes()
-	mockExecutor.EXPECT().QueryLatestMeta().Return(inMeta)
-	mockExecutor.EXPECT().QueryReceipt(to, uint64(1), gomock.Any()).Return(receipt, nil).AnyTimes()
-	mockExecutor.EXPECT().HandleIBTP(gomock.Any()).Return(receipt).AnyTimes()
+	mockExecutor.EXPECT().QueryMeta().Return(inMeta)
+	mockExecutor.EXPECT().QueryIBTPReceipt(to, uint64(1), gomock.Any()).Return(receipt, nil).AnyTimes()
+	mockExecutor.EXPECT().ExecuteIBTP(gomock.Any()).Return(receipt).AnyTimes()
 	mockSyncer.EXPECT().RegisterIBTPHandler(gomock.Any()).Return(nil)
 	mockAgent.EXPECT().GetIBTPByID(receipt.ID()).Return(missedInIBTP, nil)
 	mockAgent.EXPECT().SendIBTP(gomock.Any()).Return(bxhReceipt, nil).AnyTimes()
@@ -142,13 +142,13 @@ func TestStartDirect(t *testing.T) {
 	outMeta[to] = 1
 	inMeta := &sync.Map{}
 	inMeta.Store(to, uint64(1))
-	mockMonitor.EXPECT().ListenOnIBTP().Return(outCh).AnyTimes()
-	mockMonitor.EXPECT().QueryLatestMeta().Return(outMeta)
+	mockMonitor.EXPECT().ListenIBTP().Return(outCh).AnyTimes()
+	mockMonitor.EXPECT().QueryOuterMeta().Return(outMeta)
 	mockMonitor.EXPECT().QueryIBTP(happyPathMissedOutIBTP.ID()).Return(happyPathMissedOutIBTP, nil).AnyTimes()
-	mockExecutor.EXPECT().HandleIBTP(gomock.Any()).Return(receipt).AnyTimes()
-	mockExecutor.EXPECT().QueryLatestMeta().Return(inMeta).AnyTimes()
-	mockExecutor.EXPECT().QueryLatestCallbackMeta().Return(&sync.Map{}).AnyTimes()
-	mockExecutor.EXPECT().QueryReceipt(to, uint64(1), gomock.Any()).Return(receipt, nil).AnyTimes()
+	mockExecutor.EXPECT().ExecuteIBTP(gomock.Any()).Return(receipt).AnyTimes()
+	mockExecutor.EXPECT().QueryMeta().Return(inMeta).AnyTimes()
+	mockExecutor.EXPECT().QueryMeta().Return(&sync.Map{}).AnyTimes()
+	mockExecutor.EXPECT().QueryIBTPReceipt(to, uint64(1), gomock.Any()).Return(receipt, nil).AnyTimes()
 	mockPeerMgr.EXPECT().Send(gomock.Any(), metaMsg).Return(retMetaMsg, nil).AnyTimes()
 	mockPeerMgr.EXPECT().Send(gomock.Any(), gomock.Any()).Return(retMsg, nil).AnyTimes()
 	mockPeerMgr.EXPECT().AsyncSendWithStream(gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
@@ -444,23 +444,23 @@ func TestWithPeerMgr(t *testing.T) {
 
 	outMeta := make(map[string]uint64)
 	inMeta := sync.Map{}
-	mockMonitor1.EXPECT().ListenOnIBTP().Return(outCh).AnyTimes()
-	mockMonitor1.EXPECT().QueryLatestMeta().Return(outMeta)
+	mockMonitor1.EXPECT().ListenIBTP().Return(outCh).AnyTimes()
+	mockMonitor1.EXPECT().QueryOuterMeta().Return(outMeta)
 	for _, ibtp := range normalOutIBTPs {
 		//	mockExecutor1.EXPECT().HandleIBTP(ibtp).Return(normalReceipts[i]).AnyTimes()
 		outCh <- ibtp
 	}
-	mockExecutor1.EXPECT().QueryLatestMeta().Return(&inMeta).AnyTimes()
-	mockExecutor1.EXPECT().QueryLatestCallbackMeta().Return(&sync.Map{}).AnyTimes()
+	mockExecutor1.EXPECT().QueryMeta().Return(&inMeta).AnyTimes()
+	mockExecutor1.EXPECT().QueryMeta().Return(&sync.Map{}).AnyTimes()
 
-	mockMonitor2.EXPECT().ListenOnIBTP().Return(make(chan *pb.IBTP)).AnyTimes()
-	mockMonitor2.EXPECT().QueryLatestMeta().Return(outMeta)
+	mockMonitor2.EXPECT().ListenIBTP().Return(make(chan *pb.IBTP)).AnyTimes()
+	mockMonitor2.EXPECT().QueryOuterMeta().Return(outMeta)
 	for i, ibtp := range normalOutIBTPs {
-		mockExecutor2.EXPECT().HandleIBTP(ibtp).Return(normalReceipts[i]).AnyTimes()
+		mockExecutor2.EXPECT().ExecuteIBTP(ibtp).Return(normalReceipts[i]).AnyTimes()
 		//outCh <- ibtp
 	}
-	mockExecutor2.EXPECT().QueryLatestMeta().Return(&inMeta).AnyTimes()
-	mockExecutor2.EXPECT().QueryLatestCallbackMeta().Return(&sync.Map{}).AnyTimes()
+	mockExecutor2.EXPECT().QueryMeta().Return(&inMeta).AnyTimes()
+	mockExecutor2.EXPECT().QueryMeta().Return(&sync.Map{}).AnyTimes()
 
 	go mockExchanger1.Start()
 	go mockExchanger2.Start()
