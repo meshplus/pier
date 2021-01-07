@@ -168,7 +168,9 @@ func NewPier(repoRoot string, config *repo.Config) (*Pier, error) {
 			return nil, fmt.Errorf("lite create: %w", err)
 		}
 
-		sync, err = syncer.New(ag, lite, store, config)
+		sync, err = syncer.New(addr.String(), repo.RelayMode,
+			syncer.WithClient(client), syncer.WithLite(lite), syncer.WithStorage(store),
+		)
 		if err != nil {
 			return nil, fmt.Errorf("syncer create: %w", err)
 		}
@@ -301,7 +303,9 @@ func NewUnionPier(repoRoot string, config *repo.Config) (*Pier, error) {
 		return nil, fmt.Errorf("lite create: %w", err)
 	}
 
-	sync, err = syncer.New(ag, lite, store, config)
+	sync, err = syncer.New(addr.String(), repo.UnionMode,
+		syncer.WithClient(client), syncer.WithLite(lite), syncer.WithStorage(store),
+	)
 	if err != nil {
 		return nil, fmt.Errorf("syncer create: %w", err)
 	}

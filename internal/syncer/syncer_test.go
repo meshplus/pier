@@ -7,15 +7,14 @@ import (
 	"testing"
 	"time"
 
-	"github.com/meshplus/pier/internal/repo"
-
 	"github.com/cbergoon/merkletree"
 	"github.com/golang/mock/gomock"
 	"github.com/meshplus/bitxhub-kit/storage/leveldb"
 	"github.com/meshplus/bitxhub-kit/types"
 	"github.com/meshplus/bitxhub-model/pb"
-	"github.com/meshplus/pier/internal/agent/mock_agent"
+	"github.com/meshplus/go-bitxhub-client/mock_client"
 	"github.com/meshplus/pier/internal/lite/mock_lite"
+	"github.com/meshplus/pier/internal/repo"
 	"github.com/meshplus/pier/pkg/model"
 	"github.com/stretchr/testify/require"
 )
@@ -25,7 +24,7 @@ const (
 )
 
 func TestSyncHeader001(t *testing.T) {
-	syncer, ag, lite := prepare(t, 0)
+	syncer, client, lite := prepare(t, 0)
 	defer syncer.storage.Close()
 
 	// expect mock module returns
@@ -42,21 +41,24 @@ func TestSyncHeader001(t *testing.T) {
 	w3, _ := getTxWrapper(t, txs, txs1, 3)
 	w3.InterchainTxWrappers[0].TransactionHashes = w3.InterchainTxWrappers[0].TransactionHashes[1:]
 
+	//getWrapperCh := make(chan *pb.InterchainTxWrappers, 2)
+	syncWrapperCh := make(chan interface{}, 4)
 	meta := &pb.ChainMeta{
 		Height:    1,
 		BlockHash: types.NewHashByStr(from),
 	}
-	ag.EXPECT().SyncInterchainTxWrappers(gomock.Any(), gomock.Any()).Do(func(ctx context.Context, ch chan *pb.InterchainTxWrappers) {
-		ch <- w2
-		ch <- w3
-	}).AnyTimes()
-	ag.EXPECT().GetInterchainTxWrappers(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Do(
-		func(ctx context.Context, begin, end uint64, ch chan *pb.InterchainTxWrappers) {
+	client.EXPECT().Subscribe(gomock.Any(), pb.SubscriptionRequest_INTERCHAIN_TX_WRAPPER, gomock.Any()).Return(syncWrapperCh, nil).AnyTimes()
+	client.EXPECT().GetInterchainTxWrappers(syncer.ctx, gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Do(
+		func(ctx context.Context, pid string, begin, end uint64, ch chan<- *pb.InterchainTxWrappers) {
 			ch <- w1
 			close(ch)
 		}).AnyTimes()
-	ag.EXPECT().GetChainMeta().Return(meta, nil).AnyTimes()
+	client.EXPECT().GetChainMeta().Return(meta, nil).AnyTimes()
 	lite.EXPECT().QueryHeader(gomock.Any()).Return(h2, nil).AnyTimes()
+	go func() {
+		syncWrapperCh <- w2
+		syncWrapperCh <- w3
+	}()
 
 	syncer.height = 1
 	ok, err := syncer.verifyWrapper(w2.InterchainTxWrappers[0])
@@ -86,7 +88,7 @@ func TestSyncHeader001(t *testing.T) {
 }
 
 func TestSyncHeader002(t *testing.T) {
-	syncer, ag, lite := prepare(t, 1)
+	syncer, client, lite := prepare(t, 1)
 	defer syncer.storage.Close()
 
 	// expect mock module returns
@@ -103,16 +105,14 @@ func TestSyncHeader002(t *testing.T) {
 	w4, _ := getTxWrapper(t, txs, txs1, 4)
 	w4.InterchainTxWrappers[0].TransactionHashes = w4.InterchainTxWrappers[0].TransactionHashes[1:]
 
+	syncWrapperCh := make(chan interface{}, 4)
 	meta := &pb.ChainMeta{
 		Height:    1,
 		BlockHash: types.NewHashByStr(from),
 	}
-	ag.EXPECT().SyncInterchainTxWrappers(gomock.Any(), gomock.Any()).Do(func(ctx context.Context, ch chan *pb.InterchainTxWrappers) {
-		ch <- w3
-		ch <- w4
-	}).AnyTimes()
-	ag.EXPECT().GetInterchainTxWrappers(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Do(
-		func(ctx context.Context, begin, end uint64, ch chan *pb.InterchainTxWrappers) {
+	client.EXPECT().Subscribe(gomock.Any(), pb.SubscriptionRequest_INTERCHAIN_TX_WRAPPER, gomock.Any()).Return(syncWrapperCh, nil).AnyTimes()
+	client.EXPECT().GetInterchainTxWrappers(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Do(
+		func(ctx context.Context, pid string, begin, end uint64, ch chan<- *pb.InterchainTxWrappers) {
 			if begin == 2 {
 				ch <- w2
 			} else if begin == 3 {
@@ -120,8 +120,12 @@ func TestSyncHeader002(t *testing.T) {
 			}
 			close(ch)
 		}).AnyTimes()
-	ag.EXPECT().GetChainMeta().Return(meta, nil).AnyTimes()
+	client.EXPECT().GetChainMeta().Return(meta, nil).AnyTimes()
 	lite.EXPECT().QueryHeader(gomock.Any()).Return(h3, nil).AnyTimes()
+	go func() {
+		syncWrapperCh <- w3
+		syncWrapperCh <- w4
+	}()
 
 	syncer.height = 1
 	ok, err := syncer.verifyWrapper(w2.InterchainTxWrappers[0])
@@ -150,11 +154,11 @@ func TestSyncHeader002(t *testing.T) {
 	require.Nil(t, syncer.Stop())
 }
 
-func prepare(t *testing.T, height uint64) (*WrapperSyncer, *mock_agent.MockAgent, *mock_lite.MockLite) {
+func prepare(t *testing.T, height uint64) (*WrapperSyncer, *mock_client.MockClient, *mock_lite.MockLite) {
 	mockCtl := gomock.NewController(t)
 	mockCtl.Finish()
 
-	ag := mock_agent.NewMockAgent(mockCtl)
+	client := mock_client.NewMockClient(mockCtl)
 	lite := mock_lite.NewMockLite(mockCtl)
 
 	config := &repo.Config{}
@@ -165,15 +169,16 @@ func prepare(t *testing.T, height uint64) (*WrapperSyncer, *mock_agent.MockAgent
 	storage, err := leveldb.New(tmpDir)
 	require.Nil(t, err)
 
-	syncer, err := New(ag, lite, storage, config)
+	syncer, err := New(from, repo.RelayMode,
+		WithClient(client), WithLite(lite), WithStorage(storage),
+	)
 	require.Nil(t, err)
 
 	syncer.storage.Put(syncHeightKey(), []byte(strconv.FormatUint(height, 10)))
 
 	// register handler for syncer
-	require.Nil(t, syncer.RegisterIBTPHandler(func(ibtp *pb.IBTP) {}))
 	require.Nil(t, syncer.RegisterAppchainHandler(func() error { return nil }))
-	return syncer, ag, lite
+	return syncer, client, lite
 }
 
 func getBlockHeader(root *types.Hash, number uint64) *pb.BlockHeader {
