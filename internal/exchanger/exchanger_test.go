@@ -49,7 +49,7 @@ func TestStartRelay(t *testing.T) {
 
 	mockExchanger, err := New(mode, from, meta,
 		WithMonitor(mockMonitor), WithExecutor(mockExecutor),
-		WithSyncer(mockSyncer), WithAgent(mockAgent),
+		WithSyncer(mockSyncer),
 		WithChecker(mockChecker), WithStorage(store),
 	)
 	require.Nil(t, err)
@@ -199,7 +199,6 @@ func testUnionMode(pierID string, t *testing.T) {
 		WithMonitor(mockMonitor), WithExecutor(mockExecutor),
 		WithSyncer(mockSyncer), WithPeerMgr(mockPeerMgr),
 		WithRouter(mockRouter), WithStorage(store),
-		WithAgent(mockAgent),
 	)
 	require.Nil(t, err)
 

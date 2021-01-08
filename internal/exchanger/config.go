@@ -3,7 +3,6 @@ package exchanger
 import (
 	"github.com/meshplus/bitxhub-kit/storage"
 	"github.com/meshplus/pier/api"
-	"github.com/meshplus/pier/internal/agent"
 	"github.com/meshplus/pier/internal/checker"
 	"github.com/meshplus/pier/internal/executor"
 	"github.com/meshplus/pier/internal/monitor"
@@ -15,7 +14,6 @@ import (
 type Config struct {
 	typ       string
 	pierID    string
-	agent     agent.Agent
 	checker   checker.Checker
 	store     storage.Storage
 	peerMgr   peermgr.PeerManager
@@ -37,12 +35,6 @@ func WithType(typ string) Option {
 func WithPierId(pierId string) Option {
 	return func(config *Config) {
 		config.pierID = pierId
-	}
-}
-
-func WithAgent(ag agent.Agent) Option {
-	return func(config *Config) {
-		config.agent = ag
 	}
 }
 
