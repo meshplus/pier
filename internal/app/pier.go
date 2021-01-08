@@ -17,7 +17,6 @@ import (
 	"github.com/meshplus/bitxhub-model/pb"
 	rpcx "github.com/meshplus/go-bitxhub-client"
 	"github.com/meshplus/pier/api"
-	"github.com/meshplus/pier/internal/agent"
 	"github.com/meshplus/pier/internal/appchain"
 	"github.com/meshplus/pier/internal/checker"
 	"github.com/meshplus/pier/internal/exchanger"
@@ -78,7 +77,6 @@ func NewPier(repoRoot string, config *repo.Config) (*Pier, error) {
 	}
 
 	var (
-		ag          agent.Agent
 		ck          checker.Checker
 		cryptor     txcrypto.Cryptor
 		ex          exchanger.IExchanger
@@ -142,18 +140,13 @@ func NewPier(repoRoot string, config *repo.Config) (*Pier, error) {
 			return nil, fmt.Errorf("create bitxhub client: %w", err)
 		}
 
-		ag, err = agent.New(client, *addr, config.Mode.Relay)
-		if err != nil {
-			return nil, fmt.Errorf("create agent error: %w", err)
-		}
-
 		// agent queries appchain info from bitxhub
-		meta, err = ag.GetInterchainMeta()
+		meta, err = getInterchainMeta(client)
 		if err != nil {
 			return nil, err
 		}
 
-		chain, err = ag.Appchain()
+		chain, err = getAppchainInfo(client)
 		if err != nil {
 			return nil, err
 		}
@@ -163,7 +156,7 @@ func NewPier(repoRoot string, config *repo.Config) (*Pier, error) {
 			return nil, fmt.Errorf("cryptor create: %w", err)
 		}
 
-		lite, err = bxh_lite.New(ag, store)
+		lite, err = bxh_lite.New(client, store)
 		if err != nil {
 			return nil, fmt.Errorf("lite create: %w", err)
 		}
@@ -208,7 +201,6 @@ func NewPier(repoRoot string, config *repo.Config) (*Pier, error) {
 	}
 
 	ex, err = exchanger.New(config.Mode.Type, addr.String(), meta,
-		exchanger.WithAgent(ag),
 		exchanger.WithChecker(ck),
 		exchanger.WithExecutor(exec),
 		exchanger.WithMonitor(mnt),
@@ -256,7 +248,6 @@ func NewUnionPier(repoRoot string, config *repo.Config) (*Pier, error) {
 		return nil, fmt.Errorf("get address from private key %w", err)
 	}
 	var (
-		ag          agent.Agent
 		ex          exchanger.IExchanger
 		lite        lite.Lite
 		sync        syncer.Syncer
@@ -291,14 +282,9 @@ func NewUnionPier(repoRoot string, config *repo.Config) (*Pier, error) {
 		return nil, fmt.Errorf("create bitxhub client: %w", err)
 	}
 
-	ag, err = agent.New(client, *addr, config.Mode.Relay)
-	if err != nil {
-		return nil, fmt.Errorf("create agent error: %w", err)
-	}
-
 	meta = &pb.Interchain{}
 
-	lite, err = bxh_lite.New(ag, store)
+	lite, err = bxh_lite.New(client, store)
 	if err != nil {
 		return nil, fmt.Errorf("lite create: %w", err)
 	}
@@ -313,7 +299,6 @@ func NewUnionPier(repoRoot string, config *repo.Config) (*Pier, error) {
 	router := router.New(peerManager, store)
 
 	ex, err = exchanger.New(config.Mode.Type, addr.String(), meta,
-		exchanger.WithAgent(ag),
 		exchanger.WithPeerMgr(peerManager),
 		exchanger.WithSyncer(sync),
 		exchanger.WithStorage(store),

@@ -5,10 +5,9 @@
 package mock_executor
 
 import (
-	reflect "reflect"
-
 	gomock "github.com/golang/mock/gomock"
 	pb "github.com/meshplus/bitxhub-model/pb"
+	reflect "reflect"
 )
 
 // MockExecutor is a mock of Executor interface
@@ -92,7 +91,7 @@ func (mr *MockExecutorMockRecorder) QueryMeta() *gomock.Call {
 }
 
 // QueryIBTPReceipt mocks base method
-func (m *MockExecutor) QueryIBTPReceipt(from string, index uint64) *pb.IBTP {
+func (m *MockExecutor) QueryIBTPReceipt(from string, index uint64, originalIBTP *pb.IBTP) (*pb.IBTP, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "QueryIBTPReceipt", from, index, originalIBTP)
 	ret0, _ := ret[0].(*pb.IBTP)

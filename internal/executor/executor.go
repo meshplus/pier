@@ -64,13 +64,13 @@ func (e *ChannelExecutor) QueryMeta() map[string]uint64 {
 }
 
 // getReceipt only generates one receipt given source chain id and interchain tx index
-func (e *ChannelExecutor) QueryIBTPReceipt(from string, idx uint64, originalIBTP *pb.IBTP) *pb.IBTP {
+func (e *ChannelExecutor) QueryIBTPReceipt(from string, idx uint64, originalIBTP *pb.IBTP) (*pb.IBTP, error) {
 	ret, err := e.client.GetInMessage(from, idx)
 	if err != nil {
-		return nil
+		return nil, err
 	}
 
 	// todo: add error handling
 	ibtpReceipt, _ := e.generateCallback(originalIBTP, ret)
-	return ibtpReceipt
+	return ibtpReceipt, nil
 }

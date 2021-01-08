@@ -7,7 +7,7 @@ import (
 	"github.com/meshplus/bitxhub-kit/log"
 	"github.com/meshplus/bitxhub-kit/storage"
 	"github.com/meshplus/bitxhub-model/pb"
-	"github.com/meshplus/pier/internal/agent"
+	rpcx "github.com/meshplus/go-bitxhub-client"
 	"github.com/sirupsen/logrus"
 )
 
@@ -16,18 +16,18 @@ var logger = log.NewWithModule("bxh_lite")
 const maxChSize = 1024
 
 type BxhLite struct {
-	ag      agent.Agent
+	client  rpcx.Client
 	storage storage.Storage
 	height  uint64
 	ctx     context.Context
 	cancel  context.CancelFunc
 }
 
-func New(ag agent.Agent, storage storage.Storage) (*BxhLite, error) {
+func New(client rpcx.Client, storage storage.Storage) (*BxhLite, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	return &BxhLite{
-		ag:      ag,
+		client:  client,
 		storage: storage,
 		ctx:     ctx,
 		cancel:  cancel,
@@ -35,7 +35,7 @@ func New(ag agent.Agent, storage storage.Storage) (*BxhLite, error) {
 }
 
 func (lite *BxhLite) Start() error {
-	meta, err := lite.ag.GetChainMeta()
+	meta, err := lite.client.GetChainMeta()
 	if err != nil {
 		return fmt.Errorf("get chain meta from bitxhub: %w", err)
 	}
@@ -90,7 +90,7 @@ func (lite *BxhLite) recover(begin, end uint64) {
 	}).Info("BitXHub lite recover")
 
 	headerCh := make(chan *pb.BlockHeader, maxChSize)
-	if err := lite.ag.GetBlockHeader(lite.ctx, begin, end, headerCh); err != nil {
+	if err := lite.client.GetBlockHeader(lite.ctx, begin, end, headerCh); err != nil {
 		logger.WithFields(logrus.Fields{
 			"begin": begin,
 			"end":   end,
