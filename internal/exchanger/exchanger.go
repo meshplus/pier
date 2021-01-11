@@ -244,9 +244,9 @@ func (ex *Exchanger) listenAndSendIBTPFromSyncer() {
 			index := ex.interchainCounter[ibtp.From]
 			if index >= ibtp.Index {
 				logger.WithFields(logrus.Fields{
-					"index":      ibtp.Index,
+					"index":        ibtp.Index,
 					"from_counter": index,
-					"ibtp_id":    ibtp.ID(),
+					"ibtp_id":      ibtp.ID(),
 				}).Info("Ignore ibtp")
 				return
 			}
@@ -254,13 +254,13 @@ func (ex *Exchanger) listenAndSendIBTPFromSyncer() {
 			if index+1 < ibtp.Index {
 				logger.WithFields(logrus.Fields{
 					"index": ibtp.Index,
-					"from":    ibtp.From,
+					"from":  ibtp.From,
 				}).Info("Get missing ibtp")
 
 				if err := ex.handleMissingIBTPFromSyncer(ibtp.From, index+1, ibtp.Index); err != nil {
 					logger.WithFields(logrus.Fields{
 						"index": ibtp.Index,
-						"from":    ibtp.From,
+						"from":  ibtp.From,
 					}).Error("Handle missing ibtp")
 				}
 			}
@@ -366,7 +366,7 @@ func (ex *Exchanger) queryIBTP(from string, idx uint64) (*pb.IBTP, error) {
 	var err error
 	switch ex.mode {
 	case repo.RelayMode:
-		ibtp, err = ex.syncer.GetIBTPByID(id)
+		ibtp, err = ex.syncer.QueryIBTP(id)
 		if err != nil {
 			if errors.Is(err, agent.ErrIBTPNotFound) {
 				logger.Panicf("query ibtp by id %s from bitxhub: %s", id, err.Error())

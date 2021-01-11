@@ -1,14 +1,23 @@
 package syncer
 
 import (
+	"bytes"
 	"context"
+	"crypto/sha256"
+	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"strconv"
 	"testing"
 	"time"
 
+	"github.com/meshplus/bitxhub-model/constant"
+	rpcx "github.com/meshplus/go-bitxhub-client"
+
 	"github.com/cbergoon/merkletree"
 	"github.com/golang/mock/gomock"
+	"github.com/meshplus/bitxhub-kit/crypto"
+	"github.com/meshplus/bitxhub-kit/crypto/asym"
 	"github.com/meshplus/bitxhub-kit/storage/leveldb"
 	"github.com/meshplus/bitxhub-kit/types"
 	"github.com/meshplus/bitxhub-model/pb"
@@ -20,9 +29,13 @@ import (
 )
 
 const (
+	hash = "0x9f41dd84524bf8a42f8ab58ecfca6e1752d6fd93fe8dc00af4c71963c97db59f"
 	from = "0x3f9d18f7c3a6e5e4c0b877fe3e688ab08840b997"
 )
 
+// 1. test normal interchain wrapper
+// 2. test interchain wrappers arriving at wrong sequence
+// 3. test invalid interchain wrappers
 func TestSyncHeader001(t *testing.T) {
 	syncer, client, lite := prepare(t, 0)
 	defer syncer.storage.Close()
@@ -41,7 +54,6 @@ func TestSyncHeader001(t *testing.T) {
 	w3, _ := getTxWrapper(t, txs, txs1, 3)
 	w3.InterchainTxWrappers[0].TransactionHashes = w3.InterchainTxWrappers[0].TransactionHashes[1:]
 
-	//getWrapperCh := make(chan *pb.InterchainTxWrappers, 2)
 	syncWrapperCh := make(chan interface{}, 4)
 	meta := &pb.ChainMeta{
 		Height:    1,
@@ -70,6 +82,7 @@ func TestSyncHeader001(t *testing.T) {
 		err := syncer.Start()
 		require.Nil(t, err)
 		<-done
+		require.Nil(t, syncer.Stop())
 	}()
 
 	time.Sleep(1 * time.Second)
@@ -84,7 +97,6 @@ func TestSyncHeader001(t *testing.T) {
 	}
 	done <- true
 	require.Equal(t, uint64(2), syncer.height)
-	require.Nil(t, syncer.Stop())
 }
 
 func TestSyncHeader002(t *testing.T) {
@@ -152,6 +164,150 @@ func TestSyncHeader002(t *testing.T) {
 	done <- true
 	require.Equal(t, uint64(3), syncer.height)
 	require.Nil(t, syncer.Stop())
+}
+
+// 4. test broken network when sending ibtp
+func TestQueryIBTP(t *testing.T) {
+	syncer, client, _ := prepare(t, 1)
+	defer syncer.storage.Close()
+
+	r := &pb.Receipt{
+		Ret:    []byte(from),
+		Status: pb.Receipt_SUCCESS,
+	}
+	origin := &pb.IBTP{
+		From:      from,
+		Index:     1,
+		Timestamp: time.Now().UnixNano(),
+	}
+
+	tmpIP := &pb.InvokePayload{
+		Method: "set",
+		Args:   []*pb.Arg{{Value: []byte("Alice,10")}},
+	}
+	pd, err := tmpIP.Marshal()
+	require.Nil(t, err)
+
+	td := &pb.TransactionData{
+		Payload: pd,
+	}
+	data, err := td.Marshal()
+	require.Nil(t, err)
+
+	tx := &pb.Transaction{
+		Payload: data,
+		IBTP:    origin,
+	}
+	client.EXPECT().InvokeContract(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(r, nil).AnyTimes()
+	client.EXPECT().GetTransaction(gomock.Any()).Return(&pb.GetTransactionResponse{Tx: tx}, nil)
+
+	ibtp, err := syncer.QueryIBTP(from)
+	require.Nil(t, err)
+	require.Equal(t, origin, ibtp)
+}
+
+func TestGetAssetExchangeSigns(t *testing.T) {
+	syncer, client, _ := prepare(t, 1)
+	defer syncer.storage.Close()
+
+	assetExchangeID := fmt.Sprintf("%s", from)
+	digest := sha256.Sum256([]byte(assetExchangeID))
+	priv, err := asym.GenerateKeyPair(crypto.Secp256k1)
+	require.Nil(t, err)
+	sig, err := priv.Sign(digest[:])
+	require.Nil(t, err)
+	resp := &pb.SignResponse{
+		Sign: map[string][]byte{assetExchangeID: sig},
+	}
+
+	client.EXPECT().GetMultiSigns(assetExchangeID, pb.GetMultiSignsRequest_ASSET_EXCHANGE).
+		Return(resp, nil)
+
+	sigBytes, err := syncer.GetAssetExchangeSigns(assetExchangeID)
+	require.Nil(t, err)
+	require.Equal(t, true, bytes.Equal(sigBytes, sigBytes))
+}
+
+func TestGetIBTPSigns(t *testing.T) {
+	syncer, client, _ := prepare(t, 1)
+	defer syncer.storage.Close()
+
+	ibtp := &pb.IBTP{}
+	hash := ibtp.Hash().String()
+
+	digest := sha256.Sum256([]byte(hash))
+	priv, err := asym.GenerateKeyPair(crypto.Secp256k1)
+	require.Nil(t, err)
+	sig, err := priv.Sign(digest[:])
+	require.Nil(t, err)
+	resp := &pb.SignResponse{
+		Sign: map[string][]byte{hash: sig},
+	}
+
+	client.EXPECT().GetMultiSigns(hash, pb.GetMultiSignsRequest_IBTP).
+		Return(resp, nil)
+
+	sigBytes, err := syncer.GetIBTPSigns(ibtp)
+	require.Nil(t, err)
+	require.Equal(t, true, bytes.Equal(sigBytes, sigBytes))
+}
+
+func TestGetAppchains(t *testing.T) {
+	syncer, client, _ := prepare(t, 1)
+	defer syncer.storage.Close()
+
+	// set up return metaReceipt
+	chainInfo := &rpcx.Appchain{
+		ID:            from,
+		Name:          "fabric",
+		Validators:    "fabric",
+		ConsensusType: 0,
+		Status:        0,
+		ChainType:     "fabric",
+	}
+	originalChainsInfo := []*rpcx.Appchain{chainInfo, chainInfo}
+	info, err := json.Marshal(originalChainsInfo)
+	require.Nil(t, err)
+
+	chainsReceipt := &pb.Receipt{
+		Ret:    info,
+		Status: 0,
+	}
+	getAppchainsTx := getTx(t)
+
+	client.EXPECT().GenerateContractTx(pb.TransactionData_BVM, constant.AppchainMgrContractAddr.Address(), gomock.Any()).Return(getAppchainsTx, nil).AnyTimes()
+	client.EXPECT().SendView(getAppchainsTx).Return(chainsReceipt, nil)
+	chains, err := syncer.GetAppchains()
+	require.Nil(t, err)
+	require.Equal(t, originalChainsInfo, chains)
+}
+
+func TestSendIBTP(t *testing.T) {
+	syncer, client, _ := prepare(t, 1)
+	defer syncer.storage.Close()
+
+	b := &types.Address{}
+	b.SetBytes([]byte(from))
+	tx := &pb.Transaction{
+		From: b,
+	}
+
+	r := &pb.Receipt{
+		Ret:    []byte("this is a test"),
+		Status: 0,
+	}
+	client.EXPECT().GenerateIBTPTx(gomock.Any()).Return(tx, nil).AnyTimes()
+	networkDownTime := 0
+	client.EXPECT().SendTransactionWithReceipt(gomock.Any(), gomock.Any()).DoAndReturn(
+		func(tx *pb.Transaction, opts *rpcx.TransactOpts) (*pb.Receipt, error) {
+			if networkDownTime < 3 {
+				networkDownTime++
+				return nil, fmt.Errorf("network broken")
+			}
+			return r, nil
+		})
+	err := syncer.SendIBTP(&pb.IBTP{})
+	require.Nil(t, err)
 }
 
 func prepare(t *testing.T, height uint64) (*WrapperSyncer, *mock_client.MockClient, *mock_lite.MockLite) {

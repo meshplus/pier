@@ -85,29 +85,6 @@ func (syncer *WrapperSyncer) GetAppchains() ([]*rpcx.Appchain, error) {
 	return appchains, nil
 }
 
-func (syncer *WrapperSyncer) GetIBTPByID(id string) (*pb.IBTP, error) {
-	receipt, err := syncer.client.InvokeContract(pb.TransactionData_BVM, constant.InterchainContractAddr.Address(),
-		"GetIBTPByID", nil, rpcx.String(id))
-	if err != nil {
-		return nil, err
-	}
-
-	if !receipt.IsSuccess() {
-		return nil, fmt.Errorf("%w: %s", ErrIBTPNotFound, string(receipt.Ret))
-	}
-	hash := types.NewHash(receipt.Ret)
-
-	response, err := syncer.client.GetTransaction(hash.String())
-	if err != nil {
-		return nil, err
-	}
-	ibtp := response.Tx.GetIBTP()
-	if ibtp == nil {
-		return nil, fmt.Errorf("empty ibtp from bitxhub")
-	}
-	return ibtp, nil
-}
-
 func (syncer *WrapperSyncer) GetInterchainById(from string) *pb.Interchain {
 	ic := &pb.Interchain{}
 	tx, err := syncer.client.GenerateContractTx(pb.TransactionData_BVM, constant.InterchainContractAddr.Address(), "GetInterchain", rpcx.String(from))
@@ -184,15 +161,24 @@ func (syncer *WrapperSyncer) SendIBTP(ibtp *pb.IBTP) error {
 		return fmt.Errorf("generate ibtp tx error:%v", err)
 	}
 	tx.Extra = proof
-	// todo: if bitxhub is unavailable, retry sending ibtp;
-	// if this ibtp is on chain, quit sending ibtp
-	receipt, err := syncer.client.SendTransactionWithReceipt(tx, &rpcx.TransactOpts{
-		From:      fmt.Sprintf("%s-%s-%d", ibtp.From, ibtp.To, ibtp.Category()),
-		IBTPNonce: ibtp.Index,
+	retryFunc(func(attempt uint) error {
+		receipt, err := syncer.client.SendTransactionWithReceipt(tx, &rpcx.TransactOpts{
+			From:      fmt.Sprintf("%s-%s-%d", ibtp.From, ibtp.To, ibtp.Category()),
+			IBTPNonce: ibtp.Index,
+		})
+		if err != nil {
+			return err
+		}
+		if receipt.IsSuccess() {
+			return nil
+		}
+		// query if this ibtp is on chain
+		_, err = syncer.QueryIBTP(ibtp.ID())
+		if err != nil {
+			return err
+		}
+		return nil
 	})
-	if !receipt.IsSuccess() {
-		return fmt.Errorf("receipt for this ibtp fail: %s", receipt.Ret)
-	}
 	return nil
 }
 

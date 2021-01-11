@@ -165,21 +165,6 @@ func (mr *MockSyncerMockRecorder) GetAppchains() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetAppchains", reflect.TypeOf((*MockSyncer)(nil).GetAppchains))
 }
 
-// GetIBTPByID mocks base method
-func (m *MockSyncer) GetIBTPByID(id string) (*pb.IBTP, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetIBTPByID", id)
-	ret0, _ := ret[0].(*pb.IBTP)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// GetIBTPByID indicates an expected call of GetIBTPByID
-func (mr *MockSyncerMockRecorder) GetIBTPByID(id interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetIBTPByID", reflect.TypeOf((*MockSyncer)(nil).GetIBTPByID), id)
-}
-
 // GetInterchainById mocks base method
 func (m *MockSyncer) GetInterchainById(from string) *pb.Interchain {
 	m.ctrl.T.Helper()
