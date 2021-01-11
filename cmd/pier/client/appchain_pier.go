@@ -300,7 +300,7 @@ func registerAppchainRule(ctx *cli.Context) error {
 
 	contract := wasm.Contract{
 		Code: data,
-		Hash: *types.NewHash(data),
+		Hash: types.NewHash(data),
 	}
 
 	code, err := json.Marshal(contract)

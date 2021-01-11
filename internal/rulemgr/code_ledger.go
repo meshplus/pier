@@ -11,7 +11,7 @@ type CodeLedger struct {
 	storage storage.Storage
 }
 
-func (l *CodeLedger) GetCode(address types.Address) []byte {
+func (l *CodeLedger) GetCode(address *types.Address) []byte {
 	key := rulePrefix + address.String()
 	code := l.storage.Get([]byte(key))
 	return code
