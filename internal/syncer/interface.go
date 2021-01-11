@@ -41,8 +41,6 @@ type Syncer interface {
 	//GetAppchains gets appchains from bitxhub node
 	GetAppchains() ([]*rpcx.Appchain, error)
 
-	GetIBTPByID(id string) (*pb.IBTP, error)
-
 	//GetInterchainById gets interchain meta by appchain id
 	GetInterchainById(from string) *pb.Interchain
 
