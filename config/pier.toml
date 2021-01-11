@@ -45,6 +45,9 @@ enable_tls = false
 tlsca = "certs/ca.pem"
 common_name = "localhost"
 
+[HA]
+mode = "single"
+
 [appchain]
 plugin = "appchain_plugin"
 config = "fabric"

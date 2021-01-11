@@ -53,7 +53,7 @@ func (c *DirectChecker) Check(ibtp *pb.IBTP) error {
 		}
 
 		chainAddr := types.NewAddressByStr(chainID)
-		code := c.ruleMgr.Ledger.GetCode(*chainAddr)
+		code := c.ruleMgr.Ledger.GetCode(chainAddr)
 		if code == nil {
 			if appchain.ChainType == "fabric" {
 				validatorAddr = validator.SimFabricRuleAddr
