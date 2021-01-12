@@ -13,7 +13,6 @@ import (
 	"github.com/meshplus/bitxhub-kit/storage"
 	"github.com/meshplus/bitxhub-model/pb"
 	"github.com/meshplus/pier/api"
-	"github.com/meshplus/pier/internal/agent"
 	"github.com/meshplus/pier/internal/checker"
 	"github.com/meshplus/pier/internal/executor"
 	"github.com/meshplus/pier/internal/monitor"
@@ -368,7 +367,7 @@ func (ex *Exchanger) queryIBTP(from string, idx uint64) (*pb.IBTP, error) {
 	case repo.RelayMode:
 		ibtp, err = ex.syncer.QueryIBTP(id)
 		if err != nil {
-			if errors.Is(err, agent.ErrIBTPNotFound) {
+			if errors.Is(err, syncer.ErrIBTPNotFound) {
 				logger.Panicf("query ibtp by id %s from bitxhub: %s", id, err.Error())
 			}
 			return nil, fmt.Errorf("query ibtp from bitxhub: %s", err.Error())
