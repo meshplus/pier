@@ -52,8 +52,6 @@ func (lite *BxhLite) syncBlock() {
 				}
 
 				lite.handleBlockHeader(header)
-			//default:
-			//	logger.Errorf("Not supported type for sync block")
 			case <-lite.ctx.Done():
 				return
 			}
@@ -63,7 +61,7 @@ func (lite *BxhLite) syncBlock() {
 	for {
 		headerCh := lite.getHeaderChannel()
 		err := retry.Retry(func(attempt uint) error {
-			chainMeta, err := lite.ag.GetChainMeta()
+			chainMeta, err := lite.client.GetChainMeta()
 			if err != nil {
 				logger.WithField("error", err).Error("Get chain meta")
 				return err
@@ -88,7 +86,7 @@ func (lite *BxhLite) getHeaderChannel() chan *pb.BlockHeader {
 	ch := make(chan *pb.BlockHeader, maxChSize)
 
 	if err := retry.Retry(func(attempt uint) error {
-		if err := lite.ag.SyncBlockHeader(lite.ctx, ch); err != nil {
+		if err := lite.syncBlockHeader(ch); err != nil {
 			return err
 		}
 
@@ -98,4 +96,27 @@ func (lite *BxhLite) getHeaderChannel() chan *pb.BlockHeader {
 	}
 
 	return ch
+}
+
+func (lite *BxhLite) syncBlockHeader(headerCh chan<- *pb.BlockHeader) error {
+	ch, err := lite.client.Subscribe(lite.ctx, pb.SubscriptionRequest_BLOCK_HEADER, nil)
+	if err != nil {
+		return err
+	}
+
+	go func() {
+		for {
+			select {
+			case <-lite.ctx.Done():
+				return
+			case h, ok := <-ch:
+				if !ok {
+					close(headerCh)
+					return
+				}
+				headerCh <- h.(*pb.BlockHeader)
+			}
+		}
+	}()
+	return nil
 }

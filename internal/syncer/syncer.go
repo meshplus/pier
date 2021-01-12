@@ -15,7 +15,6 @@ import (
 	"github.com/meshplus/bitxhub-kit/types"
 	"github.com/meshplus/bitxhub-model/pb"
 	rpcx "github.com/meshplus/go-bitxhub-client"
-	"github.com/meshplus/pier/internal/agent"
 	"github.com/meshplus/pier/internal/lite"
 	"github.com/meshplus/pier/internal/repo"
 	"github.com/sirupsen/logrus"
@@ -29,32 +28,40 @@ const maxChSize = 1 << 10
 
 // WrapperSyncer represents the necessary data for sync tx wrappers from bitxhub
 type WrapperSyncer struct {
-	isRecover       bool
-	height          uint64
-	agent           agent.Agent
+	client          rpcx.Client
 	lite            lite.Lite
 	storage         storage.Storage
 	wrappersC       chan *pb.InterchainTxWrappers
+	ibtpC           chan *pb.IBTP
 	handler         IBTPHandler
 	appchainHandler AppchainHandler
 	recoverHandler  RecoverUnionHandler
-	config          *repo.Config
 
-	ctx    context.Context
-	cancel context.CancelFunc
+	mode      string
+	isRecover bool
+	height    uint64
+	pierID    string
+	ctx       context.Context
+	cancel    context.CancelFunc
 }
 
 // New creates instance of WrapperSyncer given agent interacting with bitxhub,
 // validators addresses of bitxhub and local storage
-func New(ag agent.Agent, lite lite.Lite, storage storage.Storage, config *repo.Config) (*WrapperSyncer, error) {
+func New(pierID string, mode string, opts ...Option) (*WrapperSyncer, error) {
+	cfg, err := GenerateConfig(opts...)
+	if err != nil {
+		return nil, err
+	}
 	ctx, cancel := context.WithCancel(context.Background())
 
 	ws := &WrapperSyncer{
 		wrappersC: make(chan *pb.InterchainTxWrappers, maxChSize),
-		agent:     ag,
-		lite:      lite,
-		storage:   storage,
-		config:    config,
+		ibtpC:     make(chan *pb.IBTP, maxChSize),
+		client:    cfg.client,
+		lite:      cfg.lite,
+		storage:   cfg.storage,
+		mode:      mode,
+		pierID:    pierID,
 		ctx:       ctx,
 		cancel:    cancel,
 	}
@@ -64,7 +71,7 @@ func New(ag agent.Agent, lite lite.Lite, storage storage.Storage, config *repo.C
 
 // Start implements Syncer
 func (syncer *WrapperSyncer) Start() error {
-	meta, err := syncer.agent.GetChainMeta()
+	meta, err := syncer.client.GetChainMeta()
 	if err != nil {
 		return fmt.Errorf("get chain meta from bitxhub: %w", err)
 	}
@@ -112,7 +119,7 @@ func (syncer *WrapperSyncer) recover(begin, end uint64) {
 	}
 
 	ch := make(chan *pb.InterchainTxWrappers, maxChSize)
-	if err := syncer.agent.GetInterchainTxWrappers(syncer.ctx, begin, end, ch); err != nil {
+	if err := syncer.client.GetInterchainTxWrappers(syncer.ctx, syncer.pierID, begin, end, ch); err != nil {
 		logger.WithFields(logrus.Fields{
 			"begin": begin,
 			"end":   end,
@@ -164,7 +171,7 @@ func (syncer *WrapperSyncer) syncInterchainTxWrappers() {
 			ch := syncer.getWrappersChannel()
 
 			err := retry.Retry(func(attempt uint) error {
-				chainMeta, err := syncer.agent.GetChainMeta()
+				chainMeta, err := syncer.client.GetChainMeta()
 				if err != nil {
 					logger.WithField("error", err).Error("Get chain meta")
 					return err
@@ -188,23 +195,42 @@ func (syncer *WrapperSyncer) syncInterchainTxWrappers() {
 
 // getWrappersChannel gets a syncing merkle wrapper channel
 func (syncer *WrapperSyncer) getWrappersChannel() chan *pb.InterchainTxWrappers {
-	ch := make(chan *pb.InterchainTxWrappers, maxChSize)
-
+	var (
+		err           error
+		subscriptType pb.SubscriptionRequest_Type
+		rawCh         <-chan interface{}
+	)
+	if syncer.mode == repo.UnionMode {
+		subscriptType = pb.SubscriptionRequest_UNION_INTERCHAIN_TX_WRAPPER
+	} else {
+		subscriptType = pb.SubscriptionRequest_INTERCHAIN_TX_WRAPPER
+	}
+	// retry for network reason
 	if err := retry.Retry(func(attempt uint) error {
-		if syncer.config.Mode.Type == repo.UnionMode {
-			if err := syncer.agent.SyncUnionInterchainTxWrappers(syncer.ctx, ch); err != nil {
-				return err
-			}
-		} else {
-			if err := syncer.agent.SyncInterchainTxWrappers(syncer.ctx, ch); err != nil {
-				return err
-			}
+		rawCh, err = syncer.client.Subscribe(syncer.ctx, subscriptType, []byte(syncer.pierID))
+		if err != nil {
+			return err
 		}
 		return nil
-	}, strategy.Wait(2*time.Second)); err != nil {
+	}, strategy.Wait(1*time.Second)); err != nil {
 		panic(err)
 	}
 
+	// move interchainWrapper into buffered channel
+	ch := make(chan *pb.InterchainTxWrappers, maxChSize)
+	go func() {
+		for {
+			select {
+			case <-syncer.ctx.Done():
+				return
+			case h, ok := <-rawCh:
+				if !ok {
+					return
+				}
+				ch <- h.(*pb.InterchainTxWrappers)
+			}
+		}
+	}()
 	return ch
 }
 
@@ -236,7 +262,7 @@ func (syncer *WrapperSyncer) listenInterchainTxWrappers() {
 				}).Info("Get interchain tx wrapper")
 
 				ch := make(chan *pb.InterchainTxWrappers, maxChSize)
-				if err := syncer.agent.GetInterchainTxWrappers(syncer.ctx, syncer.getDemandHeight(), w.Height, ch); err != nil {
+				if err := syncer.client.GetInterchainTxWrappers(syncer.ctx, syncer.pierID, syncer.getDemandHeight(), w.Height, ch); err != nil {
 					logger.WithFields(logrus.Fields{
 						"begin": syncer.height,
 						"end":   w.Height,
@@ -314,9 +340,8 @@ func (syncer *WrapperSyncer) handleInterchainTxWrapper(w *pb.InterchainTxWrapper
 					continue
 				}
 			}
-
 		}
-		syncer.handler(ibtp)
+		syncer.ibtpC <- ibtp
 	}
 
 	logger.WithFields(logrus.Fields{
@@ -461,5 +486,5 @@ func (syncer *WrapperSyncer) updateHeight() {
 }
 
 func (syncer *WrapperSyncer) isUnionMode() bool {
-	return syncer.config.Mode.Type == repo.UnionMode
+	return syncer.mode == repo.UnionMode
 }
