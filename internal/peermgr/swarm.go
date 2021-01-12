@@ -7,15 +7,13 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ipfs/go-cid"
-
 	"github.com/Rican7/retry"
 	"github.com/Rican7/retry/strategy"
+	"github.com/ipfs/go-cid"
 	crypto2 "github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/meshplus/bitxhub-kit/crypto"
 	"github.com/meshplus/bitxhub-kit/crypto/asym/ecdsa"
-	"github.com/meshplus/bitxhub-kit/log"
 	network "github.com/meshplus/go-lightp2p"
 	peermgr "github.com/meshplus/pier/internal/peermgr/proto"
 	"github.com/meshplus/pier/internal/repo"
@@ -45,7 +43,7 @@ type Swarm struct {
 	cancel context.CancelFunc
 }
 
-func New(config *repo.Config, nodePrivKey crypto.PrivateKey, privKey crypto.PrivateKey, providers uint64) (*Swarm, error) {
+func New(config *repo.Config, nodePrivKey crypto.PrivateKey, privKey crypto.PrivateKey, providers uint64, logger logrus.FieldLogger) (*Swarm, error) {
 	libp2pPrivKey, err := convertToLibp2pPrivKey(nodePrivKey)
 	if err != nil {
 		return nil, fmt.Errorf("convert private key: %w", err)
@@ -66,7 +64,6 @@ func New(config *repo.Config, nodePrivKey crypto.PrivateKey, privKey crypto.Priv
 	default:
 		return nil, fmt.Errorf("unsupport mode type")
 	}
-	var logger = log.NewWithModule("swarm")
 
 	var protocolIDs = []string{protocolID}
 

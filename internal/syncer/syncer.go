@@ -10,7 +10,6 @@ import (
 	"github.com/Rican7/retry"
 	"github.com/Rican7/retry/strategy"
 	"github.com/cbergoon/merkletree"
-	"github.com/meshplus/bitxhub-kit/log"
 	"github.com/meshplus/bitxhub-kit/storage"
 	"github.com/meshplus/bitxhub-kit/types"
 	"github.com/meshplus/bitxhub-model/pb"
@@ -22,8 +21,6 @@ import (
 
 var _ Syncer = (*WrapperSyncer)(nil)
 
-var logger = log.NewWithModule("syncer")
-
 const maxChSize = 1 << 10
 
 // WrapperSyncer represents the necessary data for sync tx wrappers from bitxhub
@@ -31,6 +28,7 @@ type WrapperSyncer struct {
 	client          rpcx.Client
 	lite            lite.Lite
 	storage         storage.Storage
+	logger          logrus.FieldLogger
 	wrappersC       chan *pb.InterchainTxWrappers
 	ibtpC           chan *pb.IBTP
 	handler         IBTPHandler
@@ -60,6 +58,7 @@ func New(pierID string, mode string, opts ...Option) (*WrapperSyncer, error) {
 		client:    cfg.client,
 		lite:      cfg.lite,
 		storage:   cfg.storage,
+		logger:    cfg.logger,
 		mode:      mode,
 		pierID:    pierID,
 		ctx:       ctx,
@@ -90,7 +89,7 @@ func (syncer *WrapperSyncer) Start() error {
 	go syncer.syncInterchainTxWrappers()
 	go syncer.listenInterchainTxWrappers()
 
-	logger.WithFields(logrus.Fields{
+	syncer.logger.WithFields(logrus.Fields{
 		"current_height": syncer.height,
 		"bitxhub_height": meta.Height,
 	}).Info("Syncer started")
@@ -107,20 +106,20 @@ func (syncer *WrapperSyncer) recover(begin, end uint64) {
 
 	icm := make(map[string]*rpcx.Interchain, 0)
 
-	logger.WithFields(logrus.Fields{
+	syncer.logger.WithFields(logrus.Fields{
 		"begin": begin,
 		"end":   end,
 	}).Info("Syncer recover")
 
 	if syncer.isUnionMode() {
 		if err := syncer.appchainHandler(); err != nil {
-			logger.WithField("err", err).Errorf("Router handle")
+			syncer.logger.WithField("err", err).Errorf("Router handle")
 		}
 	}
 
 	ch := make(chan *pb.InterchainTxWrappers, maxChSize)
 	if err := syncer.client.GetInterchainTxWrappers(syncer.ctx, syncer.pierID, begin, end, ch); err != nil {
-		logger.WithFields(logrus.Fields{
+		syncer.logger.WithFields(logrus.Fields{
 			"begin": begin,
 			"end":   end,
 			"error": err,
@@ -136,7 +135,7 @@ func (syncer *WrapperSyncer) recover(begin, end uint64) {
 func (syncer *WrapperSyncer) Stop() error {
 	syncer.cancel()
 
-	logger.Info("Syncer stopped")
+	syncer.logger.Info("Syncer stopped")
 
 	return nil
 }
@@ -151,7 +150,7 @@ func (syncer *WrapperSyncer) syncInterchainTxWrappers() {
 			select {
 			case wrappers, ok := <-ch:
 				if !ok {
-					logger.Warn("Unexpected closed channel while syncing interchain tx wrapper")
+					syncer.logger.Warn("Unexpected closed channel while syncing interchain tx wrapper")
 					return
 				}
 
@@ -173,7 +172,7 @@ func (syncer *WrapperSyncer) syncInterchainTxWrappers() {
 			err := retry.Retry(func(attempt uint) error {
 				chainMeta, err := syncer.client.GetChainMeta()
 				if err != nil {
-					logger.WithField("error", err).Error("Get chain meta")
+					syncer.logger.WithField("error", err).Error("Get chain meta")
 					return err
 				}
 
@@ -185,7 +184,7 @@ func (syncer *WrapperSyncer) syncInterchainTxWrappers() {
 			}, strategy.Wait(1*time.Second))
 
 			if err != nil {
-				logger.Panic(err)
+				syncer.logger.Panic(err)
 			}
 
 			loop(ch)
@@ -241,29 +240,29 @@ func (syncer *WrapperSyncer) listenInterchainTxWrappers() {
 		case wrappers := <-syncer.wrappersC:
 			if syncer.isUnionMode() {
 				if err := syncer.appchainHandler(); err != nil {
-					logger.WithField("err", err).Errorf("Router handle")
+					syncer.logger.WithField("err", err).Errorf("Router handle")
 				}
 			}
 
 			if len(wrappers.InterchainTxWrappers) == 0 {
-				logger.WithField("interchain_tx_wrappers", 0).Errorf("InterchainTxWrappers")
+				syncer.logger.WithField("interchain_tx_wrappers", 0).Errorf("InterchainTxWrappers")
 				continue
 			}
 			w := wrappers.InterchainTxWrappers[0]
 			if w.Height < syncer.getDemandHeight() {
-				logger.WithField("height", w.Height).Warn("Discard wrong wrapper")
+				syncer.logger.WithField("height", w.Height).Warn("Discard wrong wrapper")
 				continue
 			}
 
 			if w.Height > syncer.getDemandHeight() {
-				logger.WithFields(logrus.Fields{
+				syncer.logger.WithFields(logrus.Fields{
 					"begin": syncer.height,
 					"end":   w.Height,
 				}).Info("Get interchain tx wrapper")
 
 				ch := make(chan *pb.InterchainTxWrappers, maxChSize)
 				if err := syncer.client.GetInterchainTxWrappers(syncer.ctx, syncer.pierID, syncer.getDemandHeight(), w.Height, ch); err != nil {
-					logger.WithFields(logrus.Fields{
+					syncer.logger.WithFields(logrus.Fields{
 						"begin": syncer.height,
 						"end":   w.Height,
 						"error": err,
@@ -291,7 +290,7 @@ func (syncer *WrapperSyncer) handleInterchainWrapperAndPersist(ws *pb.Interchain
 		}
 	}
 	if err := syncer.persist(ws); err != nil {
-		logger.WithFields(logrus.Fields{
+		syncer.logger.WithFields(logrus.Fields{
 			"height": ws.InterchainTxWrappers[0].Height,
 			"error":  err,
 		}).Error("Persist interchain tx wrapper")
@@ -302,17 +301,17 @@ func (syncer *WrapperSyncer) handleInterchainWrapperAndPersist(ws *pb.Interchain
 // handleInterchainTxWrapper is the handler for interchain tx wrapper
 func (syncer *WrapperSyncer) handleInterchainTxWrapper(w *pb.InterchainTxWrapper, i int, icm map[string]*rpcx.Interchain) bool {
 	if w == nil {
-		logger.WithField("height", syncer.height).Error("empty interchain tx wrapper")
+		syncer.logger.WithField("height", syncer.height).Error("empty interchain tx wrapper")
 		return false
 	}
 
 	if w.Height < syncer.getDemandHeight() {
-		logger.Warn("wrong height")
+		syncer.logger.Warn("wrong height")
 		return false
 	}
 
 	if ok, err := syncer.verifyWrapper(w); !ok {
-		logger.WithFields(logrus.Fields{
+		syncer.logger.WithFields(logrus.Fields{
 			"height": w.Height,
 			"error":  err,
 		}).Warn("Invalid wrapper")
@@ -322,7 +321,7 @@ func (syncer *WrapperSyncer) handleInterchainTxWrapper(w *pb.InterchainTxWrapper
 	for _, tx := range w.Transactions {
 		ibtp := tx.GetIBTP()
 		if ibtp == nil {
-			logger.Errorf("empty ibtp in tx")
+			syncer.logger.Errorf("empty ibtp in tx")
 			continue
 		}
 		if syncer.isRecover && syncer.isUnionMode() {
@@ -330,7 +329,7 @@ func (syncer *WrapperSyncer) handleInterchainTxWrapper(w *pb.InterchainTxWrapper
 			if !ok {
 				ic, err := syncer.recoverHandler(ibtp)
 				if err != nil {
-					logger.Error(err)
+					syncer.logger.Error(err)
 					continue
 				}
 				icm[ibtp.From] = ic
@@ -344,7 +343,7 @@ func (syncer *WrapperSyncer) handleInterchainTxWrapper(w *pb.InterchainTxWrapper
 		syncer.ibtpC <- ibtp
 	}
 
-	logger.WithFields(logrus.Fields{
+	syncer.logger.WithFields(logrus.Fields{
 		"height": w.Height,
 		"count":  len(w.Transactions),
 		"index":  i,
@@ -407,7 +406,7 @@ func (syncer *WrapperSyncer) verifyWrapper(w *pb.InterchainTxWrapper) (bool, err
 	if err := retry.Retry(func(attempt uint) error {
 		header, err = syncer.lite.QueryHeader(w.Height)
 		if err != nil {
-			logger.Warnf("query header: %s", err.Error())
+			syncer.logger.Warnf("query header: %s", err.Error())
 			return err
 		}
 

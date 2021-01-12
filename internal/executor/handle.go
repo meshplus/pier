@@ -17,11 +17,11 @@ import (
 // the status of ibtp invoked by this pier, and it will return nothing.
 func (e *ChannelExecutor) ExecuteIBTP(ibtp *pb.IBTP) (*pb.IBTP, error) {
 	if ibtp == nil {
-		logger.Error("empty ibtp structure")
+		e.logger.Error("empty ibtp structure")
 		return nil, fmt.Errorf("nil ibtp structure")
 	}
 
-	logger.WithFields(logrus.Fields{
+	e.logger.WithFields(logrus.Fields{
 		"index": ibtp.Index,
 		"type":  ibtp.Type,
 		"from":  ibtp.From,
@@ -45,7 +45,7 @@ func (e *ChannelExecutor) ExecuteIBTP(ibtp *pb.IBTP) (*pb.IBTP, error) {
 // if this interchain tx has callback function, get results from the execution
 // of it and set these results as callback function's args
 func (e *ChannelExecutor) applyInterchainIBTP(ibtp *pb.IBTP) (*pb.IBTP, error) {
-	entry := logger.WithFields(logrus.Fields{
+	entry := e.logger.WithFields(logrus.Fields{
 		"from":  ibtp.From,
 		"type":  ibtp.Type,
 		"index": ibtp.Index,
@@ -102,12 +102,12 @@ func (e *ChannelExecutor) applyReceiptIBTP(ibtp *pb.IBTP) error {
 		// because it might be rollback in asset
 		if err := retry.Retry(func(attempt uint) error {
 			if err := e.execCallback(ibtp); err != nil {
-				logger.Errorf("Execute callback tx: %s, retry sending tx", err.Error())
+				e.logger.Errorf("Execute callback tx: %s, retry sending tx", err.Error())
 				return fmt.Errorf("execute callback tx: %w", err)
 			}
 			return nil
 		}, strategy.Wait(1*time.Second)); err != nil {
-			logger.Errorf("Execution of callback function failed: %s", err.Error())
+			e.logger.Errorf("Execution of callback function failed: %s", err.Error())
 		}
 	}
 	return nil
@@ -123,7 +123,7 @@ func (e *ChannelExecutor) execCallback(ibtp *pb.IBTP) error {
 		return fmt.Errorf("handle ibtp of callback %w", err)
 	}
 
-	logger.WithFields(logrus.Fields{
+	e.logger.WithFields(logrus.Fields{
 		"index":  ibtp.Index,
 		"type":   ibtp.Type,
 		"status": resp.Status,

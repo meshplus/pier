@@ -21,7 +21,6 @@ func NewPool() *Pool {
 	}
 }
 
-
 func (pool *Pool) feed(ibtp *pb.IBTP) {
 	pool.ch <- ibtp
 }
@@ -43,7 +42,6 @@ func (pool *Pool) get(index uint64) *pb.IBTP {
 	return ibtp.(*pb.IBTP)
 }
 
-
 func (ex *Exchanger) feedIBTP(ibtp *pb.IBTP) {
 	var pool *Pool
 	act, loaded := ex.ibtps.Load(ibtp.From)
@@ -59,7 +57,7 @@ func (ex *Exchanger) feedIBTP(ibtp *pb.IBTP) {
 		go func(pool *Pool) {
 			defer func() {
 				if e := recover(); e != nil {
-					logger.Error(fmt.Errorf("%v", e))
+					ex.logger.Error(fmt.Errorf("%v", e))
 				}
 			}()
 			inMeta := ex.exec.QueryMeta()
@@ -67,7 +65,7 @@ func (ex *Exchanger) feedIBTP(ibtp *pb.IBTP) {
 				idx := inMeta[ibtp.From]
 				if ibtp.Index <= idx {
 					pool.delete(ibtp.Index)
-					logger.Warn("ignore ibtp with invalid index:{}", ibtp.Index)
+					ex.logger.Warn("ignore ibtp with invalid index:{}", ibtp.Index)
 					continue
 				}
 				if idx+1 == ibtp.Index {
@@ -92,7 +90,7 @@ func (ex *Exchanger) feedIBTP(ibtp *pb.IBTP) {
 func (ex *Exchanger) processIBTP(ibtp *pb.IBTP) {
 	receipt, err := ex.exec.ExecuteIBTP(ibtp)
 	if err != nil {
-		logger.Errorf("execute ibtp error:%v", err)
+		ex.logger.Errorf("execute ibtp error:%v", err)
 		return
 	}
 	ex.postHandleIBTP(ibtp.From, receipt)
@@ -114,14 +112,14 @@ func (ex *Exchanger) feedReceipt(receipt *pb.IBTP) {
 		go func(pool *Pool) {
 			defer func() {
 				if e := recover(); e != nil {
-					logger.Error(fmt.Errorf("%v", e))
+					ex.logger.Error(fmt.Errorf("%v", e))
 				}
 			}()
 			callbackMeta := ex.exec.QueryMeta()
 			for ibtp := range pool.ch {
-				if ibtp.Index <= callbackMeta[ibtp.To]  {
+				if ibtp.Index <= callbackMeta[ibtp.To] {
 					pool.delete(ibtp.Index)
-					logger.Warn("ignore ibtp with invalid index")
+					ex.logger.Warn("ignore ibtp with invalid index")
 					continue
 				}
 				if callbackMeta[ibtp.To]+1 == ibtp.Index {
@@ -144,7 +142,6 @@ func (ex *Exchanger) feedReceipt(receipt *pb.IBTP) {
 	}
 }
 
-
 func (ex *Exchanger) analysisDirectTPS() {
 	ticker := time.NewTicker(time.Second)
 	defer ticker.Stop()
@@ -159,7 +156,7 @@ func (ex *Exchanger) analysisDirectTPS() {
 			totalTimer := ex.sendIBTPTimer.Load()
 
 			if tps != 0 {
-				logger.WithFields(logrus.Fields{
+				ex.logger.WithFields(logrus.Fields{
 					"tps":      tps,
 					"tps_sum":  counter,
 					"tps_time": totalTimer.Milliseconds() / int64(counter),

@@ -3,17 +3,15 @@ package executor
 import (
 	"context"
 
-	"github.com/meshplus/bitxhub-kit/log"
+	"github.com/sirupsen/logrus"
+
 	"github.com/meshplus/bitxhub-kit/storage"
 	"github.com/meshplus/bitxhub-model/pb"
 	"github.com/meshplus/pier/internal/txcrypto"
 	"github.com/meshplus/pier/pkg/plugins"
 )
 
-var (
-	_      Executor = (*ChannelExecutor)(nil)
-	logger          = log.NewWithModule("executor")
-)
+var _ Executor = (*ChannelExecutor)(nil)
 
 // ChannelExecutor represents the necessary data for executing interchain txs in appchain
 type ChannelExecutor struct {
@@ -21,6 +19,7 @@ type ChannelExecutor struct {
 	storage storage.Storage
 	id      string // appchain id
 	cryptor txcrypto.Cryptor
+	logger  logrus.FieldLogger
 	ctx     context.Context
 	cancel  context.CancelFunc
 }
@@ -28,7 +27,7 @@ type ChannelExecutor struct {
 // New creates new instance of Executor. agent is for interacting with counterpart chain
 // client is for interacting with appchain, meta is for recording interchain tx meta information
 // and ds is for persisting some runtime messages
-func New(client plugins.Client, pierID string, storage storage.Storage, cryptor txcrypto.Cryptor) (*ChannelExecutor, error) {
+func New(client plugins.Client, pierID string, storage storage.Storage, cryptor txcrypto.Cryptor, logger logrus.FieldLogger) (*ChannelExecutor, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	return &ChannelExecutor{
@@ -38,12 +37,13 @@ func New(client plugins.Client, pierID string, storage storage.Storage, cryptor 
 		storage: storage,
 		id:      pierID,
 		cryptor: cryptor,
+		logger:  logger,
 	}, nil
 }
 
 // Start implements Executor
 func (e *ChannelExecutor) Start() error {
-	logger.Info("Executor started")
+	e.logger.Info("Executor started")
 	return nil
 }
 
@@ -51,7 +51,7 @@ func (e *ChannelExecutor) Start() error {
 func (e *ChannelExecutor) Stop() error {
 	e.cancel()
 
-	logger.Info("Executor stopped")
+	e.logger.Info("Executor stopped")
 	return nil
 }
 

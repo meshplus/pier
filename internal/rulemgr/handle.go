@@ -13,14 +13,14 @@ func (rm *RuleMgr) handleRule(net network.Stream, msg *peerproto.Message) {
 	data := msg.Payload.Data
 	rule := &Rule{}
 	if err := json.Unmarshal(data, rule); err != nil {
-		logger.Error(err)
+		rm.logger.Error(err)
 		return
 	}
 	ok := true
 	err := rm.Ledger.SetCode(types.NewAddressByStr(rule.Address), rule.Code)
 	if err != nil {
 		ok = false
-		logger.Error(err)
+		rm.logger.Error(err)
 	}
 
 	res := RuleResponse{
@@ -29,7 +29,7 @@ func (rm *RuleMgr) handleRule(net network.Stream, msg *peerproto.Message) {
 
 	ackData, err := json.Marshal(res)
 	if err != nil {
-		logger.Error(err)
+		rm.logger.Error(err)
 		return
 	}
 
@@ -37,6 +37,6 @@ func (rm *RuleMgr) handleRule(net network.Stream, msg *peerproto.Message) {
 
 	err = rm.PeerManager.AsyncSendWithStream(net, ackMsg)
 	if err != nil {
-		logger.Error(err)
+		rm.logger.Error(err)
 	}
 }

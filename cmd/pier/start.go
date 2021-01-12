@@ -12,6 +12,8 @@ import (
 	"time"
 
 	"github.com/meshplus/bitxhub-kit/log"
+	"github.com/meshplus/pier/internal/loggers"
+
 	"github.com/meshplus/pier/internal/app"
 	"github.com/meshplus/pier/internal/repo"
 	"github.com/urfave/cli"
@@ -53,6 +55,8 @@ func start(ctx *cli.Context) error {
 	if err != nil {
 		return fmt.Errorf("log initialize: %w", err)
 	}
+	// init loggers map for pier
+	loggers.InitializeLogger(config)
 
 	var pier *app.Pier
 

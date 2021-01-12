@@ -9,7 +9,6 @@ import (
 
 	"github.com/Rican7/retry"
 	"github.com/Rican7/retry/strategy"
-	"github.com/meshplus/bitxhub-kit/log"
 	"github.com/meshplus/bitxhub-kit/storage"
 	"github.com/meshplus/bitxhub-model/pb"
 	"github.com/meshplus/pier/api"
@@ -25,8 +24,6 @@ import (
 	"github.com/sirupsen/logrus"
 	"go.uber.org/atomic"
 )
-
-var logger = log.NewWithModule("exchanger")
 
 type Exchanger struct {
 	mode                 string
@@ -48,6 +45,7 @@ type Exchanger struct {
 	ibtps           sync.Map
 	receipts        sync.Map
 
+	logger logrus.FieldLogger
 	ctx    context.Context
 	cancel context.CancelFunc
 }
@@ -78,6 +76,7 @@ func New(typ, pierID string, meta *pb.Interchain, opts ...Option) (*Exchanger, e
 		syncer:               config.syncer,
 		store:                config.store,
 		router:               config.router,
+		logger:               config.logger,
 		ch:                   make(chan struct{}, 100),
 		interchainCounter:    interchainCounter,
 		sourceReceiptCounter: sourceReceiptCounter,
@@ -106,7 +105,7 @@ func (ex *Exchanger) Start() error {
 		go ex.listenAndSendIBTPFromMnt()
 	}
 
-	logger.Info("Exchanger started")
+	ex.logger.Info("Exchanger started")
 	return nil
 }
 
@@ -193,12 +192,12 @@ func (ex *Exchanger) listenAndSendIBTPFromMnt() {
 			return
 		case ibtp, ok := <-ch:
 			if !ok {
-				logger.Warn("Unexpected closed channel while listening on interchain ibtp")
+				ex.logger.Warn("Unexpected closed channel while listening on interchain ibtp")
 				return
 			}
 			index := ex.interchainCounter[ibtp.To]
 			if index >= ibtp.Index {
-				logger.WithFields(logrus.Fields{
+				ex.logger.WithFields(logrus.Fields{
 					"index":      ibtp.Index,
 					"to_counter": index,
 					"ibtp_id":    ibtp.ID(),
@@ -207,13 +206,13 @@ func (ex *Exchanger) listenAndSendIBTPFromMnt() {
 			}
 
 			if index+1 < ibtp.Index {
-				logger.WithFields(logrus.Fields{
+				ex.logger.WithFields(logrus.Fields{
 					"index": ibtp.Index,
 					"to":    ibtp.To,
 				}).Info("Get missing ibtp")
 
 				if err := ex.handleMissingIBTPFromMnt(ibtp.To, index+1, ibtp.Index); err != nil {
-					logger.WithFields(logrus.Fields{
+					ex.logger.WithFields(logrus.Fields{
 						"index": ibtp.Index,
 						"to":    ibtp.To,
 					}).Error("Handle missing ibtp")
@@ -223,7 +222,7 @@ func (ex *Exchanger) listenAndSendIBTPFromMnt() {
 			ex.interchainCounter[ibtp.To] = ibtp.Index
 
 			if err := ex.sendIBTP(ibtp); err != nil {
-				logger.Infof("Send ibtp: %s", err.Error())
+				ex.logger.Infof("Send ibtp: %s", err.Error())
 			}
 		}
 	}
@@ -237,12 +236,12 @@ func (ex *Exchanger) listenAndSendIBTPFromSyncer() {
 			return
 		case ibtp, ok := <-ch:
 			if !ok {
-				logger.Warn("Unexpected closed channel while listening on interchain ibtp")
+				ex.logger.Warn("Unexpected closed channel while listening on interchain ibtp")
 				return
 			}
 			index := ex.interchainCounter[ibtp.From]
 			if index >= ibtp.Index {
-				logger.WithFields(logrus.Fields{
+				ex.logger.WithFields(logrus.Fields{
 					"index":        ibtp.Index,
 					"from_counter": index,
 					"ibtp_id":      ibtp.ID(),
@@ -251,13 +250,13 @@ func (ex *Exchanger) listenAndSendIBTPFromSyncer() {
 			}
 
 			if index+1 < ibtp.Index {
-				logger.WithFields(logrus.Fields{
+				ex.logger.WithFields(logrus.Fields{
 					"index": ibtp.Index,
 					"from":  ibtp.From,
 				}).Info("Get missing ibtp")
 
 				if err := ex.handleMissingIBTPFromSyncer(ibtp.From, index+1, ibtp.Index); err != nil {
-					logger.WithFields(logrus.Fields{
+					ex.logger.WithFields(logrus.Fields{
 						"index": ibtp.Index,
 						"from":  ibtp.From,
 					}).Error("Handle missing ibtp")
@@ -298,13 +297,13 @@ func (ex *Exchanger) Stop() error {
 		}
 	}
 
-	logger.Info("Exchanger stopped")
+	ex.logger.Info("Exchanger stopped")
 
 	return nil
 }
 
 func (ex *Exchanger) sendIBTP(ibtp *pb.IBTP) error {
-	entry := logger.WithFields(logrus.Fields{
+	entry := ex.logger.WithFields(logrus.Fields{
 		"index": ibtp.Index,
 		"type":  ibtp.Type,
 		"to":    ibtp.To,
@@ -337,13 +336,13 @@ func (ex *Exchanger) sendIBTP(ibtp *pb.IBTP) error {
 			}
 
 			if err := ex.peerMgr.AsyncSend(dst, msg); err != nil {
-				logger.Errorf("Send ibtp to pier %s: %s", ibtp.ID(), err.Error())
+				ex.logger.Errorf("Send ibtp to pier %s: %s", ibtp.ID(), err.Error())
 				return err
 			}
 
 			return nil
 		}, strategy.Wait(1*time.Second)); err != nil {
-			logger.Panic(err)
+			ex.logger.Panic(err)
 		}
 	}
 	return nil
@@ -368,7 +367,7 @@ func (ex *Exchanger) queryIBTP(from string, idx uint64) (*pb.IBTP, error) {
 		ibtp, err = ex.syncer.QueryIBTP(id)
 		if err != nil {
 			if errors.Is(err, syncer.ErrIBTPNotFound) {
-				logger.Panicf("query ibtp by id %s from bitxhub: %s", id, err.Error())
+				ex.logger.Panicf("query ibtp by id %s from bitxhub: %s", id, err.Error())
 			}
 			return nil, fmt.Errorf("query ibtp from bitxhub: %s", err.Error())
 		}
