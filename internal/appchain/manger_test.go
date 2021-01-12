@@ -7,6 +7,7 @@ import (
 
 	"github.com/golang/mock/gomock"
 	appchainmgr "github.com/meshplus/bitxhub-core/appchain-mgr"
+	"github.com/meshplus/bitxhub-kit/log"
 	"github.com/meshplus/bitxhub-kit/storage/leveldb"
 	network "github.com/meshplus/go-lightp2p"
 	"github.com/meshplus/pier/internal/peermgr"
@@ -77,7 +78,7 @@ func prepare(t *testing.T) *Manager {
 	mockPeerMgr.EXPECT().RegisterMultiMsgHandler(gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
 	mockPeerMgr.EXPECT().AsyncSendWithStream(gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
 
-	manager, err := NewManager(pierId, store, mockPeerMgr)
+	manager, err := NewManager(pierId, store, mockPeerMgr, log.NewWithModule("peer_mgr"))
 	require.Nil(t, err)
 	return manager
 }

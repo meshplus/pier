@@ -1,11 +1,11 @@
 package monitor
 
 import (
-	"fmt"
 	"testing"
 	"time"
 
 	"github.com/golang/mock/gomock"
+	"github.com/meshplus/bitxhub-kit/log"
 	"github.com/meshplus/bitxhub-kit/types"
 	"github.com/meshplus/bitxhub-model/pb"
 	"github.com/meshplus/pier/internal/txcrypto/mock_txcrypto"
@@ -28,19 +28,17 @@ func TestHandleIBTP(t *testing.T) {
 
 	h := types.Hash{}
 	h.SetBytes([]byte(hash))
-	ignoreIbtp, err := createIBTP(2, pb.IBTP_INTERCHAIN, "get", name, "setCallback")
-	require.Nil(t, err)
-	missingIbtp, err := createIBTP(3, pb.IBTP_INTERCHAIN, "get", name, "setCallback")
-	normalIbtp, err := createIBTP(4, pb.IBTP_INTERCHAIN, "get", name, "setCallback")
-	encryptedIbtp, err := createEncryptedIBTP(5, pb.IBTP_INTERCHAIN, "get", name, "setCallback")
+	normalIbtp, err := createIBTP(3, pb.IBTP_INTERCHAIN, "get", name, "setCallback")
+	//encryptedIbtp, err := createEncryptedIBTP(5, pb.IBTP_INTERCHAIN, "get", name, "setCallback")
 	encryptedContent := []byte("encryptedContent")
-	errWrongIBTP := fmt.Errorf("wrong index of ibtp")
 	ibtpCh := make(chan *pb.IBTP, 2)
 
+	originalMeta := map[string]uint64{to: 2}
+
 	mockClient.EXPECT().CommitCallback(gomock.Any()).Return(nil).AnyTimes()
-	mockClient.EXPECT().GetOutMessage(missingIbtp.To, missingIbtp.Index).Return(missingIbtp, nil).AnyTimes()
-	mockClient.EXPECT().GetOutMessage(encryptedIbtp.To, encryptedIbtp.Index).Return(encryptedIbtp, nil).AnyTimes()
-	mockClient.EXPECT().GetOutMessage(to, uint64(6)).Return(nil, errWrongIBTP).AnyTimes()
+	mockClient.EXPECT().GetOutMessage(normalIbtp.To, normalIbtp.Index).Return(normalIbtp, nil).AnyTimes()
+	mockClient.EXPECT().GetOutMeta().Return(originalMeta, nil)
+	//mockClient.EXPECT().GetOutMessage(to, uint64(6)).Return(nil, errWrongIBTP).AnyTimes()
 	mockClient.EXPECT().Start().Return(nil).AnyTimes()
 	mockClient.EXPECT().Stop().Return(nil).AnyTimes()
 	mockClient.EXPECT().GetIBTP().Return(ibtpCh).AnyTimes()
@@ -50,30 +48,28 @@ func TestHandleIBTP(t *testing.T) {
 	require.Nil(t, mnt.Start())
 
 	// handle should ignored ibtp
-	ibtpCh <- ignoreIbtp
 	ibtpCh <- normalIbtp
 
 	time.Sleep(500 * time.Millisecond)
 	// check if latest out meta is 4
 	meta := mnt.QueryOuterMeta()
-	require.Equal(t, uint64(4), meta[to])
+	require.Equal(t, uint64(2), meta[to])
 
 	recv := mnt.ListenIBTP()
 	// check if missed and normal ibtp is handled
-	require.Equal(t, 2, len(recv))
+	require.Equal(t, 1, len(recv))
 	close(mnt.recvCh)
-	require.Equal(t, missingIbtp, <-recv)
 	require.Equal(t, normalIbtp, <-recv)
 
 	// check if missed ibtp is stored
-	recvd, err := mnt.QueryIBTP(missingIbtp.ID())
+	recvd, err := mnt.QueryIBTP(normalIbtp.ID())
 	require.Nil(t, err)
-	require.Equal(t, missingIbtp, recvd)
+	require.Equal(t, normalIbtp, recvd)
 
 	// test query ibtp with encryption
-	recvedEncrypIbtp, err := mnt.QueryIBTP(encryptedIbtp.ID())
+	recvedEncrypIbtp, err := mnt.QueryIBTP(normalIbtp.ID())
 	require.Nil(t, err)
-	require.Equal(t, encryptedIbtp, recvedEncrypIbtp)
+	require.Equal(t, normalIbtp, recvedEncrypIbtp)
 
 	require.Nil(t, mnt.Stop())
 }
@@ -87,7 +83,7 @@ func prepare(t *testing.T) (*mock_client.MockClient, *mock_txcrypto.MockCryptor,
 	meta := map[string]uint64{to: 2}
 	mockClient.EXPECT().GetOutMeta().Return(meta, nil).AnyTimes()
 
-	mnt, err := New(mockClient, mockCryptor)
+	mnt, err := New(mockClient, mockCryptor, log.NewWithModule("monitor"))
 	require.Nil(t, err)
 	return mockClient, mockCryptor, mnt
 }

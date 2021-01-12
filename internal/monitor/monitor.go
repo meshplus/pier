@@ -9,14 +9,11 @@ import (
 
 	"github.com/Rican7/retry"
 	"github.com/Rican7/retry/strategy"
-	"github.com/meshplus/bitxhub-kit/log"
 	"github.com/meshplus/bitxhub-model/pb"
 	"github.com/meshplus/pier/internal/txcrypto"
 	"github.com/meshplus/pier/pkg/plugins"
 	"github.com/sirupsen/logrus"
 )
-
-var logger = log.NewWithModule("monitor")
 
 var _ Monitor = (*AppchainMonitor)(nil)
 
@@ -24,6 +21,7 @@ var _ Monitor = (*AppchainMonitor)(nil)
 type AppchainMonitor struct {
 	client    plugins.Client
 	recvCh    chan *pb.IBTP
+	logger    logrus.FieldLogger
 	suspended uint64
 	ctx       context.Context
 	cancel    context.CancelFunc
@@ -31,11 +29,12 @@ type AppchainMonitor struct {
 }
 
 // New creates monitor instance given client interacting with appchain and interchainCounter about appchain.
-func New(client plugins.Client, cryptor txcrypto.Cryptor) (*AppchainMonitor, error) {
+func New(client plugins.Client, cryptor txcrypto.Cryptor, logger logrus.FieldLogger) (*AppchainMonitor, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	return &AppchainMonitor{
 		client:  client,
 		cryptor: cryptor,
+		logger:  logger,
 		recvCh:  make(chan *pb.IBTP, 1024),
 		ctx:     ctx,
 		cancel:  cancel,
@@ -59,14 +58,14 @@ func (m *AppchainMonitor) Start() error {
 			}
 		}
 	}()
-	logger.Info("Monitor started")
+	m.logger.Info("Monitor started")
 	return nil
 }
 
 // Stop implements Monitor
 func (m *AppchainMonitor) Stop() error {
 	m.cancel()
-	logger.Info("Monitor stopped")
+	m.logger.Info("Monitor stopped")
 	return m.client.Stop()
 }
 
@@ -92,7 +91,7 @@ func (m *AppchainMonitor) QueryIBTP(id string) (*pb.IBTP, error) {
 		// TODO(xcc): Need to distinguish error types
 		e, err := m.client.GetOutMessage(args[1], idx)
 		if err != nil {
-			logger.WithFields(logrus.Fields{
+			m.logger.WithFields(logrus.Fields{
 				"error":   err,
 				"ibtp_id": id,
 			}).Error("Query ibtp")
@@ -120,7 +119,7 @@ func (m *AppchainMonitor) QueryOuterMeta() map[string]uint64 {
 	if err := retry.Retry(func(attempt uint) error {
 		meta, err := m.client.GetOutMeta()
 		if err != nil {
-			logger.WithField("error", err).Error("Get outer meta from appchain")
+			m.logger.WithField("error", err).Error("Get outer meta from appchain")
 			return err
 		}
 		ret = meta
@@ -135,7 +134,7 @@ func (m *AppchainMonitor) QueryOuterMeta() map[string]uint64 {
 // handleIBTP handle the ibtp package captured by monitor.
 func (m *AppchainMonitor) handleIBTP(ibtp *pb.IBTP) {
 	if err := m.encryption(ibtp); err != nil {
-		logger.WithFields(logrus.Fields{
+		m.logger.WithFields(logrus.Fields{
 			"index": ibtp.Index,
 			"to":    ibtp.To,
 		}).Error("check encryption")

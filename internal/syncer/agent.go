@@ -59,7 +59,7 @@ func (syncer *WrapperSyncer) GetAppchains() ([]*rpcx.Appchain, error) {
 		return nil, err
 	}
 	var receipt *pb.Receipt
-	if err := retryFunc(func(attempt uint) error {
+	if err := syncer.retryFunc(func(attempt uint) error {
 		receipt, err = syncer.client.SendView(tx)
 		if err != nil {
 			return err
@@ -104,7 +104,7 @@ func (syncer *WrapperSyncer) GetInterchainById(from string) *pb.Interchain {
 
 func (syncer *WrapperSyncer) QueryInterchainMeta() map[string]uint64 {
 	interchainCounter := map[string]uint64{}
-	if err := retryFunc(func(attempt uint) error {
+	if err := syncer.retryFunc(func(attempt uint) error {
 		receipt, err := syncer.client.InvokeBVMContract(constant.InterchainContractAddr.Address(), "Interchain", nil)
 		if err != nil {
 			return err
@@ -118,7 +118,7 @@ func (syncer *WrapperSyncer) QueryInterchainMeta() map[string]uint64 {
 		}
 		return nil
 	}); err != nil {
-		logger.Panicf("query interchain meta: %s", err.Error())
+		syncer.logger.Panicf("query interchain meta: %s", err.Error())
 	}
 
 	return interchainCounter
@@ -161,7 +161,7 @@ func (syncer *WrapperSyncer) SendIBTP(ibtp *pb.IBTP) error {
 		return fmt.Errorf("generate ibtp tx error:%v", err)
 	}
 	tx.Extra = proof
-	retryFunc(func(attempt uint) error {
+	syncer.retryFunc(func(attempt uint) error {
 		receipt, err := syncer.client.SendTransactionWithReceipt(tx, &rpcx.TransactOpts{
 			From:      fmt.Sprintf("%s-%s-%d", ibtp.From, ibtp.To, ibtp.Category()),
 			IBTPNonce: ibtp.Index,
@@ -182,10 +182,10 @@ func (syncer *WrapperSyncer) SendIBTP(ibtp *pb.IBTP) error {
 	return nil
 }
 
-func retryFunc(handle func(uint) error) error {
+func (syncer *WrapperSyncer) retryFunc(handle func(uint) error) error {
 	return retry.Retry(func(attempt uint) error {
 		if err := handle(attempt); err != nil {
-			logger.Errorf("retry failed for reason: %s", err.Error())
+			syncer.logger.Errorf("retry failed for reason: %s", err.Error())
 		}
 		return nil
 	}, strategy.Wait(500*time.Millisecond))
