@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"sync"
 	"testing"
 	"time"
 
@@ -16,7 +15,6 @@ import (
 	ecdsa2 "github.com/meshplus/bitxhub-kit/crypto/asym/ecdsa"
 	"github.com/meshplus/bitxhub-kit/storage"
 	"github.com/meshplus/bitxhub-kit/storage/leveldb"
-	"github.com/meshplus/bitxhub-kit/types"
 	"github.com/meshplus/bitxhub-model/pb"
 	rpcx "github.com/meshplus/go-bitxhub-client"
 	network "github.com/meshplus/go-lightp2p"
@@ -44,7 +42,7 @@ const (
 
 func TestStartRelay(t *testing.T) {
 	mode := repo.RelayMode
-	mockMonitor, mockExecutor, mockSyncer, mockAgent, mockChecker, store := prepareRelay(t)
+	mockMonitor, mockExecutor, mockSyncer, _, mockChecker, store := prepareRelay(t)
 	meta := &pb.Interchain{}
 
 	mockExchanger, err := New(mode, from, meta,
@@ -59,26 +57,22 @@ func TestStartRelay(t *testing.T) {
 	normalOutIBTP := getIBTP(t, 2, pb.IBTP_INTERCHAIN)
 	missedInIBTP := getIBTP(t, 1, pb.IBTP_INTERCHAIN)
 	receipt := getIBTP(t, 1, pb.IBTP_RECEIPT_SUCCESS)
-	bxhReceipt := &pb.Receipt{
-		Status: pb.Receipt_SUCCESS,
-		TxHash: types.NewHashByStr(hash),
-	}
 	outCh := make(chan *pb.IBTP, 1)
 	outCh <- normalOutIBTP
 
 	outMeta := make(map[string]uint64)
 	outMeta[to] = 1
-	inMeta := &sync.Map{}
-	inMeta.Store(to, uint64(1))
+	inMeta := make(map[string]uint64)
+	inMeta[to] = 1
 	mockMonitor.EXPECT().ListenIBTP().Return(outCh).AnyTimes()
 	mockMonitor.EXPECT().QueryOuterMeta().Return(outMeta)
 	mockMonitor.EXPECT().QueryIBTP(missedOutIBTP.ID()).Return(missedOutIBTP, nil).AnyTimes()
 	mockExecutor.EXPECT().QueryMeta().Return(inMeta)
 	mockExecutor.EXPECT().QueryIBTPReceipt(to, uint64(1), gomock.Any()).Return(receipt, nil).AnyTimes()
-	mockExecutor.EXPECT().ExecuteIBTP(gomock.Any()).Return(receipt).AnyTimes()
-	mockSyncer.EXPECT().RegisterIBTPHandler(gomock.Any()).Return(nil)
-	mockAgent.EXPECT().GetIBTPByID(receipt.ID()).Return(missedInIBTP, nil)
-	mockAgent.EXPECT().SendIBTP(gomock.Any()).Return(bxhReceipt, nil).AnyTimes()
+	mockExecutor.EXPECT().ExecuteIBTP(gomock.Any()).Return(receipt, nil).AnyTimes()
+	mockSyncer.EXPECT().QueryIBTP(receipt.ID()).Return(missedInIBTP, nil)
+	mockSyncer.EXPECT().SendIBTP(gomock.Any()).Return( nil).AnyTimes()
+
 
 	require.Nil(t, mockExchanger.Start())
 
@@ -97,7 +91,7 @@ func TestStartRelay(t *testing.T) {
 
 	// test for asset exchange ibtp
 	signs := []byte("signs for asset exchange")
-	mockAgent.EXPECT().GetAssetExchangeSigns(assetTxID).Return(signs, nil).AnyTimes()
+	mockSyncer.EXPECT().GetAssetExchangeSigns(assetTxID).Return(signs, nil).AnyTimes()
 	assetExchangeIBTP := getIBTP(t, 3, pb.IBTP_ASSET_EXCHANGE_REDEEM)
 	assetExchangeIBTP.Extra = []byte(assetTxID)
 	mockExchanger.handleIBTP(assetExchangeIBTP)
@@ -140,14 +134,13 @@ func TestStartDirect(t *testing.T) {
 
 	outMeta := make(map[string]uint64)
 	outMeta[to] = 1
-	inMeta := &sync.Map{}
-	inMeta.Store(to, uint64(1))
+	inMeta := make(map[string]uint64)
+	inMeta[to] = 1
 	mockMonitor.EXPECT().ListenIBTP().Return(outCh).AnyTimes()
 	mockMonitor.EXPECT().QueryOuterMeta().Return(outMeta)
 	mockMonitor.EXPECT().QueryIBTP(happyPathMissedOutIBTP.ID()).Return(happyPathMissedOutIBTP, nil).AnyTimes()
-	mockExecutor.EXPECT().ExecuteIBTP(gomock.Any()).Return(receipt).AnyTimes()
+	mockExecutor.EXPECT().ExecuteIBTP(gomock.Any()).Return(receipt, nil).AnyTimes()
 	mockExecutor.EXPECT().QueryMeta().Return(inMeta).AnyTimes()
-	mockExecutor.EXPECT().QueryMeta().Return(&sync.Map{}).AnyTimes()
 	mockExecutor.EXPECT().QueryIBTPReceipt(to, uint64(1), gomock.Any()).Return(receipt, nil).AnyTimes()
 	mockPeerMgr.EXPECT().Send(gomock.Any(), metaMsg).Return(retMetaMsg, nil).AnyTimes()
 	mockPeerMgr.EXPECT().Send(gomock.Any(), gomock.Any()).Return(retMsg, nil).AnyTimes()
@@ -187,7 +180,7 @@ func TestStartDirect(t *testing.T) {
 
 func TestStartUnionMode(t *testing.T) {
 	mode := repo.UnionMode
-	mockMonitor, mockExecutor, mockSyncer, mockPeerMgr, mockRouter, mockAgent, store := prepareUnoin(t)
+	mockMonitor, mockExecutor, mockSyncer, mockPeerMgr, mockRouter, _, store := prepareUnoin(t)
 	meta := &pb.Interchain{}
 
 	mockExchanger, err := New(mode, from, meta,
@@ -197,10 +190,6 @@ func TestStartUnionMode(t *testing.T) {
 	)
 	require.Nil(t, err)
 
-	receipt := &pb.Receipt{
-		TxHash: types.NewHashByStr(hash),
-		Status: pb.Receipt_SUCCESS,
-	}
 	var stream network.Stream
 	// mock ibtp for Message_ROUTER_IBTP_SEND
 	ibtp := getIBTP(t, 1, pb.IBTP_INTERCHAIN)
@@ -231,10 +220,10 @@ func TestStartUnionMode(t *testing.T) {
 	require.Nil(t, err)
 	recoverACKMsg := peermgr.Message(peerMsg.Message_ACK, true, icBytes)
 
-	mockAgent.EXPECT().SendIBTP(gomock.Any()).Return(receipt, nil).AnyTimes()
-	mockAgent.EXPECT().GetInterchainById(from).Return(interchainCounter).AnyTimes()
-	mockAgent.EXPECT().GetIBTPSigns(ibtp).Return(signs, nil).AnyTimes()
-	mockAgent.EXPECT().GetAppchains().Return(appchains, nil).AnyTimes()
+	mockSyncer.EXPECT().SendIBTP(gomock.Any()).Return( nil).AnyTimes()
+	mockSyncer.EXPECT().GetInterchainById(from).Return(interchainCounter).AnyTimes()
+	mockSyncer.EXPECT().GetIBTPSigns(ibtp).Return(signs, nil).AnyTimes()
+	mockSyncer.EXPECT().GetAppchains().Return(appchains, nil).AnyTimes()
 	mockPeerMgr.EXPECT().AsyncSendWithStream(gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
 	mockPeerMgr.EXPECT().FindProviders(ibtp.To).Return(pierID, nil)
 	mockPeerMgr.EXPECT().Send(pierID, gomock.Any()).Return(recoverACKMsg, nil)
@@ -330,7 +319,6 @@ func prepareUnoin(t *testing.T) (
 	mockPeerMgr.EXPECT().RegisterMsgHandler(gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
 	mockSyncer.EXPECT().Start().Return(nil)
 	mockSyncer.EXPECT().Stop().Return(nil)
-	mockSyncer.EXPECT().RegisterIBTPHandler(gomock.Any()).Return(nil)
 	mockSyncer.EXPECT().RegisterAppchainHandler(gomock.Any()).Return(nil)
 	mockSyncer.EXPECT().RegisterRecoverHandler(gomock.Any()).Return(nil)
 	mockRouter.EXPECT().Start().Return(nil)
@@ -442,24 +430,22 @@ func TestWithPeerMgr(t *testing.T) {
 	outCh := make(chan *pb.IBTP, 1000)
 
 	outMeta := make(map[string]uint64)
-	inMeta := sync.Map{}
+	inMeta := make(map[string]uint64)
 	mockMonitor1.EXPECT().ListenIBTP().Return(outCh).AnyTimes()
-	mockMonitor1.EXPECT().QueryOuterMeta().Return(outMeta)
+	mockMonitor1.EXPECT().QueryOuterMeta().Return(outMeta).AnyTimes()
 	for _, ibtp := range normalOutIBTPs {
 		//	mockExecutor1.EXPECT().HandleIBTP(ibtp).Return(normalReceipts[i]).AnyTimes()
 		outCh <- ibtp
 	}
-	mockExecutor1.EXPECT().QueryMeta().Return(&inMeta).AnyTimes()
-	mockExecutor1.EXPECT().QueryMeta().Return(&sync.Map{}).AnyTimes()
+	mockExecutor1.EXPECT().QueryMeta().Return(inMeta).AnyTimes()
 
 	mockMonitor2.EXPECT().ListenIBTP().Return(make(chan *pb.IBTP)).AnyTimes()
-	mockMonitor2.EXPECT().QueryOuterMeta().Return(outMeta)
+	mockMonitor2.EXPECT().QueryOuterMeta().Return(outMeta).AnyTimes()
 	for i, ibtp := range normalOutIBTPs {
-		mockExecutor2.EXPECT().ExecuteIBTP(ibtp).Return(normalReceipts[i]).AnyTimes()
+		mockExecutor2.EXPECT().ExecuteIBTP(ibtp).Return(normalReceipts[i], nil).AnyTimes()
 		//outCh <- ibtp
 	}
-	mockExecutor2.EXPECT().QueryMeta().Return(&inMeta).AnyTimes()
-	mockExecutor2.EXPECT().QueryMeta().Return(&sync.Map{}).AnyTimes()
+	mockExecutor2.EXPECT().QueryMeta().Return(inMeta).AnyTimes()
 
 	go mockExchanger1.Start()
 	go mockExchanger2.Start()
