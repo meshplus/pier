@@ -13,6 +13,7 @@ import (
 	"github.com/meshplus/bitxhub-kit/crypto"
 	"github.com/meshplus/bitxhub-kit/crypto/asym"
 	ecdsa2 "github.com/meshplus/bitxhub-kit/crypto/asym/ecdsa"
+	"github.com/meshplus/bitxhub-kit/log"
 	"github.com/meshplus/bitxhub-kit/storage"
 	"github.com/meshplus/bitxhub-kit/storage/leveldb"
 	"github.com/meshplus/bitxhub-model/pb"
@@ -33,7 +34,6 @@ import (
 )
 
 const (
-	hash      = "0x9f41dd84524bf8a42f8ab58ecfca6e1752d6fd93fe8dc00af4c71963c97db59f"
 	from      = "0x3f9d18f7c3a6e5e4c0b877fe3e688ab08840b997"
 	to        = "0x3f9d18f7c3a6e5e4c0b877fe3e688ab08840b997"
 	assetTxID = "asset exchange id for test"
@@ -46,7 +46,7 @@ func TestStartRelay(t *testing.T) {
 
 	mockExchanger, err := New(mode, from, meta,
 		WithMonitor(mockMonitor), WithExecutor(mockExecutor),
-		WithSyncer(mockSyncer),
+		WithSyncer(mockSyncer), WithLogger(log.NewWithModule("exchanger")),
 		WithChecker(mockChecker), WithStorage(store),
 	)
 	require.Nil(t, err)
@@ -108,6 +108,7 @@ func TestStartDirect(t *testing.T) {
 		WithMonitor(mockMonitor), WithExecutor(mockExecutor),
 		WithChecker(mockChecker), WithPeerMgr(mockPeerMgr),
 		WithAPIServer(apiServer), WithStorage(store),
+		WithLogger(log.NewWithModule("exchanger")),
 	)
 	require.Nil(t, err)
 
@@ -190,6 +191,7 @@ func testUnionMode(pierID string, t *testing.T) {
 		WithMonitor(mockMonitor), WithExecutor(mockExecutor),
 		WithSyncer(mockSyncer), WithPeerMgr(mockPeerMgr),
 		WithRouter(mockRouter), WithStorage(store),
+		WithLogger(log.NewWithModule("exchanger")),
 	)
 	require.Nil(t, err)
 
@@ -287,7 +289,7 @@ func prepareDirect(t *testing.T) (
 	mockChecker := &checker.MockChecker{}
 	mockPeerMgr := mock_peermgr.NewMockPeerManager(mockCtl)
 	mockAppchainMgr := &appchain.Manager{}
-	mockServer, err := api.NewServer(mockAppchainMgr, mockPeerMgr, &repo.Config{})
+	mockServer, err := api.NewServer(mockAppchainMgr, mockPeerMgr, &repo.Config{}, log.NewWithModule("api"))
 	require.Nil(t, err)
 
 	mockPeerMgr.EXPECT().Start().Return(nil)
@@ -407,16 +409,17 @@ func TestWithPeerMgr(t *testing.T) {
 
 	nodeKeys, privKeys, config, addrs := genKeysAndConfig(t, 2)
 
-	swarm1, err := peermgr.New(config, nodeKeys[0], privKeys[0], 0)
+	swarm1, err := peermgr.New(config, nodeKeys[0], privKeys[0], 0, log.NewWithModule("swarm"))
 	require.Nil(t, err)
 
-	swarm2, err := peermgr.New(config, nodeKeys[1], privKeys[1], 0)
+	swarm2, err := peermgr.New(config, nodeKeys[1], privKeys[1], 0, log.NewWithModule("swarm"))
 	require.Nil(t, err)
 
 	mockExchanger1, err := New(mode, addrs[0], meta,
 		WithMonitor(mockMonitor1), WithExecutor(mockExecutor1),
 		WithChecker(mockChecker1), WithPeerMgr(swarm1),
 		WithAPIServer(apiServer1), WithStorage(store1),
+		WithLogger(log.NewWithModule("exchanger")),
 	)
 	require.Nil(t, err)
 
@@ -424,6 +427,7 @@ func TestWithPeerMgr(t *testing.T) {
 		WithMonitor(mockMonitor2), WithExecutor(mockExecutor2),
 		WithChecker(mockChecker2), WithPeerMgr(swarm2),
 		WithAPIServer(apiServer2), WithStorage(store2),
+		WithLogger(log.NewWithModule("exchanger")),
 	)
 	require.Nil(t, err)
 

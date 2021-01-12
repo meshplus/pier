@@ -11,7 +11,7 @@ import (
 
 func (lite *BxhLite) handleBlockHeader(header *pb.BlockHeader) {
 	if header == nil {
-		logger.WithField("height", lite.height).Error("empty block header")
+		lite.logger.WithField("height", lite.height).Error("empty block header")
 		return
 	}
 
@@ -20,7 +20,7 @@ func (lite *BxhLite) handleBlockHeader(header *pb.BlockHeader) {
 	}
 
 	if ok, err := lite.verifyHeader(header); !ok {
-		logger.WithFields(logrus.Fields{
+		lite.logger.WithFields(logrus.Fields{
 			"height": header.Number,
 			"error":  err,
 		}).Warn("Invalid header")
@@ -28,7 +28,7 @@ func (lite *BxhLite) handleBlockHeader(header *pb.BlockHeader) {
 	}
 
 	if err := lite.persist(header); err != nil {
-		logger.WithFields(logrus.Fields{
+		lite.logger.WithFields(logrus.Fields{
 			"height": header.Number,
 			"error":  err,
 		}).Error("Persist block header")
@@ -36,7 +36,7 @@ func (lite *BxhLite) handleBlockHeader(header *pb.BlockHeader) {
 
 	lite.updateHeight()
 
-	logger.WithFields(logrus.Fields{
+	lite.logger.WithFields(logrus.Fields{
 		"height": header.Number,
 	}).Info("Persist block header")
 }
@@ -47,7 +47,7 @@ func (lite *BxhLite) syncBlock() {
 			select {
 			case header, ok := <-ch:
 				if !ok {
-					logger.Warn("Unexpected closed channel while syncing block header")
+					lite.logger.Warn("Unexpected closed channel while syncing block header")
 					return
 				}
 
@@ -63,7 +63,7 @@ func (lite *BxhLite) syncBlock() {
 		err := retry.Retry(func(attempt uint) error {
 			chainMeta, err := lite.client.GetChainMeta()
 			if err != nil {
-				logger.WithField("error", err).Error("Get chain meta")
+				lite.logger.WithField("error", err).Error("Get chain meta")
 				return err
 			}
 
@@ -75,7 +75,7 @@ func (lite *BxhLite) syncBlock() {
 		}, strategy.Wait(1*time.Second))
 
 		if err != nil {
-			logger.Panic(err)
+			lite.logger.Panic(err)
 		}
 
 		loop(headerCh)

@@ -11,7 +11,6 @@ import (
 	"github.com/Rican7/retry/strategy"
 	plugin "github.com/hashicorp/go-plugin"
 	"github.com/meshplus/bitxhub-kit/crypto"
-	"github.com/meshplus/bitxhub-kit/log"
 	"github.com/meshplus/bitxhub-kit/storage"
 	"github.com/meshplus/bitxhub-kit/storage/leveldb"
 	"github.com/meshplus/bitxhub-model/pb"
@@ -24,6 +23,7 @@ import (
 	"github.com/meshplus/pier/internal/lite"
 	"github.com/meshplus/pier/internal/lite/bxh_lite"
 	"github.com/meshplus/pier/internal/lite/direct_lite"
+	"github.com/meshplus/pier/internal/loggers"
 	"github.com/meshplus/pier/internal/monitor"
 	"github.com/meshplus/pier/internal/peermgr"
 	"github.com/meshplus/pier/internal/repo"
@@ -34,8 +34,6 @@ import (
 	"github.com/meshplus/pier/pkg/plugins"
 	"github.com/sirupsen/logrus"
 )
-
-var logger = log.NewWithModule("app")
 
 // Pier represents the necessary data for starting the pier app
 type Pier struct {
@@ -52,6 +50,7 @@ type Pier struct {
 	appchain   *rpcx.Appchain
 	meta       *pb.Interchain
 	config     *repo.Config
+	logger     logrus.FieldLogger
 }
 
 // NewPier instantiates pier instance.
@@ -61,6 +60,7 @@ func NewPier(repoRoot string, config *repo.Config) (*Pier, error) {
 		return nil, fmt.Errorf("read from datastaore %w", err)
 	}
 
+	logger := loggers.Logger(loggers.App)
 	privateKey, err := repo.LoadPrivateKey(repoRoot)
 	if err != nil {
 		return nil, fmt.Errorf("repo load key: %w", err)
@@ -90,22 +90,22 @@ func NewPier(repoRoot string, config *repo.Config) (*Pier, error) {
 
 	switch config.Mode.Type {
 	case repo.DirectMode:
-		peerManager, err = peermgr.New(config, nodePrivKey, privateKey, 1)
+		peerManager, err = peermgr.New(config, nodePrivKey, privateKey, 1, loggers.Logger(loggers.PeerMgr))
 		if err != nil {
 			return nil, fmt.Errorf("peerMgr create: %w", err)
 		}
 
-		ruleMgr, err := rulemgr.New(store, peerManager)
+		ruleMgr, err := rulemgr.New(store, peerManager, loggers.Logger(loggers.RuleMgr))
 		if err != nil {
 			return nil, fmt.Errorf("ruleMgr create: %w", err)
 		}
 
-		appchainMgr, err := appchain.NewManager(addr.String(), store, peerManager)
+		appchainMgr, err := appchain.NewManager(addr.String(), store, peerManager, loggers.Logger(loggers.AppchainMgr))
 		if err != nil {
 			return nil, fmt.Errorf("ruleMgr create: %w", err)
 		}
 
-		apiServer, err = api.NewServer(appchainMgr, peerManager, config)
+		apiServer, err = api.NewServer(appchainMgr, peerManager, config, loggers.Logger(loggers.ApiServer))
 		if err != nil {
 			return nil, fmt.Errorf("gin service create: %w", err)
 		}
@@ -156,13 +156,14 @@ func NewPier(repoRoot string, config *repo.Config) (*Pier, error) {
 			return nil, fmt.Errorf("cryptor create: %w", err)
 		}
 
-		lite, err = bxh_lite.New(client, store)
+		lite, err = bxh_lite.New(client, store, loggers.Logger(loggers.BxhLite))
 		if err != nil {
 			return nil, fmt.Errorf("lite create: %w", err)
 		}
 
 		sync, err = syncer.New(addr.String(), repo.RelayMode,
-			syncer.WithClient(client), syncer.WithLite(lite), syncer.WithStorage(store),
+			syncer.WithClient(client), syncer.WithLite(lite),
+			syncer.WithStorage(store), syncer.WithLogger(loggers.Logger(loggers.Syncer)),
 		)
 		if err != nil {
 			return nil, fmt.Errorf("syncer create: %w", err)
@@ -190,12 +191,12 @@ func NewPier(repoRoot string, config *repo.Config) (*Pier, error) {
 		logger.Panic(err)
 	}
 
-	mnt, err := monitor.New(cli, cryptor)
+	mnt, err := monitor.New(cli, cryptor, loggers.Logger(loggers.Monitor))
 	if err != nil {
 		return nil, fmt.Errorf("monitor create: %w", err)
 	}
 
-	exec, err := executor.New(cli, addr.String(), store, cryptor)
+	exec, err := executor.New(cli, addr.String(), store, cryptor, loggers.Logger(loggers.Executor))
 	if err != nil {
 		return nil, fmt.Errorf("executor create: %w", err)
 	}
@@ -208,6 +209,7 @@ func NewPier(repoRoot string, config *repo.Config) (*Pier, error) {
 		exchanger.WithSyncer(sync),
 		exchanger.WithAPIServer(apiServer),
 		exchanger.WithStorage(store),
+		exchanger.WithLogger(loggers.Logger(loggers.Exchanger)),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("exchanger create: %w", err)
@@ -238,6 +240,7 @@ func NewUnionPier(repoRoot string, config *repo.Config) (*Pier, error) {
 		return nil, fmt.Errorf("read from datastaore %w", err)
 	}
 
+	logger := loggers.Logger(loggers.App)
 	privateKey, err := repo.LoadPrivateKey(repoRoot)
 	if err != nil {
 		return nil, fmt.Errorf("repo load key: %w", err)
@@ -261,7 +264,7 @@ func NewUnionPier(repoRoot string, config *repo.Config) (*Pier, error) {
 		return nil, fmt.Errorf("repo load node key: %w", err)
 	}
 
-	peerManager, err = peermgr.New(config, nodePrivKey, privateKey, config.Mode.Union.Providers)
+	peerManager, err = peermgr.New(config, nodePrivKey, privateKey, config.Mode.Union.Providers, loggers.Logger(loggers.PeerMgr))
 	if err != nil {
 		return nil, fmt.Errorf("peerMgr create: %w", err)
 	}
@@ -284,7 +287,7 @@ func NewUnionPier(repoRoot string, config *repo.Config) (*Pier, error) {
 
 	meta = &pb.Interchain{}
 
-	lite, err = bxh_lite.New(client, store)
+	lite, err = bxh_lite.New(client, store, loggers.Logger(loggers.BxhLite))
 	if err != nil {
 		return nil, fmt.Errorf("lite create: %w", err)
 	}
@@ -311,6 +314,7 @@ func NewUnionPier(repoRoot string, config *repo.Config) (*Pier, error) {
 		exchanger.WithSyncer(sync),
 		exchanger.WithStorage(store),
 		exchanger.WithRouter(router),
+		exchanger.WithLogger(loggers.Logger(loggers.Exchanger)),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("exchanger create: %w", err)
@@ -335,7 +339,7 @@ func NewUnionPier(repoRoot string, config *repo.Config) (*Pier, error) {
 // Start starts three main components of pier app
 func (pier *Pier) Start() error {
 	if pier.config.Mode.Type != repo.UnionMode {
-		logger.WithFields(logrus.Fields{
+		pier.logger.WithFields(logrus.Fields{
 			"id":                     pier.meta.ID,
 			"interchain_counter":     pier.meta.InterchainCounter,
 			"receipt_counter":        pier.meta.ReceiptCounter,

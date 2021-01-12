@@ -11,8 +11,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/meshplus/bitxhub-model/constant"
-	rpcx "github.com/meshplus/go-bitxhub-client"
+	"github.com/meshplus/bitxhub-kit/log"
 
 	"github.com/cbergoon/merkletree"
 	"github.com/golang/mock/gomock"
@@ -20,7 +19,9 @@ import (
 	"github.com/meshplus/bitxhub-kit/crypto/asym"
 	"github.com/meshplus/bitxhub-kit/storage/leveldb"
 	"github.com/meshplus/bitxhub-kit/types"
+	"github.com/meshplus/bitxhub-model/constant"
 	"github.com/meshplus/bitxhub-model/pb"
+	rpcx "github.com/meshplus/go-bitxhub-client"
 	"github.com/meshplus/go-bitxhub-client/mock_client"
 	"github.com/meshplus/pier/internal/lite/mock_lite"
 	"github.com/meshplus/pier/internal/repo"
@@ -327,6 +328,7 @@ func prepare(t *testing.T, height uint64) (*WrapperSyncer, *mock_client.MockClie
 
 	syncer, err := New(from, repo.RelayMode,
 		WithClient(client), WithLite(lite), WithStorage(storage),
+		WithLogger(log.NewWithModule("syncer")),
 	)
 	require.Nil(t, err)
 

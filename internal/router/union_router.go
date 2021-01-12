@@ -5,24 +5,16 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/meshplus/bitxhub-kit/storage"
-
 	"github.com/ipfs/go-cid"
-
-	"github.com/meshplus/pier/internal/syncer"
-
-	rpcx "github.com/meshplus/go-bitxhub-client"
-
-	peerproto "github.com/meshplus/pier/internal/peermgr/proto"
-
-	"github.com/meshplus/bitxhub-kit/log"
-
+	"github.com/meshplus/bitxhub-kit/storage"
 	"github.com/meshplus/bitxhub-model/pb"
+	rpcx "github.com/meshplus/go-bitxhub-client"
 	"github.com/meshplus/pier/internal/peermgr"
+	peerproto "github.com/meshplus/pier/internal/peermgr/proto"
+	"github.com/meshplus/pier/internal/syncer"
 	"github.com/sirupsen/logrus"
 )
 
-var logger = log.NewWithModule("union_router")
 var _ Router = (*UnionRouter)(nil)
 
 type UnionRouter struct {
@@ -38,6 +30,7 @@ type UnionRouter struct {
 	cancel context.CancelFunc
 }
 
+func New(peermgr peermgr.PeerManager, store storage.Storage, logger logrus.FieldLogger) *UnionRouter {
 func New(peermgr peermgr.PeerManager, store storage.Storage, connectedPierIDs []string) *UnionRouter {
 	ctx, cancel := context.WithCancel(context.Background())
 	return &UnionRouter{

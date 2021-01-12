@@ -6,11 +6,11 @@ import (
 	"time"
 
 	"github.com/golang/mock/gomock"
+	"github.com/meshplus/bitxhub-kit/log"
 	"github.com/meshplus/bitxhub-kit/storage/leveldb"
 	"github.com/meshplus/bitxhub-kit/types"
 	"github.com/meshplus/bitxhub-model/pb"
 	rpcx "github.com/meshplus/go-bitxhub-client"
-	"github.com/meshplus/pier/internal/agent/mock_agent"
 	"github.com/meshplus/pier/internal/txcrypto/mock_txcrypto"
 	"github.com/meshplus/pier/pkg/plugins/mock_client"
 	"github.com/stretchr/testify/require"
@@ -22,7 +22,7 @@ const (
 )
 
 func TestExecute(t *testing.T) {
-	exec, ag, cli := prepare(t)
+	exec, cli := prepare(t)
 	defer exec.storage.Close()
 
 	// set expect values
@@ -38,8 +38,8 @@ func TestExecute(t *testing.T) {
 		Status: false,
 		Result: ibtp2Receipt,
 	}
-	ag.EXPECT().SendIBTP(gomock.Any()).Return(getReceipt(), nil).AnyTimes()
-	ag.EXPECT().GetIBTPByID(gomock.Any()).Return(getIBTP(t, 2, pb.IBTP_INTERCHAIN), nil).Times(1)
+	//ag.EXPECT().SendIBTP(gomock.Any()).Return(getReceipt(), nil).AnyTimes()
+	//ag.EXPECT().GetIBTPByID(gomock.Any()).Return(getIBTP(t, 2, pb.IBTP_INTERCHAIN), nil).Times(1)
 	cli.EXPECT().SubmitIBTP(ibtp1).Return(ret1, nil).AnyTimes()
 	cli.EXPECT().SubmitIBTP(ibtp2).Return(ret2, nil).AnyTimes()
 	cli.EXPECT().SubmitIBTP(ibtp1Receipt).Return(ret1, nil).AnyTimes()
@@ -71,7 +71,7 @@ func TestExecute(t *testing.T) {
 }
 
 func TestQueryReceipt(t *testing.T) {
-	exec, _, cli := prepare(t)
+	exec, cli := prepare(t)
 	defer exec.storage.Close()
 
 	originalIBTP := getIBTP(t, 1, pb.IBTP_INTERCHAIN)
@@ -102,10 +102,9 @@ func TestQueryReceipt(t *testing.T) {
 	require.Equal(t, receiptContent.Args[1:], args)
 }
 
-func prepare(t *testing.T) (*ChannelExecutor, *mock_agent.MockAgent, *mock_client.MockClient) {
+func prepare(t *testing.T) (*ChannelExecutor, *mock_client.MockClient) {
 	mockCtl := gomock.NewController(t)
 	mockCtl.Finish()
-	ag := mock_agent.NewMockAgent(mockCtl)
 	cli := mock_client.NewMockClient(mockCtl)
 	cryptor := mock_txcrypto.NewMockCryptor(mockCtl)
 
@@ -119,9 +118,9 @@ func prepare(t *testing.T) (*ChannelExecutor, *mock_agent.MockAgent, *mock_clien
 
 	cli.EXPECT().GetInMeta().Return(make(map[string]uint64), nil).AnyTimes()
 	cli.EXPECT().GetCallbackMeta().Return(make(map[string]uint64), nil).AnyTimes()
-	exec, err := New(cli, meta.ID, storage, cryptor)
+	exec, err := New(cli, meta.ID, storage, cryptor, log.NewWithModule("executor"))
 	require.Nil(t, err)
-	return exec, ag, cli
+	return exec, cli
 }
 
 func getReceipt() *pb.Receipt {

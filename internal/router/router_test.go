@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/golang/mock/gomock"
+	"github.com/meshplus/bitxhub-kit/log"
 	"github.com/meshplus/bitxhub-kit/storage/leveldb"
 	"github.com/meshplus/bitxhub-model/pb"
 	rpcx "github.com/meshplus/go-bitxhub-client"
@@ -37,6 +38,7 @@ func TestUnionRouter_Route(t *testing.T) {
 	assert.Nil(t, err)
 	storage, err := leveldb.New(filepath.Join(repoRoot, "storage"))
 
+	router := New(mockPeerManager, storage, log.NewWithModule("router"))
 	router := New(mockPeerManager, storage, []string{""}) // pierID
 
 	ibtp := mockIBTP(t, 1, pb.IBTP_INTERCHAIN)
@@ -53,6 +55,7 @@ func TestUnionRouter_AddAppchains(t *testing.T) {
 	assert.Nil(t, err)
 	storage, err := leveldb.New(filepath.Join(repoRoot, "storage"))
 
+	router := New(mockPeerManager, storage, log.NewWithModule("router"))
 	router := New(mockPeerManager, storage, []string{""}) // pierID
 
 	appchains := make([]*rpcx.Appchain, 0)

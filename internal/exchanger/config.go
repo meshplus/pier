@@ -9,6 +9,7 @@ import (
 	"github.com/meshplus/pier/internal/peermgr"
 	"github.com/meshplus/pier/internal/router"
 	"github.com/meshplus/pier/internal/syncer"
+	"github.com/sirupsen/logrus"
 )
 
 type Config struct {
@@ -22,6 +23,7 @@ type Config struct {
 	exec      executor.Executor
 	syncer    syncer.Syncer
 	apiServer *api.Server
+	logger    logrus.FieldLogger
 }
 
 type Option func(*Config)
@@ -83,6 +85,12 @@ func WithAPIServer(apiServer *api.Server) Option {
 func WithStorage(store storage.Storage) Option {
 	return func(config *Config) {
 		config.store = store
+	}
+}
+
+func WithLogger(logger logrus.FieldLogger) Option {
+	return func(config *Config) {
+		config.logger = logger
 	}
 }
 

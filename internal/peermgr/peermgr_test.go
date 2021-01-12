@@ -9,6 +9,7 @@ import (
 	peer2 "github.com/libp2p/go-libp2p-core/peer"
 	"github.com/meshplus/bitxhub-kit/crypto"
 	"github.com/meshplus/bitxhub-kit/crypto/asym"
+	"github.com/meshplus/bitxhub-kit/log"
 	network "github.com/meshplus/go-lightp2p"
 	peermgr "github.com/meshplus/pier/internal/peermgr/proto"
 	peerproto "github.com/meshplus/pier/internal/peermgr/proto"
@@ -18,41 +19,42 @@ import (
 )
 
 func TestNew(t *testing.T) {
-
+	logger := log.NewWithModule("swarm")
 	// test wrong nodePrivKey
 	nodeKeys, privKeys, config, _ := genKeysAndConfig(t, 2, repo.DirectMode)
 
-	_, err := New(config, nil, privKeys[0], 0)
+	_, err := New(config, nil, privKeys[0], 0, logger)
 	require.NotNil(t, err)
 
 	// test new swarm in direct mode
 	nodeKeys, privKeys, config, _ = genKeysAndConfig(t, 2, repo.DirectMode)
 
-	_, err = New(config, nodeKeys[0], privKeys[0], 0)
+	_, err = New(config, nodeKeys[0], privKeys[0], 0, logger)
 	require.Nil(t, err)
 
 	// test new swarm in union mode
 	nodeKeys, privKeys, config, _ = genKeysAndConfig(t, 2, repo.UnionMode)
 
-	_, err = New(config, nodeKeys[0], privKeys[0], 0)
+	_, err = New(config, nodeKeys[0], privKeys[0], 0, logger)
 	require.Nil(t, err)
 
 	// test new swarm in unsupport mode
 	nodeKeys, privKeys, config, _ = genKeysAndConfig(t, 2, "")
 
-	_, err = New(config, nodeKeys[0], privKeys[0], 0)
+	_, err = New(config, nodeKeys[0], privKeys[0], 0, logger)
 	require.NotNil(t, err)
 }
 
 func TestSwarm_Start(t *testing.T) {
+	logger := log.NewWithModule("swarm")
 	nodeKeys, privKeys, config, _ := genKeysAndConfig(t, 2, repo.DirectMode)
 
-	swarm1, err := New(config, nodeKeys[0], privKeys[0], 0)
+	swarm1, err := New(config, nodeKeys[0], privKeys[0], 0, logger)
 	require.Nil(t, err)
 
 	go swarm1.Start()
 
-	swarm2, err := New(config, nodeKeys[1], privKeys[1], 0)
+	swarm2, err := New(config, nodeKeys[1], privKeys[1], 0, logger)
 	require.Nil(t, err)
 
 	go swarm2.Start()
@@ -255,7 +257,7 @@ func TestSwarm_ConnectedPeerIDs(t *testing.T) {
 func prepare(t *testing.T) (*Swarm, []string, *Swarm, *peermgr.Message, string, string) {
 	nodeKeys, privKeys, config, ids := genKeysAndConfig(t, 2, repo.DirectMode)
 
-	swarm, err := New(config, nodeKeys[0], privKeys[0], 0)
+	swarm, err := New(config, nodeKeys[0], privKeys[0], 0, log.NewWithModule("swarm"))
 	require.Nil(t, err)
 
 	mockMsg := &peermgr.Message{Type: peermgr.Message_APPCHAIN_REGISTER}
