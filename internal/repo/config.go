@@ -19,6 +19,7 @@ type Config struct {
 	Log      Log      `toml:"log" json:"log"`
 	Appchain Appchain `toml:"appchain" json:"appchain"`
 	Security Security `toml:"security" json:"security"`
+	HA       HA       `toml:"ha" json:"ha"`
 }
 
 // Security are certs used to setup connection with tls
@@ -32,6 +33,10 @@ type Security struct {
 type Port struct {
 	Http  int64 `toml:"http" json:"http"`
 	PProf int64 `toml:"pprof" json:"pprof"`
+}
+
+type HA struct {
+	Mode string `toml:"mode" json:"mode"`
 }
 
 const (
@@ -152,6 +157,9 @@ func DefaultConfig() *Config {
 			EnableTLS:  false,
 			Tlsca:      "certs/ca.pem",
 			CommonName: "localhost",
+		},
+		HA: HA{
+			Mode: "single",
 		},
 		Appchain: Appchain{
 			Config: "fabric",
