@@ -239,13 +239,15 @@ func (ex *Exchanger) listenAndSendIBTPFromSyncer() {
 				ex.logger.Warn("Unexpected closed channel while listening on interchain ibtp")
 				return
 			}
+			entry := ex.logger.WithFields(logrus.Fields{
+				"index": ibtp.Index,
+				"type":  ibtp.Type,
+				"to":    ibtp.To,
+				"id":    ibtp.ID(),
+			})
 			index := ex.interchainCounter[ibtp.From]
 			if index >= ibtp.Index {
-				ex.logger.WithFields(logrus.Fields{
-					"index":        ibtp.Index,
-					"from_counter": index,
-					"ibtp_id":      ibtp.ID(),
-				}).Info("Ignore ibtp")
+				entry.Info("Ignore ibtp")
 				return
 			}
 
@@ -266,6 +268,7 @@ func (ex *Exchanger) listenAndSendIBTPFromSyncer() {
 			ex.interchainCounter[ibtp.From] = ibtp.Index
 
 			ex.handleIBTP(ibtp)
+			entry.Info("Send ibtp success from syncer")
 		}
 	}
 }
@@ -345,6 +348,7 @@ func (ex *Exchanger) sendIBTP(ibtp *pb.IBTP) error {
 			ex.logger.Panic(err)
 		}
 	}
+	entry.Info("Send ibtp success from monitor")
 	return nil
 }
 
