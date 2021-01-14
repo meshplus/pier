@@ -84,6 +84,7 @@ func (ex *Exchanger) handleMissingIBTPFromMnt(to string, begin, end uint64) erro
 		if err := ex.sendIBTP(ibtp); err != nil {
 			return err
 		}
+		ex.interchainCounter[ibtp.To] = ibtp.Index
 	}
 
 	return nil
@@ -105,6 +106,7 @@ func (ex *Exchanger) handleMissingIBTPFromSyncer(from string, begin, end uint64)
 		}
 
 		ex.handleIBTP(ibtp)
+		ex.interchainCounter[ibtp.From] = ibtp.Index
 	}
 
 	return nil
@@ -139,6 +141,7 @@ func (ex *Exchanger) handleMissingReceipt(from string, begin uint64, end uint64)
 			entry.WithField("error", err).Error("Send execution receipt to counterpart chain")
 			return err
 		}
+		ex.sourceReceiptCounter[from] = receipt.Index
 	}
 	return nil
 }
