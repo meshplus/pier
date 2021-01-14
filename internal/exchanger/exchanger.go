@@ -34,6 +34,7 @@ type Exchanger struct {
 	syncer               syncer.Syncer
 	router               router.Router
 	interchainCounter    map[string]uint64
+	executorCounter      map[string]uint64
 	sourceReceiptCounter map[string]uint64
 
 	apiServer       *api.Server
@@ -66,6 +67,12 @@ func New(typ, pierID string, meta *pb.Interchain, opts ...Option) (*Exchanger, e
 		sourceReceiptCounter[id] = idx
 	}
 
+	queryMeta := config.exec.QueryMeta()
+	executorCounter := make(map[string]uint64)
+	for id, idx := range queryMeta {
+		executorCounter[id] = idx
+	}
+
 	ctx, cancel := context.WithCancel(context.Background())
 	return &Exchanger{
 		checker:              config.checker,
@@ -79,6 +86,7 @@ func New(typ, pierID string, meta *pb.Interchain, opts ...Option) (*Exchanger, e
 		logger:               config.logger,
 		ch:                   make(chan struct{}, 100),
 		interchainCounter:    interchainCounter,
+		executorCounter:      executorCounter,
 		sourceReceiptCounter: sourceReceiptCounter,
 		mode:                 typ,
 		pierID:               pierID,
@@ -245,7 +253,7 @@ func (ex *Exchanger) listenAndSendIBTPFromSyncer() {
 				"to":    ibtp.To,
 				"id":    ibtp.ID(),
 			})
-			index := ex.interchainCounter[ibtp.From]
+			index := ex.executorCounter[ibtp.From]
 			if index >= ibtp.Index {
 				entry.Info("Ignore ibtp")
 				return
@@ -265,7 +273,7 @@ func (ex *Exchanger) listenAndSendIBTPFromSyncer() {
 				}
 			}
 
-			ex.interchainCounter[ibtp.From] = ibtp.Index
+			ex.executorCounter[ibtp.From] = ibtp.Index
 
 			ex.handleIBTP(ibtp)
 			entry.Info("Send ibtp success from syncer")
