@@ -3,12 +3,12 @@ package executor
 import (
 	"context"
 
-	"github.com/sirupsen/logrus"
-
 	"github.com/meshplus/bitxhub-kit/storage"
+	"github.com/meshplus/bitxhub-kit/types"
 	"github.com/meshplus/bitxhub-model/pb"
 	"github.com/meshplus/pier/internal/txcrypto"
 	"github.com/meshplus/pier/pkg/plugins"
+	"github.com/sirupsen/logrus"
 )
 
 var _ Executor = (*ChannelExecutor)(nil)
@@ -60,7 +60,11 @@ func (e *ChannelExecutor) QueryMeta() map[string]uint64 {
 	if err != nil {
 		return map[string]uint64{}
 	}
-	return execMeta
+	checkSumMeta := make(map[string]uint64, len(execMeta))
+	for from, index := range execMeta {
+		checkSumMeta[types.NewAddressByStr(from).String()] = index
+	}
+	return checkSumMeta
 }
 
 // getReceipt only generates one receipt given source chain id and interchain tx index
