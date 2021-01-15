@@ -106,7 +106,7 @@ func (ex *Exchanger) handleMissingIBTPFromSyncer(from string, begin, end uint64)
 		}
 
 		ex.handleIBTP(ibtp)
-		ex.interchainCounter[ibtp.From] = ibtp.Index
+		ex.executorCounter[ibtp.From] = ibtp.Index
 	}
 
 	return nil
