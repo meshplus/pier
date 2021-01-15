@@ -55,13 +55,25 @@ func (e *ChannelExecutor) Stop() error {
 	return nil
 }
 
-func (e *ChannelExecutor) QueryMeta() map[string]uint64 {
+func (e *ChannelExecutor) QueryInterchainMeta() map[string]uint64 {
 	execMeta, err := e.client.GetInMeta()
 	if err != nil {
 		return map[string]uint64{}
 	}
 	checkSumMeta := make(map[string]uint64, len(execMeta))
 	for from, index := range execMeta {
+		checkSumMeta[types.NewAddressByStr(from).String()] = index
+	}
+	return checkSumMeta
+}
+
+func (e *ChannelExecutor) QueryCallbackMeta() map[string]uint64 {
+	callbackMeta, err := e.client.GetCallbackMeta()
+	if err != nil {
+		return map[string]uint64{}
+	}
+	checkSumMeta := make(map[string]uint64, len(callbackMeta))
+	for from, index := range callbackMeta {
 		checkSumMeta[types.NewAddressByStr(from).String()] = index
 	}
 	return checkSumMeta
@@ -74,7 +86,5 @@ func (e *ChannelExecutor) QueryIBTPReceipt(from string, idx uint64, originalIBTP
 		return nil, err
 	}
 
-	// todo: add error handling
-	ibtpReceipt, _ := e.generateCallback(originalIBTP, ret)
-	return ibtpReceipt, nil
+	return e.generateCallback(originalIBTP, ret)
 }
