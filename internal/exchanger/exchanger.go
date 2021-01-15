@@ -35,6 +35,7 @@ type Exchanger struct {
 	router               router.Router
 	interchainCounter    map[string]uint64
 	executorCounter      map[string]uint64
+	callbackCounter      map[string]uint64
 	sourceReceiptCounter map[string]uint64
 
 	apiServer       *api.Server
@@ -57,22 +58,6 @@ func New(typ, pierID string, meta *pb.Interchain, opts ...Option) (*Exchanger, e
 		return nil, err
 	}
 
-	interchainCounter := make(map[string]uint64)
-	for id, idx := range meta.InterchainCounter {
-		interchainCounter[id] = idx
-	}
-
-	sourceReceiptCounter := make(map[string]uint64)
-	for id, idx := range meta.SourceReceiptCounter {
-		sourceReceiptCounter[id] = idx
-	}
-
-	queryMeta := config.exec.QueryMeta()
-	executorCounter := make(map[string]uint64)
-	for id, idx := range queryMeta {
-		executorCounter[id] = idx
-	}
-
 	ctx, cancel := context.WithCancel(context.Background())
 	return &Exchanger{
 		checker:              config.checker,
@@ -85,9 +70,10 @@ func New(typ, pierID string, meta *pb.Interchain, opts ...Option) (*Exchanger, e
 		router:               config.router,
 		logger:               config.logger,
 		ch:                   make(chan struct{}, 100),
-		interchainCounter:    interchainCounter,
-		executorCounter:      executorCounter,
-		sourceReceiptCounter: sourceReceiptCounter,
+		interchainCounter:    copyCounterMap(meta.InterchainCounter),
+		sourceReceiptCounter: copyCounterMap(meta.SourceReceiptCounter),
+		executorCounter:      copyCounterMap(config.exec.QueryInterchainMeta()),
+		callbackCounter:      copyCounterMap(config.exec.QueryCallbackMeta()),
 		mode:                 typ,
 		pierID:               pierID,
 		ctx:                  ctx,
@@ -111,6 +97,9 @@ func (ex *Exchanger) Start() error {
 	}
 	if ex.mode != repo.UnionMode {
 		go ex.listenAndSendIBTPFromMnt()
+	}
+	if ex.mode != repo.DirectMode {
+		go ex.listenAndSendIBTPFromSyncer()
 	}
 
 	ex.logger.Info("Exchanger started")
@@ -223,6 +212,7 @@ func (ex *Exchanger) listenAndSendIBTPFromMnt() {
 					ex.logger.WithFields(logrus.Fields{
 						"index": ibtp.Index,
 						"to":    ibtp.To,
+						"err":   err.Error(),
 					}).Error("Handle missing ibtp")
 				}
 			}
@@ -253,29 +243,16 @@ func (ex *Exchanger) listenAndSendIBTPFromSyncer() {
 				"to":    ibtp.To,
 				"id":    ibtp.ID(),
 			})
-			index := ex.executorCounter[ibtp.From]
-			if index >= ibtp.Index {
-				entry.Info("Ignore ibtp")
+			switch ibtp.Type {
+			case pb.IBTP_INTERCHAIN, pb.IBTP_ASSET_EXCHANGE_INIT,
+				pb.IBTP_ASSET_EXCHANGE_REDEEM, pb.IBTP_ASSET_EXCHANGE_REFUND:
+				ex.applyInterchain(ibtp, entry)
+			case pb.IBTP_RECEIPT_SUCCESS, pb.IBTP_RECEIPT_FAILURE, pb.IBTP_ASSET_EXCHANGE_RECEIPT:
+				ex.applyReceipt(ibtp, entry)
+			default:
+				entry.Errorf("wrong type of ibtp")
 				return
 			}
-
-			if index+1 < ibtp.Index {
-				ex.logger.WithFields(logrus.Fields{
-					"index": ibtp.Index,
-					"from":  ibtp.From,
-				}).Info("Get missing ibtp")
-
-				if err := ex.handleMissingIBTPFromSyncer(ibtp.From, index+1, ibtp.Index); err != nil {
-					ex.logger.WithFields(logrus.Fields{
-						"index": ibtp.Index,
-						"from":  ibtp.From,
-					}).Error("Handle missing ibtp")
-				}
-			}
-
-			ex.executorCounter[ibtp.From] = ibtp.Index
-
-			ex.handleIBTP(ibtp)
 			entry.Info("Send ibtp success from syncer")
 		}
 	}
@@ -399,4 +376,12 @@ func (ex *Exchanger) queryIBTP(from string, idx uint64) (*pb.IBTP, error) {
 	}
 
 	return ibtp, nil
+}
+
+func copyCounterMap(original map[string]uint64) map[string]uint64 {
+	ret := make(map[string]uint64, len(original))
+	for id, idx := range original {
+		ret[id] = idx
+	}
+	return ret
 }

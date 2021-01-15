@@ -24,7 +24,7 @@ func (ex *Exchanger) recoverRelay() {
 	}
 
 	// recover unsent receipt to counterpart chain
-	execMeta := ex.exec.QueryMeta()
+	execMeta := ex.exec.QueryInterchainMeta()
 	for from, idx := range execMeta {
 		beginIndex, ok := ex.sourceReceiptCounter[from]
 		if !ok {
@@ -56,7 +56,7 @@ func (ex *Exchanger) recoverDirect(dstPierID string, interchainIndex uint64, rec
 	}
 
 	// recoverDirect unsent receipt to counterpart chain
-	execMeta := ex.exec.QueryMeta()
+	execMeta := ex.exec.QueryInterchainMeta()
 	idx := execMeta[dstPierID]
 	if err := ex.handleMissingReceipt(dstPierID, receiptIndex+1, idx+1); err != nil {
 		ex.logger.WithFields(logrus.Fields{

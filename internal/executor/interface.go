@@ -16,10 +16,15 @@ type Executor interface {
 	// and return the receipt ibtp for ack or callback
 	ExecuteIBTP(ibtp *pb.IBTP) (*pb.IBTP, error)
 
-	// QueryMeta queries latest index map of ibtps executed on appchain
+	// QueryInterchainMeta queries latest index map of ibtps executed on appchain
 	// For the returned map, key is the source chain ID,
 	// and value is the latest index of tx executed on appchain
-	QueryMeta() map[string]uint64
+	QueryInterchainMeta() map[string]uint64
+
+	// QueryCallbackMeta queries latest index map of ibtps callbacks executed on appchain
+	// For the returned map, key is the destination chain ID,
+	// and value is the latest index of callback executed on appchain
+	QueryCallbackMeta() map[string]uint64
 
 	// QueryIBTPReceipt query receipt for original interchain ibtp
 	QueryIBTPReceipt(from string, index uint64, originalIBTP *pb.IBTP) (*pb.IBTP, error)

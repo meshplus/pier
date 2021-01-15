@@ -51,6 +51,45 @@ func (ex *Exchanger) handleIBTP(ibtp *pb.IBTP) {
 	}
 }
 
+func (ex *Exchanger) applyReceipt(ibtp *pb.IBTP, entry logrus.FieldLogger) {
+	index := ex.callbackCounter[ibtp.To]
+	if index >= ibtp.Index {
+		entry.Info("Ignore ibtp callback")
+		return
+	}
+
+	if index+1 < ibtp.Index {
+		// todo: how to handle missing ibtp receipt
+		return
+	}
+	ex.handleIBTP(ibtp)
+	ex.callbackCounter[ibtp.To] = ibtp.Index
+}
+
+func (ex *Exchanger) applyInterchain(ibtp *pb.IBTP, entry logrus.FieldLogger) {
+	index := ex.executorCounter[ibtp.From]
+	if index >= ibtp.Index {
+		entry.Info("Ignore ibtp")
+		return
+	}
+
+	if index+1 < ibtp.Index {
+		ex.logger.WithFields(logrus.Fields{
+			"index": ibtp.Index,
+			"from":  ibtp.From,
+		}).Info("Get missing ibtp")
+
+		if err := ex.handleMissingIBTPFromSyncer(ibtp.From, index+1, ibtp.Index); err != nil {
+			ex.logger.WithFields(logrus.Fields{
+				"index": ibtp.Index,
+				"from":  ibtp.From,
+			}).Error("Handle missing ibtp")
+		}
+	}
+	ex.handleIBTP(ibtp)
+	ex.executorCounter[ibtp.From] = ibtp.Index
+}
+
 // handleIBTP handle ibtps from bitxhub
 func (ex *Exchanger) handleUnionIBTP(ibtp *pb.IBTP) {
 	ibtp.From = ex.pierID + "-" + ibtp.From
@@ -302,7 +341,7 @@ func (ex *Exchanger) handleRouterInterchain(s network.Stream, msg *peerMsg.Messa
 
 func (ex *Exchanger) handleGetInterchainMessage(stream network.Stream, msg *peerMsg.Message) {
 	mntMeta := ex.mnt.QueryOuterMeta()
-	execMeta := ex.exec.QueryMeta()
+	execMeta := ex.exec.QueryInterchainMeta()
 
 	indices := &struct {
 		InterchainIndex uint64 `json:"interchain_index"`

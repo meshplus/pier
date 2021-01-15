@@ -76,18 +76,32 @@ func (mr *MockExecutorMockRecorder) ExecuteIBTP(ibtp interface{}) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ExecuteIBTP", reflect.TypeOf((*MockExecutor)(nil).ExecuteIBTP), ibtp)
 }
 
-// QueryMeta mocks base method
-func (m *MockExecutor) QueryMeta() map[string]uint64 {
+// QueryInterchainMeta mocks base method
+func (m *MockExecutor) QueryInterchainMeta() map[string]uint64 {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "QueryMeta")
+	ret := m.ctrl.Call(m, "QueryInterchainMeta")
 	ret0, _ := ret[0].(map[string]uint64)
 	return ret0
 }
 
-// QueryMeta indicates an expected call of QueryMeta
-func (mr *MockExecutorMockRecorder) QueryMeta() *gomock.Call {
+// QueryInterchainMeta indicates an expected call of QueryInterchainMeta
+func (mr *MockExecutorMockRecorder) QueryInterchainMeta() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "QueryMeta", reflect.TypeOf((*MockExecutor)(nil).QueryMeta))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "QueryInterchainMeta", reflect.TypeOf((*MockExecutor)(nil).QueryInterchainMeta))
+}
+
+// QueryCallbackMeta mocks base method
+func (m *MockExecutor) QueryCallbackMeta() map[string]uint64 {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "QueryCallbackMeta")
+	ret0, _ := ret[0].(map[string]uint64)
+	return ret0
+}
+
+// QueryCallbackMeta indicates an expected call of QueryCallbackMeta
+func (mr *MockExecutorMockRecorder) QueryCallbackMeta() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "QueryCallbackMeta", reflect.TypeOf((*MockExecutor)(nil).QueryCallbackMeta))
 }
 
 // QueryIBTPReceipt mocks base method
