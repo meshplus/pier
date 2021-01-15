@@ -44,13 +44,6 @@ func TestStartRelay(t *testing.T) {
 	mockMonitor, mockExecutor, mockSyncer, mockChecker, store := prepareRelay(t)
 	meta := &pb.Interchain{}
 
-	mockExchanger, err := New(mode, from, meta,
-		WithMonitor(mockMonitor), WithExecutor(mockExecutor),
-		WithSyncer(mockSyncer), WithLogger(log.NewWithModule("exchanger")),
-		WithChecker(mockChecker), WithStorage(store),
-	)
-	require.Nil(t, err)
-
 	// mock one missing ibtp and one normal listened ibtp
 	missedOutIBTP := getIBTP(t, 1, pb.IBTP_INTERCHAIN)
 	normalOutIBTP := getIBTP(t, 2, pb.IBTP_INTERCHAIN)
@@ -59,6 +52,8 @@ func TestStartRelay(t *testing.T) {
 	outCh := make(chan *pb.IBTP, 1)
 	outCh <- normalOutIBTP
 
+	inCh := make(chan *pb.IBTP)
+
 	outMeta := make(map[string]uint64)
 	outMeta[to] = 1
 	inMeta := make(map[string]uint64)
@@ -66,12 +61,20 @@ func TestStartRelay(t *testing.T) {
 	mockMonitor.EXPECT().ListenIBTP().Return(outCh).AnyTimes()
 	mockMonitor.EXPECT().QueryOuterMeta().Return(outMeta)
 	mockMonitor.EXPECT().QueryIBTP(missedOutIBTP.ID()).Return(missedOutIBTP, nil).AnyTimes()
-	mockExecutor.EXPECT().QueryMeta().Return(inMeta)
+	mockExecutor.EXPECT().QueryInterchainMeta().Return(inMeta).AnyTimes()
+	mockExecutor.EXPECT().QueryCallbackMeta().Return(make(map[string]uint64)).AnyTimes()
 	mockExecutor.EXPECT().QueryIBTPReceipt(to, uint64(1), gomock.Any()).Return(receipt, nil).AnyTimes()
 	mockExecutor.EXPECT().ExecuteIBTP(gomock.Any()).Return(receipt, nil).AnyTimes()
+	mockSyncer.EXPECT().ListenIBTP().Return(inCh).AnyTimes()
 	mockSyncer.EXPECT().QueryIBTP(receipt.ID()).Return(missedInIBTP, nil)
 	mockSyncer.EXPECT().SendIBTP(gomock.Any()).Return(nil).AnyTimes()
 
+	mockExchanger, err := New(mode, from, meta,
+		WithMonitor(mockMonitor), WithExecutor(mockExecutor),
+		WithSyncer(mockSyncer), WithLogger(log.NewWithModule("exchanger")),
+		WithChecker(mockChecker), WithStorage(store),
+	)
+	require.Nil(t, err)
 	require.Nil(t, mockExchanger.Start())
 
 	// mock one illegal replayed ibtp and one normal ibtp from relay chain
@@ -96,6 +99,7 @@ func TestStartRelay(t *testing.T) {
 
 	time.Sleep(500 * time.Microsecond)
 	close(outCh)
+	close(inCh)
 	require.Nil(t, mockExchanger.Stop())
 }
 
@@ -103,14 +107,6 @@ func TestStartDirect(t *testing.T) {
 	mode := repo.DirectMode
 	mockMonitor, mockExecutor, mockChecker, mockPeerMgr, apiServer, store := prepareDirect(t)
 	meta := &pb.Interchain{}
-
-	mockExchanger, err := New(mode, from, meta,
-		WithMonitor(mockMonitor), WithExecutor(mockExecutor),
-		WithChecker(mockChecker), WithPeerMgr(mockPeerMgr),
-		WithAPIServer(apiServer), WithStorage(store),
-		WithLogger(log.NewWithModule("exchanger")),
-	)
-	require.Nil(t, err)
 
 	// test for happy path, one normal indexed ibtp and will trigger getMissing
 	happyPathMissedOutIBTP := getIBTP(t, 1, pb.IBTP_INTERCHAIN)
@@ -139,13 +135,21 @@ func TestStartDirect(t *testing.T) {
 	mockMonitor.EXPECT().QueryOuterMeta().Return(outMeta)
 	mockMonitor.EXPECT().QueryIBTP(happyPathMissedOutIBTP.ID()).Return(happyPathMissedOutIBTP, nil).AnyTimes()
 	mockExecutor.EXPECT().ExecuteIBTP(gomock.Any()).Return(receipt, nil).AnyTimes()
-	mockExecutor.EXPECT().QueryMeta().Return(inMeta).AnyTimes()
+	mockExecutor.EXPECT().QueryInterchainMeta().Return(inMeta).AnyTimes()
+	mockExecutor.EXPECT().QueryCallbackMeta().Return(make(map[string]uint64)).AnyTimes()
 	mockExecutor.EXPECT().QueryIBTPReceipt(to, uint64(1), gomock.Any()).Return(receipt, nil).AnyTimes()
 	mockPeerMgr.EXPECT().Send(gomock.Any(), metaMsg).Return(retMetaMsg, nil).AnyTimes()
 	mockPeerMgr.EXPECT().Send(gomock.Any(), gomock.Any()).Return(retMsg, nil).AnyTimes()
 	mockPeerMgr.EXPECT().AsyncSendWithStream(gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
 	mockPeerMgr.EXPECT().AsyncSend(gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
 
+	mockExchanger, err := New(mode, from, meta,
+		WithMonitor(mockMonitor), WithExecutor(mockExecutor),
+		WithChecker(mockChecker), WithPeerMgr(mockPeerMgr),
+		WithAPIServer(apiServer), WithStorage(store),
+		WithLogger(log.NewWithModule("exchanger")),
+	)
+	require.Nil(t, err)
 	require.Nil(t, mockExchanger.Start())
 
 	mockExchanger.handleNewConnection(to)
@@ -173,7 +177,7 @@ func TestStartDirect(t *testing.T) {
 	mockExchanger.handleGetIBTPMessage(stream, ibtpGetMsg)
 
 	close(outCh)
-	time.Sleep(500 * time.Microsecond)
+	time.Sleep(500 * time.Millisecond)
 	require.Nil(t, mockExchanger.Stop())
 }
 
@@ -225,16 +229,29 @@ func testUnionMode(pierID string, t *testing.T) {
 	require.Nil(t, err)
 	recoverACKMsg := peermgr.Message(peerMsg.Message_ACK, true, icBytes)
 
+	inCh := make(chan *pb.IBTP)
+
+	mockSyncer.EXPECT().ListenIBTP().Return(inCh).AnyTimes()
 	mockSyncer.EXPECT().SendIBTP(gomock.Any()).Return(nil).AnyTimes()
 	mockSyncer.EXPECT().GetInterchainById(from).Return(interchainCounter).AnyTimes()
 	mockSyncer.EXPECT().GetIBTPSigns(ibtp).Return(signs, nil).AnyTimes()
 	mockSyncer.EXPECT().GetAppchains().Return(appchains, nil).AnyTimes()
+	mockExecutor.EXPECT().QueryInterchainMeta().Return(map[string]uint64{to: 1}).AnyTimes()
+	mockExecutor.EXPECT().QueryCallbackMeta().Return(make(map[string]uint64)).AnyTimes()
 	mockPeerMgr.EXPECT().AsyncSendWithStream(gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
 	mockPeerMgr.EXPECT().FindProviders(ibtp.To).Return(pierID, nil)
 	mockPeerMgr.EXPECT().Send(pierID, gomock.Any()).Return(recoverACKMsg, nil)
 	mockRouter.EXPECT().ExistAppchain(pierID).Return(true).AnyTimes()
 	mockRouter.EXPECT().Route(ibtp).Return(nil).AnyTimes()
 	mockRouter.EXPECT().AddAppchains(appchains).Return(nil).AnyTimes()
+
+	mockExchanger, err := New(mode, from, meta,
+		WithMonitor(mockMonitor), WithExecutor(mockExecutor),
+		WithSyncer(mockSyncer), WithPeerMgr(mockPeerMgr),
+		WithRouter(mockRouter), WithStorage(store),
+		WithLogger(log.NewWithModule("exchanger")),
+	)
+	require.Nil(t, err)
 	mockExecutor.EXPECT().HandleIBTP(ibtp).Return(nil).AnyTimes()
 	require.Nil(t, mockExchanger.Start())
 
@@ -253,6 +270,7 @@ func testUnionMode(pierID string, t *testing.T) {
 	// test RegisterRecoverHandler for syncer to handle recover in bitxhub
 	mockExchanger.handleRecover(ibtp)
 	time.Sleep(1 * time.Second)
+	close(inCh)
 	require.Nil(t, mockExchanger.Stop())
 }
 
@@ -415,6 +433,12 @@ func TestWithPeerMgr(t *testing.T) {
 	swarm2, err := peermgr.New(config, nodeKeys[1], privKeys[1], 0, log.NewWithModule("swarm"))
 	require.Nil(t, err)
 
+	inMeta := make(map[string]uint64)
+	mockExecutor1.EXPECT().QueryInterchainMeta().Return(inMeta).AnyTimes()
+	mockExecutor2.EXPECT().QueryInterchainMeta().Return(inMeta).AnyTimes()
+	mockExecutor1.EXPECT().QueryCallbackMeta().Return(make(map[string]uint64)).AnyTimes()
+	mockExecutor2.EXPECT().QueryCallbackMeta().Return(make(map[string]uint64)).AnyTimes()
+
 	mockExchanger1, err := New(mode, addrs[0], meta,
 		WithMonitor(mockMonitor1), WithExecutor(mockExecutor1),
 		WithChecker(mockChecker1), WithPeerMgr(swarm1),
@@ -436,14 +460,13 @@ func TestWithPeerMgr(t *testing.T) {
 	outCh := make(chan *pb.IBTP, 1000)
 
 	outMeta := make(map[string]uint64)
-	inMeta := make(map[string]uint64)
+
 	mockMonitor1.EXPECT().ListenIBTP().Return(outCh).AnyTimes()
 	mockMonitor1.EXPECT().QueryOuterMeta().Return(outMeta).AnyTimes()
 	for _, ibtp := range normalOutIBTPs {
 		//	mockExecutor1.EXPECT().HandleIBTP(ibtp).Return(normalReceipts[i]).AnyTimes()
 		outCh <- ibtp
 	}
-	mockExecutor1.EXPECT().QueryMeta().Return(inMeta).AnyTimes()
 
 	mockMonitor2.EXPECT().ListenIBTP().Return(make(chan *pb.IBTP)).AnyTimes()
 	mockMonitor2.EXPECT().QueryOuterMeta().Return(outMeta).AnyTimes()
@@ -451,12 +474,11 @@ func TestWithPeerMgr(t *testing.T) {
 		mockExecutor2.EXPECT().ExecuteIBTP(ibtp).Return(normalReceipts[i], nil).AnyTimes()
 		//outCh <- ibtp
 	}
-	mockExecutor2.EXPECT().QueryMeta().Return(inMeta).AnyTimes()
 
 	go mockExchanger1.Start()
 	go mockExchanger2.Start()
 
-	time.Sleep(10 * time.Second)
+	time.Sleep(5 * time.Second)
 }
 
 func genKeysAndConfig(t *testing.T, peerCnt int) ([]crypto.PrivateKey, []crypto.PrivateKey, *repo.Config, []string) {
