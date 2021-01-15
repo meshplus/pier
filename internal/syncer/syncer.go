@@ -31,7 +31,6 @@ type WrapperSyncer struct {
 	logger          logrus.FieldLogger
 	wrappersC       chan *pb.InterchainTxWrappers
 	ibtpC           chan *pb.IBTP
-	handler         IBTPHandler
 	appchainHandler AppchainHandler
 	recoverHandler  RecoverUnionHandler
 
@@ -349,15 +348,6 @@ func (syncer *WrapperSyncer) handleInterchainTxWrapper(w *pb.InterchainTxWrapper
 		"index":  i,
 	}).Info("Persist interchain tx wrapper")
 	return true
-}
-
-func (syncer *WrapperSyncer) RegisterIBTPHandler(handler IBTPHandler) error {
-	if handler == nil {
-		return fmt.Errorf("register ibtp handler: empty handler")
-	}
-
-	syncer.handler = handler
-	return nil
 }
 
 func (syncer *WrapperSyncer) RegisterRecoverHandler(handleRecover RecoverUnionHandler) error {

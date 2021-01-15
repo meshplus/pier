@@ -112,6 +112,9 @@ func (ex *Exchanger) Start() error {
 	if ex.mode != repo.UnionMode {
 		go ex.listenAndSendIBTPFromMnt()
 	}
+	if ex.mode != repo.DirectMode {
+		go ex.listenAndSendIBTPFromSyncer()
+	}
 
 	ex.logger.Info("Exchanger started")
 	return nil
@@ -223,6 +226,7 @@ func (ex *Exchanger) listenAndSendIBTPFromMnt() {
 					ex.logger.WithFields(logrus.Fields{
 						"index": ibtp.Index,
 						"to":    ibtp.To,
+						"err":   err.Error(),
 					}).Error("Handle missing ibtp")
 				}
 			}

@@ -8,7 +8,6 @@ import (
 
 	"github.com/Rican7/retry"
 	"github.com/Rican7/retry/strategy"
-	"github.com/meshplus/bitxhub-kit/types"
 	"github.com/meshplus/bitxhub-model/constant"
 	"github.com/meshplus/bitxhub-model/pb"
 	rpcx "github.com/meshplus/go-bitxhub-client"
@@ -105,7 +104,9 @@ func (syncer *WrapperSyncer) GetInterchainById(from string) *pb.Interchain {
 func (syncer *WrapperSyncer) QueryInterchainMeta() map[string]uint64 {
 	interchainCounter := map[string]uint64{}
 	if err := syncer.retryFunc(func(attempt uint) error {
-		receipt, err := syncer.client.InvokeBVMContract(constant.InterchainContractAddr.Address(), "Interchain", nil)
+		queryTx, err := syncer.client.GenerateContractTx(pb.TransactionData_BVM,
+			constant.InterchainContractAddr.Address(), "Interchain")
+		receipt, err := syncer.client.SendView(queryTx)
 		if err != nil {
 			return err
 		}
@@ -125,8 +126,9 @@ func (syncer *WrapperSyncer) QueryInterchainMeta() map[string]uint64 {
 }
 
 func (syncer *WrapperSyncer) QueryIBTP(ibtpID string) (*pb.IBTP, error) {
-	receipt, err := syncer.client.InvokeContract(pb.TransactionData_BVM, constant.InterchainContractAddr.Address(),
-		"GetIBTPByID", nil, rpcx.String(ibtpID))
+	queryTx, err := syncer.client.GenerateContractTx(pb.TransactionData_BVM, constant.InterchainContractAddr.Address(),
+		"GetIBTPByID", rpcx.String(ibtpID))
+	receipt, err := syncer.client.SendView(queryTx)
 	if err != nil {
 		return nil, err
 	}
@@ -134,15 +136,10 @@ func (syncer *WrapperSyncer) QueryIBTP(ibtpID string) (*pb.IBTP, error) {
 	if !receipt.IsSuccess() {
 		return nil, fmt.Errorf("%w: %s", ErrIBTPNotFound, string(receipt.Ret))
 	}
-	hash := types.NewHash(receipt.Ret)
 
-	response, err := syncer.client.GetTransaction(hash.String())
-	if err != nil {
-		return nil, err
-	}
-	ibtp := response.Tx.GetIBTP()
-	if ibtp == nil {
-		return nil, fmt.Errorf("empty ibtp from bitxhub")
+	ibtp := &pb.IBTP{}
+	if err := ibtp.Unmarshal(receipt.Ret); err != nil {
+		return nil, fmt.Errorf("unmarshal ibtp bytes %w", err)
 	}
 	return ibtp, nil
 }
@@ -167,15 +164,16 @@ func (syncer *WrapperSyncer) SendIBTP(ibtp *pb.IBTP) error {
 			IBTPNonce: ibtp.Index,
 		})
 		if err != nil {
-			return err
-		}
-		if receipt.IsSuccess() {
+			// query if this ibtp is on chain
+			_, err = syncer.QueryIBTP(ibtp.ID())
+			if err != nil {
+				return err
+			}
+			// if this ibtp index is on chain, no need to resend this ibtp
 			return nil
 		}
-		// query if this ibtp is on chain
-		_, err = syncer.QueryIBTP(ibtp.ID())
-		if err != nil {
-			return err
+		if !receipt.IsSuccess() {
+			return fmt.Errorf("receipt failed for :%s", receipt.Ret)
 		}
 		return nil
 	})
