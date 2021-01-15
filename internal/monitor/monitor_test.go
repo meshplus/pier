@@ -14,10 +14,10 @@ import (
 )
 
 const (
-	fid  = "0x298935a2a08c9c7707dca2b4b95c6c8205ff1329"
+	fid  = "0x298935A2a08C9C7707DcA2B4B95c6C8205ff1329"
 	tid  = "mychannel-Transfer-001"
-	from = "0x3f9d18f7c3a6e5e4c0b877fe3e688ab08840b997"
-	to   = "0x4d936bf4990d9a28fa61510384400c1c301b2582"
+	from = "0x3f9d18f7C3a6E5E4C0B877FE3E688aB08840b997"
+	to   = "0x4d936bf4990d9A28fa61510384400C1c301b2582"
 	hash = "0x9f41dd84524bf8a42f8ab58ecfca6e1752d6fd93fe8dc00af4c71963c97db59f"
 	name = "Alice"
 )
