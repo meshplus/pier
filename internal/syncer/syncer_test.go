@@ -172,14 +172,16 @@ func TestQueryIBTP(t *testing.T) {
 	syncer, client, _ := prepare(t, 1)
 	defer syncer.storage.Close()
 
-	r := &pb.Receipt{
-		Ret:    []byte(from),
-		Status: pb.Receipt_SUCCESS,
-	}
 	origin := &pb.IBTP{
 		From:      from,
 		Index:     1,
 		Timestamp: time.Now().UnixNano(),
+	}
+	receiptData, err := origin.Marshal()
+	require.Nil(t, err)
+	r := &pb.Receipt{
+		Ret:    receiptData,
+		Status: pb.Receipt_SUCCESS,
 	}
 
 	tmpIP := &pb.InvokePayload{
@@ -197,10 +199,9 @@ func TestQueryIBTP(t *testing.T) {
 
 	tx := &pb.Transaction{
 		Payload: data,
-		IBTP:    origin,
 	}
-	client.EXPECT().InvokeContract(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(r, nil).AnyTimes()
-	client.EXPECT().GetTransaction(gomock.Any()).Return(&pb.GetTransactionResponse{Tx: tx}, nil)
+	client.EXPECT().GenerateContractTx(gomock.Any(), gomock.Any(), "GetIBTPByID", gomock.Any()).Return(tx, nil).AnyTimes()
+	client.EXPECT().SendView(tx).Return(r, nil)
 
 	ibtp, err := syncer.QueryIBTP(from)
 	require.Nil(t, err)
@@ -298,6 +299,20 @@ func TestSendIBTP(t *testing.T) {
 		Status: 0,
 	}
 	client.EXPECT().GenerateIBTPTx(gomock.Any()).Return(tx, nil).AnyTimes()
+	origin := &pb.IBTP{
+		From:      from,
+		Index:     1,
+		Timestamp: time.Now().UnixNano(),
+	}
+	receiptData, err := origin.Marshal()
+	require.Nil(t, err)
+	ibtpReceipt := &pb.Receipt{
+		Ret:    receiptData,
+		Status: pb.Receipt_SUCCESS,
+	}
+	queryIBTPTx := &pb.Transaction{}
+	client.EXPECT().GenerateContractTx(gomock.Any(), gomock.Any(), "GetIBTPByID", gomock.Any()).Return(queryIBTPTx, nil).AnyTimes()
+	client.EXPECT().SendView(queryIBTPTx).Return(ibtpReceipt, nil)
 	networkDownTime := 0
 	client.EXPECT().SendTransactionWithReceipt(gomock.Any(), gomock.Any()).DoAndReturn(
 		func(tx *pb.Transaction, opts *rpcx.TransactOpts) (*pb.Receipt, error) {
@@ -307,8 +322,7 @@ func TestSendIBTP(t *testing.T) {
 			}
 			return r, nil
 		})
-	err := syncer.SendIBTP(&pb.IBTP{})
-	require.Nil(t, err)
+	require.Nil(t, syncer.SendIBTP(&pb.IBTP{}))
 }
 
 func prepare(t *testing.T, height uint64) (*WrapperSyncer, *mock_client.MockClient, *mock_lite.MockLite) {

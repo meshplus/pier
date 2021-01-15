@@ -108,8 +108,6 @@ func TestStartDirect(t *testing.T) {
 	mockMonitor, mockExecutor, mockChecker, mockPeerMgr, apiServer, store := prepareDirect(t)
 	meta := &pb.Interchain{}
 
-
-
 	// test for happy path, one normal indexed ibtp and will trigger getMissing
 	happyPathMissedOutIBTP := getIBTP(t, 1, pb.IBTP_INTERCHAIN)
 	happyPathOutIBTP := getIBTP(t, 2, pb.IBTP_INTERCHAIN)
@@ -144,7 +142,6 @@ func TestStartDirect(t *testing.T) {
 	mockPeerMgr.EXPECT().Send(gomock.Any(), gomock.Any()).Return(retMsg, nil).AnyTimes()
 	mockPeerMgr.EXPECT().AsyncSendWithStream(gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
 	mockPeerMgr.EXPECT().AsyncSend(gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
-
 
 	mockExchanger, err := New(mode, from, meta,
 		WithMonitor(mockMonitor), WithExecutor(mockExecutor),
@@ -234,7 +231,6 @@ func TestStartUnionMode(t *testing.T) {
 	mockRouter.EXPECT().ExistAppchain(from).Return(true).AnyTimes()
 	mockRouter.EXPECT().Route(ibtp).Return(nil).AnyTimes()
 	mockRouter.EXPECT().AddAppchains(appchains).Return(nil).AnyTimes()
-
 
 	mockExchanger, err := New(mode, from, meta,
 		WithMonitor(mockMonitor), WithExecutor(mockExecutor),
@@ -464,7 +460,6 @@ func TestWithPeerMgr(t *testing.T) {
 		mockExecutor2.EXPECT().ExecuteIBTP(ibtp).Return(normalReceipts[i], nil).AnyTimes()
 		//outCh <- ibtp
 	}
-
 
 	go mockExchanger1.Start()
 	go mockExchanger2.Start()

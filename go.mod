@@ -21,7 +21,7 @@ require (
 	github.com/meshplus/bitxhub-core v0.1.0-rc1.0.20210112105719-497a79914e4e
 	github.com/meshplus/bitxhub-kit v1.1.2-0.20201203072410-8a0383a6870d
 	github.com/meshplus/bitxhub-model v1.1.2-0.20210107045700-cee670a2e117
-	github.com/meshplus/go-bitxhub-client v1.0.0-rc4.0.20210112062016-5ea345de67f3
+	github.com/meshplus/go-bitxhub-client v1.0.0-rc4.0.20210115061800-f759bc86e196
 	github.com/meshplus/go-lightp2p v0.0.0-20200817105923-6b3aee40fa54
 	github.com/mitchellh/go-homedir v1.1.0
 	github.com/multiformats/go-multiaddr v0.3.0
@@ -32,7 +32,6 @@ require (
 	github.com/urfave/cli v1.22.1
 	github.com/wonderivan/logger v1.0.0
 	go.uber.org/atomic v1.6.0
-	golang.org/x/crypto v0.0.0-20201221181555-eec23a3978ad
 	golang.org/x/tools v0.0.0-20201009162240-fcf82128ed91 // indirect
 	google.golang.org/grpc v1.33.1
 )
