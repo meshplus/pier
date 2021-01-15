@@ -60,7 +60,7 @@ func (ex *Exchanger) feedIBTP(ibtp *pb.IBTP) {
 					ex.logger.Error(fmt.Errorf("%v", e))
 				}
 			}()
-			inMeta := ex.exec.QueryMeta()
+			inMeta := ex.exec.QueryInterchainMeta()
 			for ibtp := range pool.ch {
 				idx := inMeta[ibtp.From]
 				if ibtp.Index <= idx {
@@ -115,7 +115,7 @@ func (ex *Exchanger) feedReceipt(receipt *pb.IBTP) {
 					ex.logger.Error(fmt.Errorf("%v", e))
 				}
 			}()
-			callbackMeta := ex.exec.QueryMeta()
+			callbackMeta := ex.exec.QueryCallbackMeta()
 			for ibtp := range pool.ch {
 				if ibtp.Index <= callbackMeta[ibtp.To] {
 					pool.delete(ibtp.Index)

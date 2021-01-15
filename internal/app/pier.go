@@ -7,12 +7,10 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/meshplus/bitxhub-core/agency"
-	"github.com/wonderivan/logger"
-
 	"github.com/Rican7/retry"
 	"github.com/Rican7/retry/strategy"
-	plugin "github.com/hashicorp/go-plugin"
+	"github.com/hashicorp/go-plugin"
+	"github.com/meshplus/bitxhub-core/agency"
 	"github.com/meshplus/bitxhub-kit/crypto"
 	"github.com/meshplus/bitxhub-kit/storage"
 	"github.com/meshplus/bitxhub-kit/storage/leveldb"
@@ -37,6 +35,7 @@ import (
 	"github.com/meshplus/pier/pkg/plugins"
 	_ "github.com/meshplus/pier/pkg/single"
 	"github.com/sirupsen/logrus"
+	"github.com/wonderivan/logger"
 )
 
 // Pier represents the necessary data for starting the pier app
