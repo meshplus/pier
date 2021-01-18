@@ -17,6 +17,7 @@ import (
 	"github.com/meshplus/bitxhub-model/pb"
 	rpcx "github.com/meshplus/go-bitxhub-client"
 	"github.com/meshplus/pier/api"
+	_ "github.com/meshplus/pier/imports"
 	"github.com/meshplus/pier/internal/appchain"
 	"github.com/meshplus/pier/internal/checker"
 	"github.com/meshplus/pier/internal/exchanger"

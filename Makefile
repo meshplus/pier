@@ -51,8 +51,32 @@ prepare:
 
 ## make install: Go install the project (hpc)
 install: packr
+	rm -f imports/imports.go
 	$(GO) install -ldflags '${GOLDFLAGS}' ./cmd/${APP_NAME}
 	@printf "${GREEN}Build pier successfully${NC}\n"
+
+build: packr
+	@mkdir -p bin
+	rm -f imports/imports.go
+	$(GO) build -ldflags '${GOLDFLAGS}' ./cmd/${APP_NAME}
+	@mv ./pier bin
+	@printf "${GREEN}Build Pier successfully!${NC}\n"
+
+installent: packr
+	cp imports/imports.go.template imports/imports.go
+	@sed "s?)?$(MODS)@)?" go.mod  | tr '@' '\n' > goent.mod
+	$(GO) install -tags ent -ldflags '${GOLDFLAGS}' -modfile goent.mod ./cmd/${APP_NAME}
+
+buildent: packr
+	@mkdir -p bin
+	cp imports/imports.go.template imports/imports.go
+	@sed "s?)?$(MODS)@)?" go.mod  | tr '@' '\n' > goent.mod
+	$(GO) build -tags ent -ldflags '${GOLDFLAGS}' -modfile goent.mod ./cmd/${APP_NAME}
+	@mv ./pier bin
+	@printf "${GREEN}Build pier ent successfully!${NC}\n"
+
+mod:
+	sed "s?)?$(MODS)\n)?" go.mod
 
 docker-build: packr
 	$(GO) install -ldflags '${STATIC_LDFLAGS}' ./cmd/${APP_NAME}
