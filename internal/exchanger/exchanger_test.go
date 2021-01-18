@@ -44,29 +44,17 @@ func TestStartRelay(t *testing.T) {
 	mockMonitor, mockExecutor, mockSyncer, mockChecker, store := prepareRelay(t)
 	meta := &pb.Interchain{}
 
-	// mock one missing ibtp and one normal listened ibtp
-	missedOutIBTP := getIBTP(t, 1, pb.IBTP_INTERCHAIN)
-	normalOutIBTP := getIBTP(t, 2, pb.IBTP_INTERCHAIN)
-	missedInIBTP := getIBTP(t, 1, pb.IBTP_INTERCHAIN)
-	receipt := getIBTP(t, 1, pb.IBTP_RECEIPT_SUCCESS)
-	outCh := make(chan *pb.IBTP, 1)
-	outCh <- normalOutIBTP
-
+	outCh := make(chan *pb.IBTP)
 	inCh := make(chan *pb.IBTP)
 
 	outMeta := make(map[string]uint64)
-	outMeta[to] = 1
 	inMeta := make(map[string]uint64)
-	inMeta[to] = 1
+
 	mockMonitor.EXPECT().ListenIBTP().Return(outCh).AnyTimes()
-	mockMonitor.EXPECT().QueryOuterMeta().Return(outMeta)
-	mockMonitor.EXPECT().QueryIBTP(missedOutIBTP.ID()).Return(missedOutIBTP, nil).AnyTimes()
+	mockMonitor.EXPECT().QueryOuterMeta().Return(outMeta).AnyTimes()
 	mockExecutor.EXPECT().QueryInterchainMeta().Return(inMeta).AnyTimes()
 	mockExecutor.EXPECT().QueryCallbackMeta().Return(make(map[string]uint64)).AnyTimes()
-	mockExecutor.EXPECT().QueryIBTPReceipt(to, uint64(1), gomock.Any()).Return(receipt, nil).AnyTimes()
-	mockExecutor.EXPECT().ExecuteIBTP(gomock.Any()).Return(receipt, nil).AnyTimes()
 	mockSyncer.EXPECT().ListenIBTP().Return(inCh).AnyTimes()
-	mockSyncer.EXPECT().QueryIBTP(receipt.ID()).Return(missedInIBTP, nil)
 	mockSyncer.EXPECT().SendIBTP(gomock.Any()).Return(nil).AnyTimes()
 
 	mockExchanger, err := New(mode, from, meta,
@@ -77,18 +65,8 @@ func TestStartRelay(t *testing.T) {
 	require.Nil(t, err)
 	require.Nil(t, mockExchanger.Start())
 
-	// mock one illegal replayed ibtp and one normal ibtp from relay chain
-	replayedInIBTP := getIBTP(t, 1, pb.IBTP_INTERCHAIN)
-	normalInIBTP := getIBTP(t, 2, pb.IBTP_INTERCHAIN)
-	mockExchanger.handleIBTP(normalInIBTP)
-	mockExchanger.handleIBTP(replayedInIBTP)
-
-	// test for unhappy path, one normal indexed ibtp and will trigger getMissing with error
-	unhappyPathMissedOutIBTPID := fmt.Sprintf("%s-%s-%d", from, to, 3)
-	//unhappyPathOutIBTP := getIBTP(t, 4, pb.IBTP_INTERCHAIN)
-	//outCh <- unhappyPathOutIBTP
-	//
-	mockMonitor.EXPECT().QueryIBTP(unhappyPathMissedOutIBTPID).Return(nil, fmt.Errorf("test error for query missing ibtp")).AnyTimes()
+	testRelayIBTPFromSyncer(t, inCh, mockSyncer, mockExecutor, mockExchanger)
+	testRelayIBTPFromMnt(t, outCh, mockMonitor, mockExchanger)
 
 	// test for asset exchange ibtp
 	signs := []byte("signs for asset exchange")
@@ -101,6 +79,67 @@ func TestStartRelay(t *testing.T) {
 	close(outCh)
 	close(inCh)
 	require.Nil(t, mockExchanger.Stop())
+}
+
+func testRelayIBTPFromMnt(t *testing.T, outCh chan *pb.IBTP, monitor *mock_monitor.MockMonitor, exchanger *Exchanger) {
+	ibtps, ibtpM := genIBTPs(t, 100, pb.IBTP_INTERCHAIN)
+	monitor.EXPECT().QueryIBTP(gomock.Any()).DoAndReturn(func(id string) (*pb.IBTP, error) {
+		return ibtpM[id], nil
+	}).AnyTimes()
+
+	for i, ibtp := range ibtps {
+		if (i+1)%2 == 0 {
+			outCh <- ibtp
+		}
+	}
+	time.Sleep(100 *time.Millisecond)
+	require.Equal(t, uint64(100), exchanger.interchainCounter[ibtps[0].To])
+}
+
+func testRelayIBTPFromSyncer(t *testing.T, inCh chan *pb.IBTP, syncer *mock_syncer.MockSyncer, executor *mock_executor.MockExecutor, exchanger *Exchanger) {
+	ibtps, ibtpM := genIBTPs(t, 100, pb.IBTP_INTERCHAIN)
+	syncer.EXPECT().QueryIBTP(gomock.Any()).
+		DoAndReturn(func(id string) (*pb.IBTP, error) {
+			return ibtpM[id], nil
+		}).AnyTimes()
+
+	executor.EXPECT().QueryIBTPReceipt(gomock.Any(), gomock.Any(), gomock.Any()).
+		DoAndReturn(func(from string, index uint64, originalIBTP *pb.IBTP) (*pb.IBTP, error) {
+			ibtp := getIBTP(t, index, pb.IBTP_RECEIPT_SUCCESS)
+			return ibtp, nil
+		}).AnyTimes()
+	executor.EXPECT().ExecuteIBTP(gomock.Any()).
+		DoAndReturn(func(ibtp *pb.IBTP) (*pb.IBTP, error) {
+			receipt := getIBTP(t, ibtp.Index, pb.IBTP_RECEIPT_SUCCESS)
+			return receipt, nil
+		}).AnyTimes()
+	for i, ibtp := range ibtps {
+		if (i+1)%2 == 0 {
+			inCh <- ibtp
+		}
+	}
+
+	time.Sleep(100 *time.Millisecond)
+	require.Equal(t, uint64(100), exchanger.executorCounter[ibtps[0].From])
+
+	ibtpReceipts, _ := genIBTPs(t, 100, pb.IBTP_RECEIPT_SUCCESS)
+	for _, receipt := range ibtpReceipts {
+		inCh <- receipt
+	}
+
+	time.Sleep(100 *time.Millisecond)
+	require.Equal(t, uint64(100), exchanger.callbackCounter[ibtps[0].To])
+}
+
+func genIBTPs(t *testing.T, count int, typ pb.IBTP_Type) ([]*pb.IBTP, map[string]*pb.IBTP) {
+	ibtps := make([]*pb.IBTP, 0, count)
+	ibtpM := make(map[string]*pb.IBTP, count)
+	for i := 1; i <= count; i++ {
+		ibtp := getIBTP(t, uint64(i), typ)
+		ibtps = append(ibtps, ibtp)
+		ibtpM[ibtp.ID()] = ibtp
+	}
+	return ibtps, ibtpM
 }
 
 func TestStartDirect(t *testing.T) {
