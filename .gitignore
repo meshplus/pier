@@ -8,3 +8,7 @@ cover.out
 coverage.out
 coverage.txt
 cover.html
+
+imports/imports.go
+goent.mod
+goent.sum
