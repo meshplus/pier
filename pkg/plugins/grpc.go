@@ -251,7 +251,7 @@ func (g *GRPCClient) GetOutMeta() (map[string]uint64, error) {
 }
 
 func (g *GRPCClient) GetCallbackMeta() (map[string]uint64, error) {
-	response, err := g.client.GetOutMeta(g.doneContext, &pb.Empty{})
+	response, err := g.client.GetCallbackMeta(g.doneContext, &pb.Empty{})
 	if err != nil {
 		return nil, err
 	}

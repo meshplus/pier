@@ -112,6 +112,28 @@ func (ex *Exchanger) handleMissingIBTPFromSyncer(from string, begin, end uint64)
 	return nil
 }
 
+//func (ex *Exchanger) handleMissingIBTPReceiptFromSyncer(to string, begin, end uint64) error {
+//	if begin < 1 {
+//		return fmt.Errorf("begin index for missing ibtp receipt is required >= 1")
+//	}
+//	for ; begin < end; begin++ {
+//		ex.logger.WithFields(logrus.Fields{
+//			"to":    to,
+//			"index": begin,
+//		}).Info("Get missing ibtp receipt to bitxhub")
+//
+//		ibtp, err := ex.syncer.QueryIBTP(fmt.Sprintf("%s-%s-%d", to, ex.pierID, begin))
+//		if err != nil {
+//			return fmt.Errorf("fetch ibtp:%w", err)
+//		}
+//
+//		ex.handleIBTP(ibtp)
+//		ex.callbackCounter[ibtp.To] = ibtp.Index
+//	}
+//
+//	return nil
+//}
+
 func (ex *Exchanger) handleMissingReceipt(from string, begin uint64, end uint64) error {
 	if begin < 1 {
 		return fmt.Errorf("begin index for missing receipt is required >= 1")

@@ -123,6 +123,8 @@ func (e *ChannelExecutor) execCallback(ibtp *pb.IBTP) error {
 		return fmt.Errorf("handle ibtp of callback %w", err)
 	}
 
+	// executor should not change the content of ibtp
+	ibtp.From, ibtp.To = ibtp.To, ibtp.From
 	e.logger.WithFields(logrus.Fields{
 		"index":  ibtp.Index,
 		"type":   ibtp.Type,
