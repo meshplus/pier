@@ -35,15 +35,19 @@ func (ex *Exchanger) handleIBTP(ibtp *pb.IBTP) {
 
 	receipt, err := ex.exec.ExecuteIBTP(ibtp)
 	if err != nil {
-		ex.logger.Errorf("execute ibtp error:%v", err)
+		ex.logger.Errorf("execute ibtp error:%s", err.Error())
 	}
 	if receipt == nil {
+		ex.logger.WithFields(logrus.Fields{
+			"type": ibtp.Type,
+			"id":   ibtp.ID(),
+		}).Info("Handle ibtp receipt success")
 		return
 	}
 	ex.logger.WithFields(logrus.Fields{
-		"index": ibtp.Index,
-		"from":  ibtp.From,
-	}).Info("Handle ibtp")
+		"type": ibtp.Type,
+		"id":   ibtp.ID(),
+	}).Info("Handle ibtp success")
 
 	err = ex.syncer.SendIBTP(receipt)
 	if err != nil {
@@ -54,13 +58,18 @@ func (ex *Exchanger) handleIBTP(ibtp *pb.IBTP) {
 func (ex *Exchanger) applyReceipt(ibtp *pb.IBTP, entry logrus.FieldLogger) {
 	index := ex.callbackCounter[ibtp.To]
 	if index >= ibtp.Index {
-		entry.Info("Ignore ibtp callback")
+		entry.Infof("Ignore ibtp callback, expected index %d", index+1)
 		return
 	}
 
 	if index+1 < ibtp.Index {
-		// todo: how to handle missing ibtp receipt
+		entry.Info("Get missing ibtp receipt, expected index %d", index+1)
 		return
+		// todo: need to handle missing ibtp receipt or not?
+		//if err := ex.handleMissingIBTPReceiptFromSyncer(ibtp.From, index+1, ibtp.Index); err != nil {
+		//	entry.Errorf("Handle missing ibtp receipt failed for :%s", err.Error())
+		//	return
+		//}
 	}
 	ex.handleIBTP(ibtp)
 	ex.callbackCounter[ibtp.To] = ibtp.Index
@@ -69,21 +78,16 @@ func (ex *Exchanger) applyReceipt(ibtp *pb.IBTP, entry logrus.FieldLogger) {
 func (ex *Exchanger) applyInterchain(ibtp *pb.IBTP, entry logrus.FieldLogger) {
 	index := ex.executorCounter[ibtp.From]
 	if index >= ibtp.Index {
-		entry.Info("Ignore ibtp")
+		entry.Infof("Ignore ibtp, expected %d", index+1)
 		return
 	}
 
 	if index+1 < ibtp.Index {
-		ex.logger.WithFields(logrus.Fields{
-			"index": ibtp.Index,
-			"from":  ibtp.From,
-		}).Info("Get missing ibtp")
+		entry.Info("Get missing ibtp")
 
 		if err := ex.handleMissingIBTPFromSyncer(ibtp.From, index+1, ibtp.Index); err != nil {
-			ex.logger.WithFields(logrus.Fields{
-				"index": ibtp.Index,
-				"from":  ibtp.From,
-			}).Error("Handle missing ibtp")
+			entry.Error("Handle missing ibtp")
+			return
 		}
 	}
 	ex.handleIBTP(ibtp)

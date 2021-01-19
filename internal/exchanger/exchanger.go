@@ -238,10 +238,8 @@ func (ex *Exchanger) listenAndSendIBTPFromSyncer() {
 				return
 			}
 			entry := ex.logger.WithFields(logrus.Fields{
-				"index": ibtp.Index,
-				"type":  ibtp.Type,
-				"to":    ibtp.To,
-				"id":    ibtp.ID(),
+				"type": ibtp.Type,
+				"id":   ibtp.ID(),
 			})
 			switch ibtp.Type {
 			case pb.IBTP_INTERCHAIN, pb.IBTP_ASSET_EXCHANGE_INIT,
@@ -253,7 +251,6 @@ func (ex *Exchanger) listenAndSendIBTPFromSyncer() {
 				entry.Errorf("wrong type of ibtp")
 				return
 			}
-			entry.Info("Send ibtp success from syncer")
 		}
 	}
 }
