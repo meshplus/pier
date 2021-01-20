@@ -173,6 +173,11 @@ func (agent *BxhAgent) SendTransaction(tx *pb.Transaction) (*pb.Receipt, error) 
 	return agent.client.SendTransactionWithReceipt(tx, nil)
 }
 
+// InvokeContract implements Agent
+func (agent *BxhAgent) InvokeContract(vmType pb.TransactionData_VMType, address *types.Address, method string, opts *rpcx.TransactOpts, args ...*pb.Arg) (*pb.Receipt, error) {
+	return agent.client.InvokeContract(vmType, address, method, opts, args...)
+}
+
 // SendIBTP implements Agent
 func (agent *BxhAgent) SendIBTP(ibtp *pb.IBTP) (*pb.Receipt, error) {
 	proof := ibtp.GetProof()
@@ -265,6 +270,7 @@ func (agent *BxhAgent) GetAppchains() ([]*rpcx.Appchain, error) {
 	if err != nil {
 		return nil, err
 	}
+	tx.Nonce = 1 // just to pass check
 	receipt, err := agent.client.SendView(tx)
 	if err != nil {
 		return nil, err
@@ -291,6 +297,7 @@ func (agent *BxhAgent) GetInterchainById(from string) *pb.Interchain {
 	if err != nil {
 		return ic
 	}
+	tx.Nonce = 1 // just to pass check
 	receipt, err := agent.client.SendView(tx)
 	if err != nil {
 		return ic

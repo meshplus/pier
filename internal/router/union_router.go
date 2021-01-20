@@ -26,26 +26,28 @@ var logger = log.NewWithModule("union_router")
 var _ Router = (*UnionRouter)(nil)
 
 type UnionRouter struct {
-	peermgr   peermgr.PeerManager
-	syncer    syncer.Syncer
-	logger    logrus.FieldLogger
-	store     storage.Storage
-	appchains map[string]*rpcx.Appchain
-	pbTable   sync.Map
+	peermgr          peermgr.PeerManager
+	syncer           syncer.Syncer
+	logger           logrus.FieldLogger
+	store            storage.Storage
+	appchains        map[string]*rpcx.Appchain
+	pbTable          sync.Map
+	connectedPierIDs []string
 
 	ctx    context.Context
 	cancel context.CancelFunc
 }
 
-func New(peermgr peermgr.PeerManager, store storage.Storage) *UnionRouter {
+func New(peermgr peermgr.PeerManager, store storage.Storage, connectedPierIDs []string) *UnionRouter {
 	ctx, cancel := context.WithCancel(context.Background())
 	return &UnionRouter{
-		peermgr:   peermgr,
-		store:     store,
-		appchains: make(map[string]*rpcx.Appchain),
-		logger:    logger,
-		ctx:       ctx,
-		cancel:    cancel,
+		peermgr:          peermgr,
+		store:            store,
+		appchains:        make(map[string]*rpcx.Appchain),
+		logger:           logger,
+		ctx:              ctx,
+		cancel:           cancel,
+		connectedPierIDs: connectedPierIDs,
 	}
 }
 
@@ -85,9 +87,11 @@ func (u *UnionRouter) Route(ibtp *pb.IBTP) error {
 		res, err := u.peermgr.Send(pierId, message)
 		if err != nil || res.Type != peerproto.Message_ACK || !res.Payload.Ok {
 			u.logger.Errorf("send ibtp error:%v", err)
+			return err
 		}
 		u.pbTable.Store(ibtp.To, pierId)
 		u.store.Put([]byte(ibtp.ID()), []byte(""))
+		u.logger.WithField("ibtp", ibtp.ID()).Infof("send ibtp successfully from %s to %s", ibtp.From, ibtp.To)
 		return nil
 	}
 
@@ -96,6 +100,7 @@ func (u *UnionRouter) Route(ibtp *pb.IBTP) error {
 		res, err := u.peermgr.Send(unionPierId.(string), message)
 		if err == nil && res.Type == peerproto.Message_ACK && res.Payload.Ok {
 			u.store.Put(RouteIBTPKey(ibtp.ID()), []byte(""))
+			u.logger.WithField("ibtp", ibtp.ID()).Infof("send ibtp successfully from %s to %s", ibtp.From, ibtp.To)
 			return nil
 		}
 	}
@@ -126,7 +131,7 @@ func (u *UnionRouter) Broadcast(appchainIds []string) error {
 		u.logger.WithFields(logrus.Fields{
 			"id":  id,
 			"cid": idCid.String(),
-		}).Info("provider cid")
+		}).Info("provide cid to network")
 	}
 	return nil
 }
@@ -134,11 +139,17 @@ func (u *UnionRouter) Broadcast(appchainIds []string) error {
 //AddAppchains adds appchains to route map and broadcast them to union network
 func (u *UnionRouter) AddAppchains(appchains []*rpcx.Appchain) error {
 	if len(appchains) == 0 {
+		u.logger.Warningf("no appchains to add, no chains")
 		return nil
 	}
 
 	ids := make([]string, 0)
 	for _, appchain := range appchains {
+		for _, connectedPierId := range u.connectedPierIDs {
+			if appchain.ID == connectedPierId {
+				continue
+			}
+		}
 		if _, ok := u.appchains[appchain.ID]; ok {
 			continue
 		}
@@ -146,6 +157,7 @@ func (u *UnionRouter) AddAppchains(appchains []*rpcx.Appchain) error {
 		u.appchains[appchain.ID] = appchain
 	}
 	if len(ids) == 0 {
+		u.logger.Warning("no appchains to add, only self")
 		return nil
 	}
 	return u.Broadcast(ids)

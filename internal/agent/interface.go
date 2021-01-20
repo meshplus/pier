@@ -3,6 +3,7 @@ package agent
 import (
 	"context"
 
+	"github.com/meshplus/bitxhub-kit/types"
 	"github.com/meshplus/bitxhub-model/pb"
 	rpcx "github.com/meshplus/go-bitxhub-client"
 )
@@ -36,6 +37,9 @@ type Agent interface {
 
 	// SendTransaction sends the wrapped interchain tx to bitxhub
 	SendTransaction(tx *pb.Transaction) (*pb.Receipt, error)
+
+	// InvokeContract invokes contract of bitxhub
+	InvokeContract(vmType pb.TransactionData_VMType, address *types.Address, method string, opts *rpcx.TransactOpts, args ...*pb.Arg) (*pb.Receipt, error)
 
 	// SendIBTP sends wrapped ibtp to bitxhub internal VM to execute
 	SendIBTP(ibtp *pb.IBTP) (*pb.Receipt, error)
