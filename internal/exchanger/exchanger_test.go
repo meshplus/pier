@@ -186,11 +186,16 @@ func TestStartDirect(t *testing.T) {
 }
 
 func TestStartUnionMode(t *testing.T) {
+	testUnionMode(from, t)
+	testUnionMode(to, t)
+}
+
+func testUnionMode(pierID string, t *testing.T) {
 	mode := repo.UnionMode
 	mockMonitor, mockExecutor, mockSyncer, mockPeerMgr, mockRouter, mockAgent, store := prepareUnoin(t)
 	meta := &pb.Interchain{}
 
-	mockExchanger, err := New(mode, from, meta,
+	mockExchanger, err := New(mode, pierID, meta,
 		WithMonitor(mockMonitor), WithExecutor(mockExecutor),
 		WithSyncer(mockSyncer), WithPeerMgr(mockPeerMgr),
 		WithRouter(mockRouter), WithStorage(store),
@@ -209,16 +214,16 @@ func TestStartUnionMode(t *testing.T) {
 	require.Nil(t, err)
 	ibtpMsg := peermgr.Message(peerMsg.Message_ROUTER_IBTP_SEND, true, ibtpBytes)
 	// mock getInterchainMsg for Message_ROUTER_INTERCHAIN_SEND
-	interchainInfoMsg := peermgr.Message(peerMsg.Message_ROUTER_INTERCHAIN_SEND, true, []byte(from))
+	interchainInfoMsg := peermgr.Message(peerMsg.Message_ROUTER_INTERCHAIN_SEND, true, []byte(pierID))
 	interchainCounter := &pb.Interchain{
-		InterchainCounter:    map[string]uint64{from: 1},
-		ReceiptCounter:       map[string]uint64{from: 1},
-		SourceReceiptCounter: map[string]uint64{from: 1},
+		InterchainCounter:    map[string]uint64{pierID: 1},
+		ReceiptCounter:       map[string]uint64{pierID: 1},
+		SourceReceiptCounter: map[string]uint64{pierID: 1},
 	}
 	signs := []byte("signs for ibtp in bitxhub")
 	appchains := []*rpcx.Appchain{
 		{
-			ID:         from,
+			ID:         pierID,
 			Name:       "hpc",
 			Validators: "validator for hpc",
 			Status:     0,
@@ -227,21 +232,22 @@ func TestStartUnionMode(t *testing.T) {
 			PublicKey:  "",
 		},
 	}
-	pierID := from
+
 	icBytes, err := interchainCounter.Marshal()
 	require.Nil(t, err)
 	recoverACKMsg := peermgr.Message(peerMsg.Message_ACK, true, icBytes)
 
 	mockAgent.EXPECT().SendIBTP(gomock.Any()).Return(receipt, nil).AnyTimes()
-	mockAgent.EXPECT().GetInterchainById(from).Return(interchainCounter).AnyTimes()
+	mockAgent.EXPECT().GetInterchainById(pierID).Return(interchainCounter).AnyTimes()
 	mockAgent.EXPECT().GetIBTPSigns(ibtp).Return(signs, nil).AnyTimes()
 	mockAgent.EXPECT().GetAppchains().Return(appchains, nil).AnyTimes()
 	mockPeerMgr.EXPECT().AsyncSendWithStream(gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
 	mockPeerMgr.EXPECT().FindProviders(ibtp.To).Return(pierID, nil)
 	mockPeerMgr.EXPECT().Send(pierID, gomock.Any()).Return(recoverACKMsg, nil)
-	mockRouter.EXPECT().ExistAppchain(from).Return(true).AnyTimes()
+	mockRouter.EXPECT().ExistAppchain(pierID).Return(true).AnyTimes()
 	mockRouter.EXPECT().Route(ibtp).Return(nil).AnyTimes()
 	mockRouter.EXPECT().AddAppchains(appchains).Return(nil).AnyTimes()
+	mockExecutor.EXPECT().HandleIBTP(ibtp).Return(nil).AnyTimes()
 	require.Nil(t, mockExchanger.Start())
 
 	// test Message_ROUTER_IBTP_SEND for peerMgr to handle msg from other union piers

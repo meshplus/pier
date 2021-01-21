@@ -64,7 +64,7 @@ func (client *BxhClient) SubmitIBTP(ibtp *pb.IBTP) (*pb.SubmitIBTPResponse, erro
 		return ret, fmt.Errorf("invoke payload: %w", err)
 	}
 
-	ret.Status = true
+	ret.Status = receipt.IsSuccess()
 	ret.Message = string(receipt.Ret)
 	ret.Result = &pb.IBTP{}
 
@@ -72,7 +72,7 @@ func (client *BxhClient) SubmitIBTP(ibtp *pb.IBTP) (*pb.SubmitIBTPResponse, erro
 		return ret, nil
 	}
 
-	newArgs := make([][]byte, 0)
+	newArgs := make([][]byte, 0) // TODO modify by receipt.Ret
 	switch content.Func {
 	case "Synchronize":
 		newArgs = append(newArgs, nil)
