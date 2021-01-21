@@ -134,13 +134,17 @@ func NewPier(repoRoot string, config *repo.Config) (*Pier, error) {
 			rpcx.WithLogger(logger),
 			rpcx.WithPrivateKey(privateKey),
 		}
-		nodeInfo := &rpcx.NodeInfo{Addr: config.Mode.Relay.Addr}
-		if config.Security.EnableTLS {
-			nodeInfo.CertPath = filepath.Join(config.RepoRoot, config.Security.Tlsca)
-			nodeInfo.EnableTLS = config.Security.EnableTLS
-			nodeInfo.CommonName = config.Security.CommonName
+		nodesInfo := make([]*rpcx.NodeInfo, 0, len(config.Mode.Relay.Addrs))
+		for _, addr := range config.Mode.Relay.Addrs {
+			nodeInfo := &rpcx.NodeInfo{Addr: addr}
+			if config.Security.EnableTLS {
+				nodeInfo.CertPath = filepath.Join(config.RepoRoot, config.Security.Tlsca)
+				nodeInfo.EnableTLS = config.Security.EnableTLS
+				nodeInfo.CommonName = config.Security.CommonName
+			}
+			nodesInfo = append(nodesInfo, nodeInfo)
 		}
-		opts = append(opts, rpcx.WithNodesInfo(nodeInfo))
+		opts = append(opts, rpcx.WithNodesInfo(nodesInfo...))
 		client, err := rpcx.New(opts...)
 		if err != nil {
 			return nil, fmt.Errorf("create bitxhub client: %w", err)
@@ -178,7 +182,7 @@ func NewPier(repoRoot string, config *repo.Config) (*Pier, error) {
 		if err != nil {
 			return nil, fmt.Errorf("pier ha constructor not found")
 		}
-		pierHA = pierHAConstructor(client, addr.String(), config.Mode.Relay.Addr)
+		pierHA = pierHAConstructor(client, addr.String(), config.Mode.Relay.Addrs[0])
 	default:
 		return nil, fmt.Errorf("unsupported mode")
 	}
@@ -286,13 +290,17 @@ func NewUnionPier(repoRoot string, config *repo.Config) (*Pier, error) {
 		rpcx.WithLogger(logger),
 		rpcx.WithPrivateKey(privateKey),
 	}
-	nodeInfo := &rpcx.NodeInfo{Addr: config.Mode.Relay.Addr}
-	if config.Security.EnableTLS {
-		nodeInfo.CertPath = filepath.Join(config.RepoRoot, config.Security.Tlsca)
-		nodeInfo.EnableTLS = config.Security.EnableTLS
-		nodeInfo.CommonName = config.Security.CommonName
+	nodesInfo := make([]*rpcx.NodeInfo, 0, len(config.Mode.Relay.Addrs))
+	for _, addr := range config.Mode.Relay.Addrs {
+		nodeInfo := &rpcx.NodeInfo{Addr: addr}
+		if config.Security.EnableTLS {
+			nodeInfo.CertPath = filepath.Join(config.RepoRoot, config.Security.Tlsca)
+			nodeInfo.EnableTLS = config.Security.EnableTLS
+			nodeInfo.CommonName = config.Security.CommonName
+		}
+		nodesInfo = append(nodesInfo, nodeInfo)
 	}
-	opts = append(opts, rpcx.WithNodesInfo(nodeInfo))
+	opts = append(opts, rpcx.WithNodesInfo(nodesInfo...))
 	client, err := rpcx.New(opts...)
 	if err != nil {
 		return nil, fmt.Errorf("create bitxhub client: %w", err)

@@ -54,7 +54,7 @@ type Mode struct {
 
 // Relay are configs about bitxhub
 type Relay struct {
-	Addr       string   `toml:"addr" json:"addr"`
+	Addrs      []string `toml:"addrs" json:"addrs"`
 	Quorum     uint64   `toml:"quorum" json:"quorum"`
 	Validators []string `toml:"validators" json:"validators"`
 }
@@ -117,7 +117,12 @@ func DefaultConfig() *Config {
 		Mode: Mode{
 			Type: "relay",
 			Relay: Relay{
-				Addr:   "localhost:60011",
+				Addrs: []string{
+					"localhost:60011",
+					"localhost:60012",
+					"localhost:60013",
+					"localhost:60014",
+				},
 				Quorum: 2,
 				Validators: []string{
 					"0x000f1a7a08ccc48e5d30f80850cf1cf283aa3abd",

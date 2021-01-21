@@ -167,7 +167,6 @@ func (syncer *WrapperSyncer) syncInterchainTxWrappers() {
 			return
 		default:
 			ch := syncer.getWrappersChannel()
-
 			err := retry.Retry(func(attempt uint) error {
 				chainMeta, err := syncer.client.GetChainMeta()
 				if err != nil {
@@ -223,6 +222,7 @@ func (syncer *WrapperSyncer) getWrappersChannel() chan *pb.InterchainTxWrappers 
 				return
 			case h, ok := <-rawCh:
 				if !ok {
+					close(ch)
 					return
 				}
 				ch <- h.(*pb.InterchainTxWrappers)
