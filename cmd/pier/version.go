@@ -18,7 +18,7 @@ var versionCMD = cli.Command{
 }
 
 func getVersion(all bool) string {
-	version := fmt.Sprintf("Pier version: %s-%s\n", pier.CurrentVersion, pier.CurrentCommit)
+	version := fmt.Sprintf("Pier version: %s-%s-%s\n", pier.CurrentVersion, pier.CurrentBranch, pier.CurrentCommit)
 	if all {
 		version += fmt.Sprintf("App build date: %s\n", pier.BuildDate)
 		version += fmt.Sprintf("System version: %s\n", pier.Platform)
