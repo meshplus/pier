@@ -11,30 +11,30 @@ import (
 	sync "sync"
 )
 
-// MockExecutor is a mock of Executor interface
+// MockExecutor is a mock of Executor interface.
 type MockExecutor struct {
 	ctrl     *gomock.Controller
 	recorder *MockExecutorMockRecorder
 }
 
-// MockExecutorMockRecorder is the mock recorder for MockExecutor
+// MockExecutorMockRecorder is the mock recorder for MockExecutor.
 type MockExecutorMockRecorder struct {
 	mock *MockExecutor
 }
 
-// NewMockExecutor creates a new mock instance
+// NewMockExecutor creates a new mock instance.
 func NewMockExecutor(ctrl *gomock.Controller) *MockExecutor {
 	mock := &MockExecutor{ctrl: ctrl}
 	mock.recorder = &MockExecutorMockRecorder{mock}
 	return mock
 }
 
-// EXPECT returns an object that allows the caller to indicate expected use
+// EXPECT returns an object that allows the caller to indicate expected use.
 func (m *MockExecutor) EXPECT() *MockExecutorMockRecorder {
 	return m.recorder
 }
 
-// Start mocks base method
+// Start mocks base method.
 func (m *MockExecutor) Start() error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Start")
@@ -42,13 +42,13 @@ func (m *MockExecutor) Start() error {
 	return ret0
 }
 
-// Start indicates an expected call of Start
+// Start indicates an expected call of Start.
 func (mr *MockExecutorMockRecorder) Start() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Start", reflect.TypeOf((*MockExecutor)(nil).Start))
 }
 
-// Stop mocks base method
+// Stop mocks base method.
 func (m *MockExecutor) Stop() error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Stop")
@@ -56,13 +56,13 @@ func (m *MockExecutor) Stop() error {
 	return ret0
 }
 
-// Stop indicates an expected call of Stop
+// Stop indicates an expected call of Stop.
 func (mr *MockExecutorMockRecorder) Stop() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Stop", reflect.TypeOf((*MockExecutor)(nil).Stop))
 }
 
-// HandleIBTP mocks base method
+// HandleIBTP mocks base method.
 func (m *MockExecutor) HandleIBTP(ibtp *pb.IBTP) *pb.IBTP {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "HandleIBTP", ibtp)
@@ -70,13 +70,13 @@ func (m *MockExecutor) HandleIBTP(ibtp *pb.IBTP) *pb.IBTP {
 	return ret0
 }
 
-// HandleIBTP indicates an expected call of HandleIBTP
+// HandleIBTP indicates an expected call of HandleIBTP.
 func (mr *MockExecutorMockRecorder) HandleIBTP(ibtp interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "HandleIBTP", reflect.TypeOf((*MockExecutor)(nil).HandleIBTP), ibtp)
 }
 
-// QueryLatestMeta mocks base method
+// QueryLatestMeta mocks base method.
 func (m *MockExecutor) QueryLatestMeta() *sync.Map {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "QueryLatestMeta")
@@ -84,13 +84,13 @@ func (m *MockExecutor) QueryLatestMeta() *sync.Map {
 	return ret0
 }
 
-// QueryLatestMeta indicates an expected call of QueryLatestMeta
+// QueryLatestMeta indicates an expected call of QueryLatestMeta.
 func (mr *MockExecutorMockRecorder) QueryLatestMeta() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "QueryLatestMeta", reflect.TypeOf((*MockExecutor)(nil).QueryLatestMeta))
 }
 
-// QueryLatestCallbackMeta mocks base method
+// QueryLatestCallbackMeta mocks base method.
 func (m *MockExecutor) QueryLatestCallbackMeta() *sync.Map {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "QueryLatestCallbackMeta")
@@ -98,13 +98,13 @@ func (m *MockExecutor) QueryLatestCallbackMeta() *sync.Map {
 	return ret0
 }
 
-// QueryLatestCallbackMeta indicates an expected call of QueryLatestCallbackMeta
+// QueryLatestCallbackMeta indicates an expected call of QueryLatestCallbackMeta.
 func (mr *MockExecutorMockRecorder) QueryLatestCallbackMeta() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "QueryLatestCallbackMeta", reflect.TypeOf((*MockExecutor)(nil).QueryLatestCallbackMeta))
 }
 
-// QueryReceipt mocks base method
+// QueryReceipt mocks base method.
 func (m *MockExecutor) QueryReceipt(from string, idx uint64, originalIBTP *pb.IBTP) (*pb.IBTP, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "QueryReceipt", from, idx, originalIBTP)
@@ -113,7 +113,7 @@ func (m *MockExecutor) QueryReceipt(from string, idx uint64, originalIBTP *pb.IB
 	return ret0, ret1
 }
 
-// QueryReceipt indicates an expected call of QueryReceipt
+// QueryReceipt indicates an expected call of QueryReceipt.
 func (mr *MockExecutorMockRecorder) QueryReceipt(from, idx, originalIBTP interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "QueryReceipt", reflect.TypeOf((*MockExecutor)(nil).QueryReceipt), from, idx, originalIBTP)

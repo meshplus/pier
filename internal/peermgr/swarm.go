@@ -253,6 +253,17 @@ func (swarm *Swarm) Send(id string, msg *peermgr.Message) (*peermgr.Message, err
 	return m, nil
 }
 
+// ConnectedPeerIDs gets connected PeerIDs
+// TODO
+func (swarm *Swarm) ConnectedPeerIDs() []string {
+	peerIDs := []string{}
+	swarm.connectedPeers.Range(func(key, value interface{}) bool {
+		peerIDs = append(peerIDs, value.(string))
+		return true
+	})
+	return peerIDs
+}
+
 func (swarm *Swarm) Peers() map[string]*peer.AddrInfo {
 	m := make(map[string]*peer.AddrInfo)
 	for id, addr := range swarm.peers {
@@ -408,6 +419,7 @@ func (swarm *Swarm) RegisterConnectHandler(handler ConnectHandler) error {
 
 	return nil
 }
+
 func (swarm *Swarm) FindProviders(id string) (string, error) {
 	format := cid.V0Builder{}
 	toCid, err := format.Sum([]byte(id))
@@ -424,18 +436,24 @@ func (swarm *Swarm) FindProviders(id string) (string, error) {
 
 	for provider := range providers {
 		swarm.logger.WithFields(logrus.Fields{
-			"id":  id,
-			"cid": provider.ID.String(),
-		}).Info("Find providers")
+			"id":          id,
+			"cid":         toCid.String(),
+			"provider_id": provider.ID.String(),
+		}).Info("Find provider")
 
 		pierId, err := swarm.Connect(&provider)
 		if err != nil {
 			swarm.logger.WithFields(logrus.Fields{"peerId": pierId,
-				"cid": provider.ID.String()}).Error("connect error")
+				"cid": provider.ID.String()}).Error("connect error: ", err)
 			continue
 		}
 		return pierId, nil
 	}
+
+	swarm.logger.WithFields(logrus.Fields{
+		"id":  id,
+		"cid": toCid.String(),
+	}).Warning("No providers found") // TODO add error
 	return "", nil
 }
 

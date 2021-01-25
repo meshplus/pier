@@ -246,6 +246,12 @@ func TestSwarm_Provider(t *testing.T) {
 	require.Nil(t, err)
 }
 
+func TestSwarm_ConnectedPeerIDs(t *testing.T) {
+	_, _, mockSwarm, _, _, _ := prepare(t)
+	ids := mockSwarm.ConnectedPeerIDs()
+	require.NotNil(t, ids)
+}
+
 func prepare(t *testing.T) (*Swarm, []string, *Swarm, *peermgr.Message, string, string) {
 	nodeKeys, privKeys, config, ids := genKeysAndConfig(t, 2, repo.DirectMode)
 

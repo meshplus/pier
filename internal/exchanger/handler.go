@@ -55,7 +55,18 @@ func (ex *Exchanger) handleIBTP(ibtp *pb.IBTP) {
 
 // handleIBTP handle ibtps from bitxhub
 func (ex *Exchanger) handleUnionIBTP(ibtp *pb.IBTP) {
-	ibtp.From = ex.pierID + "-" + ibtp.From
+	if ibtp.To == ex.pierID {
+		ex.exec.HandleIBTP(ibtp)
+		logger.WithFields(logrus.Fields{
+			"index": ibtp.Index,
+			"type":  ibtp.Type,
+			"from":  ibtp.From,
+			"id":    ibtp.ID(),
+		}).Infof("Handle union ibtp sent to executor")
+		return
+	}
+
+	ibtp.From = ex.pierID + "-" + ibtp.From // for inter-relay they're the same
 	var signs []byte
 	if err := retry.Retry(func(attempt uint) error {
 		var err error
@@ -108,6 +119,7 @@ func (ex *Exchanger) handleRouterSendIBTPMessage(stream network.Stream, msg *pee
 			"index": ibtp.Index,
 			"type":  ibtp.Type,
 			"from":  ibtp.From,
+			"to":    ibtp.To,
 			"id":    ibtp.ID(),
 		})
 
@@ -122,6 +134,7 @@ func (ex *Exchanger) handleRouterSendIBTPMessage(stream network.Stream, msg *pee
 			entry.Error("send back ibtp: %w", err)
 			return fmt.Errorf("send back ibtp: %w", err)
 		}
+		entry.Infof("receive ibtp successfully")
 
 		if err := ex.sendIBTP(ibtp); err != nil {
 			entry.Infof("Send ibtp: %s", err.Error())

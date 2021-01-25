@@ -24,6 +24,7 @@ import (
 const (
 	hash = "0x9f41dd84524bf8a42f8ab58ecfca6e1752d6fd93fe8dc00af4c71963c97db59f"
 	from = "0x3f9d18f7c3a6e5e4c0b877fe3e688ab08840b997"
+	to   = "0x703b22368195d5063C5B5C26019301Cf2EbC83e2"
 )
 
 func TestAppchain(t *testing.T) {
@@ -176,6 +177,30 @@ func TestSendTransaction(t *testing.T) {
 
 	mockClient.EXPECT().SendTransactionWithReceipt(gomock.Any(), gomock.Any()).Return(r, nil)
 	receipt, err := ag.SendTransaction(tx)
+	require.Nil(t, err)
+	require.Equal(t, r, receipt)
+}
+
+func TestInvokerContract(t *testing.T) {
+	ag, mockClient := prepare(t)
+
+	r := &pb.Receipt{
+		Ret:    []byte(nil),
+		Status: 0,
+	}
+
+	mockClient.EXPECT().InvokeContract(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(),
+		gomock.Any(), gomock.Any()).Return(r, nil).AnyTimes()
+
+	args := []*pb.Arg{}
+	args = append(args, pb.String("test_key"))
+	args = append(args, pb.String("test_value"))
+	receipt, err := ag.InvokeContract(
+		pb.TransactionData_BVM,
+		constant.StoreContractAddr.Address(), // broker
+		"Set",
+		nil,
+		args...)
 	require.Nil(t, err)
 	require.Equal(t, r, receipt)
 }

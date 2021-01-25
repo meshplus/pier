@@ -9,7 +9,7 @@ import (
 
 	"github.com/Rican7/retry"
 	"github.com/Rican7/retry/strategy"
-	"github.com/hashicorp/go-plugin"
+	plugin "github.com/hashicorp/go-plugin"
 	"github.com/meshplus/bitxhub-kit/crypto"
 	"github.com/meshplus/bitxhub-kit/log"
 	"github.com/meshplus/bitxhub-kit/storage"
@@ -306,10 +306,17 @@ func NewUnionPier(repoRoot string, config *repo.Config) (*Pier, error) {
 		return nil, fmt.Errorf("syncer create: %w", err)
 	}
 
-	router := router.New(peerManager, store)
+	cli := agent.CreateClient(ag)
+	exec, err := executor.New(cli, addr.String(), store, nil)
+	if err != nil {
+		return nil, fmt.Errorf("executor create: %w", err)
+	}
+
+	router := router.New(peerManager, store, peerManager.(*peermgr.Swarm).ConnectedPeerIDs())
 
 	ex, err = exchanger.New(config.Mode.Type, addr.String(), meta,
 		exchanger.WithAgent(ag),
+		exchanger.WithExecutor(exec),
 		exchanger.WithPeerMgr(peerManager),
 		exchanger.WithSyncer(sync),
 		exchanger.WithStorage(store),
@@ -326,6 +333,7 @@ func NewUnionPier(repoRoot string, config *repo.Config) (*Pier, error) {
 		appchain:   chain,
 		meta:       meta,
 		exchanger:  ex,
+		exec:       exec,
 		lite:       lite,
 		storage:    store,
 		ctx:        ctx,
