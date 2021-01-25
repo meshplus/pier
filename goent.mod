@@ -4,7 +4,7 @@ go 1.13
 
 require (
 	github.com/Rican7/retry v0.1.0
-	github.com/bitxhub/pier-ha v0.0.0-20210115092414-ba91027a5e27
+	github.com/bitxhub/pier-ha v0.0.0-20210125070843-56ccae0d88a4
 	github.com/btcsuite/btcd v0.20.1-beta
 	github.com/cbergoon/merkletree v0.2.0
 	github.com/fatih/color v1.9.0
@@ -22,7 +22,7 @@ require (
 	github.com/meshplus/bitxhub-core v0.1.0-rc1.0.20210122024808-d5024cdfb75d
 	github.com/meshplus/bitxhub-kit v1.1.2-0.20201203072410-8a0383a6870d
 	github.com/meshplus/bitxhub-model v1.1.2-0.20210107045700-cee670a2e117
-	github.com/meshplus/go-bitxhub-client v1.0.0-rc4.0.20210121091936-1f34e4952613
+	github.com/meshplus/go-bitxhub-client v1.0.0-rc4.0.20210121092538-e2be20ff26b8
 	github.com/meshplus/go-lightp2p v0.0.0-20200817105923-6b3aee40fa54
 	github.com/mitchellh/go-homedir v1.1.0
 	github.com/multiformats/go-multiaddr v0.3.0

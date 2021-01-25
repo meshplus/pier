@@ -26,6 +26,8 @@ GREEN=\033[0;32m
 BLUE=\033[0;34m
 NC=\033[0m
 
+MODS = $(shell sed -e ':a' -e 'N' -e '$$!ba' -e 's/\n/@/g' goent.diff)
+
 .PHONY: test
 
 help: Makefile
@@ -66,6 +68,7 @@ installent: packr
 	cp imports/imports.go.template imports/imports.go
 	@sed "s?)?$(MODS)@)?" go.mod  | tr '@' '\n' > goent.mod
 	$(GO) install -tags ent -ldflags '${GOLDFLAGS}' -modfile goent.mod ./cmd/${APP_NAME}
+	@printf "${GREEN}Build pier successfully${NC}\n"
 
 buildent: packr
 	@mkdir -p bin

@@ -12,7 +12,7 @@ func init() {
 	agency.RegisterPierHAConstructor("single", New)
 }
 
-func New(client agency.HAClient, pierID string, relayAddr string) agency.PierHA {
+func New(client agency.HAClient, pierID string) agency.PierHA {
 	return &SinglePierMng{
 		isMain: make(chan bool),
 	}
