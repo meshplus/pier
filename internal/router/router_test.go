@@ -30,9 +30,9 @@ func TestUnionRouter_Route(t *testing.T) {
 	mockPeerManager := mock_peermgr.NewMockPeerManager(mockCtl)
 
 	message := peermgr.Message(peerproto.Message_ACK, true, nil)
-	mockPeerManager.EXPECT().FindProviders(gomock.Any()).Return(other, nil)
-	mockPeerManager.EXPECT().Connect(gomock.Any()).Return(other, nil)
-	mockPeerManager.EXPECT().Send(gomock.Any(), gomock.Any()).Return(message, nil)
+	mockPeerManager.EXPECT().FindProviders(gomock.Any()).Return(other, nil).AnyTimes()
+	mockPeerManager.EXPECT().Connect(gomock.Any()).Return(other, nil).AnyTimes()
+	mockPeerManager.EXPECT().Send(gomock.Any(), gomock.Any()).Return(message, nil).AnyTimes()
 
 	repoRoot, err := ioutil.TempDir("", "router_commit")
 	assert.Nil(t, err)
@@ -40,9 +40,23 @@ func TestUnionRouter_Route(t *testing.T) {
 
 	router := New(mockPeerManager, storage, log.NewWithModule("router"))
 
+	router.Start()
+
 	ibtp := mockIBTP(t, 1, pb.IBTP_INTERCHAIN)
 	err = router.Route(ibtp)
 	require.Nil(t, err)
+
+	// send repeated ibtp
+	err = router.Route(ibtp)
+	require.Nil(t, err)
+
+	ibtp.From = ibtp.To
+	err = router.Route(ibtp)
+	require.Nil(t, err)
+
+	router.Stop()
+
+
 }
 
 func TestUnionRouter_AddAppchains(t *testing.T) {
@@ -68,6 +82,12 @@ func TestUnionRouter_AddAppchains(t *testing.T) {
 	appchains = append(appchains, app, bxh)
 	err = router.AddAppchains(appchains)
 	require.Nil(t, err)
+
+	ok := router.ExistAppchain(app.ID)
+	require.True(t, ok)
+
+	ok = router.ExistAppchain(bxh.ID)
+	require.True(t, ok)
 }
 
 func mockIBTP(t *testing.T, index uint64, typ pb.IBTP_Type) *pb.IBTP {
