@@ -149,6 +149,7 @@ func (g *GRPCClient) Stop() error {
 	if err != nil {
 		return err
 	}
+	g.doneContext.Done()
 	return nil
 }
 
