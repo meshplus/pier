@@ -178,7 +178,7 @@ func NewPier(repoRoot string, config *repo.Config) (*Pier, error) {
 		if err != nil {
 			return nil, fmt.Errorf("pier ha constructor not found")
 		}
-		pierHA = pierHAConstructor(client, addr.String(), config.Mode.Relay.Addr)
+		pierHA = pierHAConstructor(client, addr.String())
 	default:
 		return nil, fmt.Errorf("unsupported mode")
 	}
