@@ -192,7 +192,7 @@ func NewPier(repoRoot string, config *repo.Config) (*Pier, error) {
 	var cli plugins.Client
 	var grpcPlugin *plugin.Client
 	err = retry.Retry(func(attempt uint) error {
-		cli, grpcPlugin, err = plugins.CreateClient(addr.String(), config.Appchain.Config, extra)
+		cli, grpcPlugin, err = plugins.CreateClient(addr.String(), config.Appchain, extra)
 		if err != nil {
 			logger.Errorf("client plugin create:%s", err)
 		}
