@@ -394,7 +394,7 @@ func (pier *Pier) Start() error {
 					if !status {
 						continue
 					}
-					if err := pier.Stop(); err != nil {
+					if err := pier.Stop(true); err != nil {
 						pier.logger.Errorf("pier stop: %w", err)
 						return
 					}
@@ -407,14 +407,17 @@ func (pier *Pier) Start() error {
 }
 
 // Stop stops three main components of pier app
-func (pier *Pier) Stop() error {
+func (pier *Pier) Stop(isAux bool) error {
 	if pier.config.Mode.Type != repo.UnionMode {
 		if err := pier.monitor.Stop(); err != nil {
 			return fmt.Errorf("monitor stop: %w", err)
 		}
 
-		// stop appchain plugin first and kill plugin process
-		pier.grpcPlugin.Kill()
+		if !isAux {
+			// stop appchain plugin first and kill plugin process
+			pier.plugin.Stop()
+			pier.grpcPlugin.Kill()
+		}
 
 		if err := pier.exec.Stop(); err != nil {
 			return fmt.Errorf("executor stop: %w", err)

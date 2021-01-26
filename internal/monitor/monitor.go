@@ -67,7 +67,7 @@ func (m *AppchainMonitor) Start() error {
 func (m *AppchainMonitor) Stop() error {
 	m.cancel()
 	m.logger.Info("Monitor stopped")
-	return m.client.Stop()
+	return nil
 }
 
 func (m *AppchainMonitor) ListenIBTP() <-chan *pb.IBTP {
