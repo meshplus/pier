@@ -103,6 +103,7 @@ type LogModule struct {
 // Appchain are configs about appchain
 type Appchain struct {
 	Config string `toml:"config" json:"config"`
+	Plugin string `toml:"plugin" json:"plugin"`
 }
 
 // DefaultConfig returns config with default value
@@ -162,6 +163,7 @@ func DefaultConfig() *Config {
 			Mode: "single",
 		},
 		Appchain: Appchain{
+			Plugin: "appchain_plugin",
 			Config: "fabric",
 		},
 	}
