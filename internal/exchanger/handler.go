@@ -38,16 +38,10 @@ func (ex *Exchanger) handleIBTP(ibtp *pb.IBTP) {
 		ex.logger.Errorf("execute ibtp error:%s", err.Error())
 	}
 	if receipt == nil {
-		ex.logger.WithFields(logrus.Fields{
-			"type": ibtp.Type,
-			"id":   ibtp.ID(),
-		}).Info("Handle ibtp receipt success")
+		ex.logger.WithFields(logrus.Fields{"type": ibtp.Type, "id": ibtp.ID()}).Info("Handle ibtp receipt success")
 		return
 	}
-	ex.logger.WithFields(logrus.Fields{
-		"type": ibtp.Type,
-		"id":   ibtp.ID(),
-	}).Info("Handle ibtp success")
+	ex.logger.WithFields(logrus.Fields{"type": ibtp.Type, "id": ibtp.ID()}).Info("Handle ibtp success")
 
 	err = ex.syncer.SendIBTP(receipt)
 	if err != nil {
@@ -64,12 +58,8 @@ func (ex *Exchanger) applyReceipt(ibtp *pb.IBTP, entry logrus.FieldLogger) {
 
 	if index+1 < ibtp.Index {
 		entry.Info("Get missing ibtp receipt, expected index %d", index+1)
-		return
 		// todo: need to handle missing ibtp receipt or not?
-		//if err := ex.handleMissingIBTPReceiptFromSyncer(ibtp.From, index+1, ibtp.Index); err != nil {
-		//	entry.Errorf("Handle missing ibtp receipt failed for :%s", err.Error())
-		//	return
-		//}
+		return
 	}
 	ex.handleIBTP(ibtp)
 	ex.callbackCounter[ibtp.To] = ibtp.Index
@@ -120,12 +110,7 @@ func (ex *Exchanger) handleUnionIBTP(ibtp *pb.IBTP) {
 	}, strategy.Wait(1*time.Second)); err != nil {
 		ex.logger.Panic(err)
 	}
-	ex.logger.WithFields(logrus.Fields{
-		"index": ibtp.Index,
-		"type":  ibtp.Type,
-		"from":  ibtp.From,
-		"id":    ibtp.ID(),
-	}).Info("Route tx successful")
+	ex.logger.WithFields(logrus.Fields{"index": ibtp.Index, "type": ibtp.Type, "from": ibtp.From, "id": ibtp.ID()}).Info("Route tx successful")
 }
 
 func (ex *Exchanger) handleProviderAppchains() error {
@@ -139,7 +124,6 @@ func (ex *Exchanger) handleProviderAppchains() error {
 //handleRouterSendIBTPMessage handles IBTP from union interchain network
 func (ex *Exchanger) handleRouterSendIBTPMessage(stream network.Stream, msg *peerMsg.Message) {
 	handle := func() error {
-
 		ibtp := &pb.IBTP{}
 		if err := ibtp.Unmarshal(msg.Payload.Data); err != nil {
 			return fmt.Errorf("unmarshal ibtp: %w", err)
@@ -154,19 +138,17 @@ func (ex *Exchanger) handleRouterSendIBTPMessage(stream network.Stream, msg *pee
 
 		retMsg := peermgr.Message(peerMsg.Message_ACK, true, nil)
 		if !ex.router.ExistAppchain(ibtp.To) {
-			ex.logger.WithField("appchain", ibtp.To).Errorf("cannot found appchain in relay network")
+			entry.WithField("appchain", ibtp.To).Errorf("cannot found appchain in relay network")
 			retMsg.Payload.Ok = false
 		}
 
 		err := ex.peerMgr.AsyncSendWithStream(stream, retMsg)
 		if err != nil {
-			entry.Error("send back ibtp: %w", err)
 			return fmt.Errorf("send back ibtp: %w", err)
 		}
 
 		if err := ex.sendIBTP(ibtp); err != nil {
-			entry.Infof("Send ibtp: %s", err.Error())
-			return err
+			return fmt.Errorf("send ibtp: %v", err)
 		}
 		return nil
 	}
@@ -188,14 +170,9 @@ func (ex *Exchanger) postHandleIBTP(from string, receipt *pb.IBTP) {
 	}
 
 	//ex.logger.Infof("postHandleIBTP, %s-%s-%d", receipt.From, receipt.To, receipt.Index)
-	data, err := receipt.Marshal()
-	if err != nil {
-		ex.logger.Error("marshal ibtp receipt: %w", err)
-	}
-
+	data, _ := receipt.Marshal()
 	retMsg := peermgr.Message(peerMsg.Message_IBTP_RECEIPT_SEND, true, data)
-	err = ex.peerMgr.AsyncSend(from, retMsg)
-	if err != nil {
+	if err := ex.peerMgr.AsyncSend(from, retMsg); err != nil {
 		ex.logger.Error("send back ibtp receipt: %w", err)
 	}
 }

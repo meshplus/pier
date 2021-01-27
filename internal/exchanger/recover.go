@@ -16,10 +16,7 @@ func (ex *Exchanger) recoverRelay() {
 		}
 
 		if err := ex.handleMissingIBTPFromMnt(to, beginIndex+1, idx+1); err != nil {
-			ex.logger.WithFields(logrus.Fields{
-				"address": to,
-				"error":   err.Error(),
-			}).Panic("Get missing receipt from contract")
+			ex.logger.WithFields(logrus.Fields{"address": to, "error": err.Error()}).Panic("Get missing receipt from contract")
 		}
 	}
 
@@ -32,10 +29,7 @@ func (ex *Exchanger) recoverRelay() {
 		}
 
 		if err := ex.handleMissingReceipt(from, beginIndex+1, idx+1); err != nil {
-			ex.logger.WithFields(logrus.Fields{
-				"address": from,
-				"error":   err.Error(),
-			}).Panic("Get missing receipt from contract")
+			ex.logger.WithFields(logrus.Fields{"address": from, "error": err.Error()}).Panic("Get missing receipt from contract")
 		}
 	}
 }
@@ -49,20 +43,14 @@ func (ex *Exchanger) recoverDirect(dstPierID string, interchainIndex uint64, rec
 		return
 	}
 	if err := ex.handleMissingIBTPFromMnt(dstPierID, interchainIndex+1, index+1); err != nil {
-		ex.logger.WithFields(logrus.Fields{
-			"address": dstPierID,
-			"error":   err.Error(),
-		}).Error("Handle missing ibtp")
+		ex.logger.WithFields(logrus.Fields{"address": dstPierID, "error":   err.Error(),}).Error("Handle missing ibtp")
 	}
 
 	// recoverDirect unsent receipt to counterpart chain
 	execMeta := ex.exec.QueryInterchainMeta()
 	idx := execMeta[dstPierID]
 	if err := ex.handleMissingReceipt(dstPierID, receiptIndex+1, idx+1); err != nil {
-		ex.logger.WithFields(logrus.Fields{
-			"address": dstPierID,
-			"error":   err.Error(),
-		}).Panic("Get missing receipt from contract")
+		ex.logger.WithFields(logrus.Fields{"address": dstPierID, "error":   err.Error(),}).Panic("Get missing receipt from contract")
 	}
 }
 
@@ -111,28 +99,6 @@ func (ex *Exchanger) handleMissingIBTPFromSyncer(from string, begin, end uint64)
 
 	return nil
 }
-
-//func (ex *Exchanger) handleMissingIBTPReceiptFromSyncer(to string, begin, end uint64) error {
-//	if begin < 1 {
-//		return fmt.Errorf("begin index for missing ibtp receipt is required >= 1")
-//	}
-//	for ; begin < end; begin++ {
-//		ex.logger.WithFields(logrus.Fields{
-//			"to":    to,
-//			"index": begin,
-//		}).Info("Get missing ibtp receipt to bitxhub")
-//
-//		ibtp, err := ex.syncer.QueryIBTP(fmt.Sprintf("%s-%s-%d", to, ex.pierID, begin))
-//		if err != nil {
-//			return fmt.Errorf("fetch ibtp:%w", err)
-//		}
-//
-//		ex.handleIBTP(ibtp)
-//		ex.callbackCounter[ibtp.To] = ibtp.Index
-//	}
-//
-//	return nil
-//}
 
 func (ex *Exchanger) handleMissingReceipt(from string, begin uint64, end uint64) error {
 	if begin < 1 {

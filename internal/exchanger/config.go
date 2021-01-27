@@ -13,8 +13,6 @@ import (
 )
 
 type Config struct {
-	typ       string
-	pierID    string
 	checker   checker.Checker
 	store     storage.Storage
 	peerMgr   peermgr.PeerManager
@@ -27,18 +25,6 @@ type Config struct {
 }
 
 type Option func(*Config)
-
-func WithType(typ string) Option {
-	return func(config *Config) {
-		config.typ = typ
-	}
-}
-
-func WithPierId(pierId string) Option {
-	return func(config *Config) {
-		config.pierID = pierId
-	}
-}
 
 func WithChecker(checker checker.Checker) Option {
 	return func(config *Config) {
