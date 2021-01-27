@@ -194,26 +194,15 @@ func (ex *Exchanger) listenAndSendIBTPFromMnt() {
 			}
 			index := ex.interchainCounter[ibtp.To]
 			if index >= ibtp.Index {
-				ex.logger.WithFields(logrus.Fields{
-					"index":      ibtp.Index,
-					"to_counter": index,
-					"ibtp_id":    ibtp.ID(),
-				}).Info("Ignore ibtp")
+				ex.logger.WithFields(logrus.Fields{"index": ibtp.Index, "to_counter": index, "ibtp_id": ibtp.ID()}).Info("Ignore ibtp")
 				return
 			}
 
 			if index+1 < ibtp.Index {
-				ex.logger.WithFields(logrus.Fields{
-					"index": ibtp.Index,
-					"to":    ibtp.To,
-				}).Info("Get missing ibtp")
+				ex.logger.WithFields(logrus.Fields{"index": ibtp.Index, "to": ibtp.To}).Info("Get missing ibtp")
 
 				if err := ex.handleMissingIBTPFromMnt(ibtp.To, index+1, ibtp.Index); err != nil {
-					ex.logger.WithFields(logrus.Fields{
-						"index": ibtp.Index,
-						"to":    ibtp.To,
-						"err":   err.Error(),
-					}).Error("Handle missing ibtp")
+					ex.logger.WithFields(logrus.Fields{"index": ibtp.Index, "to": ibtp.To, "err": err.Error()}).Error("Handle missing ibtp")
 				}
 			}
 
@@ -237,10 +226,7 @@ func (ex *Exchanger) listenAndSendIBTPFromSyncer() {
 				ex.logger.Warn("Unexpected closed channel while listening on interchain ibtp")
 				return
 			}
-			entry := ex.logger.WithFields(logrus.Fields{
-				"type": ibtp.Type,
-				"id":   ibtp.ID(),
-			})
+			entry := ex.logger.WithFields(logrus.Fields{"type": ibtp.Type, "id": ibtp.ID()})
 			switch ibtp.Type {
 			case pb.IBTP_INTERCHAIN, pb.IBTP_ASSET_EXCHANGE_INIT,
 				pb.IBTP_ASSET_EXCHANGE_REDEEM, pb.IBTP_ASSET_EXCHANGE_REFUND:
@@ -288,12 +274,7 @@ func (ex *Exchanger) Stop() error {
 }
 
 func (ex *Exchanger) sendIBTP(ibtp *pb.IBTP) error {
-	entry := ex.logger.WithFields(logrus.Fields{
-		"index": ibtp.Index,
-		"type":  ibtp.Type,
-		"to":    ibtp.To,
-		"id":    ibtp.ID(),
-	})
+	entry := ex.logger.WithFields(logrus.Fields{"index": ibtp.Index, "type": ibtp.Type, "to": ibtp.To, "id": ibtp.ID()})
 
 	switch ex.mode {
 	case repo.UnionMode:
