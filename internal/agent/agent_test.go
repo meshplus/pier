@@ -153,7 +153,7 @@ func TestSyncUnionInterchainTxWrappers(t *testing.T) {
 
 	inSubWrapperCh <- wrappers
 
-	mockClient.EXPECT().Subscribe(gomock.Any(), pb.SubscriptionRequest_UNION_INTERCHAIN_TX_WRAPPER, ag.from.Bytes()).Return(inSubWrapperCh, nil).AnyTimes()
+	mockClient.EXPECT().Subscribe(gomock.Any(), pb.SubscriptionRequest_UNION_INTERCHAIN_TX_WRAPPER, []byte(ag.from.String())).Return(inSubWrapperCh, nil).AnyTimes()
 	require.Nil(t, ag.SyncUnionInterchainTxWrappers(ctx, outSubWrapperCh))
 
 	require.Equal(t, wrappers, <-outSubWrapperCh)

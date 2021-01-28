@@ -115,7 +115,7 @@ func (agent *BxhAgent) GetBlockHeader(ctx context.Context, begin, end uint64, ch
 
 func (agent *BxhAgent) SyncInterchainTxWrappers(ctx context.Context, txCh chan *pb.InterchainTxWrappers) error {
 	subscriptType := pb.SubscriptionRequest_INTERCHAIN_TX_WRAPPER
-	ch, err := agent.client.Subscribe(ctx, subscriptType, agent.from.Bytes())
+	ch, err := agent.client.Subscribe(ctx, subscriptType, []byte(agent.from.String()))
 	if err != nil {
 		return err
 	}
@@ -140,7 +140,7 @@ func (agent *BxhAgent) SyncInterchainTxWrappers(ctx context.Context, txCh chan *
 
 func (agent *BxhAgent) SyncUnionInterchainTxWrappers(ctx context.Context, txCh chan *pb.InterchainTxWrappers) error {
 	subscriptType := pb.SubscriptionRequest_UNION_INTERCHAIN_TX_WRAPPER
-	ch, err := agent.client.Subscribe(ctx, subscriptType, agent.from.Bytes())
+	ch, err := agent.client.Subscribe(ctx, subscriptType, []byte(agent.from.String()))
 	if err != nil {
 		return err
 	}
