@@ -1,9 +1,10 @@
 package loggers
 
 import (
+	"testing"
+
 	"github.com/meshplus/pier/internal/repo"
 	"github.com/stretchr/testify/require"
-	"testing"
 )
 
 func TestLogger(t *testing.T) {
