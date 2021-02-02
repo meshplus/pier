@@ -1,12 +1,13 @@
 package repo
 
 import (
-	"github.com/mitchellh/go-homedir"
-	"github.com/stretchr/testify/require"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/mitchellh/go-homedir"
+	"github.com/stretchr/testify/require"
 )
 
 func TestInit(t *testing.T) {

@@ -140,13 +140,15 @@ func (ex *Exchanger) startWithDirectMode() error {
 }
 
 func (ex *Exchanger) startWithRelayMode() error {
-	// recover exchanger before relay any interchain msgs
-	ex.recoverRelay()
-
+	// syncer should be started first in case to recover ibtp from monitor
 	if err := ex.syncer.Start(); err != nil {
 		return fmt.Errorf("syncer start: %w", err)
 
 	}
+
+	// recover exchanger before relay any interchain msgs
+	ex.recoverRelay()
+
 	return nil
 }
 
