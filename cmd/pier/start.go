@@ -102,7 +102,7 @@ func handleShutdown(pier *app.Pier, wg *sync.WaitGroup) {
 	go func() {
 		<-stop
 		fmt.Println("received interrupt signal, shutting down...")
-		if err := pier.Stop(); err != nil {
+		if err := pier.Stop(false); err != nil {
 			logger.Error("pier stop: ", err)
 		}
 
