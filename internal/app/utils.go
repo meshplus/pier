@@ -10,17 +10,20 @@ import (
 )
 
 func getInterchainMeta(client rpcx.Client) (*pb.Interchain, error) {
-	receipt, err := client.InvokeBVMContract(constant.InterchainContractAddr.Address(), "Interchain", nil)
+	tx, err := client.GenerateContractTx(pb.TransactionData_BVM, constant.InterchainContractAddr.Address(), "Interchain")
 	if err != nil {
 		return nil, err
 	}
-
+	tx.Nonce = 1
+	receipt, err := client.SendView(tx)
+	if err != nil {
+		return nil, err
+	}
 	if !receipt.IsSuccess() {
-		return nil, fmt.Errorf("receipt: %s", receipt.Ret)
+		return nil, fmt.Errorf("get interchain meta receipt: %s", receipt.Ret)
 	}
 
 	ret := &pb.Interchain{}
-
 	if err := ret.Unmarshal(receipt.Ret); err != nil {
 		return nil, fmt.Errorf("unmarshal interchain meta from bitxhub: %w", err)
 	}
@@ -29,7 +32,12 @@ func getInterchainMeta(client rpcx.Client) (*pb.Interchain, error) {
 }
 
 func getAppchainInfo(client rpcx.Client) (*rpcx.Appchain, error) {
-	receipt, err := client.InvokeBVMContract(constant.AppchainMgrContractAddr.Address(), "Appchain", nil)
+	tx, err := client.GenerateContractTx(pb.TransactionData_BVM, constant.AppchainMgrContractAddr.Address(), "Appchain")
+	if err != nil {
+		return nil, err
+	}
+	tx.Nonce = 1
+	receipt, err := client.SendView(tx)
 	if err != nil {
 		return nil, err
 	}
