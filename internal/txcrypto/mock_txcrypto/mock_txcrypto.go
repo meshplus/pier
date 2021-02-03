@@ -9,30 +9,30 @@ import (
 	reflect "reflect"
 )
 
-// MockCryptor is a mock of Cryptor interface.
+// MockCryptor is a mock of Cryptor interface
 type MockCryptor struct {
 	ctrl     *gomock.Controller
 	recorder *MockCryptorMockRecorder
 }
 
-// MockCryptorMockRecorder is the mock recorder for MockCryptor.
+// MockCryptorMockRecorder is the mock recorder for MockCryptor
 type MockCryptorMockRecorder struct {
 	mock *MockCryptor
 }
 
-// NewMockCryptor creates a new mock instance.
+// NewMockCryptor creates a new mock instance
 func NewMockCryptor(ctrl *gomock.Controller) *MockCryptor {
 	mock := &MockCryptor{ctrl: ctrl}
 	mock.recorder = &MockCryptorMockRecorder{mock}
 	return mock
 }
 
-// EXPECT returns an object that allows the caller to indicate expected use.
+// EXPECT returns an object that allows the caller to indicate expected use
 func (m *MockCryptor) EXPECT() *MockCryptorMockRecorder {
 	return m.recorder
 }
 
-// Encrypt mocks base method.
+// Encrypt mocks base method
 func (m *MockCryptor) Encrypt(content []byte, address string) ([]byte, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Encrypt", content, address)
@@ -41,13 +41,13 @@ func (m *MockCryptor) Encrypt(content []byte, address string) ([]byte, error) {
 	return ret0, ret1
 }
 
-// Encrypt indicates an expected call of Encrypt.
+// Encrypt indicates an expected call of Encrypt
 func (mr *MockCryptorMockRecorder) Encrypt(content, address interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Encrypt", reflect.TypeOf((*MockCryptor)(nil).Encrypt), content, address)
 }
 
-// Decrypt mocks base method.
+// Decrypt mocks base method
 func (m *MockCryptor) Decrypt(content []byte, address string) ([]byte, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Decrypt", content, address)
@@ -56,7 +56,7 @@ func (m *MockCryptor) Decrypt(content []byte, address string) ([]byte, error) {
 	return ret0, ret1
 }
 
-// Decrypt indicates an expected call of Decrypt.
+// Decrypt indicates an expected call of Decrypt
 func (mr *MockCryptorMockRecorder) Decrypt(content, address interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Decrypt", reflect.TypeOf((*MockCryptor)(nil).Decrypt), content, address)

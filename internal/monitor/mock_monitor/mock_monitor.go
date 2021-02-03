@@ -10,30 +10,30 @@ import (
 	reflect "reflect"
 )
 
-// MockMonitor is a mock of Monitor interface.
+// MockMonitor is a mock of Monitor interface
 type MockMonitor struct {
 	ctrl     *gomock.Controller
 	recorder *MockMonitorMockRecorder
 }
 
-// MockMonitorMockRecorder is the mock recorder for MockMonitor.
+// MockMonitorMockRecorder is the mock recorder for MockMonitor
 type MockMonitorMockRecorder struct {
 	mock *MockMonitor
 }
 
-// NewMockMonitor creates a new mock instance.
+// NewMockMonitor creates a new mock instance
 func NewMockMonitor(ctrl *gomock.Controller) *MockMonitor {
 	mock := &MockMonitor{ctrl: ctrl}
 	mock.recorder = &MockMonitorMockRecorder{mock}
 	return mock
 }
 
-// EXPECT returns an object that allows the caller to indicate expected use.
+// EXPECT returns an object that allows the caller to indicate expected use
 func (m *MockMonitor) EXPECT() *MockMonitorMockRecorder {
 	return m.recorder
 }
 
-// Start mocks base method.
+// Start mocks base method
 func (m *MockMonitor) Start() error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Start")
@@ -41,13 +41,13 @@ func (m *MockMonitor) Start() error {
 	return ret0
 }
 
-// Start indicates an expected call of Start.
+// Start indicates an expected call of Start
 func (mr *MockMonitorMockRecorder) Start() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Start", reflect.TypeOf((*MockMonitor)(nil).Start))
 }
 
-// Stop mocks base method.
+// Stop mocks base method
 func (m *MockMonitor) Stop() error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Stop")
@@ -55,13 +55,13 @@ func (m *MockMonitor) Stop() error {
 	return ret0
 }
 
-// Stop indicates an expected call of Stop.
+// Stop indicates an expected call of Stop
 func (mr *MockMonitorMockRecorder) Stop() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Stop", reflect.TypeOf((*MockMonitor)(nil).Stop))
 }
 
-// ListenOnIBTP mocks base method.
+// ListenOnIBTP mocks base method
 func (m *MockMonitor) ListenOnIBTP() chan *pb.IBTP {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ListenOnIBTP")
@@ -69,13 +69,13 @@ func (m *MockMonitor) ListenOnIBTP() chan *pb.IBTP {
 	return ret0
 }
 
-// ListenOnIBTP indicates an expected call of ListenOnIBTP.
+// ListenOnIBTP indicates an expected call of ListenOnIBTP
 func (mr *MockMonitorMockRecorder) ListenOnIBTP() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListenOnIBTP", reflect.TypeOf((*MockMonitor)(nil).ListenOnIBTP))
 }
 
-// QueryIBTP mocks base method.
+// QueryIBTP mocks base method
 func (m *MockMonitor) QueryIBTP(id string) (*pb.IBTP, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "QueryIBTP", id)
@@ -84,13 +84,13 @@ func (m *MockMonitor) QueryIBTP(id string) (*pb.IBTP, error) {
 	return ret0, ret1
 }
 
-// QueryIBTP indicates an expected call of QueryIBTP.
+// QueryIBTP indicates an expected call of QueryIBTP
 func (mr *MockMonitorMockRecorder) QueryIBTP(id interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "QueryIBTP", reflect.TypeOf((*MockMonitor)(nil).QueryIBTP), id)
 }
 
-// QueryLatestMeta mocks base method.
+// QueryLatestMeta mocks base method
 func (m *MockMonitor) QueryLatestMeta() map[string]uint64 {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "QueryLatestMeta")
@@ -98,7 +98,7 @@ func (m *MockMonitor) QueryLatestMeta() map[string]uint64 {
 	return ret0
 }
 
-// QueryLatestMeta indicates an expected call of QueryLatestMeta.
+// QueryLatestMeta indicates an expected call of QueryLatestMeta
 func (mr *MockMonitorMockRecorder) QueryLatestMeta() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "QueryLatestMeta", reflect.TypeOf((*MockMonitor)(nil).QueryLatestMeta))

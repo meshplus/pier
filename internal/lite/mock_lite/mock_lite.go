@@ -10,30 +10,30 @@ import (
 	reflect "reflect"
 )
 
-// MockLite is a mock of Lite interface.
+// MockLite is a mock of Lite interface
 type MockLite struct {
 	ctrl     *gomock.Controller
 	recorder *MockLiteMockRecorder
 }
 
-// MockLiteMockRecorder is the mock recorder for MockLite.
+// MockLiteMockRecorder is the mock recorder for MockLite
 type MockLiteMockRecorder struct {
 	mock *MockLite
 }
 
-// NewMockLite creates a new mock instance.
+// NewMockLite creates a new mock instance
 func NewMockLite(ctrl *gomock.Controller) *MockLite {
 	mock := &MockLite{ctrl: ctrl}
 	mock.recorder = &MockLiteMockRecorder{mock}
 	return mock
 }
 
-// EXPECT returns an object that allows the caller to indicate expected use.
+// EXPECT returns an object that allows the caller to indicate expected use
 func (m *MockLite) EXPECT() *MockLiteMockRecorder {
 	return m.recorder
 }
 
-// Start mocks base method.
+// Start mocks base method
 func (m *MockLite) Start() error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Start")
@@ -41,13 +41,13 @@ func (m *MockLite) Start() error {
 	return ret0
 }
 
-// Start indicates an expected call of Start.
+// Start indicates an expected call of Start
 func (mr *MockLiteMockRecorder) Start() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Start", reflect.TypeOf((*MockLite)(nil).Start))
 }
 
-// Stop mocks base method.
+// Stop mocks base method
 func (m *MockLite) Stop() error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Stop")
@@ -55,13 +55,13 @@ func (m *MockLite) Stop() error {
 	return ret0
 }
 
-// Stop indicates an expected call of Stop.
+// Stop indicates an expected call of Stop
 func (mr *MockLiteMockRecorder) Stop() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Stop", reflect.TypeOf((*MockLite)(nil).Stop))
 }
 
-// QueryHeader mocks base method.
+// QueryHeader mocks base method
 func (m *MockLite) QueryHeader(height uint64) (*pb.BlockHeader, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "QueryHeader", height)
@@ -70,7 +70,7 @@ func (m *MockLite) QueryHeader(height uint64) (*pb.BlockHeader, error) {
 	return ret0, ret1
 }
 
-// QueryHeader indicates an expected call of QueryHeader.
+// QueryHeader indicates an expected call of QueryHeader
 func (mr *MockLiteMockRecorder) QueryHeader(height interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "QueryHeader", reflect.TypeOf((*MockLite)(nil).QueryHeader), height)
