@@ -4,12 +4,20 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/golang/mock/gomock"
+	"github.com/meshplus/bitxhub-core/appchain-mgr/mock_appchainMgr"
 	"github.com/meshplus/bitxhub-kit/crypto"
 	"github.com/meshplus/bitxhub-kit/crypto/asym"
+	"github.com/meshplus/bitxhub-model/pb"
+	"github.com/meshplus/go-bitxhub-client/mock_client"
+	"github.com/meshplus/pier/internal/appchain"
 	"github.com/stretchr/testify/require"
 )
 
 func TestRelayCryptor(t *testing.T) {
+	c := gomock.NewController(t)
+	mockClient := mock_client.NewMockClient(c)
+
 	privKey1, err := asym.GenerateKeyPair(crypto.Secp256k1)
 	require.Nil(t, err)
 	privKey2, err := asym.GenerateKeyPair(crypto.Secp256k1)
@@ -20,12 +28,12 @@ func TestRelayCryptor(t *testing.T) {
 	pubBytes2, err := privKey2.PublicKey().Bytes()
 	require.Nil(t, err)
 	addr2 := address2.String()
-	keyMap1 := make(map[string][]byte)
-	keyMap1[addr2] = pubBytes2
-	rc1 := &RelayCryptor{
-		privKey: privKey1,
-		keyMap:  keyMap1,
+	ret := &pb.Receipt{
+		Ret: pubBytes2,
 	}
+	mockClient.EXPECT().InvokeBVMContract(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(ret, nil)
+	rc1, err := NewRelayCryptor(mockClient, privKey1)
+	require.Nil(t, err)
 
 	address1, err := privKey1.PublicKey().Address()
 	require.Nil(t, err)
@@ -51,6 +59,9 @@ func TestRelayCryptor(t *testing.T) {
 }
 
 func TestDirectCryptor(t *testing.T) {
+	c := gomock.NewController(t)
+	mockAppchainMgr := mock_appchainMgr.NewMockAppchainMgr(c)
+
 	privKey1, err := asym.GenerateKeyPair(crypto.Secp256k1)
 	require.Nil(t, err)
 	privKey2, err := asym.GenerateKeyPair(crypto.Secp256k1)
@@ -59,14 +70,15 @@ func TestDirectCryptor(t *testing.T) {
 	address2, err := privKey2.PublicKey().Address()
 	require.Nil(t, err)
 	pubBytes2, err := privKey2.PublicKey().Bytes()
+	mockAppchainMgr.EXPECT().GetPubKeyByChainID(gomock.Any()).Return(true, pubBytes2)
+
 	require.Nil(t, err)
 	addr2 := address2.String()
-	keyMap1 := make(map[string][]byte)
-	keyMap1[addr2] = pubBytes2
-	rc1 := &DirectCryptor{
-		privKey: privKey1,
-		keyMap:  keyMap1,
+	mgr := &appchain.Manager{
+		Mgr: mockAppchainMgr,
 	}
+	rc1, err := NewDirectCryptor(mgr, privKey1)
+	require.Nil(t, err)
 
 	address1, err := privKey1.PublicKey().Address()
 	require.Nil(t, err)
