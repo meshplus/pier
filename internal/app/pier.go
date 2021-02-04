@@ -415,7 +415,6 @@ func (pier *Pier) Stop(isAux bool) error {
 
 		if !isAux {
 			// stop appchain plugin first and kill plugin process
-			pier.plugin.Stop()
 			pier.grpcPlugin.Kill()
 		}
 
