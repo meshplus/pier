@@ -223,6 +223,7 @@ func (syncer *WrapperSyncer) getWrappersChannel() chan *pb.InterchainTxWrappers 
 				return
 			case h, ok := <-rawCh:
 				if !ok {
+					close(ch)
 					return
 				}
 				ch <- h.(*pb.InterchainTxWrappers)
