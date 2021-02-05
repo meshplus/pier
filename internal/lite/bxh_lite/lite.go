@@ -95,6 +95,7 @@ func (lite *BxhLite) recover(begin, end uint64) {
 			"end":   end,
 			"error": err,
 		}).Warn("Get block header")
+		close(headerCh)
 	}
 
 	for h := range headerCh {
