@@ -104,10 +104,11 @@ func registerAppchain(ctx *cli.Context) error {
 		return fmt.Errorf("init config error: %s", err)
 	}
 
+	bxhAddrs := []string{bxhAddr}
 	if bxhAddr == "" {
-		bxhAddr = config.Mode.Relay.Addr
+		bxhAddrs = config.Mode.Relay.Addrs
 	}
-	client, err := loadClient(repo.KeyPath(repoRoot), bxhAddr, ctx)
+	client, err := loadClient(repo.KeyPath(repoRoot), bxhAddrs, ctx)
 	if err != nil {
 		return fmt.Errorf("load client: %w", err)
 	}
@@ -158,7 +159,7 @@ func auditAppchain(ctx *cli.Context) error {
 		return fmt.Errorf("init config error: %s", err)
 	}
 
-	client, err := loadClient(repo.KeyPath(repoRoot), config.Mode.Relay.Addr, ctx)
+	client, err := loadClient(repo.KeyPath(repoRoot), config.Mode.Relay.Addrs, ctx)
 	if err != nil {
 		return fmt.Errorf("load client: %w", err)
 	}
@@ -195,7 +196,7 @@ func getAppchain(ctx *cli.Context) error {
 		return fmt.Errorf("init config error: %s", err)
 	}
 
-	client, err := loadClient(repo.KeyPath(repoRoot), config.Mode.Relay.Addr, ctx)
+	client, err := loadClient(repo.KeyPath(repoRoot), config.Mode.Relay.Addrs, ctx)
 	if err != nil {
 		return fmt.Errorf("load client: %w", err)
 	}
@@ -218,7 +219,7 @@ func getAppchain(ctx *cli.Context) error {
 	return nil
 }
 
-func loadClient(keyPath, grpcAddr string, ctx *cli.Context) (rpcx.Client, error) {
+func loadClient(keyPath string, grpcAddrs []string, ctx *cli.Context) (rpcx.Client, error) {
 	repoRoot, err := repo.PathRootWithDefault(ctx.GlobalString("repo"))
 	if err != nil {
 		return nil, err
@@ -239,13 +240,17 @@ func loadClient(keyPath, grpcAddr string, ctx *cli.Context) (rpcx.Client, error)
 	opts := []rpcx.Option{
 		rpcx.WithPrivateKey(privateKey),
 	}
-	nodeInfo := &rpcx.NodeInfo{Addr: grpcAddr}
-	if config.Security.EnableTLS {
-		nodeInfo.CertPath = filepath.Join(repoRoot, "certs/ca.pem")
-		nodeInfo.EnableTLS = config.Security.EnableTLS
-		nodeInfo.CommonName = config.Security.CommonName
+	nodesInfo := make([]*rpcx.NodeInfo, 0, len(grpcAddrs))
+	for _, addr := range grpcAddrs {
+		nodeInfo := &rpcx.NodeInfo{Addr: addr}
+		if config.Security.EnableTLS {
+			nodeInfo.CertPath = filepath.Join(repoRoot, "certs/ca.pem")
+			nodeInfo.EnableTLS = config.Security.EnableTLS
+			nodeInfo.CommonName = config.Security.CommonName
+		}
+		nodesInfo = append(nodesInfo, nodeInfo)
 	}
-	opts = append(opts, rpcx.WithNodesInfo(nodeInfo))
+	opts = append(opts, rpcx.WithNodesInfo(nodesInfo...))
 	return rpcx.New(opts...)
 }
 
