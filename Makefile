@@ -19,7 +19,7 @@ STATIC_LDFLAGS += ${GOLDFLAGS}
 STATIC_LDFLAGS += -linkmode external -extldflags -static
 
 GO = GO111MODULE=on go
-TEST_PKGS := $(shell $(GO) list ./... | grep -v 'cmd' | grep -v 'mock_*' | grep -v proto | grep -v imports)
+TEST_PKGS := $(shell $(GO) list ./... | grep -v 'cmd' | grep -v 'mock_*' | grep -v 'proto' | grep -v 'imports' | grep -v 'internal/app' | grep -v 'api')
 
 RED=\033[0;31m
 GREEN=\033[0;32m
