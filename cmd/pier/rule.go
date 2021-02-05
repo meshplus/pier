@@ -42,7 +42,7 @@ func deployRule(ctx *cli.Context) error {
 		return fmt.Errorf("init config error: %s", err)
 	}
 
-	client, err := loadClient(repo.KeyPath(repoRoot), config.Mode.Relay.Addr, ctx)
+	client, err := loadClient(repo.KeyPath(repoRoot), config.Mode.Relay.Addrs, ctx)
 	if err != nil {
 		return fmt.Errorf("load client: %w", err)
 	}
