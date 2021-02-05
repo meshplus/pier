@@ -3,17 +3,16 @@ package exchanger
 import (
 	"github.com/meshplus/bitxhub-kit/storage"
 	"github.com/meshplus/pier/api"
-	"github.com/meshplus/pier/internal/agent"
 	"github.com/meshplus/pier/internal/checker"
 	"github.com/meshplus/pier/internal/executor"
 	"github.com/meshplus/pier/internal/monitor"
 	"github.com/meshplus/pier/internal/peermgr"
 	"github.com/meshplus/pier/internal/router"
 	"github.com/meshplus/pier/internal/syncer"
+	"github.com/sirupsen/logrus"
 )
 
 type Config struct {
-	agent     agent.Agent
 	checker   checker.Checker
 	store     storage.Storage
 	peerMgr   peermgr.PeerManager
@@ -22,15 +21,10 @@ type Config struct {
 	exec      executor.Executor
 	syncer    syncer.Syncer
 	apiServer *api.Server
+	logger    logrus.FieldLogger
 }
 
 type Option func(*Config)
-
-func WithAgent(ag agent.Agent) Option {
-	return func(config *Config) {
-		config.agent = ag
-	}
-}
 
 func WithChecker(checker checker.Checker) Option {
 	return func(config *Config) {
@@ -77,6 +71,12 @@ func WithAPIServer(apiServer *api.Server) Option {
 func WithStorage(store storage.Storage) Option {
 	return func(config *Config) {
 		config.store = store
+	}
+}
+
+func WithLogger(logger logrus.FieldLogger) Option {
+	return func(config *Config) {
+		config.logger = logger
 	}
 }
 

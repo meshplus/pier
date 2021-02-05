@@ -19,6 +19,7 @@ type Config struct {
 	Log      Log      `toml:"log" json:"log"`
 	Appchain Appchain `toml:"appchain" json:"appchain"`
 	Security Security `toml:"security" json:"security"`
+	HA       HA       `toml:"ha" json:"ha"`
 }
 
 // Security are certs used to setup connection with tls
@@ -32,6 +33,10 @@ type Security struct {
 type Port struct {
 	Http  int64 `toml:"http" json:"http"`
 	PProf int64 `toml:"pprof" json:"pprof"`
+}
+
+type HA struct {
+	Mode string `toml:"mode" json:"mode"`
 }
 
 const (
@@ -74,21 +79,32 @@ func (relay *Relay) GetValidators() []*types.Address {
 
 // Log are config about log
 type Log struct {
-	Dir          string `toml:"dir" json:"dir"`
-	Filename     string `toml:"filename" json:"filename"`
-	ReportCaller bool   `mapstructure:"report_caller"`
-	Level        string `toml:"level" json:"level"`
+	Dir          string    `toml:"dir" json:"dir"`
+	Filename     string    `toml:"filename" json:"filename"`
+	ReportCaller bool      `mapstructure:"report_caller"`
+	Level        string    `toml:"level" json:"level"`
+	Module       LogModule `toml:"module" json:"module"`
+}
+
+type LogModule struct {
+	ApiServer   string `mapstructure:"api_server" toml:"api_server" json:"api_server"`
+	AppchainMgr string `mapstructure:"appchain_mgr" toml:"appchain_mgr" json:"appchain_mgr"`
+	BxhLite     string `mapstructure:"bxh_lite" toml:"bxh_lite" json:"bxh_lite"`
+	Exchanger   string `toml:"exchanger" json:"exchanger"`
+	Executor    string `toml:"executor" json:"executor"`
+	Monitor     string `toml:"monitor" json:"monitor"`
+	PeerMgr     string `mapstructure:"peer_mgr" toml:"peer_mgr" json:"peer_mgr"`
+	Router      string `toml:"router" json:"router"`
+	RuleMgr     string `mapstructure:"rule_mgr" toml:"rule_mgr" json:"rule_mgr"`
+	Swarm       string `toml:"swarm" json:"swarm"`
+	Syncer      string `toml:"syncer" json:"syncer"`
 }
 
 // Appchain are configs about appchain
 type Appchain struct {
 	Config string `toml:"config" json:"config"`
+	Plugin string `toml:"plugin" json:"plugin"`
 }
-
-const (
-	// Items
-	LogLevel = "log.level"
-)
 
 // DefaultConfig returns config with default value
 func DefaultConfig() *Config {
@@ -124,13 +140,30 @@ func DefaultConfig() *Config {
 			Filename:     "pier.log",
 			ReportCaller: false,
 			Level:        "info",
+			Module: LogModule{
+				AppchainMgr: "info",
+				Exchanger:   "info",
+				Executor:    "info",
+				BxhLite:     "info",
+				Monitor:     "info",
+				Swarm:       "info",
+				RuleMgr:     "info",
+				Syncer:      "info",
+				PeerMgr:     "info",
+				Router:      "info",
+				ApiServer:   "info",
+			},
 		},
 		Security: Security{
 			EnableTLS:  false,
 			Tlsca:      "certs/ca.pem",
 			CommonName: "localhost",
 		},
+		HA: HA{
+			Mode: "single",
+		},
 		Appchain: Appchain{
+			Plugin: "appchain_plugin",
 			Config: "fabric",
 		},
 	}

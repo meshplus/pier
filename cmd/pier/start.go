@@ -13,6 +13,7 @@ import (
 
 	"github.com/meshplus/bitxhub-kit/log"
 	"github.com/meshplus/pier/internal/app"
+	"github.com/meshplus/pier/internal/loggers"
 	"github.com/meshplus/pier/internal/repo"
 	"github.com/urfave/cli"
 )
@@ -23,7 +24,6 @@ var (
 		Usage:  "Start a long-running daemon process",
 		Action: start,
 	}
-	pluginName = "appchain_plugin"
 )
 
 func start(ctx *cli.Context) error {
@@ -53,6 +53,8 @@ func start(ctx *cli.Context) error {
 	if err != nil {
 		return fmt.Errorf("log initialize: %w", err)
 	}
+	// init loggers map for pier
+	loggers.InitializeLogger(config)
 
 	var pier *app.Pier
 
@@ -60,7 +62,7 @@ func start(ctx *cli.Context) error {
 	case repo.RelayMode:
 		fallthrough
 	case repo.DirectMode:
-		if err := checkPlugin(); err != nil {
+		if err := checkPlugin(config.Appchain.Plugin); err != nil {
 			return fmt.Errorf("check plugin: %w", err)
 		}
 
@@ -100,7 +102,7 @@ func handleShutdown(pier *app.Pier, wg *sync.WaitGroup) {
 	go func() {
 		<-stop
 		fmt.Println("received interrupt signal, shutting down...")
-		if err := pier.Stop(); err != nil {
+		if err := pier.Stop(false); err != nil {
 			logger.Error("pier stop: ", err)
 		}
 
@@ -121,7 +123,7 @@ func runPProf(port int64) {
 	}()
 }
 
-func checkPlugin() error {
+func checkPlugin(pluginName string) error {
 	// check if plugin exists
 	pluginRoot, err := repo.PluginPath()
 	if err != nil {
@@ -132,7 +134,7 @@ func checkPlugin() error {
 	_, err = os.Stat(pluginPath)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return fmt.Errorf("plugin file not exist")
+			return fmt.Errorf("plugin file `%s` is required", pluginPath)
 		}
 
 		return fmt.Errorf("get plugin file state error: %w", err)

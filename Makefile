@@ -2,7 +2,7 @@
 SHELL := /bin/bash
 CURRENT_PATH = $(shell pwd)
 APP_NAME = pier
-APP_VERSION = 1.0.0
+APP_VERSION = 1.4.0
 
 # build with verison infos
 VERSION_DIR = github.com/meshplus/${APP_NAME}
@@ -19,7 +19,7 @@ STATIC_LDFLAGS += ${GOLDFLAGS}
 STATIC_LDFLAGS += -linkmode external -extldflags -static
 
 GO = GO111MODULE=on go
-TEST_PKGS := $(shell $(GO) list ./... | grep -v 'cmd' | grep -v 'mock_*')
+TEST_PKGS := $(shell $(GO) list ./... | grep -v 'cmd' | grep -v 'mock_*' | grep -v proto | grep -v imports)
 
 RED=\033[0;31m
 GREEN=\033[0;32m
@@ -51,8 +51,32 @@ prepare:
 
 ## make install: Go install the project (hpc)
 install: packr
+	rm -f imports/imports.go
 	$(GO) install -ldflags '${GOLDFLAGS}' ./cmd/${APP_NAME}
 	@printf "${GREEN}Build pier successfully${NC}\n"
+
+build: packr
+	@mkdir -p bin
+	rm -f imports/imports.go
+	$(GO) build -ldflags '${GOLDFLAGS}' ./cmd/${APP_NAME}
+	@mv ./pier bin
+	@printf "${GREEN}Build Pier successfully!${NC}\n"
+
+installent: packr
+	cp imports/imports.go.template imports/imports.go
+	@sed "s?)?$(MODS)@)?" go.mod  | tr '@' '\n' > goent.mod
+	$(GO) install -tags ent -ldflags '${GOLDFLAGS}' -modfile goent.mod ./cmd/${APP_NAME}
+
+buildent: packr
+	@mkdir -p bin
+	cp imports/imports.go.template imports/imports.go
+	@sed "s?)?$(MODS)@)?" go.mod  | tr '@' '\n' > goent.mod
+	$(GO) build -tags ent -ldflags '${GOLDFLAGS}' -modfile goent.mod ./cmd/${APP_NAME}
+	@mv ./pier bin
+	@printf "${GREEN}Build pier ent successfully!${NC}\n"
+
+mod:
+	sed "s?)?$(MODS)\n)?" go.mod
 
 docker-build: packr
 	$(GO) install -ldflags '${STATIC_LDFLAGS}' ./cmd/${APP_NAME}

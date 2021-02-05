@@ -13,7 +13,7 @@ import (
 func (mgr *Manager) handleMessage(s network.Stream, msg *peerproto.Message) {
 	app := appchainmgr.Appchain{}
 	if err := json.Unmarshal(msg.Payload.Data, &app); err != nil {
-		logger.Error(err)
+		mgr.logger.Error(err)
 		return
 	}
 
@@ -31,22 +31,22 @@ func (mgr *Manager) handleMessage(s network.Stream, msg *peerproto.Message) {
 	default:
 		m := "wrong appchain message type"
 		res = []byte(m)
-		logger.Error(m)
+		mgr.logger.Error(m)
 	}
 
 	ackMsg := peermgr.Message(msg.Type, ok, res)
 	err := mgr.PeerManager.AsyncSendWithStream(s, ackMsg)
 	if err != nil {
-		logger.Error(err)
+		mgr.logger.Error(err)
 	}
 
 	appchainRes := &appchainmgr.Appchain{}
 	if err := json.Unmarshal(res, appchainRes); err != nil {
-		logger.Error(err)
+		mgr.logger.Error(err)
 		return
 	}
 
-	logger.WithFields(logrus.Fields{
+	mgr.logger.WithFields(logrus.Fields{
 		"type":           msg.Type,
 		"from_id":        appchainRes.ID,
 		"name":           appchainRes.Name,

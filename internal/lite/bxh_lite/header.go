@@ -11,7 +11,7 @@ import (
 
 func (lite *BxhLite) handleBlockHeader(header *pb.BlockHeader) {
 	if header == nil {
-		logger.WithField("height", lite.height).Error("empty block header")
+		lite.logger.WithField("height", lite.height).Error("empty block header")
 		return
 	}
 
@@ -20,7 +20,7 @@ func (lite *BxhLite) handleBlockHeader(header *pb.BlockHeader) {
 	}
 
 	if ok, err := lite.verifyHeader(header); !ok {
-		logger.WithFields(logrus.Fields{
+		lite.logger.WithFields(logrus.Fields{
 			"height": header.Number,
 			"error":  err,
 		}).Warn("Invalid header")
@@ -28,7 +28,7 @@ func (lite *BxhLite) handleBlockHeader(header *pb.BlockHeader) {
 	}
 
 	if err := lite.persist(header); err != nil {
-		logger.WithFields(logrus.Fields{
+		lite.logger.WithFields(logrus.Fields{
 			"height": header.Number,
 			"error":  err,
 		}).Error("Persist block header")
@@ -36,7 +36,7 @@ func (lite *BxhLite) handleBlockHeader(header *pb.BlockHeader) {
 
 	lite.updateHeight()
 
-	logger.WithFields(logrus.Fields{
+	lite.logger.WithFields(logrus.Fields{
 		"height": header.Number,
 	}).Info("Persist block header")
 }
@@ -47,13 +47,11 @@ func (lite *BxhLite) syncBlock() {
 			select {
 			case header, ok := <-ch:
 				if !ok {
-					logger.Warn("Unexpected closed channel while syncing block header")
+					lite.logger.Warn("Unexpected closed channel while syncing block header")
 					return
 				}
 
 				lite.handleBlockHeader(header)
-			//default:
-			//	logger.Errorf("Not supported type for sync block")
 			case <-lite.ctx.Done():
 				return
 			}
@@ -63,9 +61,9 @@ func (lite *BxhLite) syncBlock() {
 	for {
 		headerCh := lite.getHeaderChannel()
 		err := retry.Retry(func(attempt uint) error {
-			chainMeta, err := lite.ag.GetChainMeta()
+			chainMeta, err := lite.client.GetChainMeta()
 			if err != nil {
-				logger.WithField("error", err).Error("Get chain meta")
+				lite.logger.WithField("error", err).Error("Get chain meta")
 				return err
 			}
 
@@ -77,7 +75,7 @@ func (lite *BxhLite) syncBlock() {
 		}, strategy.Wait(1*time.Second))
 
 		if err != nil {
-			logger.Panic(err)
+			lite.logger.Panic(err)
 		}
 
 		loop(headerCh)
@@ -88,7 +86,7 @@ func (lite *BxhLite) getHeaderChannel() chan *pb.BlockHeader {
 	ch := make(chan *pb.BlockHeader, maxChSize)
 
 	if err := retry.Retry(func(attempt uint) error {
-		if err := lite.ag.SyncBlockHeader(lite.ctx, ch); err != nil {
+		if err := lite.syncBlockHeader(ch); err != nil {
 			return err
 		}
 
@@ -98,4 +96,27 @@ func (lite *BxhLite) getHeaderChannel() chan *pb.BlockHeader {
 	}
 
 	return ch
+}
+
+func (lite *BxhLite) syncBlockHeader(headerCh chan<- *pb.BlockHeader) error {
+	ch, err := lite.client.Subscribe(lite.ctx, pb.SubscriptionRequest_BLOCK_HEADER, nil)
+	if err != nil {
+		return err
+	}
+
+	go func() {
+		for {
+			select {
+			case <-lite.ctx.Done():
+				return
+			case h, ok := <-ch:
+				if !ok {
+					close(headerCh)
+					return
+				}
+				headerCh <- h.(*pb.BlockHeader)
+			}
+		}
+	}()
+	return nil
 }

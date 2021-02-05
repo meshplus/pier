@@ -10,7 +10,6 @@ import (
 	"github.com/gin-gonic/gin"
 	appchainmgr "github.com/meshplus/bitxhub-core/appchain-mgr"
 	"github.com/meshplus/bitxhub-kit/crypto/asym"
-	"github.com/meshplus/bitxhub-kit/log"
 	"github.com/meshplus/bitxhub-model/pb"
 	"github.com/meshplus/pier/cmd/pier/client"
 	"github.com/meshplus/pier/internal/appchain"
@@ -20,8 +19,6 @@ import (
 	"github.com/meshplus/pier/internal/rulemgr"
 	"github.com/sirupsen/logrus"
 )
-
-var logger = log.NewWithModule("api_service")
 
 type Server struct {
 	router      *gin.Engine
@@ -38,7 +35,7 @@ type response struct {
 	Data []byte `json:"data"`
 }
 
-func NewServer(appchainMgr *appchain.Manager, peerMgr peermgr.PeerManager, config *repo.Config) (*Server, error) {
+func NewServer(appchainMgr *appchain.Manager, peerMgr peermgr.PeerManager, config *repo.Config, logger logrus.FieldLogger) (*Server, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	gin.SetMode(gin.ReleaseMode)
 	router := gin.New()

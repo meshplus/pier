@@ -6,34 +6,36 @@ package mock_syncer
 
 import (
 	gomock "github.com/golang/mock/gomock"
+	pb "github.com/meshplus/bitxhub-model/pb"
+	rpcx "github.com/meshplus/go-bitxhub-client"
 	syncer "github.com/meshplus/pier/internal/syncer"
 	reflect "reflect"
 )
 
-// MockSyncer is a mock of Syncer interface.
+// MockSyncer is a mock of Syncer interface
 type MockSyncer struct {
 	ctrl     *gomock.Controller
 	recorder *MockSyncerMockRecorder
 }
 
-// MockSyncerMockRecorder is the mock recorder for MockSyncer.
+// MockSyncerMockRecorder is the mock recorder for MockSyncer
 type MockSyncerMockRecorder struct {
 	mock *MockSyncer
 }
 
-// NewMockSyncer creates a new mock instance.
+// NewMockSyncer creates a new mock instance
 func NewMockSyncer(ctrl *gomock.Controller) *MockSyncer {
 	mock := &MockSyncer{ctrl: ctrl}
 	mock.recorder = &MockSyncerMockRecorder{mock}
 	return mock
 }
 
-// EXPECT returns an object that allows the caller to indicate expected use.
+// EXPECT returns an object that allows the caller to indicate expected use
 func (m *MockSyncer) EXPECT() *MockSyncerMockRecorder {
 	return m.recorder
 }
 
-// Start mocks base method.
+// Start mocks base method
 func (m *MockSyncer) Start() error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Start")
@@ -41,13 +43,13 @@ func (m *MockSyncer) Start() error {
 	return ret0
 }
 
-// Start indicates an expected call of Start.
+// Start indicates an expected call of Start
 func (mr *MockSyncerMockRecorder) Start() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Start", reflect.TypeOf((*MockSyncer)(nil).Start))
 }
 
-// Stop mocks base method.
+// Stop mocks base method
 func (m *MockSyncer) Stop() error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Stop")
@@ -55,27 +57,143 @@ func (m *MockSyncer) Stop() error {
 	return ret0
 }
 
-// Stop indicates an expected call of Stop.
+// Stop indicates an expected call of Stop
 func (mr *MockSyncerMockRecorder) Stop() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Stop", reflect.TypeOf((*MockSyncer)(nil).Stop))
 }
 
-// RegisterIBTPHandler mocks base method.
-func (m *MockSyncer) RegisterIBTPHandler(handler syncer.IBTPHandler) error {
+// QueryInterchainMeta mocks base method
+func (m *MockSyncer) QueryInterchainMeta() map[string]uint64 {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "RegisterIBTPHandler", handler)
+	ret := m.ctrl.Call(m, "QueryInterchainMeta")
+	ret0, _ := ret[0].(map[string]uint64)
+	return ret0
+}
+
+// QueryInterchainMeta indicates an expected call of QueryInterchainMeta
+func (mr *MockSyncerMockRecorder) QueryInterchainMeta() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "QueryInterchainMeta", reflect.TypeOf((*MockSyncer)(nil).QueryInterchainMeta))
+}
+
+// QueryIBTP mocks base method
+func (m *MockSyncer) QueryIBTP(ibtpID string) (*pb.IBTP, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "QueryIBTP", ibtpID)
+	ret0, _ := ret[0].(*pb.IBTP)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// QueryIBTP indicates an expected call of QueryIBTP
+func (mr *MockSyncerMockRecorder) QueryIBTP(ibtpID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "QueryIBTP", reflect.TypeOf((*MockSyncer)(nil).QueryIBTP), ibtpID)
+}
+
+// ListenIBTP mocks base method
+func (m *MockSyncer) ListenIBTP() <-chan *pb.IBTP {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ListenIBTP")
+	ret0, _ := ret[0].(<-chan *pb.IBTP)
+	return ret0
+}
+
+// ListenIBTP indicates an expected call of ListenIBTP
+func (mr *MockSyncerMockRecorder) ListenIBTP() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListenIBTP", reflect.TypeOf((*MockSyncer)(nil).ListenIBTP))
+}
+
+// SendIBTP mocks base method
+func (m *MockSyncer) SendIBTP(ibtp *pb.IBTP) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SendIBTP", ibtp)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// RegisterIBTPHandler indicates an expected call of RegisterIBTPHandler.
-func (mr *MockSyncerMockRecorder) RegisterIBTPHandler(handler interface{}) *gomock.Call {
+// SendIBTP indicates an expected call of SendIBTP
+func (mr *MockSyncerMockRecorder) SendIBTP(ibtp interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RegisterIBTPHandler", reflect.TypeOf((*MockSyncer)(nil).RegisterIBTPHandler), handler)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SendIBTP", reflect.TypeOf((*MockSyncer)(nil).SendIBTP), ibtp)
 }
 
-// RegisterAppchainHandler mocks base method.
+// GetAssetExchangeSigns mocks base method
+func (m *MockSyncer) GetAssetExchangeSigns(id string) ([]byte, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetAssetExchangeSigns", id)
+	ret0, _ := ret[0].([]byte)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetAssetExchangeSigns indicates an expected call of GetAssetExchangeSigns
+func (mr *MockSyncerMockRecorder) GetAssetExchangeSigns(id interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetAssetExchangeSigns", reflect.TypeOf((*MockSyncer)(nil).GetAssetExchangeSigns), id)
+}
+
+// GetIBTPSigns mocks base method
+func (m *MockSyncer) GetIBTPSigns(ibtp *pb.IBTP) ([]byte, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetIBTPSigns", ibtp)
+	ret0, _ := ret[0].([]byte)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetIBTPSigns indicates an expected call of GetIBTPSigns
+func (mr *MockSyncerMockRecorder) GetIBTPSigns(ibtp interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetIBTPSigns", reflect.TypeOf((*MockSyncer)(nil).GetIBTPSigns), ibtp)
+}
+
+// GetAppchains mocks base method
+func (m *MockSyncer) GetAppchains() ([]*rpcx.Appchain, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetAppchains")
+	ret0, _ := ret[0].([]*rpcx.Appchain)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetAppchains indicates an expected call of GetAppchains
+func (mr *MockSyncerMockRecorder) GetAppchains() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetAppchains", reflect.TypeOf((*MockSyncer)(nil).GetAppchains))
+}
+
+// GetInterchainById mocks base method
+func (m *MockSyncer) GetInterchainById(from string) *pb.Interchain {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetInterchainById", from)
+	ret0, _ := ret[0].(*pb.Interchain)
+	return ret0
+}
+
+// GetInterchainById indicates an expected call of GetInterchainById
+func (mr *MockSyncerMockRecorder) GetInterchainById(from interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetInterchainById", reflect.TypeOf((*MockSyncer)(nil).GetInterchainById), from)
+}
+
+// RegisterRecoverHandler mocks base method
+func (m *MockSyncer) RegisterRecoverHandler(arg0 syncer.RecoverUnionHandler) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "RegisterRecoverHandler", arg0)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// RegisterRecoverHandler indicates an expected call of RegisterRecoverHandler
+func (mr *MockSyncerMockRecorder) RegisterRecoverHandler(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RegisterRecoverHandler", reflect.TypeOf((*MockSyncer)(nil).RegisterRecoverHandler), arg0)
+}
+
+// RegisterAppchainHandler mocks base method
 func (m *MockSyncer) RegisterAppchainHandler(handler syncer.AppchainHandler) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "RegisterAppchainHandler", handler)
@@ -83,22 +201,8 @@ func (m *MockSyncer) RegisterAppchainHandler(handler syncer.AppchainHandler) err
 	return ret0
 }
 
-// RegisterAppchainHandler indicates an expected call of RegisterAppchainHandler.
+// RegisterAppchainHandler indicates an expected call of RegisterAppchainHandler
 func (mr *MockSyncerMockRecorder) RegisterAppchainHandler(handler interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RegisterAppchainHandler", reflect.TypeOf((*MockSyncer)(nil).RegisterAppchainHandler), handler)
-}
-
-// RegisterRecoverHandler mocks base method.
-func (m *MockSyncer) RegisterRecoverHandler(handleRecover syncer.RecoverUnionHandler) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "RegisterRecoverHandler", handleRecover)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// RegisterRecoverHandler indicates an expected call of RegisterRecoverHandler.
-func (mr *MockSyncerMockRecorder) RegisterRecoverHandler(handleRecover interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RegisterRecoverHandler", reflect.TypeOf((*MockSyncer)(nil).RegisterRecoverHandler), handleRecover)
 }

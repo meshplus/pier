@@ -7,15 +7,11 @@ import (
 	"sync"
 	"time"
 
-	"go.uber.org/atomic"
-
 	"github.com/Rican7/retry"
 	"github.com/Rican7/retry/strategy"
-	"github.com/meshplus/bitxhub-kit/log"
 	"github.com/meshplus/bitxhub-kit/storage"
 	"github.com/meshplus/bitxhub-model/pb"
 	"github.com/meshplus/pier/api"
-	"github.com/meshplus/pier/internal/agent"
 	"github.com/meshplus/pier/internal/checker"
 	"github.com/meshplus/pier/internal/executor"
 	"github.com/meshplus/pier/internal/monitor"
@@ -26,45 +22,34 @@ import (
 	"github.com/meshplus/pier/internal/syncer"
 	"github.com/meshplus/pier/pkg/model"
 	"github.com/sirupsen/logrus"
+	"go.uber.org/atomic"
 )
 
-var logger = log.NewWithModule("exchanger")
-
 type Exchanger struct {
-	agent             agent.Agent
-	checker           checker.Checker
-	store             storage.Storage
-	peerMgr           peermgr.PeerManager
-	mnt               monitor.Monitor
-	exec              executor.Executor
-	syncer            syncer.Syncer
-	router            router.Router
-	apiServer         *api.Server
-	mode              string
-	pierID            string
-	interchainCounter map[string]uint64
-	sourceReceiptMeta map[string]uint64
+	mode                 string
+	pierID               string
+	store                storage.Storage
+	mnt                  monitor.Monitor
+	exec                 executor.Executor
+	syncer               syncer.Syncer
+	router               router.Router
+	interchainCounter    map[string]uint64
+	executorCounter      map[string]uint64
+	callbackCounter      map[string]uint64
+	sourceReceiptCounter map[string]uint64
 
+	apiServer       *api.Server
+	peerMgr         peermgr.PeerManager
+	checker         checker.Checker
 	sendIBTPCounter atomic.Uint64
 	sendIBTPTimer   atomic.Duration
+	ch              chan struct{} //control the concurrent count
+	ibtps           sync.Map
+	receipts        sync.Map
 
-	ch       chan struct{}
-	ibtps    sync.Map
-	receipts sync.Map
-	ctx      context.Context
-	cancel   context.CancelFunc
-}
-
-type Pool struct {
-	ibtps *sync.Map
-	ch    chan *pb.IBTP
-}
-
-func NewPool() *Pool {
-	return &Pool{
-		ibtps: &sync.Map{},
-		ch:    make(chan *pb.IBTP, 40960),
-	}
+	logger logrus.FieldLogger
+	ctx    context.Context
+	cancel context.CancelFunc
 }
 
 func New(typ, pierID string, meta *pb.Interchain, opts ...Option) (*Exchanger, error) {
@@ -75,154 +60,184 @@ func New(typ, pierID string, meta *pb.Interchain, opts ...Option) (*Exchanger, e
 
 	ctx, cancel := context.WithCancel(context.Background())
 	return &Exchanger{
-		agent:             config.agent,
-		checker:           config.checker,
-		exec:              config.exec,
-		apiServer:         config.apiServer,
-		mnt:               config.mnt,
-		peerMgr:           config.peerMgr,
-		syncer:            config.syncer,
-		store:             config.store,
-		router:            config.router,
-		ch:                make(chan struct{}, 100),
-		interchainCounter: meta.InterchainCounter,
-		sourceReceiptMeta: meta.SourceReceiptCounter,
-		mode:              typ,
-		pierID:            pierID,
-		ctx:               ctx,
-		cancel:            cancel,
+		checker:              config.checker,
+		exec:                 config.exec,
+		apiServer:            config.apiServer,
+		mnt:                  config.mnt,
+		peerMgr:              config.peerMgr,
+		syncer:               config.syncer,
+		store:                config.store,
+		router:               config.router,
+		logger:               config.logger,
+		ch:                   make(chan struct{}, 100),
+		interchainCounter:    copyCounterMap(meta.InterchainCounter),
+		sourceReceiptCounter: copyCounterMap(meta.SourceReceiptCounter),
+		executorCounter:      copyCounterMap(config.exec.QueryInterchainMeta()),
+		callbackCounter:      copyCounterMap(config.exec.QueryCallbackMeta()),
+		mode:                 typ,
+		pierID:               pierID,
+		ctx:                  ctx,
+		cancel:               cancel,
 	}, nil
 }
 
 func (ex *Exchanger) Start() error {
+	var err error
 	switch ex.mode {
 	case repo.DirectMode:
-		// start some extra module for direct link mode
-		if err := ex.apiServer.Start(); err != nil {
-			return fmt.Errorf("peerMgr start: %w", err)
-		}
-
-		if err := ex.peerMgr.RegisterConnectHandler(ex.handleNewConnection); err != nil {
-			return fmt.Errorf("register on connection handler: %w", err)
-		}
-
-		if err := ex.peerMgr.RegisterMsgHandler(peerMsg.Message_INTERCHAIN_META_GET, ex.handleGetInterchainMessage); err != nil {
-			return fmt.Errorf("register query interchain msg handler: %w", err)
-		}
-
-		if err := ex.peerMgr.RegisterMsgHandler(peerMsg.Message_IBTP_SEND, ex.handleSendIBTPMessage); err != nil {
-			return fmt.Errorf("register ibtp handler: %w", err)
-		}
-
-		if err := ex.peerMgr.RegisterMsgHandler(peerMsg.Message_IBTP_RECEIPT_SEND, ex.handleSendIBTPReceiptMessage); err != nil {
-			return fmt.Errorf("register ibtp handler: %w", err)
-		}
-
-		if err := ex.peerMgr.RegisterMsgHandler(peerMsg.Message_IBTP_GET, ex.handleGetIBTPMessage); err != nil {
-			return fmt.Errorf("register ibtp receipt handler: %w", err)
-		}
-
-		if err := ex.peerMgr.Start(); err != nil {
-			return fmt.Errorf("peerMgr start: %w", err)
-		}
-
-		go ex.analysisDirectTPS()
-
+		err = ex.startWithDirectMode()
 	case repo.RelayMode:
-		// recover exchanger before relay any interchain msgs
-		ex.recoverRelay()
-
-		if err := ex.syncer.RegisterIBTPHandler(ex.handleIBTP); err != nil {
-			return fmt.Errorf("register ibtp handler: %w", err)
-		}
-
-		if err := ex.syncer.Start(); err != nil {
-			return fmt.Errorf("syncer start: %w", err)
-		}
-
+		err = ex.startWithRelayMode()
 	case repo.UnionMode:
-		if err := ex.peerMgr.Start(); err != nil {
-			return fmt.Errorf("peerMgr start: %w", err)
-		}
-
-		if err := ex.peerMgr.RegisterMsgHandler(peerMsg.Message_ROUTER_IBTP_SEND, ex.handleRouterSendIBTPMessage); err != nil {
-			return fmt.Errorf("register router ibtp handler: %w", err)
-		}
-
-		if err := ex.peerMgr.RegisterMsgHandler(peerMsg.Message_ROUTER_INTERCHAIN_SEND, ex.handleRouterInterchain); err != nil {
-			return fmt.Errorf("register router interchain handler: %w", err)
-		}
-
-		if err := ex.syncer.RegisterIBTPHandler(ex.handleUnionIBTP); err != nil {
-			return fmt.Errorf("register ibtp handler: %w", err)
-		}
-
-		if err := ex.syncer.RegisterAppchainHandler(ex.handleProviderAppchains); err != nil {
-			return fmt.Errorf("register router handler: %w", err)
-		}
-
-		if err := ex.syncer.RegisterRecoverHandler(ex.handleRecover); err != nil {
-			return fmt.Errorf("register recover handler: %w", err)
-		}
-
-		if err := ex.router.Start(); err != nil {
-			return fmt.Errorf("router start: %w", err)
-		}
-
-		if err := ex.syncer.Start(); err != nil {
-			return fmt.Errorf("syncer start: %w", err)
-		}
+		err = ex.startWithUnionMode()
 	}
 
+	if err != nil {
+		return err
+	}
 	if ex.mode != repo.UnionMode {
-		go ex.listenAndSendIBTP()
+		go ex.listenAndSendIBTPFromMnt()
+	}
+	if ex.mode != repo.DirectMode {
+		go ex.listenAndSendIBTPFromSyncer()
 	}
 
-	logger.Info("Exchanger started")
+	ex.logger.Info("Exchanger started")
 	return nil
 }
 
-func (ex *Exchanger) analysisDirectTPS() {
-	ticker := time.NewTicker(time.Second)
-	defer ticker.Stop()
-
-	current := time.Now()
-	counter := ex.sendIBTPCounter.Load()
-	for {
-		select {
-		case <-ticker.C:
-			tps := ex.sendIBTPCounter.Load() - counter
-			counter = ex.sendIBTPCounter.Load()
-			totalTimer := ex.sendIBTPTimer.Load()
-
-			if tps != 0 {
-				logger.WithFields(logrus.Fields{
-					"tps":      tps,
-					"tps_sum":  counter,
-					"tps_time": totalTimer.Milliseconds() / int64(counter),
-					"tps_avg":  float64(counter) / time.Since(current).Seconds(),
-				}).Info("analysis")
-			}
-
-		case <-ex.ctx.Done():
-			return
-		}
+func (ex *Exchanger) startWithDirectMode() error {
+	if err := ex.apiServer.Start(); err != nil {
+		return fmt.Errorf("peerMgr start: %w", err)
 	}
+
+	if err := ex.peerMgr.RegisterConnectHandler(ex.handleNewConnection); err != nil {
+		return fmt.Errorf("register on connection handler: %w", err)
+	}
+
+	if err := ex.peerMgr.RegisterMsgHandler(peerMsg.Message_INTERCHAIN_META_GET, ex.handleGetInterchainMessage); err != nil {
+		return fmt.Errorf("register query interchain msg handler: %w", err)
+	}
+
+	if err := ex.peerMgr.RegisterMsgHandler(peerMsg.Message_IBTP_SEND, ex.handleSendIBTPMessage); err != nil {
+		return fmt.Errorf("register ibtp handler: %w", err)
+	}
+
+	if err := ex.peerMgr.RegisterMsgHandler(peerMsg.Message_IBTP_RECEIPT_SEND, ex.handleSendIBTPReceiptMessage); err != nil {
+		return fmt.Errorf("register ibtp handler: %w", err)
+	}
+
+	if err := ex.peerMgr.RegisterMsgHandler(peerMsg.Message_IBTP_GET, ex.handleGetIBTPMessage); err != nil {
+		return fmt.Errorf("register ibtp receipt handler: %w", err)
+	}
+
+	if err := ex.peerMgr.Start(); err != nil {
+		return fmt.Errorf("peerMgr start: %w", err)
+	}
+
+	go ex.analysisDirectTPS()
+	return nil
 }
 
-func (ex *Exchanger) listenAndSendIBTP() {
-	ch := ex.mnt.ListenOnIBTP()
+func (ex *Exchanger) startWithRelayMode() error {
+	// syncer should be started first in case to recover ibtp from monitor
+	if err := ex.syncer.Start(); err != nil {
+		return fmt.Errorf("syncer start: %w", err)
+
+	}
+
+	// recover exchanger before relay any interchain msgs
+	ex.recoverRelay()
+
+	return nil
+}
+
+func (ex *Exchanger) startWithUnionMode() error {
+	if err := ex.peerMgr.Start(); err != nil {
+		return fmt.Errorf("peerMgr start: %w", err)
+	}
+
+	if err := ex.peerMgr.RegisterMsgHandler(peerMsg.Message_ROUTER_IBTP_SEND, ex.handleRouterSendIBTPMessage); err != nil {
+		return fmt.Errorf("register router ibtp handler: %w", err)
+	}
+
+	if err := ex.peerMgr.RegisterMsgHandler(peerMsg.Message_ROUTER_INTERCHAIN_SEND, ex.handleRouterInterchain); err != nil {
+		return fmt.Errorf("register router interchain handler: %w", err)
+	}
+
+	if err := ex.syncer.RegisterAppchainHandler(ex.handleProviderAppchains); err != nil {
+		return fmt.Errorf("register router handler: %w", err)
+	}
+
+	if err := ex.syncer.RegisterRecoverHandler(ex.handleRecover); err != nil {
+		return fmt.Errorf("register recover handler: %w", err)
+	}
+
+	if err := ex.router.Start(); err != nil {
+		return fmt.Errorf("router start: %w", err)
+	}
+
+	if err := ex.syncer.Start(); err != nil {
+		return fmt.Errorf("syncer start: %w", err)
+	}
+	return nil
+}
+
+func (ex *Exchanger) listenAndSendIBTPFromMnt() {
+	ch := ex.mnt.ListenIBTP()
 	for {
 		select {
 		case <-ex.ctx.Done():
 			return
 		case ibtp, ok := <-ch:
 			if !ok {
-				logger.Warn("Unexpected closed channel while listening on interchain ibtp")
+				ex.logger.Warn("Unexpected closed channel while listening on interchain ibtp")
 				return
 			}
+			index := ex.interchainCounter[ibtp.To]
+			if index >= ibtp.Index {
+				ex.logger.WithFields(logrus.Fields{"index": ibtp.Index, "to_counter": index, "ibtp_id": ibtp.ID()}).Info("Ignore ibtp")
+				return
+			}
+
+			if index+1 < ibtp.Index {
+				ex.logger.WithFields(logrus.Fields{"index": ibtp.Index, "to": ibtp.To}).Info("Get missing ibtp")
+
+				if err := ex.handleMissingIBTPFromMnt(ibtp.To, index+1, ibtp.Index); err != nil {
+					ex.logger.WithFields(logrus.Fields{"index": ibtp.Index, "to": ibtp.To, "err": err.Error()}).Error("Handle missing ibtp")
+				}
+			}
+
+			ex.interchainCounter[ibtp.To] = ibtp.Index
+
 			if err := ex.sendIBTP(ibtp); err != nil {
-				logger.Infof("Send ibtp: %s", err.Error())
+				ex.logger.Infof("Send ibtp: %s", err.Error())
+			}
+		}
+	}
+}
+
+func (ex *Exchanger) listenAndSendIBTPFromSyncer() {
+	ch := ex.syncer.ListenIBTP()
+	for {
+		select {
+		case <-ex.ctx.Done():
+			return
+		case ibtp, ok := <-ch:
+			if !ok {
+				ex.logger.Warn("Unexpected closed channel while listening on interchain ibtp")
+				return
+			}
+			entry := ex.logger.WithFields(logrus.Fields{"type": ibtp.Type, "id": ibtp.ID()})
+			switch ibtp.Type {
+			case pb.IBTP_INTERCHAIN, pb.IBTP_ASSET_EXCHANGE_INIT,
+				pb.IBTP_ASSET_EXCHANGE_REDEEM, pb.IBTP_ASSET_EXCHANGE_REFUND:
+				ex.applyInterchain(ibtp, entry)
+			case pb.IBTP_RECEIPT_SUCCESS, pb.IBTP_RECEIPT_FAILURE, pb.IBTP_ASSET_EXCHANGE_RECEIPT:
+				ex.applyReceipt(ibtp, entry)
+			default:
+				entry.Errorf("wrong type of ibtp")
+				return
 			}
 		}
 	}
@@ -255,42 +270,22 @@ func (ex *Exchanger) Stop() error {
 		}
 	}
 
-	logger.Info("Exchanger stopped")
+	ex.logger.Info("Exchanger stopped")
 
 	return nil
 }
 
 func (ex *Exchanger) sendIBTP(ibtp *pb.IBTP) error {
-	entry := logger.WithFields(logrus.Fields{
-		"index": ibtp.Index,
-		"type":  ibtp.Type,
-		"to":    ibtp.To,
-		"id":    ibtp.ID(),
-	})
+	entry := ex.logger.WithFields(logrus.Fields{"index": ibtp.Index, "type": ibtp.Type, "to": ibtp.To, "id": ibtp.ID()})
 
 	switch ex.mode {
 	case repo.UnionMode:
 		fallthrough
 	case repo.RelayMode:
-		if err := retry.Retry(func(attempt uint) error {
-			receipt, err := ex.agent.SendIBTP(ibtp)
-			if err != nil {
-				entry.Errorf("send ibtp to bitxhub: %s", err.Error())
-				return fmt.Errorf("send ibtp to bitxhub: %s", err.Error())
-			}
-
-			if !receipt.IsSuccess() {
-				entry.WithField("error", string(receipt.Ret)).Error("Send ibtp")
-				return nil
-			}
-
-			entry.WithFields(logrus.Fields{
-				"hash": receipt.TxHash.String(),
-			}).Info("Send ibtp")
-
-			return nil
-		}, strategy.Wait(1*time.Second)); err != nil {
-			logger.Panic(err)
+		err := ex.syncer.SendIBTP(ibtp)
+		if err != nil {
+			entry.Errorf("send ibtp to bitxhub: %s", err.Error())
+			return fmt.Errorf("send ibtp to bitxhub: %s", err.Error())
 		}
 	case repo.DirectMode:
 		// send ibtp to another pier
@@ -309,15 +304,16 @@ func (ex *Exchanger) sendIBTP(ibtp *pb.IBTP) error {
 			}
 
 			if err := ex.peerMgr.AsyncSend(dst, msg); err != nil {
-				logger.Errorf("Send ibtp to pier %s: %s", ibtp.ID(), err.Error())
+				ex.logger.Errorf("Send ibtp to pier %s: %s", ibtp.ID(), err.Error())
 				return err
 			}
 
 			return nil
 		}, strategy.Wait(1*time.Second)); err != nil {
-			logger.Panic(err)
+			ex.logger.Panic(err)
 		}
 	}
+	entry.Info("Send ibtp success from monitor")
 	return nil
 }
 
@@ -334,135 +330,38 @@ func (ex *Exchanger) queryIBTP(from string, idx uint64) (*pb.IBTP, error) {
 	}
 
 	// query ibtp from counterpart chain
-	loop := func() error {
-		var err error
-		switch ex.mode {
-		case repo.RelayMode:
-			ibtp, err = ex.agent.GetIBTPByID(id)
-			if err != nil {
-				if errors.Is(err, agent.ErrIBTPNotFound) {
-					logger.Panicf("query ibtp by id %s from bitxhub: %s", id, err.Error())
-				}
-				return fmt.Errorf("query ibtp from bitxhub: %s", err.Error())
+	var err error
+	switch ex.mode {
+	case repo.RelayMode:
+		ibtp, err = ex.syncer.QueryIBTP(id)
+		if err != nil {
+			if errors.Is(err, syncer.ErrIBTPNotFound) {
+				ex.logger.Panicf("query ibtp by id %s from bitxhub: %s", id, err.Error())
 			}
-		case repo.DirectMode:
-			// query ibtp from another pier
-			msg := peermgr.Message(peerMsg.Message_IBTP_GET, true, []byte(id))
-			result, err := ex.peerMgr.Send(from, msg)
-			if err != nil {
-				return err
-			}
-
-			if err := ibtp.Unmarshal(result.Payload.Data); err != nil {
-				return err
-			}
-		default:
-			return fmt.Errorf("unsupported pier mode")
+			return nil, fmt.Errorf("query ibtp from bitxhub: %s", err.Error())
 		}
-		return nil
-	}
+	case repo.DirectMode:
+		// query ibtp from another pier
+		msg := peermgr.Message(peerMsg.Message_IBTP_GET, true, []byte(id))
+		result, err := ex.peerMgr.Send(from, msg)
+		if err != nil {
+			return nil, err
+		}
 
-	if err := retry.Retry(func(attempt uint) error {
-		return loop()
-	}, strategy.Wait(1*time.Second)); err != nil {
-		logger.Panic(err)
+		if err := ibtp.Unmarshal(result.Payload.Data); err != nil {
+			return nil, err
+		}
+	default:
+		return nil, fmt.Errorf("unsupported pier mode")
 	}
 
 	return ibtp, nil
 }
 
-func (ex *Exchanger) feedIBTP(ibtp *pb.IBTP) {
-	act, loaded := ex.ibtps.LoadOrStore(ibtp.From, NewPool())
-	pool := act.(*Pool)
-	pool.feed(ibtp)
-
-	if !loaded {
-		go func(pool *Pool) {
-			defer func() {
-				if e := recover(); e != nil {
-					logger.Error(fmt.Errorf("%v", e))
-				}
-			}()
-			inMeta := ex.exec.QueryLatestMeta()
-			for ibtp := range pool.ch {
-				idx := executor.LoadSyncMap(inMeta, ibtp.From)
-				if ibtp.Index <= idx {
-					logger.Warn("ignore ibtp with invalid index:{}", ibtp.Index)
-					continue
-				}
-				if idx+1 == ibtp.Index {
-					ex.processIBTP(ibtp)
-					index := ibtp.Index + 1
-					ibtp := pool.get(index)
-					for ibtp != nil {
-						ex.processIBTP(ibtp)
-						index++
-						ibtp = pool.get(index)
-					}
-				} else {
-					pool.put(ibtp)
-				}
-			}
-		}(pool)
+func copyCounterMap(original map[string]uint64) map[string]uint64 {
+	ret := make(map[string]uint64, len(original))
+	for id, idx := range original {
+		ret[id] = idx
 	}
-}
-
-func (ex *Exchanger) processIBTP(ibtp *pb.IBTP) {
-	receipt := ex.exec.HandleIBTP(ibtp)
-	ex.postHandleIBTP(ibtp.From, receipt)
-	ex.sendIBTPCounter.Inc()
-}
-
-func (ex *Exchanger) feedReceipt(receipt *pb.IBTP) {
-	act, loaded := ex.receipts.LoadOrStore(receipt.To, NewPool())
-	pool := act.(*Pool)
-	pool.feed(receipt)
-
-	if !loaded {
-		go func(pool *Pool) {
-			defer func() {
-				if e := recover(); e != nil {
-					logger.Error(fmt.Errorf("%v", e))
-				}
-			}()
-			callbackMeta := ex.exec.QueryLatestCallbackMeta()
-			for ibtp := range pool.ch {
-				if ibtp.Index <= executor.LoadSyncMap(callbackMeta, ibtp.To) {
-					logger.Warn("ignore ibtp with invalid index")
-					continue
-				}
-				if executor.LoadSyncMap(callbackMeta, ibtp.To)+1 == ibtp.Index {
-					ex.exec.HandleIBTP(ibtp)
-
-					index := ibtp.Index + 1
-					ibtp := pool.get(index)
-					for ibtp != nil {
-						receipt := ex.exec.HandleIBTP(ibtp)
-						ex.postHandleIBTP(ibtp.From, receipt)
-						index++
-						ibtp = pool.get(index)
-					}
-				} else {
-					pool.put(ibtp)
-				}
-			}
-		}(pool)
-	}
-}
-
-func (pool *Pool) feed(ibtp *pb.IBTP) {
-	pool.ch <- ibtp
-}
-
-func (pool *Pool) put(ibtp *pb.IBTP) {
-	pool.ibtps.Store(ibtp.Index, ibtp)
-}
-
-func (pool *Pool) get(index uint64) *pb.IBTP {
-	ibtp, ok := pool.ibtps.Load(index)
-	if !ok {
-		return nil
-	}
-
-	return ibtp.(*pb.IBTP)
+	return ret
 }

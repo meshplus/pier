@@ -6,13 +6,20 @@ import (
 	"time"
 
 	"github.com/golang/mock/gomock"
+	"github.com/meshplus/bitxhub-kit/types"
 	"github.com/meshplus/bitxhub-model/pb"
+	"github.com/meshplus/go-bitxhub-client/mock_client"
 	"github.com/stretchr/testify/require"
 )
 
+const (
+	from = "0x3f9d18f7c3a6e5e4c0b877fe3e688ab08840b997"
+	to   = "0x703b22368195d5063C5B5C26019301Cf2EbC83e2"
+)
+
 func TestClient_SubmitIBTP(t *testing.T) {
-	ag, mockClient := prepare(t)
-	agClient := CreateClient(ag)
+	mockClient := prepare(t)
+	agClient := CreateClient(mockClient)
 
 	r := &pb.Receipt{
 		Ret:    []byte(nil),
@@ -32,8 +39,8 @@ func TestClient_SubmitIBTP(t *testing.T) {
 }
 
 func TestClient_GetInMeta(t *testing.T) {
-	ag, mockClient := prepare(t)
-	agClient := CreateClient(ag)
+	mockClient := prepare(t)
+	agClient := CreateClient(mockClient)
 	mockInCounterMap := make(map[string]uint64)
 	data, err := json.Marshal(mockInCounterMap)
 	require.Nil(t, err)
@@ -47,8 +54,8 @@ func TestClient_GetInMeta(t *testing.T) {
 }
 
 func TestClient_Other(t *testing.T) {
-	ag, _ := prepare(t)
-	agClient := CreateClient(ag)
+	mockClient := prepare(t)
+	agClient := CreateClient(mockClient)
 
 	_, err := agClient.GetInMessage("", uint64(1))
 	require.Nil(t, err)
@@ -79,4 +86,13 @@ func TestClient_Other(t *testing.T) {
 	_ = agClient.Name()
 	_ = agClient.Type()
 
+}
+
+func prepare(t *testing.T) *mock_client.MockClient {
+	mockCtl := gomock.NewController(t)
+	mockCtl.Finish()
+	mockClient := mock_client.NewMockClient(mockCtl)
+	addr := types.Address{}
+	addr.SetBytes([]byte(from))
+	return mockClient
 }

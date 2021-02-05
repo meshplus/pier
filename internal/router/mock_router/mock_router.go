@@ -11,30 +11,30 @@ import (
 	reflect "reflect"
 )
 
-// MockRouter is a mock of Router interface.
+// MockRouter is a mock of Router interface
 type MockRouter struct {
 	ctrl     *gomock.Controller
 	recorder *MockRouterMockRecorder
 }
 
-// MockRouterMockRecorder is the mock recorder for MockRouter.
+// MockRouterMockRecorder is the mock recorder for MockRouter
 type MockRouterMockRecorder struct {
 	mock *MockRouter
 }
 
-// NewMockRouter creates a new mock instance.
+// NewMockRouter creates a new mock instance
 func NewMockRouter(ctrl *gomock.Controller) *MockRouter {
 	mock := &MockRouter{ctrl: ctrl}
 	mock.recorder = &MockRouterMockRecorder{mock}
 	return mock
 }
 
-// EXPECT returns an object that allows the caller to indicate expected use.
+// EXPECT returns an object that allows the caller to indicate expected use
 func (m *MockRouter) EXPECT() *MockRouterMockRecorder {
 	return m.recorder
 }
 
-// Start mocks base method.
+// Start mocks base method
 func (m *MockRouter) Start() error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Start")
@@ -42,13 +42,13 @@ func (m *MockRouter) Start() error {
 	return ret0
 }
 
-// Start indicates an expected call of Start.
+// Start indicates an expected call of Start
 func (mr *MockRouterMockRecorder) Start() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Start", reflect.TypeOf((*MockRouter)(nil).Start))
 }
 
-// Stop mocks base method.
+// Stop mocks base method
 func (m *MockRouter) Stop() error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Stop")
@@ -56,13 +56,13 @@ func (m *MockRouter) Stop() error {
 	return ret0
 }
 
-// Stop indicates an expected call of Stop.
+// Stop indicates an expected call of Stop
 func (mr *MockRouterMockRecorder) Stop() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Stop", reflect.TypeOf((*MockRouter)(nil).Stop))
 }
 
-// Broadcast mocks base method.
+// Broadcast mocks base method
 func (m *MockRouter) Broadcast(ids []string) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Broadcast", ids)
@@ -70,13 +70,13 @@ func (m *MockRouter) Broadcast(ids []string) error {
 	return ret0
 }
 
-// Broadcast indicates an expected call of Broadcast.
+// Broadcast indicates an expected call of Broadcast
 func (mr *MockRouterMockRecorder) Broadcast(ids interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Broadcast", reflect.TypeOf((*MockRouter)(nil).Broadcast), ids)
 }
 
-// Route mocks base method.
+// Route mocks base method
 func (m *MockRouter) Route(ibtp *pb.IBTP) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Route", ibtp)
@@ -84,13 +84,13 @@ func (m *MockRouter) Route(ibtp *pb.IBTP) error {
 	return ret0
 }
 
-// Route indicates an expected call of Route.
+// Route indicates an expected call of Route
 func (mr *MockRouterMockRecorder) Route(ibtp interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Route", reflect.TypeOf((*MockRouter)(nil).Route), ibtp)
 }
 
-// ExistAppchain mocks base method.
+// ExistAppchain mocks base method
 func (m *MockRouter) ExistAppchain(id string) bool {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ExistAppchain", id)
@@ -98,13 +98,13 @@ func (m *MockRouter) ExistAppchain(id string) bool {
 	return ret0
 }
 
-// ExistAppchain indicates an expected call of ExistAppchain.
+// ExistAppchain indicates an expected call of ExistAppchain
 func (mr *MockRouterMockRecorder) ExistAppchain(id interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ExistAppchain", reflect.TypeOf((*MockRouter)(nil).ExistAppchain), id)
 }
 
-// AddAppchains mocks base method.
+// AddAppchains mocks base method
 func (m *MockRouter) AddAppchains(appchains []*rpcx.Appchain) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "AddAppchains", appchains)
@@ -112,7 +112,7 @@ func (m *MockRouter) AddAppchains(appchains []*rpcx.Appchain) error {
 	return ret0
 }
 
-// AddAppchains indicates an expected call of AddAppchains.
+// AddAppchains indicates an expected call of AddAppchains
 func (mr *MockRouterMockRecorder) AddAppchains(appchains interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddAppchains", reflect.TypeOf((*MockRouter)(nil).AddAppchains), appchains)

@@ -10,10 +10,11 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/meshplus/bitxhub-kit/crypto"
 	"github.com/meshplus/bitxhub-kit/crypto/asym"
+	"github.com/meshplus/bitxhub-kit/log"
 	"github.com/meshplus/bitxhub-kit/storage/leveldb"
 	"github.com/meshplus/bitxhub-kit/types"
 	"github.com/meshplus/bitxhub-model/pb"
-	"github.com/meshplus/pier/internal/agent/mock_agent"
+	"github.com/meshplus/go-bitxhub-client/mock_client"
 	"github.com/stretchr/testify/require"
 )
 
@@ -22,7 +23,7 @@ const (
 )
 
 func TestSyncHeader(t *testing.T) {
-	lite, ag, _ := prepare(t)
+	lite, client, _ := prepare(t)
 	defer lite.storage.Close()
 
 	// expect mock module returns
@@ -35,21 +36,22 @@ func TestSyncHeader(t *testing.T) {
 	h3 := getBlockHeader(t, txs, 3)
 	h3.TxRoot = types.NewHashByStr(from)
 
+	syncHeaderCh := make(chan interface{}, 2)
 	meta := &pb.ChainMeta{
 		Height:    1,
 		BlockHash: types.NewHashByStr(from),
 	}
-	ag.EXPECT().SyncBlockHeader(gomock.Any(), gomock.Any()).Do(func(ctx context.Context, ch chan *pb.BlockHeader) {
-		ch <- h2
-		close(ch)
-	}).AnyTimes()
-	ag.EXPECT().GetBlockHeader(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Do(
-		func(ctx context.Context, begin, end uint64, ch chan *pb.BlockHeader) {
+	client.EXPECT().Subscribe(gomock.Any(), pb.SubscriptionRequest_BLOCK_HEADER, gomock.Any()).Return(syncHeaderCh, nil).AnyTimes()
+	client.EXPECT().GetBlockHeader(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Do(
+		func(ctx context.Context, begin, end uint64, ch chan<- *pb.BlockHeader) {
 			ch <- h1
 			close(ch)
 		}).AnyTimes()
-	ag.EXPECT().GetChainMeta().Return(meta, nil).AnyTimes()
+	client.EXPECT().GetChainMeta().Return(meta, nil).AnyTimes()
 
+	go func() {
+		syncHeaderCh <- h2
+	}()
 	done := make(chan bool, 1)
 	go func() {
 		err := lite.Start()
@@ -69,20 +71,20 @@ func TestSyncHeader(t *testing.T) {
 	require.Nil(t, lite.Stop())
 }
 
-func prepare(t *testing.T) (*BxhLite, *mock_agent.MockAgent, []crypto.PrivateKey) {
+func prepare(t *testing.T) (*BxhLite, *mock_client.MockClient, []crypto.PrivateKey) {
 	mockCtl := gomock.NewController(t)
 	mockCtl.Finish()
-	ag := mock_agent.NewMockAgent(mockCtl)
+	client := mock_client.NewMockClient(mockCtl)
 	tmpDir, err := ioutil.TempDir("", "storage")
 	require.Nil(t, err)
 	storage, err := leveldb.New(tmpDir)
 	require.Nil(t, err)
 
 	keys := getVlts(t)
-	lite, err := New(ag, storage)
+	lite, err := New(client, storage, log.NewWithModule("lite"))
 	require.Nil(t, err)
 
-	return lite, ag, keys
+	return lite, client, keys
 }
 
 func getBlockHeader(t *testing.T, txs []*pb.Transaction, number uint64) *pb.BlockHeader {

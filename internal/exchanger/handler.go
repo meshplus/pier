@@ -29,35 +29,66 @@ func (ex *Exchanger) handleIBTP(ibtp *pb.IBTP) {
 			}
 			return nil
 		}, strategy.Wait(1*time.Second)); err != nil {
-			logger.Panic(err)
+			ex.logger.Panic(err)
 		}
 	}
 
-	receipt := ex.exec.HandleIBTP(ibtp)
+	receipt, err := ex.exec.ExecuteIBTP(ibtp)
+	if err != nil {
+		ex.logger.Errorf("execute ibtp error:%s", err.Error())
+	}
 	if receipt == nil {
+		ex.logger.WithFields(logrus.Fields{"type": ibtp.Type, "id": ibtp.ID()}).Info("Handle ibtp receipt success")
 		return
 	}
-	logger.WithFields(logrus.Fields{
-		"index": ibtp.Index,
-		"from":  ibtp.From,
-	}).Info("Handle ibtp")
+	ex.logger.WithFields(logrus.Fields{"type": ibtp.Type, "id": ibtp.ID()}).Info("Handle ibtp success")
 
-	if err := retry.Retry(func(attempt uint) error {
-		_, err = ex.agent.SendIBTP(receipt)
-		if err != nil {
-			return err
-		}
-		return nil
-	}, strategy.Wait(1*time.Second)); err != nil {
-		logger.Panic(err)
+	err = ex.syncer.SendIBTP(receipt)
+	if err != nil {
+		ex.logger.Errorf("send ibtp error:%v", err)
 	}
+}
+
+func (ex *Exchanger) applyReceipt(ibtp *pb.IBTP, entry logrus.FieldLogger) {
+	index := ex.callbackCounter[ibtp.To]
+	if index >= ibtp.Index {
+		entry.Infof("Ignore ibtp callback, expected index %d", index+1)
+		return
+	}
+
+	if index+1 < ibtp.Index {
+		entry.Info("Get missing ibtp receipt, expected index %d", index+1)
+		// todo: need to handle missing ibtp receipt or not?
+		return
+	}
+	ex.handleIBTP(ibtp)
+	ex.callbackCounter[ibtp.To] = ibtp.Index
+}
+
+func (ex *Exchanger) applyInterchain(ibtp *pb.IBTP, entry logrus.FieldLogger) {
+	index := ex.executorCounter[ibtp.From]
+	if index >= ibtp.Index {
+		entry.Infof("Ignore ibtp, expected %d", index+1)
+		return
+	}
+
+	if index+1 < ibtp.Index {
+		entry.Info("Get missing ibtp")
+
+		if err := ex.handleMissingIBTPFromSyncer(ibtp.From, index+1, ibtp.Index); err != nil {
+			entry.Error("Handle missing ibtp")
+			return
+		}
+	}
+	ex.handleIBTP(ibtp)
+	ex.executorCounter[ibtp.From] = ibtp.Index
 }
 
 // handleIBTP handle ibtps from bitxhub
 func (ex *Exchanger) handleUnionIBTP(ibtp *pb.IBTP) {
 	if ibtp.To == ex.pierID {
-		ex.exec.HandleIBTP(ibtp)
-		logger.WithFields(logrus.Fields{
+		ex.exec.ExecuteIBTP(ibtp)
+		ex.logger.WithFields(logrus.Fields{
 			"index": ibtp.Index,
 			"type":  ibtp.Type,
 			"from":  ibtp.From,
@@ -70,13 +101,13 @@ func (ex *Exchanger) handleUnionIBTP(ibtp *pb.IBTP) {
 	var signs []byte
 	if err := retry.Retry(func(attempt uint) error {
 		var err error
-		signs, err = ex.agent.GetIBTPSigns(ibtp)
+		signs, err = ex.syncer.GetIBTPSigns(ibtp)
 		if err != nil {
 			return err
 		}
 		return nil
 	}, strategy.Wait(1*time.Second)); err != nil {
-		logger.Panic(err)
+		ex.logger.Panic(err)
 	}
 
 	ibtp.Proof = signs
@@ -88,18 +119,13 @@ func (ex *Exchanger) handleUnionIBTP(ibtp *pb.IBTP) {
 		}
 		return nil
 	}, strategy.Wait(1*time.Second)); err != nil {
-		logger.Panic(err)
+		ex.logger.Panic(err)
 	}
-	logger.WithFields(logrus.Fields{
-		"index": ibtp.Index,
-		"type":  ibtp.Type,
-		"from":  ibtp.From,
-		"id":    ibtp.ID(),
-	}).Info("Route tx successful")
+	ex.logger.WithFields(logrus.Fields{"index": ibtp.Index, "type": ibtp.Type, "from": ibtp.From, "id": ibtp.ID()}).Info("Route tx successful")
 }
 
 func (ex *Exchanger) handleProviderAppchains() error {
-	appchains, err := ex.agent.GetAppchains()
+	appchains, err := ex.syncer.GetAppchains()
 	if err != nil {
 		return fmt.Errorf("get appchains:%w", err)
 	}
@@ -109,13 +135,12 @@ func (ex *Exchanger) handleProviderAppchains() error {
 //handleRouterSendIBTPMessage handles IBTP from union interchain network
 func (ex *Exchanger) handleRouterSendIBTPMessage(stream network.Stream, msg *peerMsg.Message) {
 	handle := func() error {
-
 		ibtp := &pb.IBTP{}
 		if err := ibtp.Unmarshal(msg.Payload.Data); err != nil {
 			return fmt.Errorf("unmarshal ibtp: %w", err)
 		}
 
-		entry := logger.WithFields(logrus.Fields{
+		entry := ex.logger.WithFields(logrus.Fields{
 			"index": ibtp.Index,
 			"type":  ibtp.Type,
 			"from":  ibtp.From,
@@ -125,26 +150,24 @@ func (ex *Exchanger) handleRouterSendIBTPMessage(stream network.Stream, msg *pee
 
 		retMsg := peermgr.Message(peerMsg.Message_ACK, true, nil)
 		if !ex.router.ExistAppchain(ibtp.To) {
-			logger.WithField("appchain", ibtp.To).Errorf("cannot found appchain in relay network")
+			entry.WithField("appchain", ibtp.To).Errorf("cannot found appchain in relay network")
 			retMsg.Payload.Ok = false
 		}
 
 		err := ex.peerMgr.AsyncSendWithStream(stream, retMsg)
 		if err != nil {
-			entry.Error("send back ibtp: %w", err)
 			return fmt.Errorf("send back ibtp: %w", err)
 		}
 		entry.Infof("receive ibtp successfully")
 
 		if err := ex.sendIBTP(ibtp); err != nil {
-			entry.Infof("Send ibtp: %s", err.Error())
-			return err
+			return fmt.Errorf("send ibtp: %v", err)
 		}
 		return nil
 	}
 
 	if err := handle(); err != nil {
-		logger.Error(err)
+		ex.logger.Error(err)
 		return
 	}
 }
@@ -154,21 +177,16 @@ func (ex *Exchanger) postHandleIBTP(from string, receipt *pb.IBTP) {
 		retMsg := peermgr.Message(peerMsg.Message_IBTP_RECEIPT_SEND, true, nil)
 		err := ex.peerMgr.AsyncSend(from, retMsg)
 		if err != nil {
-			logger.Error("send back empty ibtp receipt: %w", err)
+			ex.logger.Error("send back empty ibtp receipt: %w", err)
 		}
 		return
 	}
 
-	//logger.Infof("postHandleIBTP, %s-%s-%d", receipt.From, receipt.To, receipt.Index)
-	data, err := receipt.Marshal()
-	if err != nil {
-		logger.Error("marshal ibtp receipt: %w", err)
-	}
-
+	//ex.logger.Infof("postHandleIBTP, %s-%s-%d", receipt.From, receipt.To, receipt.Index)
+	data, _ := receipt.Marshal()
 	retMsg := peermgr.Message(peerMsg.Message_IBTP_RECEIPT_SEND, true, data)
-	err = ex.peerMgr.AsyncSend(from, retMsg)
-	if err != nil {
-		logger.Error("send back ibtp receipt: %w", err)
+	if err := ex.peerMgr.AsyncSend(from, retMsg); err != nil {
+		ex.logger.Error("send back ibtp receipt: %w", err)
 	}
 }
 
@@ -185,13 +203,13 @@ func (ex *Exchanger) handleSendIBTPMessage(stream network.Stream, msg *peerMsg.M
 	go func(msg *peerMsg.Message) {
 		ibtp := &pb.IBTP{}
 		if err := ibtp.Unmarshal(msg.Payload.Data); err != nil {
-			logger.Error("unmarshal ibtp: %w", err)
+			ex.logger.Error("unmarshal ibtp: %w", err)
 			return
 		}
 		defer ex.timeCost()()
 		err := ex.checker.Check(ibtp)
 		if err != nil {
-			logger.Error("check ibtp: %w", err)
+			ex.logger.Error("check ibtp: %w", err)
 			return
 		}
 
@@ -207,32 +225,32 @@ func (ex *Exchanger) handleSendIBTPReceiptMessage(stream network.Stream, msg *pe
 	}
 	receipt := &pb.IBTP{}
 	if err := receipt.Unmarshal(msg.Payload.Data); err != nil {
-		logger.Error("unmarshal ibtp: %w", err)
+		ex.logger.Error("unmarshal ibtp: %w", err)
 		return
 	}
 
 	// ignore msg for receipt type
 	if receipt.Type == pb.IBTP_RECEIPT_SUCCESS || receipt.Type == pb.IBTP_RECEIPT_FAILURE {
-		//logger.Warn("ignore receipt ibtp")
+		//ex.logger.Warn("ignore receipt ibtp")
 		return
 	}
 
 	err := ex.checker.Check(receipt)
 	if err != nil {
-		logger.Error("check ibtp: %w", err)
+		ex.logger.Error("check ibtp: %w", err)
 		return
 	}
 
 	ex.feedReceipt(receipt)
 
-	logger.Info("Receive ibtp receipt from other pier")
+	ex.logger.Info("Receive ibtp receipt from other pier")
 }
 
 func (ex *Exchanger) handleGetIBTPMessage(stream network.Stream, msg *peerMsg.Message) {
 	ibtpID := string(msg.Payload.Data)
 	ibtp, err := ex.mnt.QueryIBTP(ibtpID)
 	if err != nil {
-		logger.Error("Get wrong ibtp id")
+		ex.logger.Error("Get wrong ibtp id")
 		return
 	}
 
@@ -245,7 +263,7 @@ func (ex *Exchanger) handleGetIBTPMessage(stream network.Stream, msg *peerMsg.Me
 
 	err = ex.peerMgr.AsyncSendWithStream(stream, retMsg)
 	if err != nil {
-		logger.Error(err)
+		ex.logger.Error(err)
 	}
 }
 
@@ -278,7 +296,7 @@ func (ex *Exchanger) handleNewConnection(dstPierID string) {
 	if err := retry.Retry(func(attempt uint) error {
 		return loop()
 	}, strategy.Wait(1*time.Second)); err != nil {
-		logger.Panic(err)
+		ex.logger.Panic(err)
 	}
 
 	ex.recoverDirect(dstPierID, indices.InterchainIndex, indices.ReceiptIndex)
@@ -303,7 +321,7 @@ func (ex *Exchanger) handleRecover(ibtp *pb.IBTP) (*rpcx.Interchain, error) {
 }
 
 func (ex *Exchanger) handleRouterInterchain(s network.Stream, msg *peerMsg.Message) {
-	ic := ex.agent.GetInterchainById(string(msg.Payload.Data))
+	ic := ex.syncer.GetInterchainById(string(msg.Payload.Data))
 	data, err := ic.Marshal()
 	if err != nil {
 		panic(err)
@@ -311,27 +329,27 @@ func (ex *Exchanger) handleRouterInterchain(s network.Stream, msg *peerMsg.Messa
 	retMsg := peermgr.Message(peerMsg.Message_ACK, true, data)
 	err = ex.peerMgr.AsyncSendWithStream(s, retMsg)
 	if err != nil {
-		logger.Error(err)
+		ex.logger.Error(err)
 	}
 }
 
 func (ex *Exchanger) handleGetInterchainMessage(stream network.Stream, msg *peerMsg.Message) {
-	mntMeta := ex.exec.QueryLatestMeta()
-	execMeta := ex.exec.QueryLatestMeta()
+	mntMeta := ex.mnt.QueryOuterMeta()
+	execMeta := ex.exec.QueryInterchainMeta()
 
 	indices := &struct {
 		InterchainIndex uint64 `json:"interchain_index"`
 		ReceiptIndex    uint64 `json:"receipt_index"`
 	}{}
 
-	execLoad, ok := execMeta.Load(string(msg.Payload.Data))
+	execLoad, ok := execMeta[string(msg.Payload.Data)]
 	if ok {
-		indices.InterchainIndex = execLoad.(uint64)
+		indices.InterchainIndex = execLoad
 	}
 
-	mntLoad, ok := mntMeta.Load(string(msg.Payload.Data))
+	mntLoad, ok := mntMeta[string(msg.Payload.Data)]
 	if ok {
-		indices.InterchainIndex = mntLoad.(uint64)
+		indices.InterchainIndex = mntLoad
 	}
 
 	data, err := json.Marshal(indices)
@@ -341,13 +359,13 @@ func (ex *Exchanger) handleGetInterchainMessage(stream network.Stream, msg *peer
 
 	retMsg := peermgr.Message(peerMsg.Message_ACK, true, data)
 	if err := ex.peerMgr.AsyncSendWithStream(stream, retMsg); err != nil {
-		logger.Error(err)
+		ex.logger.Error(err)
 		return
 	}
 }
 
 func (ex *Exchanger) fetchSignsToIBTP(ibtp *pb.IBTP) error {
-	signs, err := ex.agent.GetAssetExchangeSigns(string(ibtp.Extra))
+	signs, err := ex.syncer.GetAssetExchangeSigns(string(ibtp.Extra))
 	if err != nil {
 		return fmt.Errorf("get asset exchange signs: %w", err)
 	}
