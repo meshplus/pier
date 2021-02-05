@@ -37,7 +37,11 @@ func (s *GRPCServer) GetIBTP(_ *pb.Empty, conn pb.AppchainPlugin_GetIBTPServer) 
 		select {
 		case <-ctx.Done():
 			return nil
-		case ibtp := <-ibtpC:
+		case ibtp, ok := <-ibtpC:
+			if !ok {
+				logger.Error("get ibtp channel has closed")
+				return nil
+			}
 			if err := retry.Retry(func(attempt uint) error {
 				if err := conn.Send(ibtp); err != nil {
 					logger.Error("plugin send ibtp err", "error", err)
