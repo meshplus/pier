@@ -9,9 +9,8 @@ import (
 	"github.com/Rican7/retry/strategy"
 	"github.com/meshplus/bitxhub-model/constant"
 	"github.com/meshplus/bitxhub-model/pb"
-	"github.com/meshplus/pier/pkg/plugins"
-
 	rpcx "github.com/meshplus/go-bitxhub-client"
+	"github.com/meshplus/pier/pkg/plugins"
 )
 
 // BxhClient represents plugin client fo relaychain, by packing
@@ -19,14 +18,14 @@ import (
 // easily excute ibtp.Payload on relaychain just like what we used
 // to do on an appchain.
 type BxhClient struct {
-	agent Agent
+	agent rpcx.Client
 	rpcx.Appchain
 }
 
 var _ plugins.Client = (*BxhClient)(nil)
 
 // CreateClient creates plugin client from agent
-func CreateClient(agent Agent) *BxhClient {
+func CreateClient(agent rpcx.Client) *BxhClient {
 	return &BxhClient{
 		agent: agent,
 	}
@@ -174,7 +173,7 @@ func (client *BxhClient) getProof(ibtp *pb.IBTP) ([]byte, error) {
 	var signs []byte
 	if err := retry.Retry(func(attempt uint) error {
 		var err error
-		signs, err = client.agent.GetIBTPSigns(ibtp)
+		signs, err = client.getIBTPSigns(ibtp)
 		if err != nil {
 			return err
 		}
@@ -183,6 +182,24 @@ func (client *BxhClient) getProof(ibtp *pb.IBTP) ([]byte, error) {
 		return nil, err
 		// log.NewWithModule("agent client plugin").Panic(err)
 	}
+	return signs, nil
+}
+
+func (client *BxhClient) getIBTPSigns(ibtp *pb.IBTP) ([]byte, error) {
+	hash := ibtp.Hash()
+	resp, err := client.agent.GetMultiSigns(hash.String(), pb.GetMultiSignsRequest_IBTP)
+	if err != nil {
+		return nil, err
+	}
+
+	if resp == nil || resp.Sign == nil {
+		return nil, fmt.Errorf("get empty signatures for ibtp %s", ibtp.ID())
+	}
+	signs, err := resp.Marshal()
+	if err != nil {
+		return nil, err
+	}
+
 	return signs, nil
 }
 

@@ -18,6 +18,7 @@ import (
 	rpcx "github.com/meshplus/go-bitxhub-client"
 	"github.com/meshplus/pier/api"
 	_ "github.com/meshplus/pier/imports"
+	"github.com/meshplus/pier/internal/agent"
 	"github.com/meshplus/pier/internal/appchain"
 	"github.com/meshplus/pier/internal/checker"
 	"github.com/meshplus/pier/internal/exchanger"
@@ -312,16 +313,15 @@ func NewUnionPier(repoRoot string, config *repo.Config) (*Pier, error) {
 		return nil, fmt.Errorf("syncer create: %w", err)
 	}
 
-	cli := agent.CreateClient(ag)
-	exec, err := executor.New(cli, addr.String(), store, nil)
+	cli := agent.CreateClient(client)
+	exec, err := executor.New(cli, addr.String(), store, nil, loggers.Logger(loggers.Executor))
 	if err != nil {
 		return nil, fmt.Errorf("executor create: %w", err)
 	}
 
-	router := router.New(peerManager, store, peerManager.(*peermgr.Swarm).ConnectedPeerIDs())
+	router := router.New(peerManager, store, loggers.Logger(loggers.Router), peerManager.(*peermgr.Swarm).ConnectedPeerIDs())
 
 	ex, err = exchanger.New(config.Mode.Type, addr.String(), meta,
-		exchanger.WithAgent(ag),
 		exchanger.WithExecutor(exec),
 		exchanger.WithPeerMgr(peerManager),
 		exchanger.WithSyncer(sync),

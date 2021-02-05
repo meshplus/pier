@@ -35,7 +35,7 @@ type Syncer interface {
 
 	GetAssetExchangeSigns(id string) ([]byte, error)
 
-	//GetIBTPSigns gets ibtp signs from bitxhub cluster
+	//getIBTPSigns gets ibtp signs from bitxhub cluster
 	GetIBTPSigns(ibtp *pb.IBTP) ([]byte, error)
 
 	//GetAppchains gets appchains from bitxhub node

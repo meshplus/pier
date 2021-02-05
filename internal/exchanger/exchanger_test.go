@@ -38,6 +38,7 @@ const (
 	to        = "0x3f9d18f7c3a6e5e4c0b877fe3e688ab08840b997"
 	assetTxID = "asset exchange id for test"
 )
+
 var errorUnhappy = fmt.Errorf("nil")
 
 func TestStartRelay(t *testing.T) {
@@ -250,17 +251,9 @@ func testUnionMode(pierID string, t *testing.T) {
 	mockMonitor, mockExecutor, mockSyncer, mockPeerMgr, mockRouter, store := prepareUnoin(t)
 	meta := &pb.Interchain{}
 
-	mockExchanger, err := New(mode, pierID, meta,
-		WithMonitor(mockMonitor), WithExecutor(mockExecutor),
-		WithSyncer(mockSyncer), WithPeerMgr(mockPeerMgr),
-		WithRouter(mockRouter), WithStorage(store),
-		WithLogger(log.NewWithModule("exchanger")),
-	)
-	require.Nil(t, err)
-
 	var stream network.Stream
 	// mock ibtp for Message_ROUTER_IBTP_SEND
-	ibtp := getIBTP(t, 1, pb.IBTP_INTERCHAIN)
+	ibtp := getIBTPWithFromTo(t, 1, pb.IBTP_INTERCHAIN, pierID, to)
 	ibtpBytes, err := ibtp.Marshal()
 	require.Nil(t, err)
 	ibtpMsg := peermgr.Message(peerMsg.Message_ROUTER_IBTP_SEND, true, ibtpBytes)
@@ -292,11 +285,12 @@ func testUnionMode(pierID string, t *testing.T) {
 
 	mockSyncer.EXPECT().ListenIBTP().Return(inCh).AnyTimes()
 	mockSyncer.EXPECT().SendIBTP(gomock.Any()).Return(nil).AnyTimes()
-	mockSyncer.EXPECT().GetInterchainById(from).Return(interchainCounter).AnyTimes()
+	mockSyncer.EXPECT().GetInterchainById(pierID).Return(interchainCounter).AnyTimes()
 	mockSyncer.EXPECT().GetIBTPSigns(ibtp).Return(signs, nil).AnyTimes()
 	mockSyncer.EXPECT().GetAppchains().Return(appchains, nil).AnyTimes()
 	mockExecutor.EXPECT().QueryInterchainMeta().Return(map[string]uint64{to: 1}).AnyTimes()
-	mockExecutor.EXPECT().QueryCallbackMeta().Return(map[string]uint64{to:1}).AnyTimes()
+	mockExecutor.EXPECT().QueryCallbackMeta().Return(map[string]uint64{to: 1}).AnyTimes()
+	mockExecutor.EXPECT().ExecuteIBTP(ibtp).Return(nil, nil).AnyTimes()
 	mockPeerMgr.EXPECT().AsyncSendWithStream(gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
 	mockPeerMgr.EXPECT().FindProviders(ibtp.To).Return(pierID, nil)
 	mockPeerMgr.EXPECT().Send(pierID, gomock.Any()).Return(recoverACKMsg, nil)
@@ -304,14 +298,13 @@ func testUnionMode(pierID string, t *testing.T) {
 	mockRouter.EXPECT().Route(ibtp).Return(nil).AnyTimes()
 	mockRouter.EXPECT().AddAppchains(appchains).Return(nil).AnyTimes()
 
-	mockExchanger, err := New(mode, from, meta,
+	mockExchanger, err := New(mode, pierID, meta,
 		WithMonitor(mockMonitor), WithExecutor(mockExecutor),
 		WithSyncer(mockSyncer), WithPeerMgr(mockPeerMgr),
 		WithRouter(mockRouter), WithStorage(store),
 		WithLogger(log.NewWithModule("exchanger")),
 	)
 	require.Nil(t, err)
-	mockExecutor.EXPECT().HandleIBTP(ibtp).Return(nil).AnyTimes()
 	require.Nil(t, mockExchanger.Start())
 
 	// test Message_ROUTER_IBTP_SEND for peerMgr to handle msg from other union piers

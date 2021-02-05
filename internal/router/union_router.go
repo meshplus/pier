@@ -30,8 +30,7 @@ type UnionRouter struct {
 	cancel context.CancelFunc
 }
 
-func New(peermgr peermgr.PeerManager, store storage.Storage, logger logrus.FieldLogger) *UnionRouter {
-func New(peermgr peermgr.PeerManager, store storage.Storage, connectedPierIDs []string) *UnionRouter {
+func New(peermgr peermgr.PeerManager, store storage.Storage, logger logrus.FieldLogger, connectedPierIDs []string) *UnionRouter {
 	ctx, cancel := context.WithCancel(context.Background())
 	return &UnionRouter{
 		peermgr:          peermgr,

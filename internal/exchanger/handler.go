@@ -87,8 +87,8 @@ func (ex *Exchanger) applyInterchain(ibtp *pb.IBTP, entry logrus.FieldLogger) {
 // handleIBTP handle ibtps from bitxhub
 func (ex *Exchanger) handleUnionIBTP(ibtp *pb.IBTP) {
 	if ibtp.To == ex.pierID {
-		ex.exec.HandleIBTP(ibtp)
-		logger.WithFields(logrus.Fields{
+		ex.exec.ExecuteIBTP(ibtp)
+		ex.logger.WithFields(logrus.Fields{
 			"index": ibtp.Index,
 			"type":  ibtp.Type,
 			"from":  ibtp.From,

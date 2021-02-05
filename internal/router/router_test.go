@@ -38,9 +38,7 @@ func TestUnionRouter_Route(t *testing.T) {
 	assert.Nil(t, err)
 	storage, err := leveldb.New(filepath.Join(repoRoot, "storage"))
 
-	router := New(mockPeerManager, storage, log.NewWithModule("router"))
-	router := New(mockPeerManager, storage, []string{""}) // pierID
-
+	router := New(mockPeerManager, storage, log.NewWithModule("router"), []string{""})
 	router.Start()
 
 	ibtp := mockIBTP(t, 1, pb.IBTP_INTERCHAIN)
@@ -57,7 +55,6 @@ func TestUnionRouter_Route(t *testing.T) {
 
 	router.Stop()
 
-
 }
 
 func TestUnionRouter_AddAppchains(t *testing.T) {
@@ -69,9 +66,7 @@ func TestUnionRouter_AddAppchains(t *testing.T) {
 	assert.Nil(t, err)
 	storage, err := leveldb.New(filepath.Join(repoRoot, "storage"))
 
-	router := New(mockPeerManager, storage, log.NewWithModule("router"))
-	router := New(mockPeerManager, storage, []string{""}) // pierID
-
+	router := New(mockPeerManager, storage, log.NewWithModule("router"), []string{""})
 	appchains := make([]*rpcx.Appchain, 0)
 	app := &rpcx.Appchain{
 		ID:   from,
