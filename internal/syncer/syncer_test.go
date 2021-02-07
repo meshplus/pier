@@ -39,6 +39,9 @@ const (
 // 3. test invalid interchain wrappers
 func TestSyncHeader001(t *testing.T) {
 	syncer, client, lite := prepare(t, 0)
+	ctx, cancel := context.WithCancel(context.Background())
+	syncer.ctx = ctx
+	syncer.cancel = cancel
 	defer syncer.storage.Close()
 
 	// expect mock module returns

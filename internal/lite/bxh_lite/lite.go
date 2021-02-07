@@ -22,18 +22,18 @@ type BxhLite struct {
 }
 
 func New(client rpcx.Client, storage storage.Storage, logger logrus.FieldLogger) (*BxhLite, error) {
-	ctx, cancel := context.WithCancel(context.Background())
-
 	return &BxhLite{
 		client:  client,
 		storage: storage,
 		logger:  logger,
-		ctx:     ctx,
-		cancel:  cancel,
 	}, nil
 }
 
 func (lite *BxhLite) Start() error {
+	ctx, cancel := context.WithCancel(context.Background())
+	lite.ctx = ctx
+	lite.cancel = cancel
+
 	meta, err := lite.client.GetChainMeta()
 	if err != nil {
 		return fmt.Errorf("get chain meta from bitxhub: %w", err)

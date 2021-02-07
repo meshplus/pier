@@ -49,7 +49,6 @@ func New(pierID string, mode string, opts ...Option) (*WrapperSyncer, error) {
 	if err != nil {
 		return nil, err
 	}
-	ctx, cancel := context.WithCancel(context.Background())
 
 	ws := &WrapperSyncer{
 		wrappersC: make(chan *pb.InterchainTxWrappers, maxChSize),
@@ -60,8 +59,6 @@ func New(pierID string, mode string, opts ...Option) (*WrapperSyncer, error) {
 		logger:    cfg.logger,
 		mode:      mode,
 		pierID:    pierID,
-		ctx:       ctx,
-		cancel:    cancel,
 	}
 
 	return ws, nil
@@ -69,6 +66,10 @@ func New(pierID string, mode string, opts ...Option) (*WrapperSyncer, error) {
 
 // Start implements Syncer
 func (syncer *WrapperSyncer) Start() error {
+	ctx, cancel := context.WithCancel(context.Background())
+	syncer.ctx = ctx
+	syncer.cancel = cancel
+
 	meta, err := syncer.client.GetChainMeta()
 	if err != nil {
 		return fmt.Errorf("get chain meta from bitxhub: %w", err)
