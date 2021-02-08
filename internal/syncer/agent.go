@@ -117,6 +117,7 @@ func (syncer *WrapperSyncer) QueryInterchainMeta() map[string]uint64 {
 		if err := ret.Unmarshal(receipt.Ret); err != nil {
 			return fmt.Errorf("unmarshal interchain meta from bitxhub: %w", err)
 		}
+		interchainCounter = ret.InterchainCounter
 		return nil
 	}); err != nil {
 		syncer.logger.Panicf("query interchain meta: %s", err.Error())
@@ -184,6 +185,7 @@ func (syncer *WrapperSyncer) retryFunc(handle func(uint) error) error {
 	return retry.Retry(func(attempt uint) error {
 		if err := handle(attempt); err != nil {
 			syncer.logger.Errorf("retry failed for reason: %s", err.Error())
+			return err
 		}
 		return nil
 	}, strategy.Wait(500*time.Millisecond))
