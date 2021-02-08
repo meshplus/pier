@@ -182,7 +182,7 @@ func TestQueryIBTP(t *testing.T) {
 	}
 	receiptData, err := origin.Marshal()
 	require.Nil(t, err)
-	r := &pb.Receipt{
+	normalReceipt := &pb.Receipt{
 		Ret:    receiptData,
 		Status: pb.Receipt_SUCCESS,
 	}
@@ -203,12 +203,31 @@ func TestQueryIBTP(t *testing.T) {
 	tx := &pb.Transaction{
 		Payload: data,
 	}
+	badReceipt := &pb.Receipt{
+		Ret:    []byte("this is a test"),
+		Status: pb.Receipt_SUCCESS,
+	}
+	badReceipt1 := &pb.Receipt{
+		Ret:    []byte("this is a failed receipt"),
+		Status: pb.Receipt_FAILED,
+	}
 	client.EXPECT().GenerateContractTx(gomock.Any(), gomock.Any(), "GetIBTPByID", gomock.Any()).Return(tx, nil).AnyTimes()
-	client.EXPECT().SendView(tx).Return(r, nil)
-
+	// test for normal receipt
+	client.EXPECT().SendView(tx).Return(normalReceipt, nil)
 	ibtp, err := syncer.QueryIBTP(from)
 	require.Nil(t, err)
 	require.Equal(t, origin, ibtp)
+
+	// test for abnormal receipt
+	client.EXPECT().SendView(tx).Return(badReceipt, nil)
+	ibtp, err = syncer.QueryIBTP(from)
+	require.NotNil(t, err)
+	require.Nil(t, ibtp)
+
+	client.EXPECT().SendView(tx).Return(badReceipt1, nil)
+	ibtp, err = syncer.QueryIBTP(from)
+	require.NotNil(t, err)
+	require.Nil(t, ibtp)
 }
 
 func TestGetAssetExchangeSigns(t *testing.T) {
@@ -225,12 +244,26 @@ func TestGetAssetExchangeSigns(t *testing.T) {
 		Sign: map[string][]byte{assetExchangeID: sig},
 	}
 
+	// test for normal response
 	client.EXPECT().GetMultiSigns(assetExchangeID, pb.GetMultiSignsRequest_ASSET_EXCHANGE).
 		Return(resp, nil)
-
 	sigBytes, err := syncer.GetAssetExchangeSigns(assetExchangeID)
 	require.Nil(t, err)
 	require.Equal(t, true, bytes.Equal(sigBytes, sigBytes))
+
+	// test for abnormal receipt
+	client.EXPECT().GetMultiSigns(assetExchangeID, pb.GetMultiSignsRequest_ASSET_EXCHANGE).
+		Return(nil, nil)
+	sigBytes, err = syncer.GetAssetExchangeSigns(assetExchangeID)
+	require.NotNil(t, err)
+	require.Nil(t, sigBytes)
+
+	resp.Sign = nil
+	client.EXPECT().GetMultiSigns(assetExchangeID, pb.GetMultiSignsRequest_ASSET_EXCHANGE).
+		Return(resp, nil)
+	sigBytes, err = syncer.GetAssetExchangeSigns(assetExchangeID)
+	require.NotNil(t, err)
+	require.Nil(t, sigBytes)
 }
 
 func TestGetIBTPSigns(t *testing.T) {
@@ -249,12 +282,32 @@ func TestGetIBTPSigns(t *testing.T) {
 		Sign: map[string][]byte{hash: sig},
 	}
 
+	// test for normal response
 	client.EXPECT().GetMultiSigns(hash, pb.GetMultiSignsRequest_IBTP).
 		Return(resp, nil)
-
 	sigBytes, err := syncer.GetIBTPSigns(ibtp)
 	require.Nil(t, err)
 	require.Equal(t, true, bytes.Equal(sigBytes, sigBytes))
+
+	// test for abnormal receipt
+	client.EXPECT().GetMultiSigns(hash, pb.GetMultiSignsRequest_IBTP).
+		Return(nil, nil)
+	sigBytes, err = syncer.GetIBTPSigns(ibtp)
+	require.NotNil(t, err)
+	require.Nil(t, sigBytes)
+
+	resp.Sign = nil
+	client.EXPECT().GetMultiSigns(hash, pb.GetMultiSignsRequest_IBTP).
+		Return(resp, nil)
+	sigBytes, err = syncer.GetIBTPSigns(ibtp)
+	require.NotNil(t, err)
+	require.Nil(t, sigBytes)
+
+	client.EXPECT().GetMultiSigns(hash, pb.GetMultiSignsRequest_IBTP).
+		Return(nil, fmt.Errorf("test error"))
+	sigBytes, err = syncer.GetIBTPSigns(ibtp)
+	require.NotNil(t, err)
+	require.Nil(t, sigBytes)
 }
 
 func TestGetAppchains(t *testing.T) {
@@ -280,11 +333,35 @@ func TestGetAppchains(t *testing.T) {
 	}
 	getAppchainsTx := getTx(t)
 
-	client.EXPECT().GenerateContractTx(pb.TransactionData_BVM, constant.AppchainMgrContractAddr.Address(), gomock.Any()).Return(getAppchainsTx, nil).AnyTimes()
+	// test for normal flow
+	client.EXPECT().GenerateContractTx(pb.TransactionData_BVM, constant.AppchainMgrContractAddr.Address(), gomock.Any()).Return(getAppchainsTx, nil)
 	client.EXPECT().SendView(getAppchainsTx).Return(chainsReceipt, nil)
 	chains, err := syncer.GetAppchains()
 	require.Nil(t, err)
 	require.Equal(t, originalChainsInfo, chains)
+
+	// test for abnormal flow: nil return bytes in receipt
+	chainsReceipt.Ret = nil
+	client.EXPECT().GenerateContractTx(pb.TransactionData_BVM, constant.AppchainMgrContractAddr.Address(), gomock.Any()).Return(getAppchainsTx, nil)
+	client.EXPECT().SendView(getAppchainsTx).Return(chainsReceipt, nil)
+	chains, err = syncer.GetAppchains()
+	require.Nil(t, err)
+	require.Equal(t, 0, len(chains))
+
+	// test for abnormal flow: error when invoke contract
+	client.EXPECT().GenerateContractTx(pb.TransactionData_BVM, constant.AppchainMgrContractAddr.Address(), gomock.Any()).Return(nil, fmt.Errorf("test error"))
+	chains, err = syncer.GetAppchains()
+	require.NotNil(t, err)
+	require.Nil(t, nil)
+
+	// test for abnormal flow: invalid receipt ret bytes
+	client.EXPECT().GenerateContractTx(pb.TransactionData_BVM, constant.AppchainMgrContractAddr.Address(), gomock.Any()).Return(getAppchainsTx, nil)
+	client.EXPECT().SendView(getAppchainsTx).Return(nil, fmt.Errorf("test error"))
+	chainsReceipt.Ret = []byte("test for abnormal flow")
+	client.EXPECT().SendView(getAppchainsTx).Return(chainsReceipt, nil)
+	chains, err = syncer.GetAppchains()
+	require.NotNil(t, err)
+	require.Nil(t, chains)
 }
 
 func TestSendIBTP(t *testing.T) {
@@ -319,13 +396,88 @@ func TestSendIBTP(t *testing.T) {
 	networkDownTime := 0
 	client.EXPECT().SendTransactionWithReceipt(gomock.Any(), gomock.Any()).DoAndReturn(
 		func(tx *pb.Transaction, opts *rpcx.TransactOpts) (*pb.Receipt, error) {
-			if networkDownTime < 3 {
-				networkDownTime++
+			networkDownTime++
+			if networkDownTime == 1 {
+				r.Status = pb.Receipt_FAILED
+				return r, nil
+			} else if networkDownTime == 2 {
 				return nil, fmt.Errorf("network broken")
 			}
+			r.Status = pb.Receipt_SUCCESS
 			return r, nil
-		})
+		}).AnyTimes()
 	require.Nil(t, syncer.SendIBTP(&pb.IBTP{}))
+}
+
+func TestGetInterchainById(t *testing.T) {
+	syncer, client, _ := prepare(t, 1)
+	defer syncer.storage.Close()
+
+	b := &types.Address{}
+	b.SetBytes([]byte(from))
+	tx := &pb.Transaction{
+		From: b,
+	}
+	ic := &pb.Interchain{
+		ID:                from,
+		InterchainCounter: make(map[string]uint64),
+	}
+	receiptData, err := ic.Marshal()
+	require.Nil(t, err)
+	normalReceipt := &pb.Receipt{
+		Ret:    receiptData,
+		Status: pb.Receipt_SUCCESS,
+	}
+	badReceipt := &pb.Receipt{
+		Ret:    []byte("this is a test"),
+		Status: pb.Receipt_SUCCESS,
+	}
+	client.EXPECT().GenerateContractTx(gomock.Any(), gomock.Any(), "GetInterchain", rpcx.String(from)).Return(tx, nil).AnyTimes()
+
+	// test for normal
+	client.EXPECT().SendView(tx).Return(normalReceipt, nil)
+	retIC := syncer.GetInterchainById(from)
+	require.Equal(t, ic.ID, retIC.ID)
+
+	// test for wrong receipt
+	client.EXPECT().SendView(tx).Return(badReceipt, nil)
+	retIC = syncer.GetInterchainById(from)
+	require.Equal(t, "", retIC.ID)
+}
+
+func TestQueryInterchainMeta(t *testing.T) {
+	syncer, client, _ := prepare(t, 1)
+	defer syncer.storage.Close()
+	b := &types.Address{}
+	b.SetBytes([]byte(from))
+	queryTx := &pb.Transaction{
+		From: b,
+	}
+
+	originalMeta := &pb.Interchain{
+		InterchainCounter: map[string]uint64{from: 2},
+	}
+	metaData, err := originalMeta.Marshal()
+	require.Nil(t, err)
+	normalReceipt := &pb.Receipt{
+		Ret:    metaData,
+		Status: 0,
+	}
+	badReceipt := &pb.Receipt{
+		Ret:    []byte("this is a test"),
+		Status: pb.Receipt_SUCCESS,
+	}
+	badReceipt1 := &pb.Receipt{
+		Ret:    []byte("this is a failed receipt"),
+		Status: pb.Receipt_FAILED,
+	}
+	client.EXPECT().GenerateContractTx(gomock.Any(), gomock.Any(), "Interchain").Return(queryTx, nil).AnyTimes()
+	client.EXPECT().SendView(queryTx).Return(badReceipt, nil)
+	client.EXPECT().SendView(queryTx).Return(badReceipt1, nil)
+	client.EXPECT().SendView(queryTx).Return(normalReceipt, nil)
+
+	meta := syncer.QueryInterchainMeta()
+	require.Equal(t, originalMeta.InterchainCounter[from], meta[from])
 }
 
 func prepare(t *testing.T, height uint64) (*WrapperSyncer, *mock_client.MockClient, *mock_lite.MockLite) {
