@@ -131,7 +131,7 @@ func (u *UnionRouter) Broadcast(appchainIds []string) error {
 //AddAppchains adds appchains to route map and broadcast them to union network
 func (u *UnionRouter) AddAppchains(appchains []*rpcx.Appchain) error {
 	if len(appchains) == 0 {
-		u.logger.Warningf("no appchains to add, no chains")
+		u.logger.Debugf("no appchains to add, no chains")
 		return nil
 	}
 
@@ -149,7 +149,7 @@ func (u *UnionRouter) AddAppchains(appchains []*rpcx.Appchain) error {
 		u.appchains[appchain.ID] = appchain
 	}
 	if len(ids) == 0 {
-		u.logger.Warning("no appchains to add, only self")
+		u.logger.Debugf("no appchains to add, only self")
 		return nil
 	}
 	return u.Broadcast(ids)
