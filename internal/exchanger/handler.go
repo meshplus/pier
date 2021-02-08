@@ -5,10 +5,11 @@ import (
 	"fmt"
 	"time"
 
+	rpcx "github.com/meshplus/go-bitxhub-client"
+
 	"github.com/Rican7/retry"
 	"github.com/Rican7/retry/strategy"
 	"github.com/meshplus/bitxhub-model/pb"
-	rpcx "github.com/meshplus/go-bitxhub-client"
 	network "github.com/meshplus/go-lightp2p"
 	"github.com/meshplus/pier/internal/peermgr"
 	peerMsg "github.com/meshplus/pier/internal/peermgr/proto"
@@ -312,12 +313,18 @@ func (ex *Exchanger) handleRecover(ibtp *pb.IBTP) (*rpcx.Interchain, error) {
 	if err != nil {
 		return nil, fmt.Errorf("router interchain:%v", err)
 	}
-	interchain := &rpcx.Interchain{}
+	interchain := &pb.Interchain{}
 	err = json.Unmarshal(res.Payload.Data, interchain)
 	if err != nil {
 		return nil, err
 	}
-	return interchain, nil
+	ic := &rpcx.Interchain{
+		ID:                   interchain.ID,
+		InterchainCounter:    interchain.InterchainCounter,
+		ReceiptCounter:       interchain.ReceiptCounter,
+		SourceReceiptCounter: interchain.SourceReceiptCounter,
+	}
+	return ic, nil
 }
 
 func (ex *Exchanger) handleRouterInterchain(s network.Stream, msg *peerMsg.Message) {

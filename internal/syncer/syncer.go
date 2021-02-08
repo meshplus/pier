@@ -133,7 +133,9 @@ func (syncer *WrapperSyncer) recover(begin, end uint64) {
 
 // Stop implements Syncer
 func (syncer *WrapperSyncer) Stop() error {
-	syncer.cancel()
+	if syncer.cancel != nil {
+		syncer.cancel()
+	}
 
 	syncer.logger.Info("Syncer stopped")
 

@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/sirupsen/logrus"
+
 	"github.com/Rican7/retry"
 	"github.com/Rican7/retry/strategy"
 	"github.com/meshplus/bitxhub-model/constant"
@@ -57,6 +59,7 @@ func (syncer *WrapperSyncer) GetAppchains() ([]*rpcx.Appchain, error) {
 	if err != nil {
 		return nil, err
 	}
+	tx.Nonce = 1
 	var receipt *pb.Receipt
 	if err := syncer.retryFunc(func(attempt uint) error {
 		receipt, err = syncer.client.SendView(tx)
@@ -69,7 +72,7 @@ func (syncer *WrapperSyncer) GetAppchains() ([]*rpcx.Appchain, error) {
 	}
 
 	ret := make([]*rpcx.Appchain, 0)
-	if receipt.Ret == nil {
+	if receipt == nil || receipt.Ret == nil {
 		return ret, nil
 	}
 	if err := json.Unmarshal(receipt.Ret, &ret); err != nil {
@@ -90,6 +93,7 @@ func (syncer *WrapperSyncer) GetInterchainById(from string) *pb.Interchain {
 	if err != nil {
 		return ic
 	}
+	tx.Nonce = 1
 	receipt, err := syncer.client.SendView(tx)
 	if err != nil {
 		return ic
@@ -106,6 +110,10 @@ func (syncer *WrapperSyncer) QueryInterchainMeta() map[string]uint64 {
 	if err := syncer.retryFunc(func(attempt uint) error {
 		queryTx, err := syncer.client.GenerateContractTx(pb.TransactionData_BVM,
 			constant.InterchainContractAddr.Address(), "Interchain")
+		if err != nil {
+			return err
+		}
+		queryTx.Nonce = 1
 		receipt, err := syncer.client.SendView(queryTx)
 		if err != nil {
 			return err
@@ -128,6 +136,10 @@ func (syncer *WrapperSyncer) QueryInterchainMeta() map[string]uint64 {
 func (syncer *WrapperSyncer) QueryIBTP(ibtpID string) (*pb.IBTP, error) {
 	queryTx, err := syncer.client.GenerateContractTx(pb.TransactionData_BVM, constant.InterchainContractAddr.Address(),
 		"GetIBTPByID", rpcx.String(ibtpID))
+	if err != nil {
+		return nil, err
+	}
+	queryTx.Nonce = 1
 	receipt, err := syncer.client.SendView(queryTx)
 	if err != nil {
 		return nil, err
@@ -149,6 +161,7 @@ func (syncer *WrapperSyncer) ListenIBTP() <-chan *pb.IBTP {
 }
 
 func (syncer *WrapperSyncer) SendIBTP(ibtp *pb.IBTP) error {
+	entry := syncer.logger.WithFields(logrus.Fields{"index": ibtp.Index, "type": ibtp.Type, "to": ibtp.To, "id": ibtp.ID()})
 	proof := ibtp.GetProof()
 	proofHash := sha256.Sum256(proof)
 	ibtp.Proof = proofHash[:]
@@ -163,6 +176,7 @@ func (syncer *WrapperSyncer) SendIBTP(ibtp *pb.IBTP) error {
 			From:      fmt.Sprintf("%s-%s-%d", ibtp.From, ibtp.To, ibtp.Category()),
 			IBTPNonce: ibtp.Index,
 		})
+		entry.Error(err)
 		if err != nil {
 			// query if this ibtp is on chain
 			_, err = syncer.QueryIBTP(ibtp.ID())
@@ -184,6 +198,7 @@ func (syncer *WrapperSyncer) retryFunc(handle func(uint) error) error {
 	return retry.Retry(func(attempt uint) error {
 		if err := handle(attempt); err != nil {
 			syncer.logger.Errorf("retry failed for reason: %s", err.Error())
+			return err
 		}
 		return nil
 	}, strategy.Wait(500*time.Millisecond))

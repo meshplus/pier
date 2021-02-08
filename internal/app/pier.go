@@ -274,9 +274,11 @@ func NewUnionPier(repoRoot string, config *repo.Config) (*Pier, error) {
 		sync        syncer.Syncer
 		meta        *pb.Interchain
 		chain       *rpcx.Appchain
+		ck          checker.Checker
 		peerManager peermgr.PeerManager
 	)
 
+	ck = &checker.MockChecker{}
 	nodePrivKey, err := repo.LoadNodePrivateKey(repoRoot)
 	if err != nil {
 		return nil, fmt.Errorf("repo load node key: %w", err)
@@ -315,7 +317,7 @@ func NewUnionPier(repoRoot string, config *repo.Config) (*Pier, error) {
 	}
 
 	sync, err = syncer.New(addr.String(), repo.UnionMode,
-		syncer.WithClient(client), syncer.WithLite(lite), syncer.WithStorage(store),
+		syncer.WithClient(client), syncer.WithLite(lite), syncer.WithStorage(store), syncer.WithLogger(loggers.Logger(loggers.Syncer)),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("syncer create: %w", err)
@@ -332,6 +334,7 @@ func NewUnionPier(repoRoot string, config *repo.Config) (*Pier, error) {
 	ex, err = exchanger.New(config.Mode.Type, addr.String(), meta,
 		exchanger.WithExecutor(exec),
 		exchanger.WithPeerMgr(peerManager),
+		exchanger.WithChecker(ck),
 		exchanger.WithSyncer(sync),
 		exchanger.WithStorage(store),
 		exchanger.WithRouter(router),
@@ -360,58 +363,69 @@ func NewUnionPier(repoRoot string, config *repo.Config) (*Pier, error) {
 
 // Start starts three main components of pier app
 func (pier *Pier) Start() error {
+	if pier.config.Mode.Type == repo.UnionMode {
+		if err := pier.lite.Start(); err != nil {
+			pier.logger.Errorf("lite start: %w", err)
+			return err
+		}
+		if err := pier.exchanger.Start(); err != nil {
+			pier.logger.Errorf("exchanger start: %w", err)
+			return err
+		}
+		return nil
+	}
 	if err := pier.pierHA.Start(); err != nil {
 		return fmt.Errorf("pier ha start fail")
 	}
-	go func() {
-		logger.Info("pier HA manager start")
-		status := false
-		for {
-			select {
-			case isMain := <-pier.pierHA.IsMain():
-				if isMain {
-					if status {
-						continue
-					}
-					if pier.config.Mode.Type != repo.UnionMode {
-						pier.logger.WithFields(logrus.Fields{
-							"id":                     pier.meta.ID,
-							"interchain_counter":     pier.meta.InterchainCounter,
-							"receipt_counter":        pier.meta.ReceiptCounter,
-							"source_receipt_counter": pier.meta.SourceReceiptCounter,
-						}).Info("Pier information")
-						if err := pier.monitor.Start(); err != nil {
-							pier.logger.Errorf("monitor start: %w", err)
-							return
-						}
-						if err := pier.exec.Start(); err != nil {
-							pier.logger.Errorf("executor start: %w", err)
-							return
-						}
-					}
-					if err := pier.lite.Start(); err != nil {
-						pier.logger.Errorf("lite start: %w", err)
-						return
-					}
-					if err := pier.exchanger.Start(); err != nil {
-						pier.logger.Errorf("exchanger start: %w", err)
-						return
-					}
-					status = true
-				} else {
-					if !status {
-						continue
-					}
-					if err := pier.Stop(true); err != nil {
-						pier.logger.Errorf("pier stop: %w", err)
-						return
-					}
-					status = false
+	go pier.startPierHA()
+	return nil
+}
+
+func (pier *Pier) startPierHA() {
+	logger.Info("pier HA manager start")
+	status := false
+	for {
+		select {
+		case isMain := <-pier.pierHA.IsMain():
+			if isMain {
+				if status {
+					continue
 				}
+				pier.logger.WithFields(logrus.Fields{
+					"id":                     pier.meta.ID,
+					"interchain_counter":     pier.meta.InterchainCounter,
+					"receipt_counter":        pier.meta.ReceiptCounter,
+					"source_receipt_counter": pier.meta.SourceReceiptCounter,
+				}).Info("Pier information")
+				if err := pier.monitor.Start(); err != nil {
+					pier.logger.Errorf("monitor start: %w", err)
+					return
+				}
+				if err := pier.exec.Start(); err != nil {
+					pier.logger.Errorf("executor start: %w", err)
+					return
+				}
+				if err := pier.lite.Start(); err != nil {
+					pier.logger.Errorf("lite start: %w", err)
+					return
+				}
+				if err := pier.exchanger.Start(); err != nil {
+					pier.logger.Errorf("exchanger start: %w", err)
+					return
+				}
+				status = true
+			} else {
+				if !status {
+					continue
+				}
+				if err := pier.Stop(true); err != nil {
+					pier.logger.Errorf("pier stop: %w", err)
+					return
+				}
+				status = false
 			}
 		}
-	}()
-	return nil
+	}
 }
 
 // Stop stops three main components of pier app
