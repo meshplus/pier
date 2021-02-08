@@ -13,7 +13,6 @@ require (
 	github.com/gobuffalo/packr v1.30.1
 	github.com/gogo/protobuf v1.3.1
 	github.com/golang/mock v1.4.4
-	github.com/golangci/golangci-lint v1.23.0 // indirect
 	github.com/hashicorp/go-hclog v0.0.0-20180709165350-ff2cf002a8dd
 	github.com/hashicorp/go-plugin v1.3.0
 	github.com/ipfs/go-cid v0.0.7
@@ -27,7 +26,9 @@ require (
 	github.com/mitchellh/go-homedir v1.1.0
 	github.com/multiformats/go-multiaddr v0.3.0
 	github.com/sirupsen/logrus v1.6.0
+	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/spf13/viper v1.6.1
+	github.com/stretchr/objx v0.2.0 // indirect
 	github.com/stretchr/testify v1.6.0
 	github.com/tidwall/gjson v1.6.0
 	github.com/urfave/cli v1.22.1
