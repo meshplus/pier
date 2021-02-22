@@ -52,11 +52,24 @@ func TestSyncHeader001(t *testing.T) {
 	txs1 = append(txs1, getTx(t), getTx(t))
 
 	w1, _ := getTxWrapper(t, txs, txs1, 1)
-	w2, root := getTxWrapper(t, txs, txs1, 2)
-	h2 := getBlockHeader(root, 2)
+	w2, _ := getTxWrapper(t, txs, txs1, 2)
+	w3, root := getTxWrapper(t, txs, txs1, 3)
+	h3 := getBlockHeader(root, 3)
 	// mock invalid tx wrapper
-	w3, _ := getTxWrapper(t, txs, txs1, 3)
-	w3.InterchainTxWrappers[0].TransactionHashes = w3.InterchainTxWrappers[0].TransactionHashes[1:]
+	w4, _ := getTxWrapper(t, txs, txs1, 4)
+	w4.InterchainTxWrappers[0].TransactionHashes = w4.InterchainTxWrappers[0].TransactionHashes[1:]
+	// mock nil wrapper
+	w5 := &pb.InterchainTxWrappers{}
+	// mock wrong height wrapper
+	w6, _ := getTxWrapper(t, txs, txs1, 1)
+	w7 := &pb.InterchainTxWrappers{InterchainTxWrappers: []*pb.InterchainTxWrapper{nil}}
+	// mock bad tx wrapper
+	badTxs := make([]*pb.Transaction, 0, 2)
+	badTxs = append(badTxs, getUnoinTx(t), getUnoinTx(t))
+
+	badTxs2 := make([]*pb.Transaction, 0, 2)
+	badTxs2 = append(badTxs2, getUnoinTx(t), getUnoinTx(t))
+	w8, _ := getTxWrapper(t, badTxs, badTxs2, 4)
 
 	syncWrapperCh := make(chan interface{}, 4)
 	meta := &pb.ChainMeta{
@@ -64,16 +77,32 @@ func TestSyncHeader001(t *testing.T) {
 		BlockHash: types.NewHashByStr(from),
 	}
 	client.EXPECT().Subscribe(gomock.Any(), pb.SubscriptionRequest_INTERCHAIN_TX_WRAPPER, gomock.Any()).Return(syncWrapperCh, nil).AnyTimes()
-	client.EXPECT().GetInterchainTxWrappers(syncer.ctx, gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Do(
+	client.EXPECT().GetInterchainTxWrappers(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Do(
 		func(ctx context.Context, pid string, begin, end uint64, ch chan<- *pb.InterchainTxWrappers) {
-			ch <- w1
+			if end == 1 {
+				ch <- w1
+			} else {
+				// for wrong path handling
+				ch <- w5
+				ch <- w6
+				ch <- w7
+				// for normal handling
+				ch <- w2
+				ch <- w3
+			}
 			close(ch)
 		}).AnyTimes()
 	client.EXPECT().GetChainMeta().Return(meta, nil).AnyTimes()
-	lite.EXPECT().QueryHeader(gomock.Any()).Return(h2, nil).AnyTimes()
+	queryCall1 := lite.EXPECT().QueryHeader(gomock.Any()).Return(nil, fmt.Errorf("wrong query header"))
+	queryCall2 := lite.EXPECT().QueryHeader(gomock.Any()).Return(h3, nil).MaxTimes(10)
+	gomock.InOrder(queryCall1, queryCall2)
 	go func() {
-		syncWrapperCh <- w2
 		syncWrapperCh <- w3
+		syncWrapperCh <- w4
+		syncWrapperCh <- w5
+		syncWrapperCh <- w6
+		syncWrapperCh <- w7
+		syncWrapperCh <- w8
 	}()
 
 	syncer.height = 1
@@ -91,16 +120,64 @@ func TestSyncHeader001(t *testing.T) {
 
 	time.Sleep(1 * time.Second)
 
-	// recover should have persist height 1 wrapper
+	// recover should have persist height 3 wrapper
 	receiveWrapper := &pb.InterchainTxWrappers{}
-	val := syncer.storage.Get(model.WrapperKey(2))
+	val := syncer.storage.Get(model.WrapperKey(3))
 
 	require.Nil(t, receiveWrapper.Unmarshal(val))
-	for i, tx := range w2.InterchainTxWrappers[0].Transactions {
+	for i, tx := range w3.InterchainTxWrappers[0].Transactions {
 		require.Equal(t, tx.TransactionHash.String(), receiveWrapper.InterchainTxWrappers[0].Transactions[i].TransactionHash.String())
 	}
 	done <- true
+	require.Equal(t, uint64(3), syncer.height)
+}
+
+func TestSyncUnoinHeader(t *testing.T) {
+	syncer, _, lite := prepare(t, 0)
+	ctx, cancel := context.WithCancel(context.Background())
+	syncer.ctx = ctx
+	syncer.cancel = cancel
+	defer syncer.storage.Close()
+
+	// expect mock module returns
+	txs := make([]*pb.Transaction, 0, 2)
+	txs = append(txs, getUnoinTx(t), getUnoinTx(t))
+
+	txs1 := make([]*pb.Transaction, 0, 2)
+	txs1 = append(txs1, getUnoinTx(t), getUnoinTx(t))
+
+	w1, _ := getTxWrapper(t, txs, txs1, 1)
+	w2, root := getTxWrapper(t, txs, txs1, 2)
+	h2 := getBlockHeader(root, 2)
+
+	lite.EXPECT().QueryHeader(gomock.Any()).Return(h2, nil).AnyTimes()
+
+	syncer.isRecover = true
+	syncer.mode = repo.UnionMode
+	icm := make(map[string]*rpcx.Interchain)
+	// recover for error and normal situation
+	syncer.RegisterRecoverHandler(recoverFail)
+	syncer.handleInterchainWrapperAndPersist(w1, icm)
+	syncer.RegisterRecoverHandler(recoverHandler)
+	syncer.handleInterchainWrapperAndPersist(w1, icm)
+	syncer.height = 1
+	syncer.handleInterchainWrapperAndPersist(w2, icm)
+
+	time.Sleep(1 * time.Second)
 	require.Equal(t, uint64(2), syncer.height)
+}
+
+func recoverFail(_ *pb.IBTP) (*rpcx.Interchain, error) {
+	return nil, fmt.Errorf("recover interchain meta failed")
+}
+
+func recoverHandler(ibtp *pb.IBTP) (*rpcx.Interchain, error) {
+	return &rpcx.Interchain{
+		ID:                   from,
+		InterchainCounter:    map[string]uint64{ibtp.To: 1},
+		SourceReceiptCounter: map[string]uint64{},
+		ReceiptCounter:       map[string]uint64{},
+	}, nil
 }
 
 func TestSyncHeader002(t *testing.T) {
@@ -501,8 +578,9 @@ func prepare(t *testing.T, height uint64) (*WrapperSyncer, *mock_client.MockClie
 	)
 	require.Nil(t, err)
 
-	syncer.storage.Put(syncHeightKey(), []byte(strconv.FormatUint(height, 10)))
-
+	if height != 0 {
+		syncer.storage.Put(syncHeightKey(), []byte(strconv.FormatUint(height, 10)))
+	}
 	// register handler for syncer
 	require.Nil(t, syncer.RegisterAppchainHandler(func() error { return nil }))
 	return syncer, client, lite
@@ -587,6 +665,47 @@ func getTx(t *testing.T) *pb.Transaction {
 		From:    faddr,
 		To:      faddr,
 		IBTP:    ibtp,
+		Payload: data,
+	}
+	tx.TransactionHash = tx.Hash()
+	return tx
+}
+
+func getEmptyIBTPTx(t *testing.T) *pb.Transaction {
+	td := &pb.TransactionData{
+		Type:    pb.TransactionData_INVOKE,
+		Payload: []byte("empty ibtp payload"),
+	}
+	data, err := td.Marshal()
+	require.Nil(t, err)
+
+	faddr := &types.Address{}
+	faddr.SetBytes([]byte(from))
+	tx := &pb.Transaction{
+		From:    faddr,
+		To:      faddr,
+		IBTP:    nil,
+		Payload: data,
+	}
+	tx.TransactionHash = tx.Hash()
+	return tx
+}
+
+func getUnoinTx(t *testing.T) *pb.Transaction {
+	unionIbtp := getIBTP(t, 1, pb.IBTP_INTERCHAIN)
+	td := &pb.TransactionData{
+		Type:    pb.TransactionData_INVOKE,
+		Payload: nil,
+	}
+	data, err := td.Marshal()
+	require.Nil(t, err)
+
+	faddr := &types.Address{}
+	faddr.SetBytes([]byte(from))
+	tx := &pb.Transaction{
+		From:    faddr,
+		To:      faddr,
+		IBTP:    unionIbtp,
 		Payload: data,
 	}
 	tx.TransactionHash = tx.Hash()
