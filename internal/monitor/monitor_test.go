@@ -1,6 +1,7 @@
 package monitor
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
@@ -28,7 +29,7 @@ func TestHandleIBTP(t *testing.T) {
 
 	h := types.Hash{}
 	h.SetBytes([]byte(hash))
-	normalIbtp, err := createIBTP(3, pb.IBTP_INTERCHAIN, "get", name, "setCallback")
+	normalIbtp, err := createIBTP(3, pb.IBTP_INTERCHAIN, "get", name, "setCallback", true)
 	//encryptedIbtp, err := createEncryptedIBTP(5, pb.IBTP_INTERCHAIN, "get", name, "setCallback")
 	encryptedContent := []byte("encryptedContent")
 	ibtpCh := make(chan *pb.IBTP, 2)
@@ -36,32 +37,29 @@ func TestHandleIBTP(t *testing.T) {
 	originalMeta := map[string]uint64{to: 2}
 
 	mockClient.EXPECT().CommitCallback(gomock.Any()).Return(nil).AnyTimes()
-	mockClient.EXPECT().GetOutMessage(normalIbtp.To, normalIbtp.Index).Return(normalIbtp, nil).AnyTimes()
+	mockClient.EXPECT().GetOutMessage(normalIbtp.To, normalIbtp.Index).Return(normalIbtp, nil).MaxTimes(2)
 	mockClient.EXPECT().GetOutMeta().Return(originalMeta, nil)
 	//mockClient.EXPECT().GetOutMessage(to, uint64(6)).Return(nil, errWrongIBTP).AnyTimes()
 	mockClient.EXPECT().Start().Return(nil).AnyTimes()
 	mockClient.EXPECT().Stop().Return(nil).AnyTimes()
 	mockClient.EXPECT().GetIBTP().Return(ibtpCh).AnyTimes()
-	mockCryptor.EXPECT().Encrypt(gomock.Any(), gomock.Any()).Return(encryptedContent, nil)
-
+	mockCryptor.EXPECT().Encrypt(gomock.Any(), gomock.Any()).Return(encryptedContent, nil).MaxTimes(3)
 	//start appchain monitor
 	require.Nil(t, mnt.Start())
 
-	// handle should ignored ibtp
 	ibtpCh <- normalIbtp
-
 	time.Sleep(500 * time.Millisecond)
 	// check if latest out meta is 4
 	meta := mnt.QueryOuterMeta()
 	require.Equal(t, uint64(2), meta[to])
 
 	recv := mnt.ListenIBTP()
-	// check if missed and normal ibtp is handled
+	// check if normal ibtp is handled
 	require.Equal(t, 1, len(recv))
-	close(mnt.recvCh)
 	require.Equal(t, normalIbtp, <-recv)
+	require.Equal(t, 0, len(recv))
 
-	// check if missed ibtp is stored
+	// check if normal ibtp is stored
 	recvd, err := mnt.QueryIBTP(normalIbtp.ID())
 	require.Nil(t, err)
 	require.Equal(t, normalIbtp, recvd)
@@ -70,6 +68,25 @@ func TestHandleIBTP(t *testing.T) {
 	recvedEncrypIbtp, err := mnt.QueryIBTP(normalIbtp.ID())
 	require.Nil(t, err)
 	require.Equal(t, normalIbtp, recvedEncrypIbtp)
+
+	// test bad encrypted ibtp
+	mockCryptor.EXPECT().Encrypt(gomock.Any(), gomock.Any()).Return(nil, fmt.Errorf("bad encrypted content"))
+	badEncryptedIbtp, err := createBadEncryptedIBTP(4, pb.IBTP_INTERCHAIN)
+	require.Nil(t, err)
+	ibtpCh <- badEncryptedIbtp
+	time.Sleep(500 * time.Millisecond)
+	close(mnt.recvCh)
+	// check if bad content ibtp is ignored
+	require.Equal(t, 0, len(recv))
+
+	// test query ibtp with error
+	mockCryptor.EXPECT().Encrypt(gomock.Any(), gomock.Any()).Return(encryptedContent, nil).AnyTimes()
+	badCall := mockClient.EXPECT().GetOutMessage(badEncryptedIbtp.To, badEncryptedIbtp.Index).Return(nil, fmt.Errorf("worong call to get ibtp"))
+	badCall1 := mockClient.EXPECT().GetOutMessage(badEncryptedIbtp.To, badEncryptedIbtp.Index).Return(badEncryptedIbtp, nil)
+	gomock.InOrder(badCall, badCall1)
+	recvd, err = mnt.QueryIBTP(badEncryptedIbtp.ID())
+	require.Nil(t, err)
+	require.Equal(t, badEncryptedIbtp, recvd)
 
 	require.Nil(t, mnt.Stop())
 }
@@ -88,7 +105,7 @@ func prepare(t *testing.T) (*mock_client.MockClient, *mock_txcrypto.MockCryptor,
 	return mockClient, mockCryptor, mnt
 }
 
-func createIBTP(idx uint64, typ pb.IBTP_Type, funct string, args string, callback string) (*pb.IBTP, error) {
+func createIBTP(idx uint64, typ pb.IBTP_Type, funct string, args string, callback string, encrypted bool) (*pb.IBTP, error) {
 	ct := pb.Content{
 		SrcContractId: fid,
 		DstContractId: tid,
@@ -101,7 +118,7 @@ func createIBTP(idx uint64, typ pb.IBTP_Type, funct string, args string, callbac
 		return nil, err
 	}
 	pd := pb.Payload{
-		Encrypted: false,
+		Encrypted: encrypted,
 		Content:   c,
 	}
 	b, err := pd.Marshal()
@@ -120,21 +137,10 @@ func createIBTP(idx uint64, typ pb.IBTP_Type, funct string, args string, callbac
 	}, nil
 }
 
-func createEncryptedIBTP(idx uint64, typ pb.IBTP_Type, funct string, args string, callback string) (*pb.IBTP, error) {
-	ct := pb.Content{
-		SrcContractId: fid,
-		DstContractId: tid,
-		Func:          funct,
-		Args:          [][]byte{[]byte(args)},
-		Callback:      callback,
-	}
-	c, err := ct.Marshal()
-	if err != nil {
-		return nil, err
-	}
+func createBadEncryptedIBTP(idx uint64, typ pb.IBTP_Type) (*pb.IBTP, error) {
 	pd := pb.Payload{
 		Encrypted: true,
-		Content:   c,
+		Content:   []byte("bad encrypted content"),
 	}
 	b, err := pd.Marshal()
 	if err != nil {
