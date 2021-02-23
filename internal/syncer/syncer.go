@@ -119,11 +119,7 @@ func (syncer *WrapperSyncer) recover(begin, end uint64) {
 
 	ch := make(chan *pb.InterchainTxWrappers, maxChSize)
 	if err := syncer.client.GetInterchainTxWrappers(syncer.ctx, syncer.pierID, begin, end, ch); err != nil {
-		syncer.logger.WithFields(logrus.Fields{
-			"begin": begin,
-			"end":   end,
-			"error": err,
-		}).Warn("get interchain tx wrapper")
+		syncer.logger.WithFields(logrus.Fields{"begin": begin, "end": end, "error": err}).Warn("get interchain tx wrapper")
 	}
 
 	for wrappers := range ch {
@@ -252,6 +248,10 @@ func (syncer *WrapperSyncer) listenInterchainTxWrappers() {
 				continue
 			}
 			w := wrappers.InterchainTxWrappers[0]
+			if w == nil {
+				syncer.logger.Errorf("InterchainTxWrapper is nil")
+				continue
+			}
 			if w.Height < syncer.getDemandHeight() {
 				syncer.logger.WithField("height", w.Height).Warn("Discard wrong wrapper")
 				continue
@@ -265,11 +265,8 @@ func (syncer *WrapperSyncer) listenInterchainTxWrappers() {
 
 				ch := make(chan *pb.InterchainTxWrappers, maxChSize)
 				if err := syncer.client.GetInterchainTxWrappers(syncer.ctx, syncer.pierID, syncer.getDemandHeight(), w.Height, ch); err != nil {
-					syncer.logger.WithFields(logrus.Fields{
-						"begin": syncer.height,
-						"end":   w.Height,
-						"error": err,
-					}).Warn("Get interchain tx wrapper")
+					syncer.logger.WithFields(logrus.Fields{"begin": syncer.height, "end": w.Height, "error": err}).Warn("Get interchain tx wrapper")
+					continue
 				}
 
 				for ws := range ch {
@@ -286,6 +283,9 @@ func (syncer *WrapperSyncer) listenInterchainTxWrappers() {
 }
 
 func (syncer *WrapperSyncer) handleInterchainWrapperAndPersist(ws *pb.InterchainTxWrappers, icm map[string]*rpcx.Interchain) {
+	if ws == nil || ws.InterchainTxWrappers == nil {
+		return
+	}
 	for i, wrapper := range ws.InterchainTxWrappers {
 		ok := syncer.handleInterchainTxWrapper(wrapper, i, icm)
 		if !ok {
@@ -293,10 +293,7 @@ func (syncer *WrapperSyncer) handleInterchainWrapperAndPersist(ws *pb.Interchain
 		}
 	}
 	if err := syncer.persist(ws); err != nil {
-		syncer.logger.WithFields(logrus.Fields{
-			"height": ws.InterchainTxWrappers[0].Height,
-			"error":  err,
-		}).Error("Persist interchain tx wrapper")
+		syncer.logger.WithFields(logrus.Fields{"height": ws.InterchainTxWrappers[0].Height, "error": err}).Error("Persist interchain tx wrapper")
 	}
 	syncer.updateHeight()
 }
@@ -308,16 +305,8 @@ func (syncer *WrapperSyncer) handleInterchainTxWrapper(w *pb.InterchainTxWrapper
 		return false
 	}
 
-	if w.Height < syncer.getDemandHeight() {
-		syncer.logger.Warn("wrong height")
-		return false
-	}
-
 	if ok, err := syncer.verifyWrapper(w); !ok {
-		syncer.logger.WithFields(logrus.Fields{
-			"height": w.Height,
-			"error":  err,
-		}).Warn("Invalid wrapper")
+		syncer.logger.WithFields(logrus.Fields{"height": w.Height, "error": err}).Warn("Invalid wrapper")
 		return false
 	}
 
@@ -330,12 +319,13 @@ func (syncer *WrapperSyncer) handleInterchainTxWrapper(w *pb.InterchainTxWrapper
 		if syncer.isRecover && syncer.isUnionMode() {
 			ic, ok := icm[ibtp.From]
 			if !ok {
-				ic, err := syncer.recoverHandler(ibtp)
+				recoveredIc, err := syncer.recoverHandler(ibtp)
 				if err != nil {
 					syncer.logger.Error(err)
 					continue
 				}
-				icm[ibtp.From] = ic
+				icm[ibtp.From] = recoveredIc
+				ic = recoveredIc
 			}
 			if index, ok := ic.InterchainCounter[ibtp.To]; ok {
 				if ibtp.Index <= index {
@@ -350,7 +340,7 @@ func (syncer *WrapperSyncer) handleInterchainTxWrapper(w *pb.InterchainTxWrapper
 		"height": w.Height,
 		"count":  len(w.Transactions),
 		"index":  i,
-	}).Info("Persist interchain tx wrapper")
+	}).Info("Handle interchain tx wrapper")
 	return true
 }
 
