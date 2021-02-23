@@ -53,10 +53,7 @@ type Exchanger struct {
 }
 
 func New(typ, pierID string, meta *pb.Interchain, opts ...Option) (*Exchanger, error) {
-	config, err := GenerateConfig(opts...)
-	if err != nil {
-		return nil, err
-	}
+	config := GenerateConfig(opts...)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	return &Exchanger{
@@ -143,7 +140,6 @@ func (ex *Exchanger) startWithRelayMode() error {
 	// syncer should be started first in case to recover ibtp from monitor
 	if err := ex.syncer.Start(); err != nil {
 		return fmt.Errorf("syncer start: %w", err)
-
 	}
 
 	// recover exchanger before relay any interchain msgs
@@ -237,7 +233,6 @@ func (ex *Exchanger) listenAndSendIBTPFromSyncer() {
 				ex.applyReceipt(ibtp, entry)
 			default:
 				entry.Errorf("wrong type of ibtp")
-				return
 			}
 		}
 	}

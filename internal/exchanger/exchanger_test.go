@@ -2,6 +2,7 @@ package exchanger
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"testing"
@@ -36,12 +37,20 @@ import (
 const (
 	from      = "0x3f9d18f7c3a6e5e4c0b877fe3e688ab08840b997"
 	to        = "0x3f9d18f7c3a6e5e4c0b877fe3e688ab08840b997"
+	pierID    = "0x892eedc032948be00722038a29f2a90d0e05352f"
 	assetTxID = "asset exchange id for test"
 )
 
 var errorUnhappy = fmt.Errorf("nil")
 
 func TestStartRelay(t *testing.T) {
+	testNormalStartRelay(t)
+	testRecoverErrorStartRelay(t)
+	testApplyInterchain(t)
+	testApplyReceipt(t)
+}
+
+func testNormalStartRelay(t *testing.T) {
 	mode := repo.RelayMode
 	mockMonitor, mockExecutor, mockSyncer, mockChecker, store := prepareRelay(t)
 	meta := &pb.Interchain{}
@@ -60,6 +69,8 @@ func TestStartRelay(t *testing.T) {
 	mockMonitor.EXPECT().QueryOuterMeta().Return(outMeta).AnyTimes()
 	mockExecutor.EXPECT().QueryInterchainMeta().Return(inMeta).AnyTimes()
 	mockExecutor.EXPECT().QueryCallbackMeta().Return(callbackMeta).AnyTimes()
+	mockSyncer.EXPECT().Start().Return(nil)
+	mockSyncer.EXPECT().Stop().Return(nil)
 	mockSyncer.EXPECT().ListenIBTP().Return(inCh).AnyTimes()
 	mockSyncer.EXPECT().SendIBTP(gomock.Any()).Return(nil).AnyTimes()
 
@@ -111,6 +122,143 @@ func TestStartRelay(t *testing.T) {
 	require.Nil(t, mockExchanger.Stop())
 }
 
+func testApplyInterchain(t *testing.T) {
+	mode := repo.RelayMode
+	meta := &pb.Interchain{}
+	outMeta := make(map[string]uint64)
+	inMeta := make(map[string]uint64)
+	callbackMeta := make(map[string]uint64)
+
+	mockMonitor, mockExecutor, mockSyncer, mockChecker, store := prepareRelay(t)
+	mockMonitor.EXPECT().QueryOuterMeta().Return(outMeta).AnyTimes()
+	mockExecutor.EXPECT().QueryInterchainMeta().Return(inMeta).AnyTimes()
+	mockExecutor.EXPECT().QueryCallbackMeta().Return(callbackMeta).AnyTimes()
+
+	mockExchanger, err := New(mode, from, meta,
+		WithMonitor(mockMonitor), WithExecutor(mockExecutor),
+		WithSyncer(mockSyncer), WithLogger(log.NewWithModule("exchanger")),
+		WithChecker(mockChecker), WithStorage(store),
+	)
+	require.Nil(t, err)
+
+	inCh := make(chan *pb.IBTP, 2)
+	signs := []byte("signs for asset exchange")
+	mockSyncer.EXPECT().ListenIBTP().Return(inCh).AnyTimes()
+	go mockExchanger.listenAndSendIBTPFromSyncer()
+
+	mockExchanger.executorCounter[to] = 1
+	interchainIBTP1 := getIBTP(t, 1, pb.IBTP_ASSET_EXCHANGE_REDEEM)
+	inCh <- interchainIBTP1
+
+	interchainIBTP2 := getIBTP(t, 2, pb.IBTP_ASSET_EXCHANGE_REDEEM)
+	interchainIBTP2.Extra = []byte(assetTxID)
+	badInterchainIBTP3 := getIBTP(t, 3, 7)
+	inCh <- badInterchainIBTP3
+	interchainIBTP3 := getIBTP(t, 3, pb.IBTP_ASSET_EXCHANGE_REDEEM)
+	interchainIBTP3.Extra = []byte(assetTxID)
+	mockSyncer.EXPECT().QueryIBTP(gomock.Any()).Return(nil, fmt.Errorf("query ibtp error"))
+	inCh <- interchainIBTP3
+
+	mockSyncer.EXPECT().QueryIBTP(gomock.Any()).Return(interchainIBTP2, nil)
+	////mockSyncer.EXPECT().GetAssetExchangeSigns(assetTxID).Return(nil, fmt.Errorf("get signs error"))
+	mockSyncer.EXPECT().GetAssetExchangeSigns(gomock.Any()).Return(signs, nil).AnyTimes()
+	mockSyncer.EXPECT().SendIBTP(gomock.Any()).Return(fmt.Errorf("send ibtp error"))
+	mockSyncer.EXPECT().SendIBTP(gomock.Any()).Return(nil)
+	mockExecutor.EXPECT().ExecuteIBTP(gomock.Any()).Return(&pb.IBTP{}, nil).AnyTimes()
+	inCh <- interchainIBTP3
+
+	time.Sleep(2 * time.Millisecond)
+	require.Equal(t, uint64(3), mockExchanger.executorCounter[from])
+}
+
+func testApplyReceipt(t *testing.T) {
+	mode := repo.RelayMode
+	meta := &pb.Interchain{}
+	outMeta := make(map[string]uint64)
+	//outMeta[to] = 1
+	inMeta := make(map[string]uint64)
+	//inMeta[to] = 1
+	callbackMeta := make(map[string]uint64)
+
+	mockMonitor, mockExecutor, mockSyncer, mockChecker, store := prepareRelay(t)
+	mockMonitor.EXPECT().QueryOuterMeta().Return(outMeta).AnyTimes()
+	mockExecutor.EXPECT().QueryInterchainMeta().Return(inMeta).AnyTimes()
+	mockExecutor.EXPECT().QueryCallbackMeta().Return(callbackMeta).AnyTimes()
+
+	mockExchanger, err := New(mode, from, meta,
+		WithMonitor(mockMonitor), WithExecutor(mockExecutor),
+		WithSyncer(mockSyncer), WithLogger(log.NewWithModule("exchanger")),
+		WithChecker(mockChecker), WithStorage(store),
+	)
+	require.Nil(t, err)
+
+	inCh := make(chan *pb.IBTP, 2)
+	signs := []byte("signs for asset exchange")
+	mockSyncer.EXPECT().ListenIBTP().Return(inCh).AnyTimes()
+	go mockExchanger.listenAndSendIBTPFromSyncer()
+
+	receiptIBTP1 := getIBTP(t, 1, pb.IBTP_RECEIPT_SUCCESS)
+	mockExchanger.callbackCounter[to] = 1
+	inCh <- receiptIBTP1
+	receiptIBTP3 := getIBTP(t, 3, pb.IBTP_RECEIPT_SUCCESS)
+	inCh <- receiptIBTP3
+	receiptIBTP2 := getIBTP(t, 2, pb.IBTP_RECEIPT_SUCCESS)
+	receiptIBTP2.Extra = []byte(assetTxID)
+	mockSyncer.EXPECT().GetAssetExchangeSigns(assetTxID).Return(nil, fmt.Errorf("get signs error"))
+	mockSyncer.EXPECT().GetAssetExchangeSigns(gomock.Any()).Return(signs, nil)
+	mockExecutor.EXPECT().ExecuteIBTP(receiptIBTP2).Return(nil, nil)
+	inCh <- receiptIBTP2
+	time.Sleep(2 * time.Millisecond)
+	require.Equal(t, uint64(2), mockExchanger.callbackCounter[from])
+}
+
+func testRecoverErrorStartRelay(t *testing.T) {
+	mode := repo.RelayMode
+	mockMonitor, mockExecutor, mockSyncer, mockChecker, store := prepareRelay(t)
+	meta := &pb.Interchain{}
+
+	outMeta := make(map[string]uint64)
+	outMeta[to] = 1
+	inMeta := make(map[string]uint64)
+	inMeta[to] = 1
+	callbackMeta := make(map[string]uint64)
+
+	mockMonitor.EXPECT().QueryOuterMeta().Return(outMeta).AnyTimes()
+	mockExecutor.EXPECT().QueryInterchainMeta().Return(inMeta).AnyTimes()
+	mockExecutor.EXPECT().QueryCallbackMeta().Return(callbackMeta).AnyTimes()
+
+	mockExchanger, err := New(mode, from, meta,
+		WithMonitor(mockMonitor), WithExecutor(mockExecutor),
+		WithSyncer(mockSyncer), WithLogger(log.NewWithModule("exchanger")),
+		WithChecker(mockChecker), WithStorage(store),
+	)
+	require.Nil(t, err)
+
+	syncerError := fmt.Errorf("start syncer failed")
+	mockSyncer.EXPECT().Start().Return(syncerError)
+	require.Equal(t, true, errors.Is(mockExchanger.Start(), syncerError))
+
+	mockSyncer.EXPECT().Start().Return(nil).AnyTimes()
+	// mock recover error
+	mockMonitor.EXPECT().QueryIBTP(gomock.Any()).Return(nil, fmt.Errorf("query ibtp error"))
+	require.Panics(t, func() { mockExchanger.Start() })
+
+	outMeta[to] = 0
+	mockSyncer.EXPECT().QueryIBTP(gomock.Any()).Return(nil, fmt.Errorf("query ibtp error"))
+	require.Panics(t, func() { mockExchanger.Start() })
+
+	ibtp := getIBTP(t, 1, pb.IBTP_RECEIPT_SUCCESS)
+	mockSyncer.EXPECT().QueryIBTP(gomock.Any()).Return(ibtp, nil).AnyTimes()
+	mockExecutor.EXPECT().QueryIBTPReceipt(gomock.Any(), gomock.Any(), gomock.Any()).
+		Return(nil, fmt.Errorf("query ibtp receipt error"))
+	require.Panics(t, func() { mockExchanger.Start() })
+
+	mockExecutor.EXPECT().QueryIBTPReceipt(gomock.Any(), gomock.Any(), gomock.Any()).
+		Return(&pb.IBTP{}, nil).AnyTimes()
+	mockSyncer.EXPECT().SendIBTP(gomock.Any()).Return(fmt.Errorf("send ibtp receipt error"))
+	require.Panics(t, func() { mockExchanger.Start() })
+}
+
 func testRelayIBTPFromMnt(t *testing.T, outCh chan *pb.IBTP, ibtps []*pb.IBTP, exchanger *Exchanger) {
 	for i, ibtp := range ibtps {
 		if (i+1)%2 == 0 {
@@ -152,8 +300,69 @@ func genIBTPs(t *testing.T, count int, typ pb.IBTP_Type) ([]*pb.IBTP, map[string
 }
 
 func TestStartDirect(t *testing.T) {
+	testNormalDirect(t)
+	testErrorStartStopDirect(t)
+	testErrorDirect(t)
+}
+
+func testErrorDirect(t *testing.T) {
 	mode := repo.DirectMode
-	mockMonitor, mockExecutor, mockChecker, mockPeerMgr, apiServer, store := prepareDirect(t)
+	mockMonitor, mockExecutor, mockChecker, mockPeerMgr, apiServer, store := prepareDirect(t, true)
+	meta := &pb.Interchain{}
+
+	outMeta := make(map[string]uint64)
+	outMeta[to] = 1
+	inMeta := make(map[string]uint64)
+	inMeta[to] = 1
+	callbackMeta := make(map[string]uint64)
+
+	mockExecutor.EXPECT().QueryInterchainMeta().Return(inMeta).AnyTimes()
+	mockExecutor.EXPECT().QueryCallbackMeta().Return(callbackMeta).AnyTimes()
+	mockExchanger, err := New(mode, from, meta,
+		WithMonitor(mockMonitor), WithExecutor(mockExecutor),
+		WithChecker(mockChecker), WithPeerMgr(mockPeerMgr),
+		WithAPIServer(apiServer), WithStorage(store),
+		WithLogger(log.NewWithModule("exchanger")),
+	)
+	require.Nil(t, err)
+
+	var stream network.Stream
+	// test wrong marshaled ibtp bytes
+	badIbtpMsg := peermgr.Message(peerMsg.Message_IBTP_SEND, true, []byte("bad ibtp msg bytes"))
+	mockExchanger.handleSendIBTPMessage(stream, badIbtpMsg)
+
+	// test for wrong index ibtp
+	ignoredIBTP := getIBTP(t, 1, pb.IBTP_INTERCHAIN)
+	ibtpBytes, err := ignoredIBTP.Marshal()
+	require.Nil(t, err)
+	ignoredIBTPMsg := peermgr.Message(peerMsg.Message_IBTP_SEND, true, ibtpBytes)
+	mockExchanger.handleSendIBTPMessage(stream, ignoredIBTPMsg)
+	time.Sleep(100 * time.Millisecond)
+
+	receiptIBTP3 := getIBTP(t, 3, pb.IBTP_RECEIPT_SUCCESS)
+	ibtp3 := getIBTP(t, 3, pb.IBTP_INTERCHAIN)
+	ibtpBytes, err = ibtp3.Marshal()
+	require.Nil(t, err)
+	outIBTPMsg := peermgr.Message(peerMsg.Message_IBTP_SEND, true, ibtpBytes)
+	mockExecutor.EXPECT().ExecuteIBTP(ibtp3).Return(receiptIBTP3, nil)
+	mockPeerMgr.EXPECT().AsyncSend(from, gomock.Any()).Return(fmt.Errorf("async send ibtp fail"))
+	mockExchanger.handleSendIBTPMessage(stream, outIBTPMsg)
+	time.Sleep(100 * time.Millisecond)
+
+	// test for multiple ibtp
+	ibtp2 := getIBTP(t, 2, pb.IBTP_INTERCHAIN)
+	ibtpBytes, err = ibtp2.Marshal()
+	require.Nil(t, err)
+	outIBTPMsg = peermgr.Message(peerMsg.Message_IBTP_SEND, true, ibtpBytes)
+	mockExecutor.EXPECT().ExecuteIBTP(ibtp2).Return(nil, nil)
+	mockExchanger.handleSendIBTPMessage(stream, outIBTPMsg)
+	mockPeerMgr.EXPECT().AsyncSend(from, gomock.Any()).Return(fmt.Errorf("async send ibtp fail"))
+	time.Sleep(100 * time.Millisecond)
+}
+
+func testNormalDirect(t *testing.T) {
+	mode := repo.DirectMode
+	mockMonitor, mockExecutor, mockChecker, mockPeerMgr, apiServer, store := prepareDirect(t, true)
 	meta := &pb.Interchain{}
 
 	// test for happy path, one normal indexed ibtp and will trigger getMissing
@@ -189,7 +398,7 @@ func TestStartDirect(t *testing.T) {
 	callbackMeta := make(map[string]uint64)
 
 	mockMonitor.EXPECT().ListenIBTP().Return(outCh).AnyTimes()
-	mockMonitor.EXPECT().QueryOuterMeta().Return(outMeta)
+	mockMonitor.EXPECT().QueryOuterMeta().Return(outMeta).MaxTimes(2)
 	mockMonitor.EXPECT().QueryIBTP(happyPathMissedOutIBTP.ID()).Return(happyPathMissedOutIBTP, nil).AnyTimes()
 	mockExecutor.EXPECT().ExecuteIBTP(gomock.Any()).Return(receipt, nil).AnyTimes()
 	mockExecutor.EXPECT().QueryInterchainMeta().Return(inMeta).AnyTimes()
@@ -225,6 +434,9 @@ func TestStartDirect(t *testing.T) {
 	mockExchanger.handleSendIBTPReceiptMessage(stream, ret1Msg)
 	mockExchanger.handleSendIBTPReceiptMessage(stream, retMsg)
 
+	getInterchainMsg := peermgr.Message(peerMsg.Message_INTERCHAIN_META_GET, true, []byte(to))
+	mockExchanger.handleGetInterchainMessage(stream, getInterchainMsg)
+
 	time.Sleep(1 * time.Second)
 	// test for unhappy path, one normal indexed ibtp and will trigger getMissing with error
 	unhappyPathMissedOutIBTPID := fmt.Sprintf("%s-%s-%d", from, to, 3)
@@ -241,14 +453,84 @@ func TestStartDirect(t *testing.T) {
 	require.Nil(t, mockExchanger.Stop())
 }
 
+func testErrorStartStopDirect(t *testing.T) {
+	mode := repo.DirectMode
+	mockMonitor, mockExecutor, mockChecker, mockPeerMgr, apiServer, store := prepareDirect(t, false)
+	meta := &pb.Interchain{}
+
+	outMeta := make(map[string]uint64)
+	outMeta[to] = 1
+	inMeta := make(map[string]uint64)
+	inMeta[to] = 1
+	callbackMeta := make(map[string]uint64)
+
+	mockExecutor.EXPECT().QueryInterchainMeta().Return(inMeta).AnyTimes()
+	mockExecutor.EXPECT().QueryCallbackMeta().Return(callbackMeta).AnyTimes()
+	mockExchanger, err := New(mode, from, meta,
+		WithMonitor(mockMonitor), WithExecutor(mockExecutor),
+		WithChecker(mockChecker), WithPeerMgr(mockPeerMgr),
+		WithAPIServer(apiServer), WithStorage(store),
+		WithLogger(log.NewWithModule("exchanger")),
+	)
+	require.Nil(t, err)
+
+	startError := fmt.Errorf("start direct mode exchanger error")
+	mockPeerMgr.EXPECT().RegisterConnectHandler(gomock.Any()).Return(startError)
+	require.Equal(t, true, errors.Is(mockExchanger.startWithDirectMode(), startError))
+	mockExchanger.apiServer.Stop()
+	mockServer, err := api.NewServer(&appchain.Manager{}, mockPeerMgr, &repo.Config{}, log.NewWithModule("api"))
+	require.Nil(t, err)
+	mockExchanger.apiServer = mockServer
+
+	mockPeerMgr.EXPECT().RegisterConnectHandler(gomock.Any()).Return(nil).AnyTimes()
+	//mockPeerMgr.EXPECT().RegisterMsgHandler(peerMsg.Message_INTERCHAIN_META_GET, gomock.Any()).Return(startError)
+	//require.Equal(t, true, errors.Is(mockExchanger.startWithDirectMode(), startError))
+	//mockExchanger.apiServer.Stop()
+	//mockServer, err = api.NewServer(&appchain.Manager{}, mockPeerMgr, &repo.Config{}, log.NewWithModule("api"))
+	//require.Nil(t, err)
+	//mockExchanger.apiServer = mockServer
+	//
+	//mockPeerMgr.EXPECT().RegisterMsgHandler(peerMsg.Message_INTERCHAIN_META_GET, gomock.Any()).Return(nil).MaxTimes(5)
+	//mockPeerMgr.EXPECT().RegisterMsgHandler(peerMsg.Message_IBTP_SEND, gomock.Any()).Return(startError)
+	//require.Equal(t, true, errors.Is(mockExchanger.startWithDirectMode(), startError))
+	//mockExchanger.apiServer.Stop()
+	//mockServer, err = api.NewServer(&appchain.Manager{}, mockPeerMgr, &repo.Config{}, log.NewWithModule("api"))
+	//require.Nil(t, err)
+	//mockExchanger.apiServer = mockServer
+	//
+	//mockPeerMgr.EXPECT().RegisterMsgHandler(peerMsg.Message_IBTP_SEND, gomock.Any()).Return(nil).MaxTimes(5)
+	//mockPeerMgr.EXPECT().RegisterMsgHandler(peerMsg.Message_IBTP_RECEIPT_SEND, gomock.Any()).Return(startError)
+	//require.Equal(t, true, errors.Is(mockExchanger.startWithDirectMode(), startError))
+	//mockExchanger.apiServer.Stop()
+	//mockServer, err = api.NewServer(&appchain.Manager{}, mockPeerMgr, &repo.Config{}, log.NewWithModule("api"))
+	//require.Nil(t, err)
+	//mockExchanger.apiServer = mockServer
+
+	//mockPeerMgr.EXPECT().RegisterMsgHandler(peerMsg.Message_IBTP_RECEIPT_SEND, gomock.Any()).Return(nil).MaxTimes(5)
+	mockPeerMgr.EXPECT().RegisterMsgHandler(gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
+	mockPeerMgr.EXPECT().Start().Return(startError)
+	require.Equal(t, true, errors.Is(mockExchanger.startWithDirectMode(), startError))
+	mockExchanger.apiServer.Stop()
+	mockServer, err = api.NewServer(&appchain.Manager{}, mockPeerMgr, &repo.Config{}, log.NewWithModule("api"))
+	require.Nil(t, err)
+	mockExchanger.apiServer = mockServer
+
+	// mock stop direct exchanger
+	stopError := fmt.Errorf("stop exchanger error")
+	mockPeerMgr.EXPECT().Stop().Return(stopError)
+	require.Equal(t, true, errors.Is(mockExchanger.Stop(), stopError))
+}
+
 func TestStartUnionMode(t *testing.T) {
 	testUnionMode(from, t)
 	testUnionMode(to, t)
+	testUnionIBTP(t)
+	testUnionStartAndStop(t)
 }
 
 func testUnionMode(pierID string, t *testing.T) {
 	mode := repo.UnionMode
-	mockMonitor, mockExecutor, mockSyncer, mockPeerMgr, mockRouter, store := prepareUnoin(t)
+	mockMonitor, mockExecutor, mockSyncer, mockPeerMgr, mockRouter, store := prepareUnoin(t, true)
 	meta := &pb.Interchain{}
 
 	var stream network.Stream
@@ -326,6 +608,91 @@ func testUnionMode(pierID string, t *testing.T) {
 	require.Nil(t, mockExchanger.Stop())
 }
 
+func testUnionStartAndStop(t *testing.T) {
+	mode := repo.UnionMode
+	mockMonitor, mockExecutor, mockSyncer, mockPeerMgr, mockRouter, store := prepareUnoin(t, false)
+	meta := &pb.Interchain{}
+	mockExecutor.EXPECT().QueryInterchainMeta().Return(map[string]uint64{to: 1}).AnyTimes()
+	mockExecutor.EXPECT().QueryCallbackMeta().Return(map[string]uint64{to: 1}).AnyTimes()
+
+	mockExchanger, err := New(mode, pierID, meta,
+		WithMonitor(mockMonitor), WithExecutor(mockExecutor),
+		WithSyncer(mockSyncer), WithPeerMgr(mockPeerMgr),
+		WithRouter(mockRouter), WithStorage(store),
+		WithLogger(log.NewWithModule("exchanger")),
+	)
+	require.Nil(t, err)
+
+	inCh := make(chan *pb.IBTP)
+	mockSyncer.EXPECT().ListenIBTP().Return(inCh).AnyTimes()
+	// mock exchanger start error
+	startError := fmt.Errorf("start unoin exchanger error")
+	mockPeerMgr.EXPECT().Start().Return(startError)
+	require.Equal(t, true, errors.Is(mockExchanger.startWithUnionMode(), startError))
+
+	mockPeerMgr.EXPECT().Start().Return(nil).AnyTimes()
+	mockPeerMgr.EXPECT().RegisterMsgHandler(peerMsg.Message_ROUTER_IBTP_SEND, gomock.Any()).Return(startError)
+	require.Equal(t, true, errors.Is(mockExchanger.startWithUnionMode(), startError))
+
+	mockPeerMgr.EXPECT().RegisterMsgHandler(peerMsg.Message_ROUTER_IBTP_SEND, gomock.Any()).Return(nil).AnyTimes()
+	mockPeerMgr.EXPECT().RegisterMsgHandler(peerMsg.Message_ROUTER_INTERCHAIN_SEND, gomock.Any()).Return(startError)
+	require.Equal(t, true, errors.Is(mockExchanger.startWithUnionMode(), startError))
+
+	mockPeerMgr.EXPECT().RegisterMsgHandler(peerMsg.Message_ROUTER_INTERCHAIN_SEND, gomock.Any()).Return(nil).AnyTimes()
+	mockSyncer.EXPECT().RegisterAppchainHandler(gomock.Any()).Return(startError)
+	require.Equal(t, true, errors.Is(mockExchanger.startWithUnionMode(), startError))
+
+	mockSyncer.EXPECT().RegisterAppchainHandler(gomock.Any()).Return(nil).AnyTimes()
+	mockSyncer.EXPECT().RegisterRecoverHandler(gomock.Any()).Return(startError)
+	require.Equal(t, true, errors.Is(mockExchanger.startWithUnionMode(), startError))
+
+	mockSyncer.EXPECT().RegisterRecoverHandler(gomock.Any()).Return(nil).AnyTimes()
+	mockRouter.EXPECT().Start().Return(startError)
+	require.Equal(t, true, errors.Is(mockExchanger.startWithUnionMode(), startError))
+
+	mockRouter.EXPECT().Start().Return(nil).AnyTimes()
+	mockSyncer.EXPECT().Start().Return(startError)
+	require.Equal(t, true, errors.Is(mockExchanger.startWithUnionMode(), startError))
+
+	// mock exchanger stop error
+	stopError := fmt.Errorf("stop exchanger error")
+	mockSyncer.EXPECT().Stop().Return(stopError)
+	require.Equal(t, true, errors.Is(mockExchanger.Stop(), stopError))
+
+	mockSyncer.EXPECT().Stop().Return(nil).AnyTimes()
+	mockPeerMgr.EXPECT().Stop().Return(stopError)
+	require.Equal(t, true, errors.Is(mockExchanger.Stop(), stopError))
+
+	mockPeerMgr.EXPECT().Stop().Return(nil).AnyTimes()
+	mockRouter.EXPECT().Stop().Return(stopError)
+	require.Equal(t, true, errors.Is(mockExchanger.Stop(), stopError))
+}
+
+func testUnionIBTP(t *testing.T) {
+	mode := repo.UnionMode
+	mockMonitor, mockExecutor, mockSyncer, mockPeerMgr, mockRouter, store := prepareUnoin(t, true)
+	meta := &pb.Interchain{}
+	mockExecutor.EXPECT().QueryInterchainMeta().Return(map[string]uint64{to: 1}).AnyTimes()
+	mockExecutor.EXPECT().QueryCallbackMeta().Return(map[string]uint64{to: 1}).AnyTimes()
+
+	mockExchanger, err := New(mode, pierID, meta,
+		WithMonitor(mockMonitor), WithExecutor(mockExecutor),
+		WithSyncer(mockSyncer), WithPeerMgr(mockPeerMgr),
+		WithRouter(mockRouter), WithStorage(store),
+		WithLogger(log.NewWithModule("exchanger")),
+	)
+	require.Nil(t, err)
+
+	signs := []byte("signs for asset exchange")
+	unoinIBTP := getIBTPWithFromTo(t, 1, pb.IBTP_INTERCHAIN, pierID, to)
+	mockSyncer.EXPECT().GetIBTPSigns(unoinIBTP).Return(nil, fmt.Errorf("get ibtp signs error"))
+	mockSyncer.EXPECT().GetIBTPSigns(unoinIBTP).Return(signs, nil)
+
+	mockRouter.EXPECT().Route(unoinIBTP).Return(fmt.Errorf("route ibtp error"))
+	mockRouter.EXPECT().Route(unoinIBTP).Return(nil)
+	mockExchanger.handleUnionIBTP(unoinIBTP)
+}
+
 func prepareRelay(t *testing.T) (
 	*mock_monitor.MockMonitor, *mock_executor.MockExecutor,
 	*mock_syncer.MockSyncer,
@@ -337,9 +704,6 @@ func prepareRelay(t *testing.T) (
 	mockSyncer := mock_syncer.NewMockSyncer(mockCtl)
 	mockChecker := &checker.MockChecker{}
 
-	mockSyncer.EXPECT().Start().Return(nil)
-	mockSyncer.EXPECT().Stop().Return(nil)
-
 	tmpDir, err := ioutil.TempDir("", "storage")
 	require.Nil(t, err)
 	store, err := leveldb.New(tmpDir)
@@ -348,7 +712,7 @@ func prepareRelay(t *testing.T) (
 	return mockMonitor, mockExecutor, mockSyncer, mockChecker, store
 }
 
-func prepareDirect(t *testing.T) (
+func prepareDirect(t *testing.T, isNormal bool) (
 	*mock_monitor.MockMonitor, *mock_executor.MockExecutor,
 	*checker.MockChecker, *mock_peermgr.MockPeerManager,
 	*api.Server, storage.Storage,
@@ -362,10 +726,12 @@ func prepareDirect(t *testing.T) (
 	mockServer, err := api.NewServer(mockAppchainMgr, mockPeerMgr, &repo.Config{}, log.NewWithModule("api"))
 	require.Nil(t, err)
 
-	mockPeerMgr.EXPECT().Start().Return(nil)
-	mockPeerMgr.EXPECT().Stop().Return(nil)
-	mockPeerMgr.EXPECT().RegisterConnectHandler(gomock.Any()).Return(nil)
-	mockPeerMgr.EXPECT().RegisterMsgHandler(gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
+	if isNormal {
+		mockPeerMgr.EXPECT().Start().Return(nil)
+		mockPeerMgr.EXPECT().Stop().Return(nil)
+		mockPeerMgr.EXPECT().RegisterConnectHandler(gomock.Any()).Return(nil)
+		mockPeerMgr.EXPECT().RegisterMsgHandler(gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
+	}
 
 	tmpDir, err := ioutil.TempDir("", "storage")
 	require.Nil(t, err)
@@ -375,7 +741,7 @@ func prepareDirect(t *testing.T) (
 	return mockMonitor, mockExecutor, mockChecker, mockPeerMgr, mockServer, store
 }
 
-func prepareUnoin(t *testing.T) (
+func prepareUnoin(t *testing.T, isNormal bool) (
 	*mock_monitor.MockMonitor, *mock_executor.MockExecutor,
 	*mock_syncer.MockSyncer, *mock_peermgr.MockPeerManager,
 	*mock_router.MockRouter, storage.Storage,
@@ -387,16 +753,18 @@ func prepareUnoin(t *testing.T) (
 	mockRouter := mock_router.NewMockRouter(mockCtl)
 	mockPeerMgr := mock_peermgr.NewMockPeerManager(mockCtl)
 
-	mockPeerMgr.EXPECT().Start().Return(nil)
-	mockPeerMgr.EXPECT().Stop().Return(nil)
-	mockPeerMgr.EXPECT().RegisterConnectHandler(gomock.Any()).Return(nil)
-	mockPeerMgr.EXPECT().RegisterMsgHandler(gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
-	mockSyncer.EXPECT().Start().Return(nil)
-	mockSyncer.EXPECT().Stop().Return(nil)
-	mockSyncer.EXPECT().RegisterAppchainHandler(gomock.Any()).Return(nil)
-	mockSyncer.EXPECT().RegisterRecoverHandler(gomock.Any()).Return(nil)
-	mockRouter.EXPECT().Start().Return(nil)
-	mockRouter.EXPECT().Stop().Return(nil)
+	if isNormal {
+		mockPeerMgr.EXPECT().Start().Return(nil)
+		mockPeerMgr.EXPECT().Stop().Return(nil)
+		mockPeerMgr.EXPECT().RegisterConnectHandler(gomock.Any()).Return(nil)
+		mockPeerMgr.EXPECT().RegisterMsgHandler(gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
+		mockSyncer.EXPECT().Start().Return(nil)
+		mockSyncer.EXPECT().Stop().Return(nil)
+		mockSyncer.EXPECT().RegisterAppchainHandler(gomock.Any()).Return(nil)
+		mockSyncer.EXPECT().RegisterRecoverHandler(gomock.Any()).Return(nil)
+		mockRouter.EXPECT().Start().Return(nil)
+		mockRouter.EXPECT().Stop().Return(nil)
+	}
 
 	tmpDir, err := ioutil.TempDir("", "storage")
 	require.Nil(t, err)
@@ -473,8 +841,8 @@ func getIBTPs(t *testing.T, start, size uint64, typ pb.IBTP_Type, from, to strin
 func TestWithPeerMgr(t *testing.T) {
 	ibtpSize := uint64(110)
 	mode := "direct"
-	mockMonitor1, mockExecutor1, mockChecker1, _, apiServer1, store1 := prepareDirect(t)
-	mockMonitor2, mockExecutor2, mockChecker2, _, apiServer2, store2 := prepareDirect(t)
+	mockMonitor1, mockExecutor1, mockChecker1, _, apiServer1, store1 := prepareDirect(t, true)
+	mockMonitor2, mockExecutor2, mockChecker2, _, apiServer2, store2 := prepareDirect(t, true)
 	meta := &pb.Interchain{}
 
 	nodeKeys, privKeys, config, addrs := genKeysAndConfig(t, 2)

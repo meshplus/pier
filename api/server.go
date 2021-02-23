@@ -63,10 +63,13 @@ func (g *Server) Start() error {
 	}
 
 	go func() {
-		err := g.router.Run(fmt.Sprintf(":%d", g.config.Port.Http))
-		if err != nil {
-			panic(err)
-		}
+		go func() {
+			err := g.router.Run(fmt.Sprintf(":%d", g.config.Port.Http))
+			if err != nil {
+				panic(err)
+			}
+		}()
+		<-g.ctx.Done()
 	}()
 	return nil
 }
