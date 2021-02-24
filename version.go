@@ -11,7 +11,7 @@ var (
 	// CurrentBranch current git branch
 	CurrentBranch = ""
 	// CurrentVersion current project version
-	CurrentVersion = "0.2.0"
+	CurrentVersion = "1.5.0"
 	// BuildDate compile date
 	BuildDate = ""
 	// GoVersion system go version

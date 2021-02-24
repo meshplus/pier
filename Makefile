@@ -2,7 +2,7 @@
 SHELL := /bin/bash
 CURRENT_PATH = $(shell pwd)
 APP_NAME = pier
-APP_VERSION = 1.4.0
+APP_VERSION = 1.5.0
 
 # build with verison infos
 VERSION_DIR = github.com/meshplus/${APP_NAME}
