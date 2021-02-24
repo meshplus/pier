@@ -38,6 +38,55 @@ func TestClient_SubmitIBTP(t *testing.T) {
 	require.Nil(t, err)
 }
 
+func TestClient_SubmitIBTPWithCallback(t *testing.T) {
+	mockClient := prepare(t)
+	agClient := CreateClient(mockClient)
+
+	r := &pb.Receipt{
+		Ret:    []byte(nil),
+		Status: 0,
+	}
+
+	sr := &pb.SignResponse{
+		Sign: map[string][]byte{
+			"0x123": []byte("0000000000000000000"),
+		},
+	}
+
+	mockClient.EXPECT().InvokeContract(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(),
+		gomock.Any(), gomock.Any(), gomock.Any()).Return(r, nil).AnyTimes()
+	mockClient.EXPECT().GetMultiSigns(gomock.Any(), gomock.Any()).Return(sr, nil).AnyTimes()
+
+	content := &pb.Content{
+		SrcContractId: from,
+		DstContractId: to,
+		Func:          "get",
+		Callback:      "set",
+	}
+
+	c, err := content.Marshal()
+	require.Nil(t, err)
+
+	pl := &pb.Payload{
+		Encrypted: false,
+		Content:   c,
+	}
+
+	p, err := pl.Marshal()
+	require.Nil(t, err)
+
+	ibtp := &pb.IBTP{
+		From:      from,
+		To:        to,
+		Index:     1,
+		Timestamp: time.Now().UnixNano(),
+		Payload:   p,
+	}
+
+	_, err = agClient.SubmitIBTP(ibtp)
+	require.Nil(t, err)
+}
+
 func TestClient_GetInMeta(t *testing.T) {
 	mockClient := prepare(t)
 	agClient := CreateClient(mockClient)
