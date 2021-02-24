@@ -9,6 +9,7 @@ import (
 	"github.com/meshplus/bitxhub-kit/crypto"
 	"github.com/meshplus/bitxhub-kit/crypto/asym"
 	"github.com/meshplus/bitxhub-model/pb"
+	rpcx "github.com/meshplus/go-bitxhub-client"
 	"github.com/meshplus/go-bitxhub-client/mock_client"
 	"github.com/meshplus/pier/internal/appchain"
 	"github.com/stretchr/testify/require"
@@ -31,7 +32,7 @@ func TestRelayCryptor(t *testing.T) {
 	ret := &pb.Receipt{
 		Ret: pubBytes2,
 	}
-	mockClient.EXPECT().InvokeBVMContract(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(ret, nil)
+
 	rc1, err := NewRelayCryptor(mockClient, privKey1)
 	require.Nil(t, err)
 
@@ -47,6 +48,10 @@ func TestRelayCryptor(t *testing.T) {
 		keyMap:  keyMap2,
 	}
 
+	mockClient.EXPECT().InvokeBVMContract(gomock.Any(), gomock.Any(), gomock.Any(), rpcx.String(addr2)).Return(ret, nil).AnyTimes()
+	mockClient.EXPECT().InvokeBVMContract(gomock.Any(), gomock.Any(), gomock.Any(), rpcx.String(addr1)).Return(ret, nil).AnyTimes()
+	mockClient.EXPECT().InvokeBVMContract(gomock.Any(), gomock.Any(), gomock.Any(), rpcx.String("")).Return(nil, fmt.Errorf("invoke bvm contract error")).AnyTimes()
+
 	content := []byte("bitxhub cryptor test")
 	encryptBytes, err := rc1.Encrypt(content, addr2)
 	require.Nil(t, err)
@@ -56,6 +61,14 @@ func TestRelayCryptor(t *testing.T) {
 	require.Equal(t, decryptBytes, content)
 
 	fmt.Println(string(decryptBytes))
+
+	// encrypt with invoke bvm contract error
+	_, err = rc1.Encrypt(content, "")
+	require.NotNil(t, err)
+	// decrypt with wrong pubkey
+	rc2.keyMap[addr1] = []byte("")
+	_, err = rc2.Decrypt(encryptBytes, addr1)
+	require.NotNil(t, err)
 }
 
 func TestDirectCryptor(t *testing.T) {
@@ -70,7 +83,6 @@ func TestDirectCryptor(t *testing.T) {
 	address2, err := privKey2.PublicKey().Address()
 	require.Nil(t, err)
 	pubBytes2, err := privKey2.PublicKey().Bytes()
-	mockAppchainMgr.EXPECT().GetPubKeyByChainID(gomock.Any()).Return(true, pubBytes2)
 
 	require.Nil(t, err)
 	addr2 := address2.String()
@@ -92,6 +104,10 @@ func TestDirectCryptor(t *testing.T) {
 		keyMap:  keyMap2,
 	}
 
+	mockAppchainMgr.EXPECT().GetPubKeyByChainID(addr1).Return(true, pubBytes2).AnyTimes()
+	mockAppchainMgr.EXPECT().GetPubKeyByChainID(addr2).Return(true, pubBytes2).AnyTimes()
+	mockAppchainMgr.EXPECT().GetPubKeyByChainID("").Return(false, nil).AnyTimes()
+
 	content := []byte("bitxhub cryptor test")
 	encryptBytes, err := rc1.Encrypt(content, addr2)
 	require.Nil(t, err)
@@ -101,4 +117,12 @@ func TestDirectCryptor(t *testing.T) {
 	require.Equal(t, decryptBytes, content)
 
 	fmt.Println(string(decryptBytes))
+
+	// encrypt with nil address
+	_, err = rc1.Encrypt(content, "")
+	require.NotNil(t, err)
+	// decrypt with wrong pubkey
+	rc2.keyMap[addr1] = []byte("")
+	_, err = rc2.Decrypt(encryptBytes, addr1)
+	require.NotNil(t, err)
 }
