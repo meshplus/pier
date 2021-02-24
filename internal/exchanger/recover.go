@@ -43,14 +43,14 @@ func (ex *Exchanger) recoverDirect(dstPierID string, interchainIndex uint64, rec
 		return
 	}
 	if err := ex.handleMissingIBTPFromMnt(dstPierID, interchainIndex+1, index+1); err != nil {
-		ex.logger.WithFields(logrus.Fields{"address": dstPierID, "error":   err.Error(),}).Error("Handle missing ibtp")
+		ex.logger.WithFields(logrus.Fields{"address": dstPierID, "error": err.Error()}).Error("Handle missing ibtp")
 	}
 
 	// recoverDirect unsent receipt to counterpart chain
 	execMeta := ex.exec.QueryInterchainMeta()
 	idx := execMeta[dstPierID]
 	if err := ex.handleMissingReceipt(dstPierID, receiptIndex+1, idx+1); err != nil {
-		ex.logger.WithFields(logrus.Fields{"address": dstPierID, "error":   err.Error(),}).Panic("Get missing receipt from contract")
+		ex.logger.WithFields(logrus.Fields{"address": dstPierID, "error": err.Error()}).Panic("Get missing receipt from contract")
 	}
 }
 

@@ -80,11 +80,11 @@ func WithLogger(logger logrus.FieldLogger) Option {
 	}
 }
 
-func GenerateConfig(opts ...Option) (*Config, error) {
+func GenerateConfig(opts ...Option) *Config {
 	config := &Config{}
 	for _, opt := range opts {
 		opt(config)
 	}
 
-	return config, nil
+	return config
 }

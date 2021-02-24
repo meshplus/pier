@@ -58,7 +58,7 @@ func (ex *Exchanger) applyReceipt(ibtp *pb.IBTP, entry logrus.FieldLogger) {
 	}
 
 	if index+1 < ibtp.Index {
-		entry.Info("Get missing ibtp receipt, expected index %d", index+1)
+		entry.Infof("Get missing ibtp receipt, expected index %d", index+1)
 		// todo: need to handle missing ibtp receipt or not?
 		return
 	}
@@ -178,16 +178,15 @@ func (ex *Exchanger) postHandleIBTP(from string, receipt *pb.IBTP) {
 		retMsg := peermgr.Message(peerMsg.Message_IBTP_RECEIPT_SEND, true, nil)
 		err := ex.peerMgr.AsyncSend(from, retMsg)
 		if err != nil {
-			ex.logger.Error("send back empty ibtp receipt: %w", err)
+			ex.logger.Errorf("Send back empty ibtp receipt: %s", err.Error())
 		}
 		return
 	}
 
-	//ex.logger.Infof("postHandleIBTP, %s-%s-%d", receipt.From, receipt.To, receipt.Index)
 	data, _ := receipt.Marshal()
 	retMsg := peermgr.Message(peerMsg.Message_IBTP_RECEIPT_SEND, true, data)
 	if err := ex.peerMgr.AsyncSend(from, retMsg); err != nil {
-		ex.logger.Error("send back ibtp receipt: %w", err)
+		ex.logger.Errorf("Send back ibtp receipt: %s", err.Error())
 	}
 }
 
@@ -204,7 +203,7 @@ func (ex *Exchanger) handleSendIBTPMessage(stream network.Stream, msg *peerMsg.M
 	go func(msg *peerMsg.Message) {
 		ibtp := &pb.IBTP{}
 		if err := ibtp.Unmarshal(msg.Payload.Data); err != nil {
-			ex.logger.Error("unmarshal ibtp: %w", err)
+			ex.logger.Errorf("Unmarshal ibtp: %s", err.Error())
 			return
 		}
 		defer ex.timeCost()()
@@ -217,7 +216,6 @@ func (ex *Exchanger) handleSendIBTPMessage(stream network.Stream, msg *peerMsg.M
 		ex.feedIBTP(ibtp)
 		<-ex.ch
 	}(msg)
-
 }
 
 func (ex *Exchanger) handleSendIBTPReceiptMessage(stream network.Stream, msg *peerMsg.Message) {

@@ -65,7 +65,7 @@ func (ex *Exchanger) feedIBTP(ibtp *pb.IBTP) {
 				idx := inMeta[ibtp.From]
 				if ibtp.Index <= idx {
 					pool.delete(ibtp.Index)
-					ex.logger.Warn("ignore ibtp with invalid index:{}", ibtp.Index)
+					ex.logger.Warnf("ignore ibtp with invalid index: %d", ibtp.Index)
 					continue
 				}
 				if idx+1 == ibtp.Index {
@@ -90,7 +90,7 @@ func (ex *Exchanger) feedIBTP(ibtp *pb.IBTP) {
 func (ex *Exchanger) processIBTP(ibtp *pb.IBTP) {
 	receipt, err := ex.exec.ExecuteIBTP(ibtp)
 	if err != nil {
-		ex.logger.Errorf("execute ibtp error:%v", err)
+		ex.logger.Errorf("Execute ibtp error: %s", err.Error())
 		return
 	}
 	ex.postHandleIBTP(ibtp.From, receipt)
