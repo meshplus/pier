@@ -14,3 +14,4 @@ goent.mod
 goent.sum
 
 testdata/
+!internal/checker/testdata
