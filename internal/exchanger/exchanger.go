@@ -220,6 +220,10 @@ func (ex *Exchanger) listenAndSendIBTPFromSyncer() {
 		case <-ex.ctx.Done():
 			return
 		case ibtp, ok := <-ch:
+			if ex.mode == repo.UnionMode {
+				ex.handleUnionIBTP(ibtp)
+				continue
+			}
 			if !ok {
 				ex.logger.Warn("Unexpected closed channel while listening on interchain ibtp")
 				return

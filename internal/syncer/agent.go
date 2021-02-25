@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/sirupsen/logrus"
+
 	"github.com/Rican7/retry"
 	"github.com/Rican7/retry/strategy"
 	"github.com/meshplus/bitxhub-model/constant"
@@ -160,6 +162,7 @@ func (syncer *WrapperSyncer) ListenIBTP() <-chan *pb.IBTP {
 }
 
 func (syncer *WrapperSyncer) SendIBTP(ibtp *pb.IBTP) error {
+	entry := syncer.logger.WithFields(logrus.Fields{"index": ibtp.Index, "type": ibtp.Type, "to": ibtp.To, "id": ibtp.ID()})
 	proof := ibtp.GetProof()
 	proofHash := sha256.Sum256(proof)
 	ibtp.Proof = proofHash[:]
@@ -174,6 +177,7 @@ func (syncer *WrapperSyncer) SendIBTP(ibtp *pb.IBTP) error {
 			From:      fmt.Sprintf("%s-%s-%d", ibtp.From, ibtp.To, ibtp.Category()),
 			IBTPNonce: ibtp.Index,
 		})
+		entry.Error(err)
 		if err != nil {
 			// query if this ibtp is on chain
 			_, err = syncer.QueryIBTP(ibtp.ID())
