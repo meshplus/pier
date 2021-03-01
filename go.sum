@@ -540,8 +540,8 @@ github.com/meshplus/bitxhub-model v1.1.2-0.20210107045700-cee670a2e117 h1:q1FT1D
 github.com/meshplus/bitxhub-model v1.1.2-0.20210107045700-cee670a2e117/go.mod h1:x3H+TL24wcByzHegenLfs+5PQkQGNsk8eCm31QJMa+Q=
 github.com/meshplus/bitxhub-model v1.1.2-0.20210120083349-c7a006b03fcb h1:PxGQL22OVxozkvEgVvxHol9WDqCZlhyvnd0Bu0HBX1Y=
 github.com/meshplus/bitxhub-model v1.1.2-0.20210120083349-c7a006b03fcb/go.mod h1:x3H+TL24wcByzHegenLfs+5PQkQGNsk8eCm31QJMa+Q=
-github.com/meshplus/go-bitxhub-client v1.0.0-rc4.0.20210121092538-e2be20ff26b8 h1:M+sh8BmKVrO6+9cI3Fqb1TRqUuTMAJuaHkEcATNjcJI=
-github.com/meshplus/go-bitxhub-client v1.0.0-rc4.0.20210121092538-e2be20ff26b8/go.mod h1:ZWklYGrAMQcknmMMyxZtRU1IiBRuoYy570QNTp3WJbI=
+github.com/meshplus/go-bitxhub-client v1.0.0-rc4.0.20210301024916-b7461066a067 h1:zSUf3BJYzYK2v4WtXytghutLmJhreA0HtslOqPIwRWc=
+github.com/meshplus/go-bitxhub-client v1.0.0-rc4.0.20210301024916-b7461066a067/go.mod h1:ZWklYGrAMQcknmMMyxZtRU1IiBRuoYy570QNTp3WJbI=
 github.com/meshplus/go-lightp2p v0.0.0-20200817105923-6b3aee40fa54 h1:5Ip5AB7SxxQHg5SRtf2cCOI2wy1p75MQB12soPtPyf8=
 github.com/meshplus/go-lightp2p v0.0.0-20200817105923-6b3aee40fa54/go.mod h1:G89UJaeqCQFxFdp8wzy1AdKfMtDEhpySau0pjDNeeaw=
 github.com/miekg/dns v1.1.12/go.mod h1:W1PPwlIAgtquWBMBEV9nkV9Cazfe8ScdGz/Lj7v3Nrg=
