@@ -15,56 +15,19 @@ import (
 	"github.com/urfave/cli"
 )
 
-type RegisterResult struct {
-	ChainID    string `json:"chain_id"`
-	ProposalID string `json:"proposal_id"`
-}
-
 var appchainBxhCMD = cli.Command{
 	Name:  "appchain",
 	Usage: "Command about appchain in bitxhub",
 	Subcommands: []cli.Command{
+		methodCommand,
+		didCommand,
 		{
 			Name:  "register",
-			Usage: "Register appchain in bitxhub",
+			Usage: "Register pier to bitxhub",
 			Flags: []cli.Flag{
-				cli.StringFlag{
-					Name:     "name",
-					Usage:    "Specify appchain name",
-					Required: true,
-				},
-				cli.StringFlag{
-					Name:     "type",
-					Usage:    "Specify appchain type",
-					Required: true,
-				},
-				cli.StringFlag{
-					Name:     "desc",
-					Usage:    "Specify appchain description",
-					Required: true,
-				},
-				cli.StringFlag{
-					Name:     "version",
-					Usage:    "Specify appchain version",
-					Required: true,
-				},
-				cli.StringFlag{
-					Name:     "validators",
-					Usage:    "Specify appchain validators path",
-					Required: true,
-				},
-				cli.StringFlag{
-					Name:     "consensusType",
-					Usage:    "Specify appchain consensus type",
-					Required: true,
-				},
-				cli.StringFlag{
-					Name:     "addr",
-					Usage:    "Specify bitxhub node address",
-					Required: false,
-				},
+				methodFlag,
 			},
-			Action: registerAppchain,
+			Action: registerPier,
 		},
 		{
 			Name:  "update",
@@ -128,72 +91,47 @@ var appchainBxhCMD = cli.Command{
 			Usage:  "Get appchain info",
 			Action: getAppchain,
 		},
+		{
+			Name:  "init",
+			Usage: "Init did registry admin in bitxhub",
+			Flags: []cli.Flag{
+				adminKeyPathFlag,
+			},
+			Action: initAdminDID,
+		},
 	},
 }
 
-func registerAppchain(ctx *cli.Context) error {
-	name := ctx.String("name")
-	typ := ctx.String("type")
-	desc := ctx.String("desc")
-	version := ctx.String("version")
-	validatorsPath := ctx.String("validators")
-	consensusType := ctx.String("consensusType")
-	bxhAddr := ctx.String("addr")
+func registerPier(ctx *cli.Context) error {
+	// todo: add register pier logic
+	return nil
+}
 
-	data, err := ioutil.ReadFile(validatorsPath)
-	if err != nil {
-		return fmt.Errorf("read validators file: %w", err)
-	}
+func initAdminDID(ctx *cli.Context) error {
+	chainAdminKeyPath := ctx.String("admin-key")
 
-	repoRoot, err := repo.PathRootWithDefault(ctx.GlobalString("repo"))
+	client, address, err := initClientWithKeyPath(ctx, chainAdminKeyPath)
 	if err != nil {
 		return err
 	}
-
-	config, err := repo.UnmarshalConfig(repoRoot)
-	if err != nil {
-		return fmt.Errorf("init config error: %s", err)
-	}
-
-	bxhAddrs := []string{bxhAddr}
-	if bxhAddr == "" {
-		bxhAddrs = config.Mode.Relay.Addrs
-	}
-	client, err := loadClient(repo.KeyPath(repoRoot), bxhAddrs, ctx)
-	if err != nil {
-		return fmt.Errorf("load client: %w", err)
-	}
-
-	pubKey, err := getPubKey(repo.KeyPath(repoRoot))
-	if err != nil {
-		return fmt.Errorf("get public key: %w", err)
-	}
-
-	receipt, err := client.InvokeBVMContract(
-		constant.AppchainMgrContractAddr.Address(),
-		"Register", nil, rpcx.String(string(data)),
-		rpcx.String(consensusType),
-		rpcx.String(typ),
-		rpcx.String(name),
-		rpcx.String(desc),
-		rpcx.String(version),
-		rpcx.String(string(pubKey)),
+	relayAdminDID := fmt.Sprintf("%s:%s:%s", bitxhubRootPrefix, relayRootSubMethod, address.String())
+	// init method registry with this admin key
+	_, err = client.InvokeBVMContract(
+		constant.MethodRegistryContractAddr.Address(),
+		"Init", nil, rpcx.String(relayAdminDID),
 	)
 	if err != nil {
 		return fmt.Errorf("invoke bvm contract: %w", err)
 	}
-
-	if !receipt.IsSuccess() {
-		return fmt.Errorf("invoke register: %s", receipt.Ret)
+	// init did registry with this admin key
+	_, err = client.InvokeBVMContract(
+		constant.DIDRegistryContractAddr.Address(),
+		"Init", nil, rpcx.String(relayAdminDID),
+	)
+	if err != nil {
+		return fmt.Errorf("invoke bvm contract: %w", err)
 	}
-
-	ret := &RegisterResult{}
-	if err := json.Unmarshal(receipt.Ret, ret); err != nil {
-		return err
-	}
-
-	fmt.Printf("the register request was submitted successfully, chain id is %s, proposal id is %s\n", ret.ChainID, ret.ProposalID)
-
+	fmt.Printf("Init method and did registry with admin did %s successfully\n", relayAdminDID)
 	return nil
 }
 

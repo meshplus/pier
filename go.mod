@@ -21,6 +21,7 @@ require (
 	github.com/meshplus/bitxhub-core v0.1.0-rc1.0.20210330035001-b327cf056572
 	github.com/meshplus/bitxhub-kit v1.1.2-0.20201203072410-8a0383a6870d
 	github.com/meshplus/bitxhub-model v1.1.2-0.20210312014622-c3ad532b64ad
+	github.com/meshplus/bitxid v0.0.0-20210331074321-62187b1145f5
 	github.com/meshplus/go-bitxhub-client v1.0.0-rc4.0.20210401070550-93124af0d1f2
 	github.com/meshplus/go-lightp2p v0.0.0-20200817105923-6b3aee40fa54
 	github.com/mitchellh/go-homedir v1.1.0
