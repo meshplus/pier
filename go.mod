@@ -4,6 +4,7 @@ go 1.13
 
 require (
 	github.com/Rican7/retry v0.1.0
+	github.com/bitxhub/bitxid v0.2.0
 	github.com/btcsuite/btcd v0.20.1-beta
 	github.com/cbergoon/merkletree v0.2.0
 	github.com/fatih/color v1.9.0
