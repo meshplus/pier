@@ -43,6 +43,9 @@ type Client interface {
 	// CommitCallback is a callback function when get receipt from bitxhub success
 	CommitCallback(ibtp *pb.IBTP) error
 
+	// GetReceipt gets receipt of an executed IBTP
+	GetReceipt(ibtp *pb.IBTP) (*pb.IBTP, error)
+
 	// Name gets name of blockchain from plugin
 	Name() string
 

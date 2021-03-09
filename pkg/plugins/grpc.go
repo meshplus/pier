@@ -108,6 +108,10 @@ func (s *GRPCServer) CommitCallback(_ context.Context, _ *pb.IBTP) (*pb.Empty, e
 	return &pb.Empty{}, nil
 }
 
+func (s *GRPCServer) GetReceipt(_ context.Context, ibtp *pb.IBTP) (*pb.IBTP, error) {
+	return s.Impl.GetReceipt(ibtp)
+}
+
 func (s *GRPCServer) Name(context.Context, *pb.Empty) (*pb.NameResponse, error) {
 	return &pb.NameResponse{
 		Name: s.Impl.Name(),
@@ -266,6 +270,10 @@ func (g *GRPCClient) GetCallbackMeta() (map[string]uint64, error) {
 
 func (g *GRPCClient) CommitCallback(_ *pb.IBTP) error {
 	return nil
+}
+
+func (g *GRPCClient) GetReceipt(ibtp *pb.IBTP) (*pb.IBTP, error) {
+	return g.client.GetReceipt(g.doneContext, ibtp)
 }
 
 func (g *GRPCClient) Name() string {

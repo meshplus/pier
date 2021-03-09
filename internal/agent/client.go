@@ -159,6 +159,10 @@ func (client *BxhClient) CommitCallback(ibtp *pb.IBTP) error {
 	return nil
 }
 
+func (client *BxhClient) GetReceipt(ibtp *pb.IBTP) (*pb.IBTP, error) {
+	return nil, nil
+}
+
 // Name .
 func (client *BxhClient) Name() string {
 	return ""
