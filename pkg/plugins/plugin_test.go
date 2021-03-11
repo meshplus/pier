@@ -304,6 +304,16 @@ func (mc *mockAppchainPluginClient) CommitCallback(ctx context.Context, in *pb.I
 	return nil, nil
 }
 
+func (mc *mockAppchainPluginClient) GetReceipt(ctx context.Context, in *pb.IBTP, opts ...grpc.CallOption) (*pb.IBTP, error) {
+	return &pb.IBTP{
+		From:      in.From,
+		To:        in.To,
+		Index:     in.Index,
+		Timestamp: time.Now().UnixNano(),
+		Type:      pb.IBTP_RECEIPT_SUCCESS,
+	}, nil
+}
+
 func (mc *mockAppchainPluginClient) Name(ctx context.Context, in *pb.Empty, opts ...grpc.CallOption) (*pb.NameResponse, error) {
 	if ctx == context.Background() {
 		return &pb.NameResponse{

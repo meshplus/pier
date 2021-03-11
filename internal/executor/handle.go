@@ -64,7 +64,7 @@ func (e *ChannelExecutor) applyInterchainIBTP(ibtp *pb.IBTP) (*pb.IBTP, error) {
 
 	if !response.Status {
 		pd := &pb.Payload{}
-		if err := pd.Unmarshal(ibtp.Payload); err != nil {
+		if err := pd.Unmarshal(response.Result.Payload); err != nil {
 			entry.Panic("Unmarshal payload")
 		}
 

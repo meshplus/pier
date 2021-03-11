@@ -27,5 +27,5 @@ type Executor interface {
 	QueryCallbackMeta() map[string]uint64
 
 	// QueryIBTPReceipt query receipt for original interchain ibtp
-	QueryIBTPReceipt(from string, index uint64, originalIBTP *pb.IBTP) (*pb.IBTP, error)
+	QueryIBTPReceipt(originalIBTP *pb.IBTP) (*pb.IBTP, error)
 }

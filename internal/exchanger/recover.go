@@ -118,7 +118,7 @@ func (ex *Exchanger) handleMissingReceipt(from string, begin uint64, end uint64)
 			return err
 		}
 
-		receipt, err := ex.exec.QueryIBTPReceipt(from, begin, original)
+		receipt, err := ex.exec.QueryIBTPReceipt(original)
 		if err != nil {
 			entry.WithField("error", err.Error()).Error("Get missing execution receipt result")
 			return err

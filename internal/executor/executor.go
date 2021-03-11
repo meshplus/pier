@@ -2,6 +2,7 @@ package executor
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/meshplus/bitxhub-kit/storage"
 	"github.com/meshplus/bitxhub-kit/types"
@@ -80,11 +81,9 @@ func (e *ChannelExecutor) QueryCallbackMeta() map[string]uint64 {
 }
 
 // getReceipt only generates one receipt given source chain id and interchain tx index
-func (e *ChannelExecutor) QueryIBTPReceipt(from string, idx uint64, originalIBTP *pb.IBTP) (*pb.IBTP, error) {
-	ret, err := e.client.GetInMessage(from, idx)
-	if err != nil {
-		return nil, err
+func (e *ChannelExecutor) QueryIBTPReceipt(originalIBTP *pb.IBTP) (*pb.IBTP, error) {
+	if originalIBTP == nil {
+		return nil, fmt.Errorf("empty original ibtp")
 	}
-
-	return e.generateCallback(originalIBTP, ret)
+	return e.client.GetReceipt(originalIBTP)
 }

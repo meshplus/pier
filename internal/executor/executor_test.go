@@ -131,77 +131,20 @@ func TestQueryReceipt(t *testing.T) {
 	defer exec.storage.Close()
 
 	originalIBTP := getIBTP(t, 1, pb.IBTP_INTERCHAIN, false)
-	cryptoIBTP := getIBTP(t, 3, pb.IBTP_INTERCHAIN, true)
-	cryptoAssetIBTP := getIBTP(t, 3, pb.IBTP_ASSET_EXCHANGE_INIT, true)
-	decryptErrorIBTP := getIBTP(t, 5, pb.IBTP_INTERCHAIN, true)
-	decryptErrorIBTP.From = "decryptError"
-	encryptErrorIBTP := getIBTP(t, 5, pb.IBTP_INTERCHAIN, true)
-	encryptErrorIBTP.To = "encryptError"
-	args := [][]byte{[]byte("Alice"), []byte("100")}
-	args3 := [][]byte{[]byte("true")}
-	args4 := [][]byte{[]byte("false")}
+	receiptIBTP := getIBTP(t, 1, pb.IBTP_RECEIPT_SUCCESS, false)
 
-	cli.EXPECT().GetInMessage(from, uint64(1)).Return(args, nil).AnyTimes()
-	cli.EXPECT().GetInMessage(from, uint64(2)).Return(nil, fmt.Errorf("get in message error")).AnyTimes()
-	cli.EXPECT().GetInMessage(from, uint64(3)).Return(args3, nil).AnyTimes()
-	cli.EXPECT().GetInMessage(from, uint64(4)).Return(args4, nil).AnyTimes()
+	cli.EXPECT().GetReceipt(originalIBTP).Return(receiptIBTP, nil).AnyTimes()
 
 	// test for normal ibtp receipt
-	receipt, err := exec.QueryIBTPReceipt(from, 1, originalIBTP)
+	receipt, err := exec.QueryIBTPReceipt(originalIBTP)
 	require.Nil(t, err)
 
 	require.Equal(t, originalIBTP.From, receipt.From)
 	require.Equal(t, originalIBTP.To, receipt.To)
 	require.Equal(t, originalIBTP.Index, receipt.Index)
 
-	receiptPd := &pb.Payload{}
-	require.Nil(t, receiptPd.Unmarshal(receipt.Payload))
-
-	receiptContent := &pb.Content{}
-	require.Nil(t, receiptContent.Unmarshal(receiptPd.Content))
-
-	originalPd := &pb.Payload{}
-	require.Nil(t, originalPd.Unmarshal(originalIBTP.Payload))
-
-	originalContent := &pb.Content{}
-	require.Nil(t, originalContent.Unmarshal(originalPd.Content))
-
-	require.Equal(t, receiptContent.Func, originalContent.Callback)
-	require.Equal(t, receiptContent.Args[1:], args)
-
 	// test for nil ibtp receipt
-	receipt, err = exec.QueryIBTPReceipt(from, 1, nil)
-	require.NotNil(t, err)
-
-	// test for get in message error ibtp receipt
-	receipt, err = exec.QueryIBTPReceipt(from, 2, originalIBTP)
-	require.NotNil(t, err)
-
-	// test for encrypted right but args parsing bool error
-	receipt, err = exec.QueryIBTPReceipt(from, 1, cryptoIBTP)
-	require.NotNil(t, err)
-
-	// test for encrypted right and args true
-	receipt, err = exec.QueryIBTPReceipt(from, 3, cryptoIBTP)
-	require.Nil(t, err)
-	require.Equal(t, pb.IBTP_RECEIPT_SUCCESS, receipt.Type)
-
-	// test for encrypted right and args false
-	receipt, err = exec.QueryIBTPReceipt(from, 4, cryptoIBTP)
-	require.Nil(t, err)
-	require.Equal(t, pb.IBTP_RECEIPT_FAILURE, receipt.Type)
-
-	// test for encrypted right payload asset IBTP
-	receipt, err = exec.QueryIBTPReceipt(from, 1, cryptoAssetIBTP)
-	require.Nil(t, err)
-	require.Equal(t, pb.IBTP_ASSET_EXCHANGE_RECEIPT, receipt.Type)
-
-	// test for decrypt error IBTP
-	receipt, err = exec.QueryIBTPReceipt(from, 1, decryptErrorIBTP)
-	require.NotNil(t, err)
-
-	// test for encrypt error IBTP
-	receipt, err = exec.QueryIBTPReceipt(from, 1, encryptErrorIBTP)
+	receipt, err = exec.QueryIBTPReceipt(nil)
 	require.NotNil(t, err)
 }
 
