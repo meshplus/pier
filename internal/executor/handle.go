@@ -64,14 +64,14 @@ func (e *ChannelExecutor) applyInterchainIBTP(ibtp *pb.IBTP) (*pb.IBTP, error) {
 
 	if !response.Status {
 		pd := &pb.Payload{}
-		if err := pd.Unmarshal(ibtp.Payload); err != nil {
+		if err := pd.Unmarshal(response.Result.Payload); err != nil {
 			entry.Panic("Unmarshal payload")
 		}
 
 		entry.WithFields(logrus.Fields{
 			"result":  response.Message,
 			"payload": pd,
-		}).Warn("Get wrong response")
+		}).Warn("Get wrong response, need rollback on source chain")
 	}
 
 	return response.Result, nil
@@ -96,19 +96,16 @@ func (e *ChannelExecutor) applyReceiptIBTP(ibtp *pb.IBTP) error {
 		return fmt.Errorf("unmarshal payload content: %w", err)
 	}
 
-	// if this receipt is for executing callback function
-	if ct.Func != "" {
-		// if this is a callback ibtp, retry it until it worked
-		// because it might be rollback in asset
-		if err := retry.Retry(func(attempt uint) error {
-			if err := e.execCallback(ibtp); err != nil {
-				e.logger.Errorf("Execute callback tx: %s, retry sending tx", err.Error())
-				return fmt.Errorf("execute callback tx: %w", err)
-			}
-			return nil
-		}, strategy.Wait(1*time.Second)); err != nil {
-			e.logger.Errorf("Execution of callback function failed: %s", err.Error())
+	// if this is a callback ibtp, retry it until it worked
+	// because it might be rollback in asset
+	if err := retry.Retry(func(attempt uint) error {
+		if err := e.execCallback(ibtp); err != nil {
+			e.logger.Errorf("Execute callback tx: %s, retry sending tx", err.Error())
+			return fmt.Errorf("execute callback tx: %w", err)
 		}
+		return nil
+	}, strategy.Wait(1*time.Second)); err != nil {
+		e.logger.Errorf("Execution of callback function failed: %s", err.Error())
 	}
 	return nil
 }

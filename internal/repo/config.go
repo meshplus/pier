@@ -179,7 +179,7 @@ func UnmarshalConfig(repoRoot string) (*Config, error) {
 	configPath := filepath.Join(repoRoot, ConfigName)
 
 	if !fileutil.Exist(configPath) {
-		return nil, fmt.Errorf("please initialize pier firstly")
+		return nil, fmt.Errorf("file %s doesn't exist, please initialize pier firstly", configPath)
 	}
 
 	viper.SetConfigFile(configPath)

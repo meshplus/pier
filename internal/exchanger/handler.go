@@ -77,7 +77,7 @@ func (ex *Exchanger) applyInterchain(ibtp *pb.IBTP, entry logrus.FieldLogger) {
 		entry.Info("Get missing ibtp")
 
 		if err := ex.handleMissingIBTPFromSyncer(ibtp.From, index+1, ibtp.Index); err != nil {
-			entry.Error("Handle missing ibtp")
+			entry.WithField("err", err).Error("Handle missing ibtp")
 			return
 		}
 	}
