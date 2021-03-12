@@ -106,7 +106,8 @@ func (swarm *Swarm) Start() error {
 	}
 
 	//need to connect one other pier at least
-	wg := &sync.WaitGroup{}
+	wg := sync.WaitGroup{}
+	once := sync.Once{}
 	wg.Add(1)
 
 	for id, addr := range swarm.peers {
@@ -145,7 +146,9 @@ func (swarm *Swarm) Start() error {
 						connectHandler(address)
 					}(handler, address)
 				}
-				wg.Done()
+				once.Do(func() {
+					wg.Done()
+				})
 				return nil
 			},
 				strategy.Wait(1*time.Second),
