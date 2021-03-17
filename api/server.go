@@ -56,7 +56,6 @@ func (g *Server) Start() error {
 	{
 		v1.POST(client.RegisterAppchainUrl, g.registerAppchain)
 		v1.POST(client.UpdateAppchainUrl, g.updateAppchain)
-		v1.POST(client.AuditAppchainUrl, g.auditAppchain)
 		v1.GET(client.GetAppchainUrl, g.getAppchain)
 
 		v1.POST(client.RegisterRuleUrl, g.registerRule)
@@ -78,23 +77,6 @@ func (g *Server) Stop() error {
 	g.cancel()
 	g.logger.Infoln("gin service stop")
 	return nil
-}
-
-func (g *Server) auditAppchain(c *gin.Context) {
-	res := &response{}
-	var approve client.Approve
-	if err := c.BindJSON(&approve); err != nil {
-		res.Data = []byte(err.Error())
-		c.JSON(http.StatusBadRequest, res)
-		return
-	}
-	ok, data := g.appchainMgr.Mgr.Audit(approve.Id, approve.IsApproved, approve.Desc)
-	res.Data = data
-	if !ok {
-		c.JSON(http.StatusInternalServerError, res)
-		return
-	}
-	c.JSON(http.StatusOK, res)
 }
 
 func (g *Server) updateAppchain(c *gin.Context) {
