@@ -32,7 +32,12 @@ var (
 	}
 	didDocAddrFlag = cli.StringFlag{
 		Name:     "doc-addr",
-		Usage:    "Specify the ipfs addr of did document",
+		Usage:    "Specify the addr of did document",
+		Required: true,
+	}
+	didDocHashFlag = cli.StringFlag{
+		Name:     "doc-hash",
+		Usage:    "Specify the hash of did document",
 		Required: true,
 	}
 
@@ -60,6 +65,11 @@ var (
 	appchainValidatorFlag = cli.StringFlag{
 		Name:     "validators",
 		Usage:    "Specific appchain validators path",
+		Required: true,
+	}
+	appchainConsensusFlag = cli.StringFlag{
+		Name:     "consensus",
+		Usage:    "Specific appchain consensus type",
 		Required: true,
 	}
 )

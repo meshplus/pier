@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"strings"
 
 	"github.com/meshplus/bitxhub-kit/crypto/asym"
 	"github.com/meshplus/bitxhub-kit/types"
@@ -33,48 +32,21 @@ var methodCommand = cli.Command{
 	Usage: "Command about appchain method",
 	Subcommands: []cli.Command{
 		{
-			Name:  "apply",
-			Usage: "Apply appchain method in bitxhub",
-			Flags: []cli.Flag{
-				adminKeyPathFlag,
-				methodFlag,
-			},
-			Action: applyMethod,
-		},
-		{
-			Name:  "audit",
-			Usage: "Audit registered appchain method in bitxhub",
-			Flags: []cli.Flag{
-				adminKeyPathFlag,
-				methodFlag,
-				statusFlag,
-			},
-			Action: auditMethod,
-		},
-		{
 			Name:  "register",
-			Usage: "Register appchain doc info to appchain did in bitxhub",
+			Usage: "Register appchain did method and info to bitxhub",
 			Flags: []cli.Flag{
 				adminKeyPathFlag,
 				methodFlag,
 				didDocAddrFlag,
+				didDocHashFlag,
 				appchainNameFlag,
 				appchainTypeFlag,
 				appchainDescFlag,
 				appchainVersionFlag,
 				appchainValidatorFlag,
+				appchainConsensusFlag,
 			},
 			Action: registerMethod,
-		},
-		{
-			Name:  "auditInfo",
-			Usage: "Audit registered appchain method info in bitxhub",
-			Flags: []cli.Flag{
-				adminKeyPathFlag,
-				methodFlag,
-				statusFlag,
-			},
-			Action: auditMethodInfo,
 		},
 	},
 }
@@ -105,82 +77,21 @@ var didCommand = cli.Command{
 	},
 }
 
-func applyMethod(ctx *cli.Context) error {
-	appchainSubMethod := ctx.String("method")
-	chainAdminKeyPath := ctx.String("admin-key")
-
-	client, address, err := initClientWithKeyPath(ctx, chainAdminKeyPath)
-	if err != nil {
-		return err
-	}
-	appchainAdminDID := fmt.Sprintf("%s:%s:%s", bitxhubRootPrefix, appchainSubMethod, address.String())
-	appchainMethod := fmt.Sprintf("%s:%s:.", bitxhubRootPrefix, appchainSubMethod)
-	receipt, err := client.InvokeBVMContract(
-		constant.AppchainMgrContractAddr.Address(),
-		"Apply", nil, rpcx.String(appchainAdminDID),
-		rpcx.String(appchainMethod), rpcx.Bytes([]byte(fakeSignature)),
-	)
-	if err != nil {
-		return fmt.Errorf("invoke bvm contract: %w", err)
-	}
-	if !receipt.IsSuccess() {
-		return fmt.Errorf("apply method faild: %s", string(receipt.Ret))
-	}
-
-	ret := &RegisterResult{}
-	if err := json.Unmarshal(receipt.Ret, ret); err != nil {
-		return err
-	}
-	fmt.Printf("appchain register successfully, chain id is %s, proposal id is %s\n", ret.ChainID, ret.ProposalID)
-	return nil
-}
-
-func auditMethod(ctx *cli.Context) error {
-	method := ctx.String("method")
-	chainAdminKeyPath := ctx.String("admin-key")
-	status := ctx.Int("status")
-
-	client, address, err := initClientWithKeyPath(ctx, chainAdminKeyPath)
-	if err != nil {
-		return err
-	}
-	relayAdminDID := fmt.Sprintf("%s:%s:%s", bitxhubRootPrefix, relayRootSubMethod, address.String())
-	appchainMethod := fmt.Sprintf("%s:%s:.", bitxhubRootPrefix, method)
-	receipt, err := client.InvokeBVMContract(
-		constant.AppchainMgrContractAddr.Address(),
-		"AuditApply", nil, rpcx.String(relayAdminDID),
-		rpcx.String(appchainMethod), rpcx.Int32(int32(status)),
-		rpcx.Bytes([]byte(fakeSignature)),
-	)
-	if err != nil {
-		return fmt.Errorf("invoke bvm contract: %w", err)
-	}
-	if !receipt.IsSuccess() {
-		return fmt.Errorf("audit the apply of method faild: %s", string(receipt.Ret))
-	}
-	fmt.Printf("Audit method %s with admin did %s to status %d successfully\n", appchainMethod, relayAdminDID, status)
-	return nil
-}
-
 func registerMethod(ctx *cli.Context) error {
 	method := ctx.String("method")
 	chainAdminKeyPath := ctx.String("admin-key")
 	didDocAddr := ctx.String("doc-addr")
+	didDocHash := ctx.String("doc-hash")
 	name := ctx.String("name")
 	typ := ctx.String("type")
 	desc := ctx.String("desc")
 	version := ctx.String("version")
 	validatorsPath := ctx.String("validators")
+	consensus := ctx.String("consensus")
 	validatorData, err := ioutil.ReadFile(validatorsPath)
 	if err != nil {
 		return fmt.Errorf("read validators file: %w", err)
 	}
-	// get doc hash from doc addr postfix
-	multiAddr := strings.Split(didDocAddr, "/")
-	if len(multiAddr) != 3 || multiAddr[1] != "ipfs" {
-		return fmt.Errorf("did doc address %s is not in ipfs address format", didDocAddr)
-	}
-	didDocHash := multiAddr[len(multiAddr)-1]
 
 	// get repo public key
 	repoRoot, err := repo.PathRootWithDefault(ctx.GlobalString("repo"))
@@ -201,12 +112,12 @@ func registerMethod(ctx *cli.Context) error {
 	// init method registry with this admin key
 	receipt, err := client.InvokeBVMContract(
 		constant.AppchainMgrContractAddr.Address(),
-		"Register", nil, rpcx.String(appchainAdminDID),
-		rpcx.String(appchainMethod), rpcx.Bytes([]byte(fakeSignature)),
+		"Register", nil,
+		rpcx.String(appchainAdminDID), rpcx.String(appchainMethod),
 		rpcx.String(didDocAddr), rpcx.String(didDocHash),
-		rpcx.String(string(validatorData)), rpcx.Int32(1), rpcx.String(typ),
+		rpcx.String(string(validatorData)), rpcx.String(consensus), rpcx.String(typ),
 		rpcx.String(name), rpcx.String(desc), rpcx.String(version),
-		rpcx.String(string(pubKey)),
+		rpcx.String(pubKey),
 	)
 	if err != nil {
 		return fmt.Errorf("invoke bvm contract: %w", err)
@@ -214,12 +125,11 @@ func registerMethod(ctx *cli.Context) error {
 	if !receipt.IsSuccess() {
 		return fmt.Errorf("register method info faild: %s", string(receipt.Ret))
 	}
-	fmt.Printf("Register method doc info for %s successfully\n", appchainMethod)
-	return nil
-}
-
-func auditMethodInfo(ctx *cli.Context) error {
-	// todo: wait for audit method info api in bitxhub to implement
+	ret := &RegisterResult{}
+	if err := json.Unmarshal(receipt.Ret, ret); err != nil {
+		return err
+	}
+	fmt.Printf("Register appchain method info for %s successfully, wait for proposal %s to finish.\n", ret.ChainID, ret.ProposalID)
 	return nil
 }
 

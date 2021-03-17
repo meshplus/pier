@@ -92,8 +92,8 @@ func (ex *Exchanger) handleMissingIBTPFromSyncer(from string, begin, end uint64)
 		if err != nil {
 			return fmt.Errorf("fetch ibtp:%w", err)
 		}
-
-		ex.handleIBTP(ibtp)
+		entry := ex.logger.WithFields(logrus.Fields{"type": ibtp.Type, "id": ibtp.ID()})
+		ex.handleIBTP(ibtp, entry)
 		ex.executorCounter[ibtp.From] = ibtp.Index
 	}
 

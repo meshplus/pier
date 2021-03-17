@@ -170,12 +170,9 @@ func (syncer *WrapperSyncer) SendIBTP(ibtp *pb.IBTP) error {
 	}
 	tx.Extra = proof
 	syncer.retryFunc(func(attempt uint) error {
-		receipt, err := syncer.client.SendTransactionWithReceipt(tx, &rpcx.TransactOpts{
-			From:      fmt.Sprintf("%s-%s-%d", ibtp.From, ibtp.To, ibtp.Category()),
-			IBTPNonce: ibtp.Index,
-		})
+		receipt, err := syncer.client.SendTransactionWithReceipt(tx, nil)
 		if err != nil {
-			syncer.logger.Errorf("Query ibtp existence error: ", err.Error())
+			syncer.logger.Errorf("Send ibtp error: ", err.Error())
 			// query if this ibtp is on chain
 			_, err = syncer.QueryIBTP(ibtp.ID())
 			if err != nil {

@@ -16,12 +16,13 @@ import (
 )
 
 // handleIBTP handle ibtps from bitxhub
-func (ex *Exchanger) handleIBTP(ibtp *pb.IBTP) {
+func (ex *Exchanger) handleIBTP(ibtp *pb.IBTP, entry logrus.FieldLogger) {
 	err := ex.checker.Check(ibtp)
 	if err != nil {
 		// todo: send receipt back to bitxhub
 		return
 	}
+	entry.Debugf("IBTP pass check")
 	if pb.IBTP_ASSET_EXCHANGE_REDEEM == ibtp.Type || pb.IBTP_ASSET_EXCHANGE_REFUND == ibtp.Type {
 		if err := retry.Retry(func(attempt uint) error {
 			if err := ex.fetchSignsToIBTP(ibtp); err != nil {
@@ -61,7 +62,7 @@ func (ex *Exchanger) applyReceipt(ibtp *pb.IBTP, entry logrus.FieldLogger) {
 		// todo: need to handle missing ibtp receipt or not?
 		return
 	}
-	ex.handleIBTP(ibtp)
+	ex.handleIBTP(ibtp, entry)
 	ex.callbackCounter[ibtp.To] = ibtp.Index
 }
 
@@ -74,13 +75,12 @@ func (ex *Exchanger) applyInterchain(ibtp *pb.IBTP, entry logrus.FieldLogger) {
 
 	if index+1 < ibtp.Index {
 		entry.Info("Get missing ibtp")
-
 		if err := ex.handleMissingIBTPFromSyncer(ibtp.From, index+1, ibtp.Index); err != nil {
 			entry.WithField("err", err).Error("Handle missing ibtp")
 			return
 		}
 	}
-	ex.handleIBTP(ibtp)
+	ex.handleIBTP(ibtp, entry)
 	ex.executorCounter[ibtp.From] = ibtp.Index
 }
 

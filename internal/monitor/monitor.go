@@ -52,6 +52,7 @@ func (m *AppchainMonitor) Start() error {
 		for {
 			select {
 			case e := <-ch:
+				m.logger.Debugf("Receive ibtp %s from plugin", e.ID())
 				m.handleIBTP(e)
 			case <-m.ctx.Done():
 				return

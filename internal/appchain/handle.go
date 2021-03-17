@@ -21,10 +21,10 @@ func (mgr *Manager) handleMessage(s network.Stream, msg *peerproto.Message) {
 	var ok bool
 	switch msg.Type {
 	case peerproto.Message_APPCHAIN_REGISTER:
-		ok, res = mgr.Mgr.Register(app.ID, app.Validators, app.ConsensusType,
+		ok, res = mgr.Mgr.Register(app.ID, app.OwnerDID, app.DidDocAddr, app.DidDocHash, app.Validators, app.ConsensusType,
 			app.ChainType, app.Name, app.Desc, app.Version, app.PublicKey)
 	case peerproto.Message_APPCHAIN_UPDATE:
-		ok, res = mgr.Mgr.UpdateAppchain(app.ID, app.Validators, app.ConsensusType,
+		ok, res = mgr.Mgr.UpdateAppchain(app.ID, app.OwnerDID, app.DidDocAddr, app.DidDocHash, app.Validators, app.ConsensusType,
 			app.ChainType, app.Name, app.Desc, app.Version, app.PublicKey)
 	case peerproto.Message_APPCHAIN_GET:
 		ok, res = mgr.Mgr.GetAppchain(app.ID)

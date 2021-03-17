@@ -18,8 +18,10 @@ import (
 )
 
 const (
-	from = "0x3f9d18f7c3a6e5e4c0b877fe3e688ab08840b997"
-	to   = "0x0915fdfc96232c95fb9c62d27cc9dc0f13f50161"
+	from         = "did:bitxhub:fabappchain:."
+	fromContract = "0x3f9d18f7c3a6e5e4c0b877fe3e688ab08840b997"
+	to           = "did:bitxhub:ethappchain:."
+	toContract   = "0x0915fdfc96232c95fb9c62d27cc9dc0f13f50161"
 )
 
 func TestChannelExecutor_QueryInterchainMetaError(t *testing.T) {
@@ -116,11 +118,11 @@ func TestExecute(t *testing.T) {
 
 	// test QueryInterchainMeta
 	meta := exec.QueryInterchainMeta()
-	require.Equal(t, uint64(1), meta[types.NewAddressByStr(from).String()])
+	require.Equal(t, uint64(1), meta[from])
 
 	// test QueryCallbackMeta
 	meta = exec.QueryCallbackMeta()
-	require.Equal(t, uint64(2), meta[types.NewAddressByStr(to).String()])
+	require.Equal(t, uint64(2), meta[to])
 
 	time.Sleep(500 * time.Microsecond)
 	require.Nil(t, exec.Stop())
@@ -163,8 +165,8 @@ func prepare(t *testing.T) (*ChannelExecutor, *mock_client.MockClient) {
 	}
 
 	ct := &pb.Content{
-		SrcContractId: from,
-		DstContractId: to,
+		SrcContractId: fromContract,
+		DstContractId: toContract,
 		Func:          "interchainCharge",
 		Args:          [][]byte{[]byte("Alice")},
 		Callback:      "interchainConfirm",
@@ -202,8 +204,8 @@ func getIBTPReceipt(t *testing.T, index uint64, typ pb.IBTP_Type, encrypted bool
 
 func getIBTP(t *testing.T, index uint64, typ pb.IBTP_Type, encrypted bool) *pb.IBTP {
 	ct := &pb.Content{
-		SrcContractId: from,
-		DstContractId: to,
+		SrcContractId: fromContract,
+		DstContractId: toContract,
 		Func:          "set",
 		Args:          [][]byte{[]byte("Alice")},
 		Callback:      "interchainConfirm",

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -91,53 +92,11 @@ var appchainBxhCMD = cli.Command{
 			Usage:  "Get appchain info",
 			Action: getAppchain,
 		},
-		{
-			Name:  "init",
-			Usage: "Init did registry admin in bitxhub",
-			Flags: []cli.Flag{
-				adminKeyPathFlag,
-			},
-			Action: initAdminDID,
-		},
 	},
 }
 
 func registerPier(ctx *cli.Context) error {
 	// todo: add register pier logic
-	return nil
-}
-
-func initAdminDID(ctx *cli.Context) error {
-	chainAdminKeyPath := ctx.String("admin-key")
-
-	client, address, err := initClientWithKeyPath(ctx, chainAdminKeyPath)
-	if err != nil {
-		return err
-	}
-	relayAdminDID := fmt.Sprintf("%s:%s:%s", bitxhubRootPrefix, relayRootSubMethod, address.String())
-	// init method registry with this admin key
-	receipt, err := client.InvokeBVMContract(
-		constant.MethodRegistryContractAddr.Address(),
-		"Init", nil, rpcx.String(relayAdminDID),
-	)
-	if err != nil {
-		return fmt.Errorf("invoke bvm contract: %w", err)
-	}
-	if !receipt.IsSuccess() {
-		return fmt.Errorf("method registery init faild: %s", string(receipt.Ret))
-	}
-	// init did registry with this admin key
-	receipt, err = client.InvokeBVMContract(
-		constant.DIDRegistryContractAddr.Address(),
-		"Init", nil, rpcx.String(relayAdminDID),
-	)
-	if err != nil {
-		return fmt.Errorf("invoke bvm contract: %w", err)
-	}
-	if !receipt.IsSuccess() {
-		return fmt.Errorf("did registery init faild: %s", string(receipt.Ret))
-	}
-	fmt.Printf("Init method and did registry with admin did %s successfully\n", relayAdminDID)
 	return nil
 }
 
@@ -427,13 +386,17 @@ func loadClient(keyPath string, grpcAddrs []string, ctx *cli.Context) (rpcx.Clie
 	return rpcx.New(opts...)
 }
 
-func getPubKey(keyPath string) ([]byte, error) {
+func getPubKey(keyPath string) (string, error) {
 	privKey, err := asym.RestorePrivateKey(keyPath, "bitxhub")
 	if err != nil {
-		return nil, err
+		return "", err
 	}
 
-	return privKey.PublicKey().Bytes()
+	pubBytes, err := privKey.PublicKey().Bytes()
+	if err != nil {
+		return "", err
+	}
+	return base64.StdEncoding.EncodeToString(pubBytes), nil
 }
 
 func getAddr(keyPath string) (string, error) {

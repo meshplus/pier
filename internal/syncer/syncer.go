@@ -343,6 +343,10 @@ func (syncer *WrapperSyncer) handleInterchainTxWrapper(w *pb.InterchainTxWrapper
 				}
 			}
 		}
+		syncer.logger.WithFields(logrus.Fields{
+			"ibtp_id": ibtp.ID(),
+			"type":    ibtp.Type,
+		}).Debugf("Sync IBTP from bitxhub")
 		syncer.ibtpC <- ibtp
 	}
 
