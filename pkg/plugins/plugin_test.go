@@ -87,6 +87,7 @@ func TestGRPCServer(t *testing.T) {
 	cli.EXPECT().GetInMeta().Return(nil, nil).AnyTimes()
 	cli.EXPECT().GetOutMeta().Return(nil, nil).AnyTimes()
 	cli.EXPECT().GetCallbackMeta().Return(nil, nil).AnyTimes()
+	cli.EXPECT().GetReceipt(gomock.Any()).Return(nil, nil).AnyTimes()
 	cli.EXPECT().Name().Return(name).AnyTimes()
 	cli.EXPECT().Type().Return(ty).AnyTimes()
 
@@ -129,6 +130,9 @@ func TestGRPCServer(t *testing.T) {
 	typeRet, err := grpcServer.Type(ctx, nil)
 	require.Nil(t, err)
 	require.Equal(t, ty, typeRet.Type)
+
+	_, err = grpcServer.GetReceipt(ctx, nil)
+	require.Nil(t, err)
 }
 
 func TestGRPCClient(t *testing.T) {
@@ -184,6 +188,16 @@ func TestGRPCClient(t *testing.T) {
 
 	require.Equal(t, ty, grpcClient.Type())
 	require.Equal(t, "", grpcClientError.Type())
+
+	ibtp = &pb.IBTP{
+		From:  "from",
+		To:    "to",
+		Index: 1,
+	}
+	_, err = grpcClient.GetReceipt(ibtp)
+	require.Nil(t, err)
+	_, err = grpcClientError.GetReceipt(ibtp)
+	require.NotNil(t, err)
 }
 
 func TestAppchainGRPCPlugin_GRPCClient(t *testing.T) {
@@ -305,13 +319,16 @@ func (mc *mockAppchainPluginClient) CommitCallback(ctx context.Context, in *pb.I
 }
 
 func (mc *mockAppchainPluginClient) GetReceipt(ctx context.Context, in *pb.IBTP, opts ...grpc.CallOption) (*pb.IBTP, error) {
-	return &pb.IBTP{
-		From:      in.From,
-		To:        in.To,
-		Index:     in.Index,
-		Timestamp: time.Now().UnixNano(),
-		Type:      pb.IBTP_RECEIPT_SUCCESS,
-	}, nil
+	if ctx == context.Background() {
+		return &pb.IBTP{
+			From:      in.From,
+			To:        in.To,
+			Index:     in.Index,
+			Timestamp: time.Now().UnixNano(),
+			Type:      pb.IBTP_RECEIPT_SUCCESS,
+		}, nil
+	}
+	return nil, fmt.Errorf("mockAppchainPluginClient get receipt error")
 }
 
 func (mc *mockAppchainPluginClient) Name(ctx context.Context, in *pb.Empty, opts ...grpc.CallOption) (*pb.NameResponse, error) {
