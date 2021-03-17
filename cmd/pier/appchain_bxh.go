@@ -116,20 +116,26 @@ func initAdminDID(ctx *cli.Context) error {
 	}
 	relayAdminDID := fmt.Sprintf("%s:%s:%s", bitxhubRootPrefix, relayRootSubMethod, address.String())
 	// init method registry with this admin key
-	_, err = client.InvokeBVMContract(
+	receipt, err := client.InvokeBVMContract(
 		constant.MethodRegistryContractAddr.Address(),
 		"Init", nil, rpcx.String(relayAdminDID),
 	)
 	if err != nil {
 		return fmt.Errorf("invoke bvm contract: %w", err)
 	}
+	if !receipt.IsSuccess() {
+		return fmt.Errorf("method registery init faild: %s", string(receipt.Ret))
+	}
 	// init did registry with this admin key
-	_, err = client.InvokeBVMContract(
+	receipt, err = client.InvokeBVMContract(
 		constant.DIDRegistryContractAddr.Address(),
 		"Init", nil, rpcx.String(relayAdminDID),
 	)
 	if err != nil {
 		return fmt.Errorf("invoke bvm contract: %w", err)
+	}
+	if !receipt.IsSuccess() {
+		return fmt.Errorf("did registery init faild: %s", string(receipt.Ret))
 	}
 	fmt.Printf("Init method and did registry with admin did %s successfully\n", relayAdminDID)
 	return nil

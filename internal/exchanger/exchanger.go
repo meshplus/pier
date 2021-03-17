@@ -27,7 +27,7 @@ import (
 
 type Exchanger struct {
 	mode                 string
-	pierID               string
+	appchainDID          string
 	store                storage.Storage
 	mnt                  monitor.Monitor
 	exec                 executor.Executor
@@ -52,7 +52,7 @@ type Exchanger struct {
 	cancel context.CancelFunc
 }
 
-func New(typ, pierID string, meta *pb.Interchain, opts ...Option) (*Exchanger, error) {
+func New(typ, appchainDID string, meta *pb.Interchain, opts ...Option) (*Exchanger, error) {
 	config := GenerateConfig(opts...)
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -72,7 +72,7 @@ func New(typ, pierID string, meta *pb.Interchain, opts ...Option) (*Exchanger, e
 		executorCounter:      copyCounterMap(config.exec.QueryInterchainMeta()),
 		callbackCounter:      copyCounterMap(config.exec.QueryCallbackMeta()),
 		mode:                 typ,
-		pierID:               pierID,
+		appchainDID:          appchainDID,
 		ctx:                  ctx,
 		cancel:               cancel,
 	}, nil
@@ -186,6 +186,7 @@ func (ex *Exchanger) listenAndSendIBTPFromMnt() {
 		case <-ex.ctx.Done():
 			return
 		case ibtp, ok := <-ch:
+			ex.logger.Info("Receive interchain ibtp from monitor")
 			if !ok {
 				ex.logger.Warn("Unexpected closed channel while listening on interchain ibtp")
 				return
@@ -314,7 +315,7 @@ func (ex *Exchanger) sendIBTP(ibtp *pb.IBTP) error {
 
 func (ex *Exchanger) queryIBTP(from string, idx uint64) (*pb.IBTP, error) {
 	ibtp := &pb.IBTP{}
-	id := fmt.Sprintf("%s-%s-%d", from, ex.pierID, idx)
+	id := fmt.Sprintf("%s-%s-%d", from, ex.appchainDID, idx)
 
 	v := ex.store.Get(model.IBTPKey(id))
 	if v != nil {

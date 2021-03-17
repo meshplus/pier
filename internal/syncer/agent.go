@@ -175,6 +175,7 @@ func (syncer *WrapperSyncer) SendIBTP(ibtp *pb.IBTP) error {
 			IBTPNonce: ibtp.Index,
 		})
 		if err != nil {
+			syncer.logger.Errorf("Query ibtp existence error: ", err.Error())
 			// query if this ibtp is on chain
 			_, err = syncer.QueryIBTP(ibtp.ID())
 			if err != nil {

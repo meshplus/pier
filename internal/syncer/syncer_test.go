@@ -30,8 +30,9 @@ import (
 )
 
 const (
-	hash = "0x9f41dd84524bf8a42f8ab58ecfca6e1752d6fd93fe8dc00af4c71963c97db59f"
-	from = "0x3f9d18f7c3a6e5e4c0b877fe3e688ab08840b997"
+	appchainMethod = "did:bitxhub:etherappchain:."
+	hash           = "0x9f41dd84524bf8a42f8ab58ecfca6e1752d6fd93fe8dc00af4c71963c97db59f"
+	from           = "did:bitxhub:testappchain:."
 )
 
 // 1. test normal interchain wrapper
@@ -572,7 +573,7 @@ func prepare(t *testing.T, height uint64) (*WrapperSyncer, *mock_client.MockClie
 	storage, err := leveldb.New(tmpDir)
 	require.Nil(t, err)
 
-	syncer, err := New(from, repo.RelayMode,
+	syncer, err := New(from, repo.RelayMode, appchainMethod,
 		WithClient(client), WithLite(lite), WithStorage(storage),
 		WithLogger(log.NewWithModule("syncer")),
 	)

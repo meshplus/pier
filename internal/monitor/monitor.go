@@ -9,7 +9,6 @@ import (
 
 	"github.com/Rican7/retry"
 	"github.com/Rican7/retry/strategy"
-	"github.com/meshplus/bitxhub-kit/types"
 	"github.com/meshplus/bitxhub-model/pb"
 	"github.com/meshplus/pier/internal/txcrypto"
 	"github.com/meshplus/pier/pkg/plugins"
@@ -116,22 +115,22 @@ func (m *AppchainMonitor) QueryIBTP(id string) (*pb.IBTP, error) {
 // QueryOuterMeta queries outer meta from appchain.
 // It will loop until the result is returned or panic.
 func (m *AppchainMonitor) QueryOuterMeta() map[string]uint64 {
-	checkSumMeta := make(map[string]uint64)
+	var (
+		meta map[string]uint64
+		err  error
+	)
 	if err := retry.Retry(func(attempt uint) error {
-		meta, err := m.client.GetOutMeta()
+		meta, err = m.client.GetOutMeta()
 		if err != nil {
 			m.logger.WithField("error", err).Error("Get outer meta from appchain")
 			return err
-		}
-		for to, index := range meta {
-			checkSumMeta[types.NewAddressByStr(to).String()] = index
 		}
 		return nil
 	}, strategy.Wait(2*time.Second)); err != nil {
 		panic(err)
 	}
 
-	return checkSumMeta
+	return meta
 }
 
 // handleIBTP handle the ibtp package captured by monitor.

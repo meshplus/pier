@@ -2,6 +2,7 @@ package syncer
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strconv"
 	"sync/atomic"
@@ -34,31 +35,38 @@ type WrapperSyncer struct {
 	appchainHandler AppchainHandler
 	recoverHandler  RecoverUnionHandler
 
-	mode      string
-	isRecover bool
-	height    uint64
-	pierID    string
-	ctx       context.Context
-	cancel    context.CancelFunc
+	mode        string
+	isRecover   bool
+	height      uint64
+	pierID      string
+	appchainDID string
+	ctx         context.Context
+	cancel      context.CancelFunc
+}
+
+type SubscriptionKey struct {
+	PierID      string `json:"pier_id"`
+	AppchainDID string `json:"appchain_did"`
 }
 
 // New creates instance of WrapperSyncer given agent interacting with bitxhub,
 // validators addresses of bitxhub and local storage
-func New(pierID string, mode string, opts ...Option) (*WrapperSyncer, error) {
+func New(pierID, appchainDID string, mode string, opts ...Option) (*WrapperSyncer, error) {
 	cfg, err := GenerateConfig(opts...)
 	if err != nil {
 		return nil, err
 	}
 
 	ws := &WrapperSyncer{
-		wrappersC: make(chan *pb.InterchainTxWrappers, maxChSize),
-		ibtpC:     make(chan *pb.IBTP, maxChSize),
-		client:    cfg.client,
-		lite:      cfg.lite,
-		storage:   cfg.storage,
-		logger:    cfg.logger,
-		mode:      mode,
-		pierID:    pierID,
+		wrappersC:   make(chan *pb.InterchainTxWrappers, maxChSize),
+		ibtpC:       make(chan *pb.IBTP, maxChSize),
+		client:      cfg.client,
+		lite:        cfg.lite,
+		storage:     cfg.storage,
+		logger:      cfg.logger,
+		mode:        mode,
+		pierID:      pierID,
+		appchainDID: appchainDID,
 	}
 
 	return ws, nil
@@ -118,7 +126,7 @@ func (syncer *WrapperSyncer) recover(begin, end uint64) {
 	}
 
 	ch := make(chan *pb.InterchainTxWrappers, maxChSize)
-	if err := syncer.client.GetInterchainTxWrappers(syncer.ctx, syncer.pierID, begin, end, ch); err != nil {
+	if err := syncer.client.GetInterchainTxWrappers(syncer.ctx, syncer.appchainDID, begin, end, ch); err != nil {
 		syncer.logger.WithFields(logrus.Fields{"begin": begin, "end": end, "error": err}).Warn("get interchain tx wrapper")
 	}
 
@@ -139,7 +147,7 @@ func (syncer *WrapperSyncer) Stop() error {
 }
 
 // syncInterchainTxWrappers queries to bitxhub and syncs confirmed interchain txs
-// whose destination is the same as pierID.
+// whose destination is the same as AppchainDID.
 // Note: only interchain txs generated after the connection to bitxhub
 // being established will be sent to syncer
 func (syncer *WrapperSyncer) syncInterchainTxWrappers() {
@@ -203,8 +211,10 @@ func (syncer *WrapperSyncer) getWrappersChannel() chan *pb.InterchainTxWrappers 
 		subscriptType = pb.SubscriptionRequest_INTERCHAIN_TX_WRAPPER
 	}
 	// retry for network reason
+	subKey := &SubscriptionKey{syncer.pierID, syncer.appchainDID}
+	subKeyData, _ := json.Marshal(subKey)
 	if err := retry.Retry(func(attempt uint) error {
-		rawCh, err = syncer.client.Subscribe(syncer.ctx, subscriptType, []byte(syncer.pierID))
+		rawCh, err = syncer.client.Subscribe(syncer.ctx, subscriptType, subKeyData)
 		if err != nil {
 			return err
 		}
@@ -264,7 +274,7 @@ func (syncer *WrapperSyncer) listenInterchainTxWrappers() {
 				}).Info("Get interchain tx wrapper")
 
 				ch := make(chan *pb.InterchainTxWrappers, maxChSize)
-				if err := syncer.client.GetInterchainTxWrappers(syncer.ctx, syncer.pierID, syncer.getDemandHeight(), w.Height, ch); err != nil {
+				if err := syncer.client.GetInterchainTxWrappers(syncer.ctx, syncer.appchainDID, syncer.getDemandHeight(), w.Height, ch); err != nil {
 					syncer.logger.WithFields(logrus.Fields{"begin": syncer.height, "end": w.Height, "error": err}).Warn("Get interchain tx wrapper")
 					continue
 				}

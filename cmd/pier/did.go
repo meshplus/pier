@@ -58,7 +58,6 @@ var methodCommand = cli.Command{
 				adminKeyPathFlag,
 				methodFlag,
 				didDocAddrFlag,
-				didDocHashFlag,
 				appchainNameFlag,
 				appchainTypeFlag,
 				appchainDescFlag,
@@ -125,7 +124,7 @@ func applyMethod(ctx *cli.Context) error {
 		return fmt.Errorf("invoke bvm contract: %w", err)
 	}
 	if !receipt.IsSuccess() {
-		return fmt.Errorf("invoke register: %s", receipt.Ret)
+		return fmt.Errorf("apply method faild: %s", string(receipt.Ret))
 	}
 
 	ret := &RegisterResult{}
@@ -147,14 +146,17 @@ func auditMethod(ctx *cli.Context) error {
 	}
 	relayAdminDID := fmt.Sprintf("%s:%s:%s", bitxhubRootPrefix, relayRootSubMethod, address.String())
 	appchainMethod := fmt.Sprintf("%s:%s:.", bitxhubRootPrefix, method)
-	_, err = client.InvokeBVMContract(
-		constant.MethodRegistryContractAddr.Address(),
+	receipt, err := client.InvokeBVMContract(
+		constant.AppchainMgrContractAddr.Address(),
 		"AuditApply", nil, rpcx.String(relayAdminDID),
 		rpcx.String(appchainMethod), rpcx.Int32(int32(status)),
 		rpcx.Bytes([]byte(fakeSignature)),
 	)
 	if err != nil {
 		return fmt.Errorf("invoke bvm contract: %w", err)
+	}
+	if !receipt.IsSuccess() {
+		return fmt.Errorf("audit the apply of method faild: %s", string(receipt.Ret))
 	}
 	fmt.Printf("Audit method %s with admin did %s to status %d successfully\n", appchainMethod, relayAdminDID, status)
 	return nil
@@ -197,17 +199,20 @@ func registerMethod(ctx *cli.Context) error {
 	appchainAdminDID := fmt.Sprintf("%s:%s:%s", bitxhubRootPrefix, method, address.String())
 	appchainMethod := fmt.Sprintf("%s:%s:.", bitxhubRootPrefix, method)
 	// init method registry with this admin key
-	_, err = client.InvokeBVMContract(
+	receipt, err := client.InvokeBVMContract(
 		constant.AppchainMgrContractAddr.Address(),
 		"Register", nil, rpcx.String(appchainAdminDID),
 		rpcx.String(appchainMethod), rpcx.Bytes([]byte(fakeSignature)),
 		rpcx.String(didDocAddr), rpcx.String(didDocHash),
-		rpcx.String(string(validatorData)), rpcx.String(typ),
+		rpcx.String(string(validatorData)), rpcx.Int32(1), rpcx.String(typ),
 		rpcx.String(name), rpcx.String(desc), rpcx.String(version),
 		rpcx.String(string(pubKey)),
 	)
 	if err != nil {
 		return fmt.Errorf("invoke bvm contract: %w", err)
+	}
+	if !receipt.IsSuccess() {
+		return fmt.Errorf("register method info faild: %s", string(receipt.Ret))
 	}
 	fmt.Printf("Register method doc info for %s successfully\n", appchainMethod)
 	return nil
@@ -229,7 +234,7 @@ func registerDID(ctx *cli.Context) error {
 	appchainDID := bitxid.DID(did)
 	method := appchainDID.GetRootMethod()
 	appchainAdminDID := fmt.Sprintf("%s:%s:%s", bitxhubRootPrefix, method, address.String())
-	_, err = client.InvokeBVMContract(
+	receipt, err := client.InvokeBVMContract(
 		constant.DIDRegistryContractAddr.Address(),
 		"Register", nil, rpcx.String(appchainAdminDID),
 		rpcx.String(did), rpcx.String(fakeDocAddr),
@@ -237,6 +242,9 @@ func registerDID(ctx *cli.Context) error {
 	)
 	if err != nil {
 		return fmt.Errorf("invoke bvm contract: %w", err)
+	}
+	if !receipt.IsSuccess() {
+		return fmt.Errorf("register did info faild: %s", string(receipt.Ret))
 	}
 	fmt.Printf("Register did doc info for %s successfully\n", did)
 	return nil

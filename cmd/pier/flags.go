@@ -35,11 +35,6 @@ var (
 		Usage:    "Specify the ipfs addr of did document",
 		Required: true,
 	}
-	didDocHashFlag = cli.StringFlag{
-		Name:     "doc-hash",
-		Usage:    "Specify the hash of did document",
-		Required: true,
-	}
 
 	// appchain info related flags
 	appchainNameFlag = cli.StringFlag{
