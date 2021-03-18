@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/meshplus/bitxhub-kit/fileutil"
 	"github.com/meshplus/bitxhub-kit/types"
@@ -54,9 +55,10 @@ type Mode struct {
 
 // Relay are configs about bitxhub
 type Relay struct {
-	Addrs      []string `toml:"addrs" json:"addrs"`
-	Quorum     uint64   `toml:"quorum" json:"quorum"`
-	Validators []string `toml:"validators" json:"validators"`
+	Addrs        []string      `toml:"addrs" json:"addrs"`
+	TimeoutLimit time.Duration `mapstructure:"timeout_limit" json:"timeout_limit"`
+	Quorum       uint64        `toml:"quorum" json:"quorum"`
+	Validators   []string      `toml:"validators" json:"validators"`
 }
 
 type Direct struct {
@@ -118,12 +120,7 @@ func DefaultConfig() *Config {
 		Mode: Mode{
 			Type: "relay",
 			Relay: Relay{
-				Addrs: []string{
-					"localhost:60011",
-					"localhost:60012",
-					"localhost:60013",
-					"localhost:60014",
-				},
+				Addrs:  []string{"localhost:60011"},
 				Quorum: 2,
 				Validators: []string{
 					"0x000f1a7a08ccc48e5d30f80850cf1cf283aa3abd",
