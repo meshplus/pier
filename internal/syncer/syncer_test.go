@@ -11,12 +11,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/meshplus/bitxhub-kit/log"
-
 	"github.com/cbergoon/merkletree"
 	"github.com/golang/mock/gomock"
+	appchainmgr "github.com/meshplus/bitxhub-core/appchain-mgr"
 	"github.com/meshplus/bitxhub-kit/crypto"
 	"github.com/meshplus/bitxhub-kit/crypto/asym"
+	"github.com/meshplus/bitxhub-kit/log"
 	"github.com/meshplus/bitxhub-kit/storage/leveldb"
 	"github.com/meshplus/bitxhub-kit/types"
 	"github.com/meshplus/bitxhub-model/constant"
@@ -397,7 +397,7 @@ func TestGetAppchains(t *testing.T) {
 		Name:          "fabric",
 		Validators:    "fabric",
 		ConsensusType: 0,
-		Status:        0,
+		Status:        appchainmgr.AppchainAvailable,
 		ChainType:     "fabric",
 	}
 	originalChainsInfo := []*rpcx.Appchain{chainInfo, chainInfo}

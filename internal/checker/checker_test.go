@@ -156,6 +156,14 @@ func getIBTP(t *testing.T, index uint64, typ pb.IBTP_Type, fid, tid, proofPath s
 type MockAppchainMgr struct {
 }
 
+func (m MockAppchainMgr) ChangeStatus(id, trigger string) (bool, []byte) {
+	return true, nil
+}
+
+func (m MockAppchainMgr) CountAvailableAppchains() (bool, []byte) {
+	return true, nil
+}
+
 func (m MockAppchainMgr) Register(id, validators string, consensusType int32, chainType, name, desc, version, pubkey string) (bool, []byte) {
 	return true, nil
 }

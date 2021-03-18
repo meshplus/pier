@@ -11,6 +11,7 @@ import (
 	"github.com/golang/mock/gomock"
 	crypto2 "github.com/libp2p/go-libp2p-core/crypto"
 	peer2 "github.com/libp2p/go-libp2p-core/peer"
+	appchainmgr "github.com/meshplus/bitxhub-core/appchain-mgr"
 	"github.com/meshplus/bitxhub-kit/crypto"
 	"github.com/meshplus/bitxhub-kit/crypto/asym"
 	ecdsa2 "github.com/meshplus/bitxhub-kit/crypto/asym/ecdsa"
@@ -552,7 +553,7 @@ func testUnionMode(pierID string, t *testing.T) {
 			ID:         pierID,
 			Name:       "hpc",
 			Validators: "validator for hpc",
-			Status:     0,
+			Status:     appchainmgr.AppchainAvailable,
 			ChainType:  "hyperchain",
 			Desc:       "appchain for test",
 			PublicKey:  "",

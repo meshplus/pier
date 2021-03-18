@@ -18,10 +18,10 @@ require (
 	github.com/ipfs/go-cid v0.0.7
 	github.com/lestrrat-go/strftime v1.0.3 // indirect
 	github.com/libp2p/go-libp2p-core v0.6.1
-	github.com/meshplus/bitxhub-core v0.1.0-rc1.0.20210312073705-fdc6275e634e
+	github.com/meshplus/bitxhub-core v0.1.0-rc1.0.20210323012328-bf23a08fd3e4
 	github.com/meshplus/bitxhub-kit v1.1.2-0.20201203072410-8a0383a6870d
 	github.com/meshplus/bitxhub-model v1.1.2-0.20210312014622-c3ad532b64ad
-	github.com/meshplus/go-bitxhub-client v1.0.0-rc4.0.20210317094425-d31a683d21b1 //v1.0.0-rc4.0.20210301024916-b7461066a067
+	github.com/meshplus/go-bitxhub-client v1.0.0-rc4.0.20210319081343-102b2061fe4e
 	github.com/meshplus/go-lightp2p v0.0.0-20200817105923-6b3aee40fa54
 	github.com/mitchellh/go-homedir v1.1.0
 	github.com/multiformats/go-multiaddr v0.3.0
@@ -30,7 +30,7 @@ require (
 	github.com/spf13/viper v1.6.1
 	github.com/stretchr/objx v0.2.0 // indirect
 	github.com/stretchr/testify v1.6.0
-	github.com/tidwall/gjson v1.6.0
+	github.com/tidwall/gjson v1.6.8
 	github.com/urfave/cli v1.22.1
 	github.com/wonderivan/logger v1.0.0
 	go.uber.org/atomic v1.6.0
