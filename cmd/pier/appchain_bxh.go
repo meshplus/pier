@@ -250,7 +250,7 @@ func loadClient(keyPath string, grpcAddrs []string, ctx *cli.Context) (rpcx.Clie
 		}
 		nodesInfo = append(nodesInfo, nodeInfo)
 	}
-	opts = append(opts, rpcx.WithNodesInfo(nodesInfo...))
+	opts = append(opts, rpcx.WithNodesInfo(nodesInfo...), rpcx.WithTimeoutLimit(config.Mode.Relay.TimeoutLimit))
 	return rpcx.New(opts...)
 }
 
