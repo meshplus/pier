@@ -26,6 +26,7 @@ report_caller = false
 type = "relay" # relay, direct or union
 [mode.relay]
 addrs = ["localhost:60011", "localhost:60012", "localhost:60013", "localhost:60014"]
+timeout_limit = "1s"
 quorum = 2
 validators = [
     "0x000f1a7a08ccc48e5d30f80850cf1cf283aa3abd",

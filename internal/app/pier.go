@@ -145,7 +145,7 @@ func NewPier(repoRoot string, config *repo.Config) (*Pier, error) {
 			}
 			nodesInfo = append(nodesInfo, nodeInfo)
 		}
-		opts = append(opts, rpcx.WithNodesInfo(nodesInfo...))
+		opts = append(opts, rpcx.WithNodesInfo(nodesInfo...), rpcx.WithTimeoutLimit(config.Mode.Relay.TimeoutLimit))
 		client, err := rpcx.New(opts...)
 		if err != nil {
 			return nil, fmt.Errorf("create bitxhub client: %w", err)
@@ -303,7 +303,7 @@ func NewUnionPier(repoRoot string, config *repo.Config) (*Pier, error) {
 		}
 		nodesInfo = append(nodesInfo, nodeInfo)
 	}
-	opts = append(opts, rpcx.WithNodesInfo(nodesInfo...))
+	opts = append(opts, rpcx.WithNodesInfo(nodesInfo...), rpcx.WithTimeoutLimit(config.Mode.Relay.TimeoutLimit))
 	client, err := rpcx.New(opts...)
 	if err != nil {
 		return nil, fmt.Errorf("create bitxhub client: %w", err)
