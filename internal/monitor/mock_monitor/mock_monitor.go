@@ -11,30 +11,58 @@ import (
 	pb "github.com/meshplus/bitxhub-model/pb"
 )
 
-// MockMonitor is a mock of Monitor interface.
+// MockMonitor is a mock of Monitor interface
 type MockMonitor struct {
 	ctrl     *gomock.Controller
 	recorder *MockMonitorMockRecorder
 }
 
-// MockMonitorMockRecorder is the mock recorder for MockMonitor.
+// MockMonitorMockRecorder is the mock recorder for MockMonitor
 type MockMonitorMockRecorder struct {
 	mock *MockMonitor
 }
 
-// NewMockMonitor creates a new mock instance.
+// NewMockMonitor creates a new mock instance
 func NewMockMonitor(ctrl *gomock.Controller) *MockMonitor {
 	mock := &MockMonitor{ctrl: ctrl}
 	mock.recorder = &MockMonitorMockRecorder{mock}
 	return mock
 }
 
-// EXPECT returns an object that allows the caller to indicate expected use.
+// EXPECT returns an object that allows the caller to indicate expected use
 func (m *MockMonitor) EXPECT() *MockMonitorMockRecorder {
 	return m.recorder
 }
 
-// ListenIBTP mocks base method.
+// Start mocks base method
+func (m *MockMonitor) Start() error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Start")
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Start indicates an expected call of Start
+func (mr *MockMonitorMockRecorder) Start() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Start", reflect.TypeOf((*MockMonitor)(nil).Start))
+}
+
+// Stop mocks base method
+func (m *MockMonitor) Stop() error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Stop")
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Stop indicates an expected call of Stop
+func (mr *MockMonitorMockRecorder) Stop() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Stop", reflect.TypeOf((*MockMonitor)(nil).Stop))
+}
+
+// ListenIBTP mocks base method
 func (m *MockMonitor) ListenIBTP() <-chan *pb.IBTP {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ListenIBTP")
@@ -42,13 +70,13 @@ func (m *MockMonitor) ListenIBTP() <-chan *pb.IBTP {
 	return ret0
 }
 
-// ListenIBTP indicates an expected call of ListenIBTP.
+// ListenIBTP indicates an expected call of ListenIBTP
 func (mr *MockMonitorMockRecorder) ListenIBTP() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListenIBTP", reflect.TypeOf((*MockMonitor)(nil).ListenIBTP))
 }
 
-// QueryIBTP mocks base method.
+// QueryIBTP mocks base method
 func (m *MockMonitor) QueryIBTP(id string) (*pb.IBTP, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "QueryIBTP", id)
@@ -57,13 +85,13 @@ func (m *MockMonitor) QueryIBTP(id string) (*pb.IBTP, error) {
 	return ret0, ret1
 }
 
-// QueryIBTP indicates an expected call of QueryIBTP.
+// QueryIBTP indicates an expected call of QueryIBTP
 func (mr *MockMonitorMockRecorder) QueryIBTP(id interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "QueryIBTP", reflect.TypeOf((*MockMonitor)(nil).QueryIBTP), id)
 }
 
-// QueryOuterMeta mocks base method.
+// QueryOuterMeta mocks base method
 func (m *MockMonitor) QueryOuterMeta() map[string]uint64 {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "QueryOuterMeta")
@@ -71,36 +99,8 @@ func (m *MockMonitor) QueryOuterMeta() map[string]uint64 {
 	return ret0
 }
 
-// QueryOuterMeta indicates an expected call of QueryOuterMeta.
+// QueryOuterMeta indicates an expected call of QueryOuterMeta
 func (mr *MockMonitorMockRecorder) QueryOuterMeta() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "QueryOuterMeta", reflect.TypeOf((*MockMonitor)(nil).QueryOuterMeta))
-}
-
-// Start mocks base method.
-func (m *MockMonitor) Start() error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Start")
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// Start indicates an expected call of Start.
-func (mr *MockMonitorMockRecorder) Start() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Start", reflect.TypeOf((*MockMonitor)(nil).Start))
-}
-
-// Stop mocks base method.
-func (m *MockMonitor) Stop() error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Stop")
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// Stop indicates an expected call of Stop.
-func (mr *MockMonitorMockRecorder) Stop() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Stop", reflect.TypeOf((*MockMonitor)(nil).Stop))
 }

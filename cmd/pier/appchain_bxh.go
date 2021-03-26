@@ -13,6 +13,11 @@ import (
 	"github.com/urfave/cli"
 )
 
+type RegisterResult struct {
+	ChainID    string `json:"chain_id"`
+	ProposalID string `json:"proposal_id"`
+}
+
 var appchainBxhCMD = cli.Command{
 	Name:  "appchain",
 	Usage: "Command about appchain in bitxhub",
@@ -53,18 +58,6 @@ var appchainBxhCMD = cli.Command{
 				},
 			},
 			Action: registerAppchain,
-		},
-		{
-			Name:  "audit",
-			Usage: "Audit appchain in bitxhub",
-			Flags: []cli.Flag{
-				cli.StringFlag{
-					Name:     "id",
-					Usage:    "Specific appchain id",
-					Required: true,
-				},
-			},
-			Action: auditAppchain,
 		},
 		{
 			Name:  "get",
@@ -136,51 +129,12 @@ func registerAppchain(ctx *cli.Context) error {
 		return fmt.Errorf("invoke register: %s", receipt.Ret)
 	}
 
-	appchain := &rpcx.Appchain{}
-	if err := json.Unmarshal(receipt.Ret, appchain); err != nil {
+	ret := &RegisterResult{}
+	if err := json.Unmarshal(receipt.Ret, ret); err != nil {
 		return err
 	}
 
-	fmt.Printf("appchain register successfully, id is %s\n", appchain.ID)
-
-	return nil
-}
-
-func auditAppchain(ctx *cli.Context) error {
-	id := ctx.String("id")
-
-	repoRoot, err := repo.PathRootWithDefault(ctx.GlobalString("repo"))
-	if err != nil {
-		return err
-	}
-
-	config, err := repo.UnmarshalConfig(repoRoot)
-	if err != nil {
-		return fmt.Errorf("init config error: %s", err)
-	}
-
-	client, err := loadClient(repo.KeyPath(repoRoot), config.Mode.Relay.Addrs, ctx)
-	if err != nil {
-		return fmt.Errorf("load client: %w", err)
-	}
-
-	receipt, err := client.InvokeBVMContract(
-		constant.AppchainMgrContractAddr.Address(),
-		"Audit", nil,
-		rpcx.String(id),
-		rpcx.Int32(1),
-		rpcx.String("Audit passed"),
-	)
-
-	if err != nil {
-		return err
-	}
-
-	if !receipt.IsSuccess() {
-		return fmt.Errorf("invoke audit: %s", receipt.Ret)
-	}
-
-	fmt.Printf("audit appchain %s successfully\n", id)
+	fmt.Printf("appchain register successfully, chain id is %s, proposal id is %s\n", ret.ChainID, ret.ProposalID)
 
 	return nil
 }
