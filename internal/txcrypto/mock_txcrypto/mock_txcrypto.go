@@ -5,9 +5,8 @@
 package mock_txcrypto
 
 import (
-	reflect "reflect"
-
 	gomock "github.com/golang/mock/gomock"
+	reflect "reflect"
 )
 
 // MockCryptor is a mock of Cryptor interface

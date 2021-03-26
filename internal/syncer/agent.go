@@ -184,6 +184,10 @@ func (syncer *WrapperSyncer) SendIBTP(ibtp *pb.IBTP) error {
 			return nil
 		}
 		if !receipt.IsSuccess() {
+			tx, err = syncer.client.GenerateIBTPTx(ibtp)
+			if err != nil {
+				return fmt.Errorf("generate ibtp tx error:%v", err)
+			}
 			return fmt.Errorf("receipt failed for :%s", receipt.Ret)
 		}
 		return nil

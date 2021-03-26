@@ -5,10 +5,9 @@
 package mock_executor
 
 import (
-	reflect "reflect"
-
 	gomock "github.com/golang/mock/gomock"
 	pb "github.com/meshplus/bitxhub-model/pb"
+	reflect "reflect"
 )
 
 // MockExecutor is a mock of Executor interface

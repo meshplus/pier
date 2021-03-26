@@ -396,7 +396,7 @@ func TestGetAppchains(t *testing.T) {
 		ID:            from,
 		Name:          "fabric",
 		Validators:    "fabric",
-		ConsensusType: 0,
+		ConsensusType: "rbft",
 		Status:        appchainmgr.AppchainAvailable,
 		ChainType:     "fabric",
 	}

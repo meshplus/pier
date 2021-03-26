@@ -11,17 +11,17 @@ require (
 	github.com/gin-gonic/gin v1.6.3
 	github.com/gobuffalo/packd v1.0.0
 	github.com/gobuffalo/packr v1.30.1
-	github.com/gogo/protobuf v1.3.1
+	github.com/gogo/protobuf v1.3.2
 	github.com/golang/mock v1.5.0
 	github.com/hashicorp/go-hclog v0.0.0-20180709165350-ff2cf002a8dd
 	github.com/hashicorp/go-plugin v1.3.0
 	github.com/ipfs/go-cid v0.0.7
 	github.com/lestrrat-go/strftime v1.0.3 // indirect
 	github.com/libp2p/go-libp2p-core v0.6.1
-	github.com/meshplus/bitxhub-core v0.1.0-rc1.0.20210323012328-bf23a08fd3e4
+	github.com/meshplus/bitxhub-core v0.1.0-rc1.0.20210330035001-b327cf056572
 	github.com/meshplus/bitxhub-kit v1.1.2-0.20201203072410-8a0383a6870d
 	github.com/meshplus/bitxhub-model v1.1.2-0.20210312014622-c3ad532b64ad
-	github.com/meshplus/go-bitxhub-client v1.0.0-rc4.0.20210319081343-102b2061fe4e
+	github.com/meshplus/go-bitxhub-client v1.0.0-rc4.0.20210401070550-93124af0d1f2
 	github.com/meshplus/go-lightp2p v0.0.0-20200817105923-6b3aee40fa54
 	github.com/mitchellh/go-homedir v1.1.0
 	github.com/multiformats/go-multiaddr v0.3.0
@@ -34,7 +34,6 @@ require (
 	github.com/urfave/cli v1.22.1
 	github.com/wonderivan/logger v1.0.0
 	go.uber.org/atomic v1.6.0
-	golang.org/x/tools v0.0.0-20201009162240-fcf82128ed91 // indirect
 	google.golang.org/grpc v1.33.1
 )
 
