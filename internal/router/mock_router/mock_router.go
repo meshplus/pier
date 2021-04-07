@@ -5,11 +5,10 @@
 package mock_router
 
 import (
-	reflect "reflect"
-
 	gomock "github.com/golang/mock/gomock"
 	pb "github.com/meshplus/bitxhub-model/pb"
 	rpcx "github.com/meshplus/go-bitxhub-client"
+	reflect "reflect"
 )
 
 // MockRouter is a mock of Router interface

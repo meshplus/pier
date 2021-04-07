@@ -5,10 +5,9 @@
 package mock_lite
 
 import (
-	reflect "reflect"
-
 	gomock "github.com/golang/mock/gomock"
 	pb "github.com/meshplus/bitxhub-model/pb"
+	reflect "reflect"
 )
 
 // MockLite is a mock of Lite interface

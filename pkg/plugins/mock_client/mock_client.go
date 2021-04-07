@@ -5,10 +5,9 @@
 package mock_client
 
 import (
-	reflect "reflect"
-
 	gomock "github.com/golang/mock/gomock"
 	pb "github.com/meshplus/bitxhub-model/pb"
+	reflect "reflect"
 )
 
 // MockClient is a mock of Client interface

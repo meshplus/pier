@@ -32,32 +32,37 @@ var clientCMD = cli.Command{
 			Flags: []cli.Flag{
 				cli.StringFlag{
 					Name:     "pier_id",
-					Usage:    "Specific target pier id",
+					Usage:    "Specify target pier id",
 					Required: true,
 				},
 				cli.StringFlag{
 					Name:     "name",
-					Usage:    "Specific appchain name",
+					Usage:    "Specify appchain name",
 					Required: true,
 				},
 				cli.StringFlag{
 					Name:     "type",
-					Usage:    "Specific appchain type",
+					Usage:    "Specify appchain type",
 					Required: true,
 				},
 				cli.StringFlag{
 					Name:     "desc",
-					Usage:    "Specific appchain description",
+					Usage:    "Specify appchain description",
 					Required: true,
 				},
 				cli.StringFlag{
 					Name:     "version",
-					Usage:    "Specific appchain version",
+					Usage:    "Specify appchain version",
 					Required: true,
 				},
 				cli.StringFlag{
 					Name:     "validators",
-					Usage:    "Specific appchain validators path",
+					Usage:    "Specify appchain validators path",
+					Required: true,
+				},
+				cli.StringFlag{
+					Name:     "consensusType",
+					Usage:    "Specify appchain consensus type",
 					Required: true,
 				},
 			},
@@ -69,33 +74,38 @@ var clientCMD = cli.Command{
 			Flags: []cli.Flag{
 				cli.StringFlag{
 					Name:     "pier_id",
-					Usage:    "Specific target pier id",
-					Required: true,
+					Usage:    "Specify target pier id",
+					Required: false,
 				},
 				cli.StringFlag{
 					Name:     "name",
-					Usage:    "Specific appchain name",
-					Required: true,
+					Usage:    "Specify appchain name",
+					Required: false,
 				},
 				cli.StringFlag{
 					Name:     "type",
-					Usage:    "Specific appchain type",
-					Required: true,
+					Usage:    "Specify appchain type",
+					Required: false,
 				},
 				cli.StringFlag{
 					Name:     "desc",
-					Usage:    "Specific appchain description",
-					Required: true,
+					Usage:    "Specify appchain description",
+					Required: false,
 				},
 				cli.StringFlag{
 					Name:     "version",
-					Usage:    "Specific appchain version",
-					Required: true,
+					Usage:    "Specify appchain version",
+					Required: false,
 				},
 				cli.StringFlag{
 					Name:     "validators",
-					Usage:    "Specific appchain validators path",
-					Required: true,
+					Usage:    "Specify appchain validators path",
+					Required: false,
+				},
+				cli.StringFlag{
+					Name:     "consensusType",
+					Usage:    "Specify appchain consensus type",
+					Required: false,
 				},
 			},
 			Action: updatePierAppchain,
@@ -207,10 +217,45 @@ func savePierAppchain(ctx *cli.Context, path string) error {
 	desc := ctx.String("desc")
 	version := ctx.String("version")
 	validatorsPath := ctx.String("validators")
+	consensusType := ctx.String("consensusType")
 
-	data, err := ioutil.ReadFile(validatorsPath)
+	url, err := getURL(ctx, fmt.Sprintf("%s?pier_id=%s", path, pier))
 	if err != nil {
-		return fmt.Errorf("read validators file: %w", err)
+		return err
+	}
+	res, err := httpGet(url)
+	if err != nil {
+		return err
+	}
+
+	appchainInfo := appchainmgr.Appchain{}
+	if err = json.Unmarshal(res, &appchainInfo); err != nil {
+		return err
+	}
+	if name == "" {
+		name = appchainInfo.Name
+	}
+	if typ == "" {
+		typ = appchainInfo.ChainType
+	}
+	if desc == "" {
+		desc = appchainInfo.Desc
+	}
+	if version == "" {
+		version = appchainInfo.Version
+	}
+	validators := ""
+	if validatorsPath == "" {
+		validators = appchainInfo.Validators
+	} else {
+		data, err := ioutil.ReadFile(validatorsPath)
+		if err != nil {
+			return fmt.Errorf("read validators file: %w", err)
+		}
+		validators = string(data)
+	}
+	if consensusType == "" {
+		consensusType = appchainInfo.ConsensusType
 	}
 
 	repoRoot, err := repo.PathRootWithDefault(ctx.GlobalString("repo"))
@@ -227,20 +272,20 @@ func savePierAppchain(ctx *cli.Context, path string) error {
 	appchain := &appchainmgr.Appchain{
 		ID:            addr.String(),
 		Name:          name,
-		Validators:    string(data),
-		ConsensusType: 1,
+		Validators:    validators,
+		ConsensusType: consensusType,
 		ChainType:     typ,
 		Desc:          desc,
 		Version:       version,
 		PublicKey:     string(pubKeyBytes),
 	}
 
-	data, err = json.Marshal(appchain)
+	data, err := json.Marshal(appchain)
 	if err != nil {
 		return fmt.Errorf("marshal appchain error: %w", err)
 	}
 
-	url, err := getURL(ctx, fmt.Sprintf("%s?pier_id=%s", path, pier))
+	url, err = getURL(ctx, fmt.Sprintf("%s?pier_id=%s", path, pier))
 	if err != nil {
 		return err
 	}

@@ -5,13 +5,12 @@
 package mock_peermgr
 
 import (
-	reflect "reflect"
-
 	gomock "github.com/golang/mock/gomock"
 	peer "github.com/libp2p/go-libp2p-core/peer"
 	network "github.com/meshplus/go-lightp2p"
 	peermgr "github.com/meshplus/pier/internal/peermgr"
 	peermgr0 "github.com/meshplus/pier/internal/peermgr/proto"
+	reflect "reflect"
 )
 
 // MockPeerManager is a mock of PeerManager interface

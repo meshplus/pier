@@ -110,7 +110,7 @@ func getAppchain(id, chainType string) (*appchainmgr.Appchain, error) {
 		ID:            id,
 		Name:          "chainA",
 		Validators:    string(validators),
-		ConsensusType: 1,
+		ConsensusType: "rbft",
 		ChainType:     chainType,
 		Desc:          "appchain",
 		Version:       "1.4.3",
@@ -164,11 +164,11 @@ func (m MockAppchainMgr) CountAvailableAppchains() (bool, []byte) {
 	return true, nil
 }
 
-func (m MockAppchainMgr) Register(id, validators string, consensusType int32, chainType, name, desc, version, pubkey string) (bool, []byte) {
+func (m MockAppchainMgr) Register(id, validators string, consensusType, chainType, name, desc, version, pubkey string) (bool, []byte) {
 	return true, nil
 }
 
-func (m MockAppchainMgr) UpdateAppchain(id, validators string, consensusType int32, chainType, name, desc, version, pubkey string) (bool, []byte) {
+func (m MockAppchainMgr) UpdateAppchain(id, validators string, consensusType, chainType, name, desc, version, pubkey string) (bool, []byte) {
 	return true, nil
 }
 
