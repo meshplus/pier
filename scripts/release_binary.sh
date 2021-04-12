@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 
+set -e
 source x.sh
 
 CURRENT_PATH=$(pwd)
@@ -17,9 +18,10 @@ cd "${PROJECT_PATH}" && make build
 
 print_blue "===> 3. pack binarys"
 cd "${RELEASE_PATH}"
-cp ../build/libwasmer.so .
 if [ "$(uname)" == "Darwin" ]; then
-    tar zcvf pier_v"${APP_VERSION}"_Darwin_x86_64.tar.gz ./pier ./*.so
+  cp ../build/libwasmer.dylib .
+  tar zcvf pier_v"${APP_VERSION}"_Darwin_x86_64.tar.gz ./pier ./libwasmer.dylib
 else
-    tar zcvf pier_v"${APP_VERSION}"_Linux_x86_64.tar.gz ./pier ./*.so
+  cp ../build/libwasmer.so .
+  tar zcvf pier_v"${APP_VERSION}"_Linux_x86_64.tar.gz ./pier ./libwasmer.so
 fi
