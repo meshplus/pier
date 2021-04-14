@@ -2,7 +2,7 @@
 SHELL := /bin/bash
 CURRENT_PATH = $(shell pwd)
 APP_NAME = pier
-APP_VERSION = 1.5.0
+APP_VERSION = 1.6.0
 
 # build with verison infos
 VERSION_DIR = github.com/meshplus/${APP_NAME}
@@ -85,6 +85,10 @@ docker-build: packr
 ## make build-linux: Go build linux executable file
 build-linux:
 	cd scripts && bash cross_compile.sh linux-amd64 ${CURRENT_PATH}
+
+## make release: Build release before push
+release-binary:
+	@cd scripts && bash release_binary.sh '${APP_VERSION}'
 
 ## make linter: Run golanci-lint
 linter:
