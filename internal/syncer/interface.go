@@ -20,7 +20,7 @@ type Syncer interface {
 	Stop() error
 
 	// QueryInterchainMeta queries meta including interchain and receipt related meta from bitxhub
-	QueryInterchainMeta() map[string]uint64
+	QueryInterchainMeta() *pb.Interchain
 
 	// QueryIBTP query ibtp from bitxhub by its id.
 	// if error occurs, it means this ibtp is not existed on bitxhub

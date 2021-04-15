@@ -2,7 +2,12 @@ package exchanger
 
 import (
 	"fmt"
+	"time"
 
+	"github.com/meshplus/bitxhub-model/pb"
+
+	"github.com/Rican7/retry"
+	"github.com/Rican7/retry/strategy"
 	"github.com/sirupsen/logrus"
 )
 
@@ -64,15 +69,23 @@ func (ex *Exchanger) handleMissingIBTPFromMnt(to string, begin, end uint64) erro
 			"index": begin,
 		}).Info("Get missing event from contract")
 
-		ibtp, err := ex.mnt.QueryIBTP(fmt.Sprintf("%s-%s-%d", ex.appchainDID, to, begin))
-		if err != nil {
-			return fmt.Errorf("fetch ibtp:%w", err)
-		}
+		if err := retry.Retry(func(attempt uint) error {
+			ibtp, err := ex.mnt.QueryIBTP(fmt.Sprintf("%s-%s-%d", ex.appchainDID, to, begin))
+			if err != nil {
+				ex.logger.Errorf("Fetch ibtp: %s", err.Error())
+				return err
+			}
 
-		if err := ex.sendIBTP(ibtp); err != nil {
+			if err := ex.sendIBTP(ibtp); err != nil {
+				ex.logger.Errorf("Send ibtp: %s", err.Error())
+				// if err occurs, try to resend this ibtp
+				return err
+			}
+			ex.interchainCounter[ibtp.To] = ibtp.Index
+			return nil
+		}, strategy.Wait(500*time.Millisecond), strategy.Limit(10)); err != nil {
 			return err
 		}
-		ex.interchainCounter[ibtp.To] = ibtp.Index
 	}
 
 	return nil
@@ -88,10 +101,19 @@ func (ex *Exchanger) handleMissingIBTPFromSyncer(from string, begin, end uint64)
 			"index": begin,
 		}).Info("Get missing event from bitxhub")
 
-		ibtp, err := ex.syncer.QueryIBTP(fmt.Sprintf("%s-%s-%d", from, ex.appchainDID, begin))
-		if err != nil {
-			return fmt.Errorf("fetch ibtp:%w", err)
-		}
+		ibtpID := fmt.Sprintf("%s-%s-%d", from, ex.appchainDID, begin)
+		var (
+			ibtp *pb.IBTP
+			err  error
+		)
+		retry.Retry(func(attempt uint) error {
+			ibtp, err = ex.syncer.QueryIBTP(ibtpID)
+			if err != nil {
+				ex.logger.Errorf("Fetch ibtp %s: %s", ibtpID, err.Error())
+				return fmt.Errorf("fetch ibtp %s: %w", ibtpID, err)
+			}
+			return nil
+		}, strategy.Wait(1*time.Second))
 		entry := ex.logger.WithFields(logrus.Fields{"type": ibtp.Type, "id": ibtp.ID()})
 		ex.handleIBTP(ibtp, entry)
 		ex.executorCounter[ibtp.From] = ibtp.Index
@@ -113,23 +135,38 @@ func (ex *Exchanger) handleMissingReceipt(from string, begin uint64, end uint64)
 		entry = entry.WithFields(logrus.Fields{
 			"index": begin,
 		})
-		original, err := ex.queryIBTP(from, begin)
-		if err != nil {
-			return err
-		}
 
-		receipt, err := ex.exec.QueryIBTPReceipt(original)
-		if err != nil {
-			entry.WithField("error", err.Error()).Error("Get missing execution receipt result")
-			return err
-		}
+		retry.Retry(func(attempt uint) error {
+			original, err := ex.queryIBTP(from, begin)
+			if err != nil {
+				return err
+			}
+			receipt, err := ex.exec.QueryIBTPReceipt(original)
+			if err != nil {
+				entry.WithField("error", err.Error()).Error("Get missing execution receipt result")
+				return err
+			}
 
-		// send receipt back to counterpart chain
-		if err := ex.sendIBTP(receipt); err != nil {
-			entry.WithField("error", err).Error("Send execution receipt to counterpart chain")
-			return err
-		}
-		ex.sourceReceiptCounter[from] = receipt.Index
+			// send receipt back to counterpart chain
+			if err := ex.sendIBTP(receipt); err != nil {
+				entry.WithField("error", err).Error("Send execution receipt to counterpart chain")
+				return err
+			}
+			ex.sourceReceiptCounter[from] = receipt.Index
+			return nil
+		}, strategy.Wait(500*time.Millisecond))
 	}
 	return nil
+}
+
+func (ex *Exchanger) updateInterchainMeta() {
+	updatedMeta := ex.syncer.QueryInterchainMeta()
+	ex.interchainCounter = updatedMeta.InterchainCounter
+	ex.logger.Info("Update interchain meta from bitxhub")
+}
+
+func (ex *Exchanger) updateSourceReceiptMeta() {
+	updatedMeta := ex.syncer.QueryInterchainMeta()
+	ex.sourceReceiptCounter = updatedMeta.SourceReceiptCounter
+	ex.logger.Info("Update sourceReceiptCounter meta from bitxhub")
 }

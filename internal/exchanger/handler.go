@@ -2,6 +2,7 @@ package exchanger
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"time"
 
@@ -12,6 +13,7 @@ import (
 	network "github.com/meshplus/go-lightp2p"
 	"github.com/meshplus/pier/internal/peermgr"
 	peerMsg "github.com/meshplus/pier/internal/peermgr/proto"
+	"github.com/meshplus/pier/internal/syncer"
 	"github.com/sirupsen/logrus"
 )
 
@@ -43,9 +45,29 @@ func (ex *Exchanger) handleIBTP(ibtp *pb.IBTP, entry logrus.FieldLogger) {
 		return
 	}
 
-	err = ex.syncer.SendIBTP(receipt)
-	if err != nil {
-		ex.logger.Errorf("send ibtp error:%v", err)
+sendReceiptLoop:
+	for {
+		err = ex.syncer.SendIBTP(receipt)
+		if err != nil {
+			ex.logger.Errorf("send ibtp error: %s", err.Error())
+			if errors.Is(err, syncer.ErrMetaOutOfDate) {
+				ex.updateSourceReceiptMeta()
+				return
+			}
+			// if sending receipt failed, try to get new receipt from appchain and retry
+		queryLoop:
+			for {
+				receipt, err = ex.exec.QueryIBTPReceipt(ibtp)
+				if err != nil {
+					ex.logger.Errorf("Query ibtp receipt for %s error: %s", ibtp.ID(), err.Error())
+					time.Sleep(500 * time.Millisecond)
+					continue queryLoop
+				}
+				time.Sleep(500 * time.Millisecond)
+				continue sendReceiptLoop
+			}
+		}
+		break
 	}
 	ex.logger.WithFields(logrus.Fields{"type": ibtp.Type, "id": ibtp.ID()}).Info("Handle ibtp success")
 }

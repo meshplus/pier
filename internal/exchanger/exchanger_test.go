@@ -8,6 +8,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/meshplus/pier/internal/syncer"
+
 	"github.com/golang/mock/gomock"
 	crypto2 "github.com/libp2p/go-libp2p-core/crypto"
 	peer2 "github.com/libp2p/go-libp2p-core/peer"
@@ -164,11 +166,12 @@ func testApplyInterchain(t *testing.T) {
 	////mockSyncer.EXPECT().GetAssetExchangeSigns(assetTxID).Return(nil, fmt.Errorf("get signs error"))
 	mockSyncer.EXPECT().GetAssetExchangeSigns(gomock.Any()).Return(signs, nil).AnyTimes()
 	mockSyncer.EXPECT().SendIBTP(gomock.Any()).Return(fmt.Errorf("send ibtp error"))
-	mockSyncer.EXPECT().SendIBTP(gomock.Any()).Return(nil)
+	mockSyncer.EXPECT().SendIBTP(gomock.Any()).Return(nil).AnyTimes()
 	mockExecutor.EXPECT().ExecuteIBTP(gomock.Any()).Return(&pb.IBTP{}, nil).AnyTimes()
+	mockExecutor.EXPECT().QueryIBTPReceipt(gomock.Any()).Return(&pb.IBTP{}, nil)
 	inCh <- interchainIBTP3
 
-	time.Sleep(2 * time.Millisecond)
+	time.Sleep(2 * time.Second)
 	require.Equal(t, uint64(3), mockExchanger.executorCounter[from])
 }
 
@@ -241,23 +244,29 @@ func testRecoverErrorStartRelay(t *testing.T) {
 
 	mockSyncer.EXPECT().Start().Return(nil).AnyTimes()
 	// mock recover error
-	mockMonitor.EXPECT().QueryIBTP(gomock.Any()).Return(nil, fmt.Errorf("query ibtp error"))
-	require.Panics(t, func() { mockExchanger.Start() })
-
-	outMeta[to] = 0
-	mockSyncer.EXPECT().QueryIBTP(gomock.Any()).Return(nil, fmt.Errorf("query ibtp error"))
-	require.Panics(t, func() { mockExchanger.Start() })
-
+	// test for recovering ibtp
 	ibtp := getIBTP(t, 1, pb.IBTP_RECEIPT_SUCCESS)
-	mockSyncer.EXPECT().QueryIBTP(gomock.Any()).Return(ibtp, nil).AnyTimes()
-	mockExecutor.EXPECT().QueryIBTPReceipt(gomock.Any()).
-		Return(nil, fmt.Errorf("query ibtp receipt error"))
-	require.Panics(t, func() { mockExchanger.Start() })
+	mockMonitor.EXPECT().QueryIBTP(gomock.Any()).Return(nil, fmt.Errorf("query ibtp error")).MaxTimes(10)
+	mockMonitor.EXPECT().QueryIBTP(gomock.Any()).Return(ibtp, nil).MaxTimes(1)
 
-	mockExecutor.EXPECT().QueryIBTPReceipt(gomock.Any()).
-		Return(&pb.IBTP{}, nil).AnyTimes()
+	mockSyncer.EXPECT().QueryIBTP(gomock.Any()).Return(nil, syncer.ErrIBTPNotFound).MaxTimes(1)
 	mockSyncer.EXPECT().SendIBTP(gomock.Any()).Return(fmt.Errorf("send ibtp receipt error"))
 	require.Panics(t, func() { mockExchanger.Start() })
+
+	//outMeta[to] = 0
+
+	//require.Panics(t, func() { mockExchanger.Start() })
+
+	// test for recovering ibtp receipt
+	//mockSyncer.EXPECT().QueryIBTP(gomock.Any()).Return(ibtp, nil).AnyTimes()
+	//mockExecutor.EXPECT().QueryIBTPReceipt(gomock.Any()).
+	//	Return(nil, fmt.Errorf("query ibtp receipt error"))
+	//require.Panics(t, func() { mockExchanger.Start() })
+
+	//mockExecutor.EXPECT().QueryIBTPReceipt(gomock.Any()).
+	//	Return(&pb.IBTP{}, nil).AnyTimes()
+	//mockSyncer.EXPECT().SendIBTP(gomock.Any()).Return(fmt.Errorf("send ibtp receipt error"))
+	//require.Panics(t, func() { mockExchanger.Start() })
 }
 
 func testRelayIBTPFromMnt(t *testing.T, outCh chan *pb.IBTP, ibtps []*pb.IBTP, exchanger *Exchanger) {
