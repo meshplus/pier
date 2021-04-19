@@ -13,8 +13,9 @@ import (
 	"github.com/meshplus/pier/internal/loggers"
 )
 
-func getInterchainMeta(client rpcx.Client) (*pb.Interchain, error) {
-	tx, err := client.GenerateContractTx(pb.TransactionData_BVM, constant.InterchainContractAddr.Address(), "Interchain")
+func getInterchainMeta(client rpcx.Client, method string) (*pb.Interchain, error) {
+	tx, err := client.GenerateContractTx(pb.TransactionData_BVM, constant.InterchainContractAddr.Address(),
+		"Interchain", rpcx.String(method))
 	if err != nil {
 		return nil, err
 	}

@@ -50,5 +50,6 @@ common_name = "localhost"
 mode = "single"
 
 [appchain]
+did = "did:bitxhub:fabappchain:."
 plugin = "appchain_plugin"
 config = "fabric"

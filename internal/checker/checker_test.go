@@ -164,11 +164,11 @@ func (m MockAppchainMgr) CountAvailableAppchains() (bool, []byte) {
 	return true, nil
 }
 
-func (m MockAppchainMgr) Register(id, validators string, consensusType, chainType, name, desc, version, pubkey string) (bool, []byte) {
+func (m MockAppchainMgr) Register(id, appchainOwner, docAddr, docHash, validators string, consensusType, chainType, name, desc, version, pubkey string) (bool, []byte) {
 	return true, nil
 }
 
-func (m MockAppchainMgr) UpdateAppchain(id, validators string, consensusType, chainType, name, desc, version, pubkey string) (bool, []byte) {
+func (m MockAppchainMgr) UpdateAppchain(id, appchainOwner, docAddr, docHash, validators string, consensusType, chainType, name, desc, version, pubkey string) (bool, []byte) {
 	return true, nil
 }
 

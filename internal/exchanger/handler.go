@@ -5,11 +5,10 @@ import (
 	"fmt"
 	"time"
 
-	rpcx "github.com/meshplus/go-bitxhub-client"
-
 	"github.com/Rican7/retry"
 	"github.com/Rican7/retry/strategy"
 	"github.com/meshplus/bitxhub-model/pb"
+	rpcx "github.com/meshplus/go-bitxhub-client"
 	network "github.com/meshplus/go-lightp2p"
 	"github.com/meshplus/pier/internal/peermgr"
 	peerMsg "github.com/meshplus/pier/internal/peermgr/proto"
@@ -17,12 +16,13 @@ import (
 )
 
 // handleIBTP handle ibtps from bitxhub
-func (ex *Exchanger) handleIBTP(ibtp *pb.IBTP) {
+func (ex *Exchanger) handleIBTP(ibtp *pb.IBTP, entry logrus.FieldLogger) {
 	err := ex.checker.Check(ibtp)
 	if err != nil {
 		// todo: send receipt back to bitxhub
 		return
 	}
+	entry.Debugf("IBTP pass check")
 	if pb.IBTP_ASSET_EXCHANGE_REDEEM == ibtp.Type || pb.IBTP_ASSET_EXCHANGE_REFUND == ibtp.Type {
 		if err := retry.Retry(func(attempt uint) error {
 			if err := ex.fetchSignsToIBTP(ibtp); err != nil {
@@ -42,12 +42,12 @@ func (ex *Exchanger) handleIBTP(ibtp *pb.IBTP) {
 		ex.logger.WithFields(logrus.Fields{"type": ibtp.Type, "id": ibtp.ID()}).Info("Handle ibtp receipt success")
 		return
 	}
-	ex.logger.WithFields(logrus.Fields{"type": ibtp.Type, "id": ibtp.ID()}).Info("Handle ibtp success")
 
 	err = ex.syncer.SendIBTP(receipt)
 	if err != nil {
 		ex.logger.Errorf("send ibtp error:%v", err)
 	}
+	ex.logger.WithFields(logrus.Fields{"type": ibtp.Type, "id": ibtp.ID()}).Info("Handle ibtp success")
 }
 
 func (ex *Exchanger) applyReceipt(ibtp *pb.IBTP, entry logrus.FieldLogger) {
@@ -62,7 +62,7 @@ func (ex *Exchanger) applyReceipt(ibtp *pb.IBTP, entry logrus.FieldLogger) {
 		// todo: need to handle missing ibtp receipt or not?
 		return
 	}
-	ex.handleIBTP(ibtp)
+	ex.handleIBTP(ibtp, entry)
 	ex.callbackCounter[ibtp.To] = ibtp.Index
 }
 
@@ -75,19 +75,18 @@ func (ex *Exchanger) applyInterchain(ibtp *pb.IBTP, entry logrus.FieldLogger) {
 
 	if index+1 < ibtp.Index {
 		entry.Info("Get missing ibtp")
-
 		if err := ex.handleMissingIBTPFromSyncer(ibtp.From, index+1, ibtp.Index); err != nil {
 			entry.WithField("err", err).Error("Handle missing ibtp")
 			return
 		}
 	}
-	ex.handleIBTP(ibtp)
+	ex.handleIBTP(ibtp, entry)
 	ex.executorCounter[ibtp.From] = ibtp.Index
 }
 
 // handleIBTP handle ibtps from bitxhub
 func (ex *Exchanger) handleUnionIBTP(ibtp *pb.IBTP) {
-	if ibtp.To == ex.pierID {
+	if ibtp.To == ex.appchainDID {
 		ex.exec.ExecuteIBTP(ibtp)
 		ex.logger.WithFields(logrus.Fields{
 			"index": ibtp.Index,
@@ -98,7 +97,7 @@ func (ex *Exchanger) handleUnionIBTP(ibtp *pb.IBTP) {
 		return
 	}
 
-	ibtp.From = ex.pierID + "-" + ibtp.From // for inter-relay they're the same
+	ibtp.From = ex.appchainDID + "-" + ibtp.From // for inter-relay they're the same
 	var signs []byte
 	if err := retry.Retry(func(attempt uint) error {
 		var err error
@@ -267,8 +266,8 @@ func (ex *Exchanger) handleGetIBTPMessage(stream network.Stream, msg *peerMsg.Me
 }
 
 func (ex *Exchanger) handleNewConnection(dstPierID string) {
-	pierID := []byte(ex.pierID)
-	msg := peermgr.Message(peerMsg.Message_INTERCHAIN_META_GET, true, pierID)
+	appchainMethod := []byte(ex.appchainDID)
+	msg := peermgr.Message(peerMsg.Message_INTERCHAIN_META_GET, true, appchainMethod)
 
 	indices := &struct {
 		InterchainIndex uint64 `json:"interchain_index"`

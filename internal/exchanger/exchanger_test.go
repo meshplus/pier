@@ -115,7 +115,7 @@ func testNormalStartRelay(t *testing.T) {
 	mockSyncer.EXPECT().GetAssetExchangeSigns(assetTxID).Return(signs, nil).AnyTimes()
 	assetExchangeIBTP := getIBTP(t, 3, pb.IBTP_ASSET_EXCHANGE_REDEEM)
 	assetExchangeIBTP.Extra = []byte(assetTxID)
-	mockExchanger.handleIBTP(assetExchangeIBTP)
+	mockExchanger.handleIBTP(assetExchangeIBTP, log.NewWithModule("exchanger"))
 
 	time.Sleep(500 * time.Microsecond)
 	close(outCh)

@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	"github.com/meshplus/bitxhub-kit/storage"
-	"github.com/meshplus/bitxhub-kit/types"
 	"github.com/meshplus/bitxhub-model/pb"
 	"github.com/meshplus/pier/internal/txcrypto"
 	"github.com/meshplus/pier/pkg/plugins"
@@ -16,29 +15,29 @@ var _ Executor = (*ChannelExecutor)(nil)
 
 // ChannelExecutor represents the necessary data for executing interchain txs in appchain
 type ChannelExecutor struct {
-	client  plugins.Client // the client to interact with appchain
-	storage storage.Storage
-	id      string // appchain id
-	cryptor txcrypto.Cryptor
-	logger  logrus.FieldLogger
-	ctx     context.Context
-	cancel  context.CancelFunc
+	client      plugins.Client // the client to interact with appchain
+	storage     storage.Storage
+	appchainDID string // appchain did
+	cryptor     txcrypto.Cryptor
+	logger      logrus.FieldLogger
+	ctx         context.Context
+	cancel      context.CancelFunc
 }
 
 // New creates new instance of Executor. agent is for interacting with counterpart chain
 // client is for interacting with appchain, meta is for recording interchain tx meta information
 // and ds is for persisting some runtime messages
-func New(client plugins.Client, pierID string, storage storage.Storage, cryptor txcrypto.Cryptor, logger logrus.FieldLogger) (*ChannelExecutor, error) {
+func New(client plugins.Client, appchainDID string, storage storage.Storage, cryptor txcrypto.Cryptor, logger logrus.FieldLogger) (*ChannelExecutor, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	return &ChannelExecutor{
-		client:  client,
-		ctx:     ctx,
-		cancel:  cancel,
-		storage: storage,
-		id:      pierID,
-		cryptor: cryptor,
-		logger:  logger,
+		client:      client,
+		ctx:         ctx,
+		cancel:      cancel,
+		storage:     storage,
+		appchainDID: appchainDID,
+		cryptor:     cryptor,
+		logger:      logger,
 	}, nil
 }
 
@@ -61,11 +60,7 @@ func (e *ChannelExecutor) QueryInterchainMeta() map[string]uint64 {
 	if err != nil {
 		return map[string]uint64{}
 	}
-	checkSumMeta := make(map[string]uint64, len(execMeta))
-	for from, index := range execMeta {
-		checkSumMeta[types.NewAddressByStr(from).String()] = index
-	}
-	return checkSumMeta
+	return execMeta
 }
 
 func (e *ChannelExecutor) QueryCallbackMeta() map[string]uint64 {
@@ -73,11 +68,7 @@ func (e *ChannelExecutor) QueryCallbackMeta() map[string]uint64 {
 	if err != nil {
 		return map[string]uint64{}
 	}
-	checkSumMeta := make(map[string]uint64, len(callbackMeta))
-	for from, index := range callbackMeta {
-		checkSumMeta[types.NewAddressByStr(from).String()] = index
-	}
-	return checkSumMeta
+	return callbackMeta
 }
 
 // getReceipt only generates one receipt given source chain id and interchain tx index

@@ -83,15 +83,15 @@ func NewPier(repoRoot string, config *repo.Config) (*Pier, error) {
 	}
 
 	var (
-		ck          checker.Checker
-		cryptor     txcrypto.Cryptor
-		ex          exchanger.IExchanger
-		lite        lite.Lite
-		pierHA      agency.PierHA
-		sync        syncer.Syncer
-		apiServer   *api.Server
-		meta        *pb.Interchain
-		chain       *rpcx.Appchain
+		ck        checker.Checker
+		cryptor   txcrypto.Cryptor
+		ex        exchanger.IExchanger
+		lite      lite.Lite
+		pierHA    agency.PierHA
+		sync      syncer.Syncer
+		apiServer *api.Server
+		meta      *pb.Interchain
+		//chain       *rpcx.Appchain
 		peerManager peermgr.PeerManager
 	)
 
@@ -107,7 +107,7 @@ func NewPier(repoRoot string, config *repo.Config) (*Pier, error) {
 			return nil, fmt.Errorf("ruleMgr create: %w", err)
 		}
 
-		appchainMgr, err := appchain.NewManager(addr.String(), store, peerManager, loggers.Logger(loggers.AppchainMgr))
+		appchainMgr, err := appchain.NewManager(config.Appchain.DID, store, peerManager, loggers.Logger(loggers.AppchainMgr))
 		if err != nil {
 			return nil, fmt.Errorf("ruleMgr create: %w", err)
 		}
@@ -152,15 +152,15 @@ func NewPier(repoRoot string, config *repo.Config) (*Pier, error) {
 		}
 
 		// agent queries appchain info from bitxhub
-		meta, err = getInterchainMeta(client)
+		meta, err = getInterchainMeta(client, config.Appchain.DID)
 		if err != nil {
 			return nil, err
 		}
 
-		chain, err = getAppchainInfo(client)
-		if err != nil {
-			return nil, err
-		}
+		//chain, err = getAppchainInfo(client)
+		//if err != nil {
+		//	return nil, err
+		//}
 
 		cryptor, err = txcrypto.NewRelayCryptor(client, privateKey)
 		if err != nil {
@@ -172,7 +172,7 @@ func NewPier(repoRoot string, config *repo.Config) (*Pier, error) {
 			return nil, fmt.Errorf("lite create: %w", err)
 		}
 
-		sync, err = syncer.New(addr.String(), repo.RelayMode,
+		sync, err = syncer.New(addr.String(), config.Appchain.DID, repo.RelayMode,
 			syncer.WithClient(client), syncer.WithLite(lite),
 			syncer.WithStorage(store), syncer.WithLogger(loggers.Logger(loggers.Syncer)),
 		)
@@ -183,7 +183,7 @@ func NewPier(repoRoot string, config *repo.Config) (*Pier, error) {
 		if err != nil {
 			return nil, fmt.Errorf("pier ha constructor not found")
 		}
-		pierHA = pierHAConstructor(client, addr.String())
+		pierHA = pierHAConstructor(client, config.Appchain.DID)
 	default:
 		return nil, fmt.Errorf("unsupported mode")
 	}
@@ -197,7 +197,7 @@ func NewPier(repoRoot string, config *repo.Config) (*Pier, error) {
 	var cli plugins.Client
 	var grpcPlugin *plugin.Client
 	err = retry.Retry(func(attempt uint) error {
-		cli, grpcPlugin, err = plugins.CreateClient(addr.String(), config.Appchain, extra)
+		cli, grpcPlugin, err = plugins.CreateClient(config.Appchain.DID, config.Appchain, extra)
 		if err != nil {
 			logger.Errorf("client plugin create:%s", err)
 		}
@@ -212,12 +212,12 @@ func NewPier(repoRoot string, config *repo.Config) (*Pier, error) {
 		return nil, fmt.Errorf("monitor create: %w", err)
 	}
 
-	exec, err := executor.New(cli, addr.String(), store, cryptor, loggers.Logger(loggers.Executor))
+	exec, err := executor.New(cli, config.Appchain.DID, store, cryptor, loggers.Logger(loggers.Executor))
 	if err != nil {
 		return nil, fmt.Errorf("executor create: %w", err)
 	}
 
-	ex, err = exchanger.New(config.Mode.Type, addr.String(), meta,
+	ex, err = exchanger.New(config.Mode.Type, config.Appchain.DID, meta,
 		exchanger.WithChecker(ck),
 		exchanger.WithExecutor(exec),
 		exchanger.WithMonitor(mnt),
@@ -237,18 +237,18 @@ func NewPier(repoRoot string, config *repo.Config) (*Pier, error) {
 		privateKey: privateKey,
 		plugin:     cli,
 		grpcPlugin: grpcPlugin,
-		appchain:   chain,
-		meta:       meta,
-		monitor:    mnt,
-		exchanger:  ex,
-		exec:       exec,
-		lite:       lite,
-		pierHA:     pierHA,
-		logger:     logger,
-		storage:    store,
-		ctx:        ctx,
-		cancel:     cancel,
-		config:     config,
+		//appchain:   chain,
+		meta:      meta,
+		monitor:   mnt,
+		exchanger: ex,
+		exec:      exec,
+		lite:      lite,
+		pierHA:    pierHA,
+		logger:    logger,
+		storage:   store,
+		ctx:       ctx,
+		cancel:    cancel,
+		config:    config,
 	}, nil
 }
 
@@ -273,7 +273,6 @@ func NewUnionPier(repoRoot string, config *repo.Config) (*Pier, error) {
 		lite        lite.Lite
 		sync        syncer.Syncer
 		meta        *pb.Interchain
-		chain       *rpcx.Appchain
 		ck          checker.Checker
 		peerManager peermgr.PeerManager
 	)
@@ -316,7 +315,7 @@ func NewUnionPier(repoRoot string, config *repo.Config) (*Pier, error) {
 		return nil, fmt.Errorf("lite create: %w", err)
 	}
 
-	sync, err = syncer.New(addr.String(), repo.UnionMode,
+	sync, err = syncer.New(addr.String(), config.Appchain.DID, repo.UnionMode,
 		syncer.WithClient(client), syncer.WithLite(lite), syncer.WithStorage(store), syncer.WithLogger(loggers.Logger(loggers.Syncer)),
 	)
 	if err != nil {
@@ -348,7 +347,6 @@ func NewUnionPier(repoRoot string, config *repo.Config) (*Pier, error) {
 
 	return &Pier{
 		privateKey: privateKey,
-		appchain:   chain,
 		meta:       meta,
 		exchanger:  ex,
 		exec:       exec,

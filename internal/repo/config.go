@@ -104,6 +104,7 @@ type LogModule struct {
 
 // Appchain are configs about appchain
 type Appchain struct {
+	DID    string `toml:"did" json:"did"`
 	Config string `toml:"config" json:"config"`
 	Plugin string `toml:"plugin" json:"plugin"`
 }
@@ -165,6 +166,7 @@ func DefaultConfig() *Config {
 			Mode: "single",
 		},
 		Appchain: Appchain{
+			DID:    "did:bitxhub:appchain:.",
 			Plugin: "appchain_plugin",
 			Config: "fabric",
 		},

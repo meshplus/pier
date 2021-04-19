@@ -23,6 +23,7 @@ var ruleCMD = cli.Command{
 					Usage:    "Specific rule path",
 					Required: true,
 				},
+				methodFlag,
 			},
 			Action: deployRule,
 		},
@@ -31,6 +32,7 @@ var ruleCMD = cli.Command{
 
 func deployRule(ctx *cli.Context) error {
 	rulePath := ctx.String("path")
+	method := ctx.String("method")
 
 	repoRoot, err := repo.PathRootWithDefault(ctx.GlobalString("repo"))
 	if err != nil {
@@ -52,30 +54,21 @@ func deployRule(ctx *cli.Context) error {
 		return err
 	}
 
-	privateKey, err := repo.LoadPrivateKey(repoRoot)
-	if err != nil {
-		return fmt.Errorf("repo load key: %w", err)
-	}
-
-	address, err := privateKey.PublicKey().Address()
-	if err != nil {
-		return fmt.Errorf("get address from private key %w", err)
-	}
-
 	contractAddr, err := client.DeployContract(contract, nil)
 	if err != nil {
 		return fmt.Errorf("deploy rule: %w", err)
 	}
 
+	appchainMethod := fmt.Sprintf("%s:%s:.", bitxhubRootPrefix, method)
 	receipt, err := client.InvokeBVMContract(
 		constant.RuleManagerContractAddr.Address(),
 		"RegisterRule", nil,
-		rpcx.String(address.String()),
-		rpcx.String(contractAddr.String()))
+		rpcx.String(appchainMethod), rpcx.String(contractAddr.String()))
 	if err != nil {
 		return fmt.Errorf("register rule")
 	}
 
+	fmt.Printf("Deploy rule for appchain %s to bitxhub successfully", method)
 	if !receipt.IsSuccess() {
 		fmt.Println("Deploy rule to bitxhub error: " + string(receipt.Ret))
 	} else {

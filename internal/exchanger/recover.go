@@ -64,7 +64,7 @@ func (ex *Exchanger) handleMissingIBTPFromMnt(to string, begin, end uint64) erro
 			"index": begin,
 		}).Info("Get missing event from contract")
 
-		ibtp, err := ex.mnt.QueryIBTP(fmt.Sprintf("%s-%s-%d", ex.pierID, to, begin))
+		ibtp, err := ex.mnt.QueryIBTP(fmt.Sprintf("%s-%s-%d", ex.appchainDID, to, begin))
 		if err != nil {
 			return fmt.Errorf("fetch ibtp:%w", err)
 		}
@@ -88,12 +88,12 @@ func (ex *Exchanger) handleMissingIBTPFromSyncer(from string, begin, end uint64)
 			"index": begin,
 		}).Info("Get missing event from bitxhub")
 
-		ibtp, err := ex.syncer.QueryIBTP(fmt.Sprintf("%s-%s-%d", from, ex.pierID, begin))
+		ibtp, err := ex.syncer.QueryIBTP(fmt.Sprintf("%s-%s-%d", from, ex.appchainDID, begin))
 		if err != nil {
 			return fmt.Errorf("fetch ibtp:%w", err)
 		}
-
-		ex.handleIBTP(ibtp)
+		entry := ex.logger.WithFields(logrus.Fields{"type": ibtp.Type, "id": ibtp.ID()})
+		ex.handleIBTP(ibtp, entry)
 		ex.executorCounter[ibtp.From] = ibtp.Index
 	}
 
