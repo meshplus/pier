@@ -8,6 +8,7 @@ import (
 
 	"github.com/Rican7/retry"
 	"github.com/Rican7/retry/strategy"
+	appchainmgr "github.com/meshplus/bitxhub-core/appchain-mgr"
 	"github.com/meshplus/bitxhub-model/constant"
 	"github.com/meshplus/bitxhub-model/pb"
 	rpcx "github.com/meshplus/go-bitxhub-client"
@@ -52,7 +53,7 @@ func (syncer *WrapperSyncer) GetIBTPSigns(ibtp *pb.IBTP) ([]byte, error) {
 	return signs, nil
 }
 
-func (syncer *WrapperSyncer) GetAppchains() ([]*rpcx.Appchain, error) {
+func (syncer *WrapperSyncer) GetAppchains() ([]*appchainmgr.Appchain, error) {
 	tx, err := syncer.client.GenerateContractTx(pb.TransactionData_BVM, constant.AppchainMgrContractAddr.Address(), "Appchains")
 	if err != nil {
 		return nil, err
@@ -69,14 +70,14 @@ func (syncer *WrapperSyncer) GetAppchains() ([]*rpcx.Appchain, error) {
 		panic(err)
 	}
 
-	ret := make([]*rpcx.Appchain, 0)
+	ret := make([]*appchainmgr.Appchain, 0)
 	if receipt == nil || receipt.Ret == nil {
 		return ret, nil
 	}
 	if err := json.Unmarshal(receipt.Ret, &ret); err != nil {
 		return nil, err
 	}
-	appchains := make([]*rpcx.Appchain, 0)
+	appchains := make([]*appchainmgr.Appchain, 0)
 	for _, appchain := range ret {
 		if appchain.ChainType != repo.BitxhubType {
 			appchains = append(appchains, appchain)

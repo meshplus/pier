@@ -11,6 +11,7 @@ import (
 	"github.com/Rican7/retry/strategy"
 	"github.com/hashicorp/go-plugin"
 	"github.com/meshplus/bitxhub-core/agency"
+	appchainmgr "github.com/meshplus/bitxhub-core/appchain-mgr"
 	"github.com/meshplus/bitxhub-kit/crypto"
 	"github.com/meshplus/bitxhub-kit/storage"
 	"github.com/meshplus/bitxhub-kit/storage/leveldb"
@@ -53,7 +54,7 @@ type Pier struct {
 	exchanger  exchanger.IExchanger
 	ctx        context.Context
 	cancel     context.CancelFunc
-	appchain   *rpcx.Appchain
+	appchain   *appchainmgr.Appchain
 	meta       *pb.Interchain
 	config     *repo.Config
 	logger     logrus.FieldLogger
@@ -91,7 +92,7 @@ func NewPier(repoRoot string, config *repo.Config) (*Pier, error) {
 		sync      syncer.Syncer
 		apiServer *api.Server
 		meta      *pb.Interchain
-		//chain       *rpcx.Appchain
+		//chain       *appchainmgr.Appchain
 		peerManager peermgr.PeerManager
 	)
 

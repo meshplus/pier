@@ -11,6 +11,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/meshplus/bitxhub-core/governance"
+
 	"github.com/cbergoon/merkletree"
 	"github.com/golang/mock/gomock"
 	appchainmgr "github.com/meshplus/bitxhub-core/appchain-mgr"
@@ -393,15 +395,15 @@ func TestGetAppchains(t *testing.T) {
 	defer syncer.storage.Close()
 
 	// set up return metaReceipt
-	chainInfo := &rpcx.Appchain{
+	chainInfo := &appchainmgr.Appchain{
 		ID:            from,
 		Name:          "fabric",
 		Validators:    "fabric",
 		ConsensusType: "rbft",
-		Status:        appchainmgr.AppchainAvailable,
+		Status:        governance.GovernanceAvailable,
 		ChainType:     "fabric",
 	}
-	originalChainsInfo := []*rpcx.Appchain{chainInfo, chainInfo}
+	originalChainsInfo := []*appchainmgr.Appchain{chainInfo, chainInfo}
 	info, err := json.Marshal(originalChainsInfo)
 	require.Nil(t, err)
 

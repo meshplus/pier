@@ -40,6 +40,7 @@ func main() {
 		ruleCMD,
 		startCMD,
 		versionCMD,
+		governanceCMD,
 	}
 
 	err := app.Run(os.Args)

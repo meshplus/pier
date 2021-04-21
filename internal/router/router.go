@@ -1,8 +1,8 @@
 package router
 
 import (
+	appchainmgr "github.com/meshplus/bitxhub-core/appchain-mgr"
 	"github.com/meshplus/bitxhub-model/pb"
-	rpcx "github.com/meshplus/go-bitxhub-client"
 )
 
 //go:generate mockgen -destination mock_router/mock_router.go -package mock_router -source router.go
@@ -23,5 +23,5 @@ type Router interface {
 	ExistAppchain(id string) bool
 
 	//AddAppchains adds appchains to route map and broadcast them to union network
-	AddAppchains(appchains []*rpcx.Appchain) error
+	AddAppchains(appchains []*appchainmgr.Appchain) error
 }

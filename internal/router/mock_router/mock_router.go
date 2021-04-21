@@ -6,8 +6,8 @@ package mock_router
 
 import (
 	gomock "github.com/golang/mock/gomock"
+	appchain_mgr "github.com/meshplus/bitxhub-core/appchain-mgr"
 	pb "github.com/meshplus/bitxhub-model/pb"
-	rpcx "github.com/meshplus/go-bitxhub-client"
 	reflect "reflect"
 )
 
@@ -105,7 +105,7 @@ func (mr *MockRouterMockRecorder) ExistAppchain(id interface{}) *gomock.Call {
 }
 
 // AddAppchains mocks base method
-func (m *MockRouter) AddAppchains(appchains []*rpcx.Appchain) error {
+func (m *MockRouter) AddAppchains(appchains []*appchain_mgr.Appchain) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "AddAppchains", appchains)
 	ret0, _ := ret[0].(error)

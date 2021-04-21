@@ -94,11 +94,7 @@ func registerMethod(ctx *cli.Context) error {
 	}
 
 	// get repo public key
-	repoRoot, err := repo.PathRootWithDefault(ctx.GlobalString("repo"))
-	if err != nil {
-		return err
-	}
-	pubKey, err := getPubKey(repo.KeyPath(repoRoot))
+	pubKey, err := getPubKey(chainAdminKeyPath)
 	if err != nil {
 		return fmt.Errorf("get public key: %w", err)
 	}

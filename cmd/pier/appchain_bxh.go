@@ -34,6 +34,22 @@ var appchainBxhCMD = cli.Command{
 			Name:  "update",
 			Usage: "update appchain in bitxhub",
 			Flags: []cli.Flag{
+				adminKeyPathFlag,
+				cli.StringFlag{
+					Name:     "id",
+					Usage:    "Specify appchain id(did)",
+					Required: true,
+				},
+				cli.StringFlag{
+					Name:     "doc-addr",
+					Usage:    "Specify appchain did doc addr",
+					Required: false,
+				},
+				cli.StringFlag{
+					Name:     "doc-hash",
+					Usage:    "Specify appchain did doc hash",
+					Required: false,
+				},
 				cli.StringFlag{
 					Name:     "name",
 					Usage:    "Specify appchain name",
@@ -60,36 +76,63 @@ var appchainBxhCMD = cli.Command{
 					Required: false,
 				},
 				cli.StringFlag{
-					Name:     "consensusType",
+					Name:     "consensus-type",
 					Usage:    "Specify appchain consensus type",
-					Required: false,
-				},
-				cli.StringFlag{
-					Name:     "addr",
-					Usage:    "Specify bitxhub node address",
 					Required: false,
 				},
 			},
 			Action: updateAppchain,
 		},
 		{
-			Name:   "freeze",
-			Usage:  "freeze appchain in bitxhub",
+			Name:  "freeze",
+			Usage: "freeze appchain in bitxhub",
+			Flags: []cli.Flag{
+				adminKeyPathFlag,
+				cli.StringFlag{
+					Name:     "id",
+					Usage:    "Specify appchain id(did)",
+					Required: true,
+				},
+			},
 			Action: freezeAppchain,
 		},
 		{
-			Name:   "activate",
-			Usage:  "activate appchain in bitxhub",
+			Name:  "activate",
+			Usage: "activate appchain in bitxhub",
+			Flags: []cli.Flag{
+				adminKeyPathFlag,
+				cli.StringFlag{
+					Name:     "id",
+					Usage:    "Specify appchain id(did)",
+					Required: true,
+				},
+			},
 			Action: activateAppchain,
 		},
 		{
-			Name:   "logout",
-			Usage:  "logout appchain in bitxhub",
+			Name:  "logout",
+			Usage: "logout appchain in bitxhub",
+			Flags: []cli.Flag{
+				adminKeyPathFlag,
+				cli.StringFlag{
+					Name:     "id",
+					Usage:    "Specify appchain id(did)",
+					Required: true,
+				},
+			},
 			Action: logoutAppchain,
 		},
 		{
-			Name:   "get",
-			Usage:  "Get appchain info",
+			Name:  "get",
+			Usage: "Get appchain info",
+			Flags: []cli.Flag{
+				adminKeyPathFlag,
+				cli.StringFlag{
+					Name:     "id",
+					Usage:    "Specify appchain id(did)",
+					Required: true,
+				},
+			},
 			Action: getAppchain,
 		},
 	},
@@ -101,36 +144,25 @@ func registerPier(ctx *cli.Context) error {
 }
 
 func updateAppchain(ctx *cli.Context) error {
+	chainAdminKeyPath := ctx.String("admin-key")
+	id := ctx.String("id")
+	docAddr := ctx.String("doc-addr")
+	docHash := ctx.String("doc-hash")
 	name := ctx.String("name")
 	typ := ctx.String("type")
 	desc := ctx.String("desc")
 	version := ctx.String("version")
 	validatorsPath := ctx.String("validators")
-	consensusType := ctx.String("consensusType")
-	bxhAddr := ctx.String("addr")
+	consensusType := ctx.String("consensus-type")
 
-	repoRoot, err := repo.PathRootWithDefault(ctx.GlobalString("repo"))
+	client, _, err := initClientWithKeyPath(ctx, chainAdminKeyPath)
 	if err != nil {
-		return err
-	}
-
-	config, err := repo.UnmarshalConfig(repoRoot)
-	if err != nil {
-		return fmt.Errorf("init config error: %s", err)
-	}
-
-	bxhAddrs := []string{bxhAddr}
-	if bxhAddr == "" {
-		bxhAddrs = config.Mode.Relay.Addrs
-	}
-	client, err := loadClient(repo.KeyPath(repoRoot), bxhAddrs, ctx)
-	if err != nil {
-		return fmt.Errorf("load client: %w", err)
+		return fmt.Errorf("init client: %w", err)
 	}
 
 	receipt, err := client.InvokeBVMContract(
 		constant.AppchainMgrContractAddr.Address(),
-		"Appchain", nil,
+		"GetAppchain", nil, rpcx.String(id),
 	)
 	if err != nil {
 		return err
@@ -143,6 +175,12 @@ func updateAppchain(ctx *cli.Context) error {
 	appchainInfo := appchainmgr.Appchain{}
 	if err = json.Unmarshal(receipt.Ret, &appchainInfo); err != nil {
 		return err
+	}
+	if docAddr == "" {
+		docAddr = appchainInfo.DidDocAddr
+	}
+	if docHash == "" {
+		docHash = appchainInfo.DidDocHash
 	}
 	if name == "" {
 		name = appchainInfo.Name
@@ -170,14 +208,18 @@ func updateAppchain(ctx *cli.Context) error {
 		consensusType = appchainInfo.ConsensusType
 	}
 
-	pubKey, err := getPubKey(repo.KeyPath(repoRoot))
+	pubKey, err := getPubKey(chainAdminKeyPath)
 	if err != nil {
 		return fmt.Errorf("get public key: %w", err)
 	}
 
 	receipt, err = client.InvokeBVMContract(
 		constant.AppchainMgrContractAddr.Address(),
-		"UpdateAppchain", nil, rpcx.String(validators),
+		"UpdateAppchain", nil,
+		rpcx.String(id),
+		rpcx.String(docAddr),
+		rpcx.String(docHash),
+		rpcx.String(validators),
 		rpcx.String(consensusType),
 		rpcx.String(typ),
 		rpcx.String(name),
@@ -199,29 +241,17 @@ func updateAppchain(ctx *cli.Context) error {
 }
 
 func freezeAppchain(ctx *cli.Context) error {
-	repoRoot, err := repo.PathRootWithDefault(ctx.GlobalString("repo"))
-	if err != nil {
-		return err
-	}
+	chainAdminKeyPath := ctx.String("admin-key")
+	id := ctx.String("id")
 
-	config, err := repo.UnmarshalConfig(repoRoot)
-	if err != nil {
-		return fmt.Errorf("init config error: %s", err)
-	}
-
-	client, err := loadClient(repo.KeyPath(repoRoot), config.Mode.Relay.Addrs, ctx)
+	client, _, err := initClientWithKeyPath(ctx, chainAdminKeyPath)
 	if err != nil {
 		return fmt.Errorf("load client: %w", err)
 	}
 
-	addr, err := getAddr(repo.KeyPath(repoRoot))
-	if err != nil {
-		return fmt.Errorf("get address error: %w", err)
-	}
-
 	receipt, err := client.InvokeBVMContract(
 		constant.AppchainMgrContractAddr.Address(),
-		"FreezeAppchain", nil, rpcx.String(addr),
+		"FreezeAppchain", nil, rpcx.String(id),
 	)
 	if err != nil {
 		return fmt.Errorf("invoke bvm contract: %w", err)
@@ -237,29 +267,17 @@ func freezeAppchain(ctx *cli.Context) error {
 }
 
 func activateAppchain(ctx *cli.Context) error {
-	repoRoot, err := repo.PathRootWithDefault(ctx.GlobalString("repo"))
-	if err != nil {
-		return err
-	}
+	chainAdminKeyPath := ctx.String("admin-key")
+	id := ctx.String("id")
 
-	config, err := repo.UnmarshalConfig(repoRoot)
-	if err != nil {
-		return fmt.Errorf("init config error: %s", err)
-	}
-
-	client, err := loadClient(repo.KeyPath(repoRoot), config.Mode.Relay.Addrs, ctx)
+	client, _, err := initClientWithKeyPath(ctx, chainAdminKeyPath)
 	if err != nil {
 		return fmt.Errorf("load client: %w", err)
 	}
 
-	addr, err := getAddr(repo.KeyPath(repoRoot))
-	if err != nil {
-		return fmt.Errorf("get address error: %w", err)
-	}
-
 	receipt, err := client.InvokeBVMContract(
 		constant.AppchainMgrContractAddr.Address(),
-		"ActivateAppchain", nil, rpcx.String(addr),
+		"ActivateAppchain", nil, rpcx.String(id),
 	)
 	if err != nil {
 		return fmt.Errorf("invoke bvm contract: %w", err)
@@ -275,24 +293,17 @@ func activateAppchain(ctx *cli.Context) error {
 }
 
 func logoutAppchain(ctx *cli.Context) error {
-	repoRoot, err := repo.PathRootWithDefault(ctx.GlobalString("repo"))
-	if err != nil {
-		return err
-	}
+	chainAdminKeyPath := ctx.String("admin-key")
+	id := ctx.String("id")
 
-	config, err := repo.UnmarshalConfig(repoRoot)
-	if err != nil {
-		return fmt.Errorf("init config error: %s", err)
-	}
-
-	client, err := loadClient(repo.KeyPath(repoRoot), config.Mode.Relay.Addrs, ctx)
+	client, _, err := initClientWithKeyPath(ctx, chainAdminKeyPath)
 	if err != nil {
 		return fmt.Errorf("load client: %w", err)
 	}
 
 	receipt, err := client.InvokeBVMContract(
 		constant.AppchainMgrContractAddr.Address(),
-		"LogoutAppchain", nil,
+		"LogoutAppchain", nil, rpcx.String(id),
 	)
 	if err != nil {
 		return fmt.Errorf("invoke bvm contract: %w", err)
@@ -308,24 +319,17 @@ func logoutAppchain(ctx *cli.Context) error {
 }
 
 func getAppchain(ctx *cli.Context) error {
-	repoRoot, err := repo.PathRootWithDefault(ctx.GlobalString("repo"))
-	if err != nil {
-		return err
-	}
+	chainAdminKeyPath := ctx.String("admin-key")
+	id := ctx.String("id")
 
-	config, err := repo.UnmarshalConfig(repoRoot)
-	if err != nil {
-		return fmt.Errorf("init config error: %s", err)
-	}
-
-	client, err := loadClient(repo.KeyPath(repoRoot), config.Mode.Relay.Addrs, ctx)
+	client, _, err := initClientWithKeyPath(ctx, chainAdminKeyPath)
 	if err != nil {
 		return fmt.Errorf("load client: %w", err)
 	}
 
 	receipt, err := client.InvokeBVMContract(
 		constant.AppchainMgrContractAddr.Address(),
-		"Appchain", nil,
+		"GetAppchain", nil, rpcx.String(id),
 	)
 
 	if err != nil {
