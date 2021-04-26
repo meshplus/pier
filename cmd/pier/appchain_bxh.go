@@ -11,6 +11,7 @@ import (
 	"github.com/meshplus/bitxhub-kit/crypto/asym"
 	"github.com/meshplus/bitxhub-kit/hexutil"
 	"github.com/meshplus/bitxhub-model/constant"
+	"github.com/meshplus/bitxhub-model/pb"
 	rpcx "github.com/meshplus/go-bitxhub-client"
 	"github.com/meshplus/pier/internal/repo"
 	"github.com/urfave/cli"
@@ -325,9 +326,8 @@ func getAppchain(ctx *cli.Context) error {
 
 	receipt, err := client.InvokeBVMContract(
 		constant.AppchainMgrContractAddr.Address(),
-		"Appchain", nil,
+		"GetAppchain", nil, pb.String(config.Appchain.DID),
 	)
-
 	if err != nil {
 		return err
 	}
