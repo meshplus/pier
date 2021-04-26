@@ -64,10 +64,10 @@ func (mr *MockSyncerMockRecorder) Stop() *gomock.Call {
 }
 
 // QueryInterchainMeta mocks base method
-func (m *MockSyncer) QueryInterchainMeta() map[string]uint64 {
+func (m *MockSyncer) QueryInterchainMeta() *pb.Interchain {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "QueryInterchainMeta")
-	ret0, _ := ret[0].(map[string]uint64)
+	ret0, _ := ret[0].(*pb.Interchain)
 	return ret0
 }
 

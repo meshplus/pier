@@ -194,7 +194,7 @@ func (ex *Exchanger) listenAndSendIBTPFromMnt() {
 			index := ex.interchainCounter[ibtp.To]
 			if index >= ibtp.Index {
 				ex.logger.WithFields(logrus.Fields{"index": ibtp.Index, "to_counter": index, "ibtp_id": ibtp.ID()}).Info("Ignore ibtp")
-				return
+				continue
 			}
 
 			if index+1 < ibtp.Index {
@@ -205,10 +205,25 @@ func (ex *Exchanger) listenAndSendIBTPFromMnt() {
 				}
 			}
 
-			ex.interchainCounter[ibtp.To] = ibtp.Index
-
-			if err := ex.sendIBTP(ibtp); err != nil {
-				ex.logger.Infof("Send ibtp: %s", err.Error())
+			if err := retry.Retry(func(attempt uint) error {
+				if err := ex.sendIBTP(ibtp); err != nil {
+					ex.logger.Errorf("Send ibtp: %s", err.Error())
+					// if err occurs, try to get new ibtp and resend
+					if err := retry.Retry(func(attempt uint) error {
+						ibtp, err = ex.mnt.QueryIBTP(ibtp.ID())
+						if err != nil {
+							return err
+						}
+						return nil
+					}, strategy.Wait(500*time.Millisecond)); err != nil {
+						ex.logger.Panic(err)
+					}
+					return nil
+				}
+				ex.interchainCounter[ibtp.To] = ibtp.Index
+				return nil
+			}, strategy.Wait(500*time.Millisecond)); err != nil {
+				ex.logger.Panic(err)
 			}
 		}
 	}
@@ -282,6 +297,10 @@ func (ex *Exchanger) sendIBTP(ibtp *pb.IBTP) error {
 		err := ex.syncer.SendIBTP(ibtp)
 		if err != nil {
 			entry.Errorf("send ibtp to bitxhub: %s", err.Error())
+			if errors.Is(err, syncer.ErrMetaOutOfDate) {
+				ex.updateInterchainMeta()
+				return nil
+			}
 			return fmt.Errorf("send ibtp to bitxhub: %s", err.Error())
 		}
 	case repo.DirectMode:

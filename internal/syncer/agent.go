@@ -3,8 +3,12 @@ package syncer
 import (
 	"crypto/sha256"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"strings"
 	"time"
+
+	"github.com/sirupsen/logrus"
 
 	"github.com/Rican7/retry"
 	"github.com/Rican7/retry/strategy"
@@ -14,7 +18,18 @@ import (
 	"github.com/meshplus/pier/internal/repo"
 )
 
-var ErrIBTPNotFound = fmt.Errorf("receipt from bitxhub failed")
+const (
+	appchainNotAvailable = "appchain not available"
+	invalidIBTP          = "invalid ibtp"
+	ibtpIndexExist       = "index already exists"
+	ibtpIndexWrong       = "wrong index"
+	noBindRule           = "appchain didn't register rule"
+)
+
+var (
+	ErrIBTPNotFound  = fmt.Errorf("receipt from bitxhub failed")
+	ErrMetaOutOfDate = fmt.Errorf("interchain meta is out of date")
+)
 
 func (syncer *WrapperSyncer) GetAssetExchangeSigns(id string) ([]byte, error) {
 	resp, err := syncer.client.GetMultiSigns(id, pb.GetMultiSignsRequest_ASSET_EXCHANGE)
@@ -103,8 +118,8 @@ func (syncer *WrapperSyncer) GetInterchainById(from string) *pb.Interchain {
 	return &interchain
 }
 
-func (syncer *WrapperSyncer) QueryInterchainMeta() map[string]uint64 {
-	interchainCounter := map[string]uint64{}
+func (syncer *WrapperSyncer) QueryInterchainMeta() *pb.Interchain {
+	var interchainMeta *pb.Interchain
 	if err := syncer.retryFunc(func(attempt uint) error {
 		queryTx, err := syncer.client.GenerateContractTx(pb.TransactionData_BVM,
 			constant.InterchainContractAddr.Address(), "Interchain")
@@ -123,13 +138,13 @@ func (syncer *WrapperSyncer) QueryInterchainMeta() map[string]uint64 {
 		if err := ret.Unmarshal(receipt.Ret); err != nil {
 			return fmt.Errorf("unmarshal interchain meta from bitxhub: %w", err)
 		}
-		interchainCounter = ret.InterchainCounter
+		interchainMeta = ret
 		return nil
 	}); err != nil {
 		syncer.logger.Panicf("query interchain meta: %s", err.Error())
 	}
 
-	return interchainCounter
+	return interchainMeta
 }
 
 func (syncer *WrapperSyncer) QueryIBTP(ibtpID string) (*pb.IBTP, error) {
@@ -164,32 +179,55 @@ func (syncer *WrapperSyncer) SendIBTP(ibtp *pb.IBTP) error {
 	proofHash := sha256.Sum256(proof)
 	ibtp.Proof = proofHash[:]
 
-	tx, err := syncer.client.GenerateIBTPTx(ibtp)
-	if err != nil {
-		return fmt.Errorf("generate ibtp tx error:%v", err)
-	}
+	tx, _ := syncer.client.GenerateIBTPTx(ibtp)
 	tx.Extra = proof
+
+	var receipt *pb.Receipt
 	syncer.retryFunc(func(attempt uint) error {
-		receipt, err := syncer.client.SendTransactionWithReceipt(tx, nil)
+		hash, err := syncer.client.SendTransaction(tx, nil)
 		if err != nil {
-			syncer.logger.Errorf("Send ibtp error: ", err.Error())
-			// query if this ibtp is on chain
-			_, err = syncer.QueryIBTP(ibtp.ID())
-			if err != nil {
+			syncer.logger.Errorf("Send ibtp error: %s", err.Error())
+			if errors.Is(err, rpcx.ErrRecoverable) {
 				return err
 			}
-			// if this ibtp index is on chain, no need to resend this ibtp
-			return nil
-		}
-		if !receipt.IsSuccess() {
-			tx, err = syncer.client.GenerateIBTPTx(ibtp)
-			if err != nil {
-				return fmt.Errorf("generate ibtp tx error:%v", err)
+			if errors.Is(err, rpcx.ErrReconstruct) {
+				tx, _ = syncer.client.GenerateIBTPTx(ibtp)
+				return err
 			}
-			return fmt.Errorf("receipt failed for :%s", receipt.Ret)
+		}
+		receipt, err = syncer.client.GetReceipt(hash)
+		if err != nil {
+			return fmt.Errorf("get tx receipt by hash %s: %w", hash, err)
 		}
 		return nil
 	})
+
+	if !receipt.IsSuccess() {
+		syncer.logger.WithFields(logrus.Fields{
+			"ibtp_id": ibtp.ID(),
+			"msg":     string(receipt.Ret),
+		}).Error("Receipt result for ibtp")
+		// if no rule bind for this appchain or appchain not available, exit pier
+		errMsg := string(receipt.Ret)
+		if strings.Contains(errMsg, noBindRule) ||
+			strings.Contains(errMsg, appchainNotAvailable) {
+			syncer.logger.Panicf("Unrecoverable error: %s occurred, please try to solve it and restart pier", string(receipt.Ret))
+		}
+		if strings.Contains(errMsg, ibtpIndexExist) {
+			// if ibtp index is lower than index recorded on bitxhub, then ignore this ibtp
+			return nil
+		}
+		if strings.Contains(errMsg, ibtpIndexWrong) {
+			// if index is wrong ,notify exchanger to update its meta from bitxhub
+			return ErrMetaOutOfDate
+		}
+		if strings.Contains(errMsg, invalidIBTP) {
+			// if this ibtp structure is not compatible or verify failed
+			// try to get new ibtp and resend
+			return fmt.Errorf("invalid ibtp %s", ibtp.ID())
+		}
+		return fmt.Errorf("unknown error, retry for %s anyway", ibtp.ID())
+	}
 	return nil
 }
 
