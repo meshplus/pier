@@ -14,6 +14,7 @@ import (
 	crypto2 "github.com/libp2p/go-libp2p-core/crypto"
 	peer2 "github.com/libp2p/go-libp2p-core/peer"
 	appchainmgr "github.com/meshplus/bitxhub-core/appchain-mgr"
+	"github.com/meshplus/bitxhub-core/governance"
 	"github.com/meshplus/bitxhub-kit/crypto"
 	"github.com/meshplus/bitxhub-kit/crypto/asym"
 	ecdsa2 "github.com/meshplus/bitxhub-kit/crypto/asym/ecdsa"
@@ -21,7 +22,6 @@ import (
 	"github.com/meshplus/bitxhub-kit/storage"
 	"github.com/meshplus/bitxhub-kit/storage/leveldb"
 	"github.com/meshplus/bitxhub-model/pb"
-	rpcx "github.com/meshplus/go-bitxhub-client"
 	network "github.com/meshplus/go-lightp2p"
 	"github.com/meshplus/pier/api"
 	"github.com/meshplus/pier/internal/appchain"
@@ -557,12 +557,12 @@ func testUnionMode(pierID string, t *testing.T) {
 		SourceReceiptCounter: map[string]uint64{pierID: 1},
 	}
 	signs := []byte("signs for ibtp in bitxhub")
-	appchains := []*rpcx.Appchain{
+	appchains := []*appchainmgr.Appchain{
 		{
 			ID:         pierID,
 			Name:       "hpc",
 			Validators: "validator for hpc",
-			Status:     appchainmgr.AppchainAvailable,
+			Status:     governance.GovernanceAvailable,
 			ChainType:  "hyperchain",
 			Desc:       "appchain for test",
 			PublicKey:  "",

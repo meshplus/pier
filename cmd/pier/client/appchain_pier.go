@@ -31,7 +31,7 @@ var clientCMD = cli.Command{
 			Usage: "Register appchain in pier",
 			Flags: []cli.Flag{
 				cli.StringFlag{
-					Name:     "pier_id",
+					Name:     "pier-id",
 					Usage:    "Specify target pier id",
 					Required: true,
 				},
@@ -61,7 +61,7 @@ var clientCMD = cli.Command{
 					Required: true,
 				},
 				cli.StringFlag{
-					Name:     "consensusType",
+					Name:     "consensus-type",
 					Usage:    "Specify appchain consensus type",
 					Required: true,
 				},
@@ -73,7 +73,7 @@ var clientCMD = cli.Command{
 			Usage: "Update appchain in pier",
 			Flags: []cli.Flag{
 				cli.StringFlag{
-					Name:     "pier_id",
+					Name:     "pier-id",
 					Usage:    "Specify target pier id",
 					Required: false,
 				},
@@ -103,7 +103,7 @@ var clientCMD = cli.Command{
 					Required: false,
 				},
 				cli.StringFlag{
-					Name:     "consensusType",
+					Name:     "consensus-type",
 					Usage:    "Specify appchain consensus type",
 					Required: false,
 				},
@@ -120,7 +120,7 @@ var clientCMD = cli.Command{
 					Required: true,
 				},
 				cli.StringFlag{
-					Name:     "isApproved",
+					Name:     "is-approved",
 					Usage:    "Specific approved signal",
 					Required: true,
 				},
@@ -137,7 +137,7 @@ var clientCMD = cli.Command{
 			Usage: "Get appchain info",
 			Flags: []cli.Flag{
 				cli.StringFlag{
-					Name:     "pier_id",
+					Name:     "pier-id",
 					Usage:    "Specific target pier id",
 					Required: true,
 				},
@@ -154,7 +154,7 @@ var clientCMD = cli.Command{
 					Required: true,
 				},
 				cli.StringFlag{
-					Name:     "pier_id",
+					Name:     "pier-id",
 					Usage:    "Specific target pier id",
 					Required: true,
 				},
@@ -178,7 +178,7 @@ func updatePierAppchain(ctx *cli.Context) error {
 
 func auditPierAppchain(ctx *cli.Context) error {
 	id := ctx.String("id")
-	isApproved := ctx.String("isApproved")
+	isApproved := ctx.String("is-approved")
 	desc := ctx.String("desc")
 
 	ia, err := strconv.ParseInt(isApproved, 0, 64)
@@ -211,13 +211,13 @@ func auditPierAppchain(ctx *cli.Context) error {
 }
 
 func savePierAppchain(ctx *cli.Context, path string) error {
-	pier := ctx.String("pier_id")
+	pier := ctx.String("pier-id")
 	name := ctx.String("name")
 	typ := ctx.String("type")
 	desc := ctx.String("desc")
 	version := ctx.String("version")
 	validatorsPath := ctx.String("validators")
-	consensusType := ctx.String("consensusType")
+	consensusType := ctx.String("consensus-type")
 
 	url, err := getURL(ctx, fmt.Sprintf("%s?pier_id=%s", path, pier))
 	if err != nil {
@@ -300,7 +300,7 @@ func savePierAppchain(ctx *cli.Context, path string) error {
 }
 
 func getPierAppchain(ctx *cli.Context) error {
-	targetPierID := ctx.String("pier_id")
+	targetPierID := ctx.String("pier-id")
 
 	url, err := getURL(ctx, fmt.Sprintf("%s?pier_id=%s", GetAppchainUrl, targetPierID))
 	if err != nil {
@@ -326,7 +326,7 @@ func getPubKey(keyPath string) (crypto.PublicKey, error) {
 
 func registerAppchainRule(ctx *cli.Context) error {
 	path := ctx.String("path")
-	pier := ctx.String("pier_id")
+	pier := ctx.String("pier-id")
 
 	data, err := ioutil.ReadFile(path)
 	if err != nil {

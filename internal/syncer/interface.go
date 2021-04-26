@@ -1,6 +1,7 @@
 package syncer
 
 import (
+	appchainmgr "github.com/meshplus/bitxhub-core/appchain-mgr"
 	"github.com/meshplus/bitxhub-model/pb"
 	rpcx "github.com/meshplus/go-bitxhub-client"
 )
@@ -39,7 +40,7 @@ type Syncer interface {
 	GetIBTPSigns(ibtp *pb.IBTP) ([]byte, error)
 
 	//GetAppchains gets appchains from bitxhub node
-	GetAppchains() ([]*rpcx.Appchain, error)
+	GetAppchains() ([]*appchainmgr.Appchain, error)
 
 	//GetInterchainById gets interchain meta by appchain id
 	GetInterchainById(from string) *pb.Interchain

@@ -7,6 +7,7 @@ import (
 
 	"github.com/Rican7/retry"
 	"github.com/Rican7/retry/strategy"
+	appchainmgr "github.com/meshplus/bitxhub-core/appchain-mgr"
 	"github.com/meshplus/bitxhub-model/constant"
 	"github.com/meshplus/bitxhub-model/pb"
 	rpcx "github.com/meshplus/go-bitxhub-client"
@@ -19,7 +20,7 @@ import (
 // to do on an appchain.
 type BxhClient struct {
 	agent rpcx.Client
-	rpcx.Appchain
+	appchainmgr.Appchain
 }
 
 var _ plugins.Client = (*BxhClient)(nil)

@@ -5,11 +5,12 @@
 package mock_syncer
 
 import (
-	gomock "github.com/golang/mock/gomock"
-	pb "github.com/meshplus/bitxhub-model/pb"
-	rpcx "github.com/meshplus/go-bitxhub-client"
-	syncer "github.com/meshplus/pier/internal/syncer"
 	reflect "reflect"
+
+	gomock "github.com/golang/mock/gomock"
+	appchain_mgr "github.com/meshplus/bitxhub-core/appchain-mgr"
+	pb "github.com/meshplus/bitxhub-model/pb"
+	syncer "github.com/meshplus/pier/internal/syncer"
 )
 
 // MockSyncer is a mock of Syncer interface
@@ -151,10 +152,10 @@ func (mr *MockSyncerMockRecorder) GetIBTPSigns(ibtp interface{}) *gomock.Call {
 }
 
 // GetAppchains mocks base method
-func (m *MockSyncer) GetAppchains() ([]*rpcx.Appchain, error) {
+func (m *MockSyncer) GetAppchains() ([]*appchain_mgr.Appchain, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetAppchains")
-	ret0, _ := ret[0].([]*rpcx.Appchain)
+	ret0, _ := ret[0].([]*appchain_mgr.Appchain)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }

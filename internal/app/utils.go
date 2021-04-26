@@ -7,6 +7,7 @@ import (
 
 	"github.com/Rican7/retry"
 	"github.com/Rican7/retry/strategy"
+	appchainmgr "github.com/meshplus/bitxhub-core/appchain-mgr"
 	"github.com/meshplus/bitxhub-model/constant"
 	"github.com/meshplus/bitxhub-model/pb"
 	rpcx "github.com/meshplus/go-bitxhub-client"
@@ -50,7 +51,7 @@ func getInterchainMeta(client rpcx.Client, appchainID string) (*pb.Interchain, e
 	return ret, nil
 }
 
-func getAppchainInfo(client rpcx.Client) (*rpcx.Appchain, error) {
+func getAppchainInfo(client rpcx.Client) (*appchainmgr.Appchain, error) {
 	tx, err := client.GenerateContractTx(pb.TransactionData_BVM, constant.AppchainMgrContractAddr.Address(), "Appchain")
 	if err != nil {
 		return nil, err
@@ -61,7 +62,7 @@ func getAppchainInfo(client rpcx.Client) (*rpcx.Appchain, error) {
 		return nil, err
 	}
 
-	appchain := &rpcx.Appchain{}
+	appchain := &appchainmgr.Appchain{}
 	if receipt.Status == pb.Receipt_FAILED {
 		return nil, fmt.Errorf("receipt: %s", receipt.Ret)
 	}

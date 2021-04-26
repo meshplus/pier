@@ -8,10 +8,10 @@ import (
 	"time"
 
 	"github.com/golang/mock/gomock"
+	appchainmgr "github.com/meshplus/bitxhub-core/appchain-mgr"
 	"github.com/meshplus/bitxhub-kit/log"
 	"github.com/meshplus/bitxhub-kit/storage/leveldb"
 	"github.com/meshplus/bitxhub-model/pb"
-	rpcx "github.com/meshplus/go-bitxhub-client"
 	"github.com/meshplus/pier/internal/peermgr"
 	"github.com/meshplus/pier/internal/peermgr/mock_peermgr"
 	peerproto "github.com/meshplus/pier/internal/peermgr/proto"
@@ -67,12 +67,12 @@ func TestUnionRouter_AddAppchains(t *testing.T) {
 	storage, err := leveldb.New(filepath.Join(repoRoot, "storage"))
 
 	router := New(mockPeerManager, storage, log.NewWithModule("router"), []string{""})
-	appchains := make([]*rpcx.Appchain, 0)
-	app := &rpcx.Appchain{
+	appchains := make([]*appchainmgr.Appchain, 0)
+	app := &appchainmgr.Appchain{
 		ID:   from,
 		Name: "app",
 	}
-	bxh := &rpcx.Appchain{
+	bxh := &appchainmgr.Appchain{
 		ID:   to,
 		Name: "bxh",
 	}

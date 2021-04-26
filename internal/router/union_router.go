@@ -6,9 +6,9 @@ import (
 	"sync"
 
 	"github.com/ipfs/go-cid"
+	appchainmgr "github.com/meshplus/bitxhub-core/appchain-mgr"
 	"github.com/meshplus/bitxhub-kit/storage"
 	"github.com/meshplus/bitxhub-model/pb"
-	rpcx "github.com/meshplus/go-bitxhub-client"
 	"github.com/meshplus/pier/internal/peermgr"
 	peerproto "github.com/meshplus/pier/internal/peermgr/proto"
 	"github.com/meshplus/pier/internal/syncer"
@@ -22,7 +22,7 @@ type UnionRouter struct {
 	syncer           syncer.Syncer
 	logger           logrus.FieldLogger
 	store            storage.Storage
-	appchains        map[string]*rpcx.Appchain
+	appchains        map[string]*appchainmgr.Appchain
 	pbTable          sync.Map
 	connectedPierIDs []string
 
@@ -35,7 +35,7 @@ func New(peermgr peermgr.PeerManager, store storage.Storage, logger logrus.Field
 	return &UnionRouter{
 		peermgr:          peermgr,
 		store:            store,
-		appchains:        make(map[string]*rpcx.Appchain),
+		appchains:        make(map[string]*appchainmgr.Appchain),
 		logger:           logger,
 		ctx:              ctx,
 		cancel:           cancel,
@@ -129,7 +129,7 @@ func (u *UnionRouter) Broadcast(appchainIds []string) error {
 }
 
 //AddAppchains adds appchains to route map and broadcast them to union network
-func (u *UnionRouter) AddAppchains(appchains []*rpcx.Appchain) error {
+func (u *UnionRouter) AddAppchains(appchains []*appchainmgr.Appchain) error {
 	if len(appchains) == 0 {
 		u.logger.Debugf("no appchains to add, no chains")
 		return nil
