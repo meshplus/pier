@@ -8,6 +8,7 @@ import (
 
 	"github.com/Rican7/retry"
 	"github.com/Rican7/retry/strategy"
+	"github.com/meshplus/bitxhub-kit/types"
 	"github.com/meshplus/bitxhub-model/constant"
 	"github.com/meshplus/bitxhub-model/pb"
 	rpcx "github.com/meshplus/go-bitxhub-client"
@@ -148,9 +149,14 @@ func (syncer *WrapperSyncer) QueryIBTP(ibtpID string) (*pb.IBTP, error) {
 		return nil, fmt.Errorf("%w: %s", ErrIBTPNotFound, string(receipt.Ret))
 	}
 
-	ibtp := &pb.IBTP{}
-	if err := ibtp.Unmarshal(receipt.Ret); err != nil {
-		return nil, fmt.Errorf("unmarshal ibtp bytes %w", err)
+	hash := types.NewHash(receipt.Ret)
+	response, err := syncer.client.GetTransaction(hash.String())
+	if err != nil {
+		return nil, err
+	}
+	ibtp := response.Tx.GetIBTP()
+	if ibtp == nil {
+		return nil, fmt.Errorf("empty ibtp from bitxhub")
 	}
 	return ibtp, nil
 }

@@ -30,7 +30,7 @@ import (
 )
 
 const (
-	hash = "0x9f41dd84524bf8a42f8ab58ecfca6e1752d6fd93fe8dc00af4c71963c97db59f"
+	hash = "0x9f41DD84524bF8A42F8ab58eCFCA6E1752D6Fd93fE8dc00Af4c71963c97dB59f"
 	from = "0x3f9d18f7c3a6e5e4c0b877fe3e688ab08840b997"
 )
 
@@ -257,10 +257,9 @@ func TestQueryIBTP(t *testing.T) {
 		Index:     1,
 		Timestamp: time.Now().UnixNano(),
 	}
-	receiptData, err := origin.Marshal()
-	require.Nil(t, err)
+	rawHash := types.NewHashByStr(hash)
 	normalReceipt := &pb.Receipt{
-		Ret:    receiptData,
+		Ret:    rawHash.Bytes(),
 		Status: pb.Receipt_SUCCESS,
 	}
 
@@ -279,10 +278,11 @@ func TestQueryIBTP(t *testing.T) {
 
 	tx := &pb.Transaction{
 		Payload: data,
+		IBTP:    origin,
 	}
 	badReceipt := &pb.Receipt{
 		Ret:    []byte("this is a test"),
-		Status: pb.Receipt_SUCCESS,
+		Status: pb.Receipt_FAILED,
 	}
 	badReceipt1 := &pb.Receipt{
 		Ret:    []byte("this is a failed receipt"),
@@ -290,8 +290,12 @@ func TestQueryIBTP(t *testing.T) {
 	}
 	client.EXPECT().GenerateContractTx(gomock.Any(), gomock.Any(), "GetIBTPByID", gomock.Any()).Return(tx, nil).AnyTimes()
 	// test for normal receipt
+	getTxResponse := &pb.GetTransactionResponse{
+		Tx: tx,
+	}
 	client.EXPECT().SendView(tx).Return(normalReceipt, nil)
-	ibtp, err := syncer.QueryIBTP(from)
+	client.EXPECT().GetTransaction(gomock.Any()).Return(getTxResponse, nil).AnyTimes()
+	ibtp, err := syncer.QueryIBTP(origin.ID())
 	require.Nil(t, err)
 	require.Equal(t, origin, ibtp)
 
@@ -468,6 +472,9 @@ func TestSendIBTP(t *testing.T) {
 		Status: pb.Receipt_SUCCESS,
 	}
 	queryIBTPTx := &pb.Transaction{}
+	txResponse := &pb.GetTransactionResponse{
+		Tx: tx,
+	}
 	client.EXPECT().GenerateContractTx(gomock.Any(), gomock.Any(), "GetIBTPByID", gomock.Any()).Return(queryIBTPTx, nil).AnyTimes()
 	client.EXPECT().SendView(queryIBTPTx).Return(ibtpReceipt, nil)
 	networkDownTime := 0
@@ -483,6 +490,7 @@ func TestSendIBTP(t *testing.T) {
 			r.Status = pb.Receipt_SUCCESS
 			return r, nil
 		}).AnyTimes()
+	client.EXPECT().GetTransaction(gomock.Any()).Return(txResponse, nil)
 	require.Nil(t, syncer.SendIBTP(&pb.IBTP{}))
 }
 
