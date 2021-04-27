@@ -156,15 +156,56 @@ func getIBTP(t *testing.T, index uint64, typ pb.IBTP_Type, fid, tid, proofPath s
 type MockAppchainMgr struct {
 }
 
-func (m MockAppchainMgr) ChangeStatus(id, trigger string) (bool, []byte) {
+func (m MockAppchainMgr) ChangeStatus(id, trigger string, extra []byte) (bool, []byte) {
+	return true, nil
+}
+
+func (m MockAppchainMgr) CountAvailable(extra []byte) (bool, []byte) {
+	return true, nil
+}
+
+func (m MockAppchainMgr) CountAll(extra []byte) (bool, []byte) {
+	return true, nil
+}
+
+func (m MockAppchainMgr) All(extra []byte) (bool, []byte) {
+	return true, nil
+}
+
+func (m MockAppchainMgr) QueryById(id string, extra []byte) (bool, []byte) {
+	if id == from || id == from2 {
+		app, err := getAppchain(id, "fabric")
+		if err != nil {
+			return false, nil
+		}
+		data, err := json.Marshal(app)
+		if err != nil {
+			return false, nil
+		}
+		return true, data
+	} else if id == to {
+		app, err := getAppchain(id, "ethereum")
+		data, err := json.Marshal(app)
+		if err != nil {
+			return false, nil
+		}
+		return true, data
+	} else if id == "10" {
+		return true, []byte("10")
+	} else {
+		return false, nil
+	}
+}
+
+func (m MockAppchainMgr) Register(info []byte) (bool, []byte) {
+	return true, nil
+}
+
+func (m MockAppchainMgr) Update(info []byte) (bool, []byte) {
 	return true, nil
 }
 
 func (m MockAppchainMgr) CountAvailableAppchains() (bool, []byte) {
-	return true, nil
-}
-
-func (m MockAppchainMgr) Register(id, appchainOwner, docAddr, docHash, validators string, consensusType, chainType, name, desc, version, pubkey string) (bool, []byte) {
 	return true, nil
 }
 
@@ -198,31 +239,6 @@ func (m MockAppchainMgr) DeleteAppchain(id string) (bool, []byte) {
 
 func (m MockAppchainMgr) Appchain() (bool, []byte) {
 	return true, nil
-}
-
-func (m MockAppchainMgr) GetAppchain(id string) (bool, []byte) {
-	if id == from || id == from2 {
-		app, err := getAppchain(id, "fabric")
-		if err != nil {
-			return false, nil
-		}
-		data, err := json.Marshal(app)
-		if err != nil {
-			return false, nil
-		}
-		return true, data
-	} else if id == to {
-		app, err := getAppchain(id, "ethereum")
-		data, err := json.Marshal(app)
-		if err != nil {
-			return false, nil
-		}
-		return true, data
-	} else if id == "10" {
-		return true, []byte("10")
-	} else {
-		return false, nil
-	}
 }
 
 func (m MockAppchainMgr) GetPubKeyByChainID(id string) (bool, []byte) {
