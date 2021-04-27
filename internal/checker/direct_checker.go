@@ -42,7 +42,7 @@ func (c *DirectChecker) Check(ibtp *pb.IBTP) error {
 	var appchain *appchainmgr.Appchain
 	var validatorAddr string
 	if !ok {
-		ok, appchainByte := c.appchainMgr.Mgr.GetAppchain(chainID)
+		ok, appchainByte := c.appchainMgr.Mgr.QueryById(chainID, nil)
 		if !ok {
 			return fmt.Errorf("appchain %s not found", chainID)
 		}

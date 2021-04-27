@@ -28,7 +28,7 @@ func TestSyncHeader(t *testing.T) {
 	defer lite.storage.Close()
 
 	// expect mock module returns
-	txs := make([]*pb.Transaction, 0, 2)
+	txs := make([]*pb.BxhTransaction, 0, 2)
 	txs = append(txs, getTx(t), getTx(t))
 
 	h1 := getBlockHeader(t, txs, 1)
@@ -99,7 +99,7 @@ func TestSyncHeader_Recover_GetBlockHeaderError(t *testing.T) {
 	defer lite.storage.Close()
 
 	// expect mock module returns
-	txs := make([]*pb.Transaction, 0, 2)
+	txs := make([]*pb.BxhTransaction, 0, 2)
 	txs = append(txs, getTx(t), getTx(t))
 	h1 := getBlockHeader(t, txs, 1)
 
@@ -125,7 +125,7 @@ func TestBxhLite_HandleBlockHeaderError(t *testing.T) {
 	lite, _, _ := prepare(t)
 	defer lite.storage.Close()
 
-	txs := make([]*pb.Transaction, 0, 2)
+	txs := make([]*pb.BxhTransaction, 0, 2)
 	txs = append(txs, getTx(t), getTx(t))
 	h1 := getBlockHeader(t, txs, 1)
 
@@ -178,7 +178,7 @@ func prepare(t *testing.T) (*BxhLite, *mock_client.MockClient, []crypto.PrivateK
 	return lite, client, keys
 }
 
-func getBlockHeader(t *testing.T, txs []*pb.Transaction, number uint64) *pb.BlockHeader {
+func getBlockHeader(t *testing.T, txs []*pb.BxhTransaction, number uint64) *pb.BlockHeader {
 	hashes := make([]merkletree.Content, 0, len(txs))
 	for i := 0; i < len(txs); i++ {
 		hash := txs[i].Hash()
@@ -209,7 +209,7 @@ func getVlts(t *testing.T) []crypto.PrivateKey {
 	return keys
 }
 
-func getTx(t *testing.T) *pb.Transaction {
+func getTx(t *testing.T) *pb.BxhTransaction {
 	ibtp := getIBTP(t, 1, pb.IBTP_INTERCHAIN)
 	body, err := ibtp.Marshal()
 	require.Nil(t, err)
@@ -230,7 +230,7 @@ func getTx(t *testing.T) *pb.Transaction {
 
 	faddr := &types.Address{}
 	faddr.SetBytes([]byte(from))
-	tx := &pb.Transaction{
+	tx := &pb.BxhTransaction{
 		From:    faddr,
 		To:      faddr,
 		Payload: data,
