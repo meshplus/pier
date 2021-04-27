@@ -8,8 +8,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/meshplus/pier/internal/syncer"
-
 	"github.com/golang/mock/gomock"
 	crypto2 "github.com/libp2p/go-libp2p-core/crypto"
 	peer2 "github.com/libp2p/go-libp2p-core/peer"
@@ -33,6 +31,7 @@ import (
 	peerMsg "github.com/meshplus/pier/internal/peermgr/proto"
 	"github.com/meshplus/pier/internal/repo"
 	"github.com/meshplus/pier/internal/router/mock_router"
+	"github.com/meshplus/pier/internal/syncer"
 	"github.com/meshplus/pier/internal/syncer/mock_syncer"
 	"github.com/stretchr/testify/require"
 )

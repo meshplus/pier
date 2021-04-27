@@ -7,6 +7,7 @@ import (
 
 	"github.com/golang/mock/gomock"
 	appchainmgr "github.com/meshplus/bitxhub-core/appchain-mgr"
+	"github.com/meshplus/bitxhub-core/governance"
 	"github.com/meshplus/bitxhub-kit/log"
 	"github.com/meshplus/bitxhub-kit/storage/leveldb"
 	network "github.com/meshplus/go-lightp2p"
@@ -32,7 +33,7 @@ func TestRegisterAppchain(t *testing.T) {
 	manager.handleMessage(s, msg)
 	require.Nil(t, err)
 
-	ok, count := manager.Mgr.CountAppchains()
+	ok, count := manager.Mgr.CountAll(nil)
 	require.Equal(t, ok, true)
 	require.Equal(t, string(count), "1")
 }
@@ -58,7 +59,7 @@ func TestUpdateAppchain(t *testing.T) {
 	msg1 := peermgr.Message(peerproto.Message_APPCHAIN_UPDATE, true, data1)
 	manager.handleMessage(s, msg1)
 
-	ok, res := manager.Mgr.GetAppchain(appchainId)
+	ok, res := manager.Mgr.QueryById(appchainId, nil)
 	require.Equal(t, ok, true)
 
 	var resAppchain appchainmgr.Appchain
@@ -88,8 +89,8 @@ func appchain() *appchainmgr.Appchain {
 		ID:            appchainId,
 		Name:          "appchainA",
 		Validators:    "",
-		ConsensusType: 0,
-		Status:        0,
+		ConsensusType: "raft",
+		Status:        governance.GovernanceRegisting,
 		ChainType:     "1",
 		Desc:          "appchain",
 		Version:       "1.0.0",

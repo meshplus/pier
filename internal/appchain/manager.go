@@ -4,13 +4,14 @@ import (
 	"encoding/json"
 
 	appchainmgr "github.com/meshplus/bitxhub-core/appchain-mgr"
+	"github.com/meshplus/bitxhub-core/governance"
 	"github.com/meshplus/bitxhub-kit/storage"
 	"github.com/meshplus/pier/internal/peermgr"
 	peerproto "github.com/meshplus/pier/internal/peermgr/proto"
 	"github.com/sirupsen/logrus"
 )
 
-var _ appchainmgr.Persister = (*Persister)(nil)
+var _ governance.Persister = (*Persister)(nil)
 
 type Persister struct {
 	addr    string
@@ -74,6 +75,10 @@ func (m Persister) Query(prefix string) (bool, [][]byte) {
 		ret = append(ret, val)
 	}
 	return len(ret) != 0, ret
+}
+
+func (m Persister) GetAccount(_ string) (bool, interface{}) {
+	return false, nil
 }
 
 func NewManager(addr string, storage storage.Storage, pm peermgr.PeerManager, logger logrus.FieldLogger) (*Manager, error) {

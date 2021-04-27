@@ -12,11 +12,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/meshplus/bitxhub-core/governance"
-
 	"github.com/cbergoon/merkletree"
 	"github.com/golang/mock/gomock"
 	appchainmgr "github.com/meshplus/bitxhub-core/appchain-mgr"
+	"github.com/meshplus/bitxhub-core/governance"
 	"github.com/meshplus/bitxhub-kit/crypto"
 	"github.com/meshplus/bitxhub-kit/crypto/asym"
 	"github.com/meshplus/bitxhub-kit/log"
@@ -49,10 +48,10 @@ func TestSyncHeader001(t *testing.T) {
 	defer syncer.storage.Close()
 
 	// expect mock module returns
-	txs := make([]*pb.Transaction, 0, 2)
+	txs := make([]*pb.BxhTransaction, 0, 2)
 	txs = append(txs, getTx(t), getTx(t))
 
-	txs1 := make([]*pb.Transaction, 0, 2)
+	txs1 := make([]*pb.BxhTransaction, 0, 2)
 	txs1 = append(txs1, getTx(t), getTx(t))
 
 	w1, _ := getTxWrapper(t, txs, txs1, 1)
@@ -68,10 +67,10 @@ func TestSyncHeader001(t *testing.T) {
 	w6, _ := getTxWrapper(t, txs, txs1, 1)
 	w7 := &pb.InterchainTxWrappers{InterchainTxWrappers: []*pb.InterchainTxWrapper{nil}}
 	// mock bad tx wrapper
-	badTxs := make([]*pb.Transaction, 0, 2)
+	badTxs := make([]*pb.BxhTransaction, 0, 2)
 	badTxs = append(badTxs, getUnoinTx(t), getUnoinTx(t))
 
-	badTxs2 := make([]*pb.Transaction, 0, 2)
+	badTxs2 := make([]*pb.BxhTransaction, 0, 2)
 	badTxs2 = append(badTxs2, getUnoinTx(t), getUnoinTx(t))
 	w8, _ := getTxWrapper(t, badTxs, badTxs2, 4)
 
@@ -144,10 +143,10 @@ func TestSyncUnoinHeader(t *testing.T) {
 	defer syncer.storage.Close()
 
 	// expect mock module returns
-	txs := make([]*pb.Transaction, 0, 2)
+	txs := make([]*pb.BxhTransaction, 0, 2)
 	txs = append(txs, getUnoinTx(t), getUnoinTx(t))
 
-	txs1 := make([]*pb.Transaction, 0, 2)
+	txs1 := make([]*pb.BxhTransaction, 0, 2)
 	txs1 = append(txs1, getUnoinTx(t), getUnoinTx(t))
 
 	w1, _ := getTxWrapper(t, txs, txs1, 1)
@@ -189,10 +188,10 @@ func TestSyncHeader002(t *testing.T) {
 	defer syncer.storage.Close()
 
 	// expect mock module returns
-	txs := make([]*pb.Transaction, 0, 2)
+	txs := make([]*pb.BxhTransaction, 0, 2)
 	txs = append(txs, getTx(t), getTx(t))
 
-	txs1 := make([]*pb.Transaction, 0, 2)
+	txs1 := make([]*pb.BxhTransaction, 0, 2)
 	txs1 = append(txs1, getTx(t), getTx(t))
 
 	w2, _ := getTxWrapper(t, txs, txs1, 2)
@@ -281,7 +280,7 @@ func TestQueryIBTP(t *testing.T) {
 	data, err := td.Marshal()
 	require.Nil(t, err)
 
-	tx := &pb.Transaction{
+	tx := &pb.BxhTransaction{
 		Payload: data,
 	}
 	badReceipt := &pb.Receipt{
@@ -451,7 +450,7 @@ func TestSendIBTP(t *testing.T) {
 
 	b := &types.Address{}
 	b.SetBytes([]byte(from))
-	tx := &pb.Transaction{
+	tx := &pb.BxhTransaction{
 		From: b,
 	}
 
@@ -459,7 +458,7 @@ func TestSendIBTP(t *testing.T) {
 
 	networkDownTime := 0
 	client.EXPECT().SendTransaction(gomock.Any(), gomock.Any()).DoAndReturn(
-		func(tx *pb.Transaction, opts *rpcx.TransactOpts) (string, error) {
+		func(tx *pb.BxhTransaction, opts *rpcx.TransactOpts) (string, error) {
 			networkDownTime++
 			if networkDownTime == 1 {
 				return "", rpcx.ErrBrokenNetwork
@@ -523,7 +522,7 @@ func TestGetInterchainById(t *testing.T) {
 
 	b := &types.Address{}
 	b.SetBytes([]byte(from))
-	tx := &pb.Transaction{
+	tx := &pb.BxhTransaction{
 		From: b,
 	}
 	ic := &pb.Interchain{
@@ -558,7 +557,7 @@ func TestQueryInterchainMeta(t *testing.T) {
 	defer syncer.storage.Close()
 	b := &types.Address{}
 	b.SetBytes([]byte(from))
-	queryTx := &pb.Transaction{
+	queryTx := &pb.BxhTransaction{
 		From: b,
 	}
 
@@ -628,7 +627,7 @@ func getBlockHeader(root *types.Hash, number uint64) *pb.BlockHeader {
 	return wrapper
 }
 
-func getTxWrapper(t *testing.T, interchainTxs []*pb.Transaction, innerchainTxs []*pb.Transaction, number uint64) (*pb.InterchainTxWrappers, *types.Hash) {
+func getTxWrapper(t *testing.T, interchainTxs []*pb.BxhTransaction, innerchainTxs []*pb.BxhTransaction, number uint64) (*pb.InterchainTxWrappers, *types.Hash) {
 	var l2roots []types.Hash
 	var interchainTxHashes []types.Hash
 	hashes := make([]merkletree.Content, 0, len(interchainTxs))
@@ -671,7 +670,7 @@ func getTxWrapper(t *testing.T, interchainTxs []*pb.Transaction, innerchainTxs [
 	return itw, types.NewHash(l1root)
 }
 
-func getTx(t *testing.T) *pb.Transaction {
+func getTx(t *testing.T) *pb.BxhTransaction {
 	ibtp := getIBTP(t, 1, pb.IBTP_INTERCHAIN)
 	body, err := ibtp.Marshal()
 	require.Nil(t, err)
@@ -692,7 +691,7 @@ func getTx(t *testing.T) *pb.Transaction {
 
 	faddr := &types.Address{}
 	faddr.SetBytes([]byte(from))
-	tx := &pb.Transaction{
+	tx := &pb.BxhTransaction{
 		From:    faddr,
 		To:      faddr,
 		IBTP:    ibtp,
@@ -702,7 +701,7 @@ func getTx(t *testing.T) *pb.Transaction {
 	return tx
 }
 
-func getEmptyIBTPTx(t *testing.T) *pb.Transaction {
+func getEmptyIBTPTx(t *testing.T) *pb.BxhTransaction {
 	td := &pb.TransactionData{
 		Type:    pb.TransactionData_INVOKE,
 		Payload: []byte("empty ibtp payload"),
@@ -712,7 +711,7 @@ func getEmptyIBTPTx(t *testing.T) *pb.Transaction {
 
 	faddr := &types.Address{}
 	faddr.SetBytes([]byte(from))
-	tx := &pb.Transaction{
+	tx := &pb.BxhTransaction{
 		From:    faddr,
 		To:      faddr,
 		IBTP:    nil,
@@ -722,7 +721,7 @@ func getEmptyIBTPTx(t *testing.T) *pb.Transaction {
 	return tx
 }
 
-func getUnoinTx(t *testing.T) *pb.Transaction {
+func getUnoinTx(t *testing.T) *pb.BxhTransaction {
 	unionIbtp := getIBTP(t, 1, pb.IBTP_INTERCHAIN)
 	td := &pb.TransactionData{
 		Type:    pb.TransactionData_INVOKE,
@@ -733,7 +732,7 @@ func getUnoinTx(t *testing.T) *pb.Transaction {
 
 	faddr := &types.Address{}
 	faddr.SetBytes([]byte(from))
-	tx := &pb.Transaction{
+	tx := &pb.BxhTransaction{
 		From:    faddr,
 		To:      faddr,
 		IBTP:    unionIbtp,
