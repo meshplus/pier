@@ -293,8 +293,8 @@ func NewUnionPier(repoRoot string, config *repo.Config) (*Pier, error) {
 		rpcx.WithLogger(logger),
 		rpcx.WithPrivateKey(privateKey),
 	}
-	nodesInfo := make([]*rpcx.NodeInfo, 0, len(config.Mode.Relay.Addrs))
-	for _, addr := range config.Mode.Relay.Addrs {
+	nodesInfo := make([]*rpcx.NodeInfo, 0, len(config.Mode.Union.Addrs))
+	for _, addr := range config.Mode.Union.Addrs {
 		nodeInfo := &rpcx.NodeInfo{Addr: addr}
 		if config.Security.EnableTLS {
 			nodeInfo.CertPath = filepath.Join(config.RepoRoot, config.Security.Tlsca)
