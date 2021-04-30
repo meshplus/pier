@@ -66,6 +66,7 @@ type Direct struct {
 }
 
 type Union struct {
+	Addrs      []string `toml:"addrs" json:"addrs"`
 	Connectors []string `toml:"connectors" json:"connectors"`
 	Providers  uint64   `toml:"providers" json:"providers"`
 }
@@ -134,6 +135,7 @@ func DefaultConfig() *Config {
 				Peers: []string{},
 			},
 			Union: Union{
+				Addrs:      []string{"localhost:60011"},
 				Connectors: []string{},
 				Providers:  1,
 			},
