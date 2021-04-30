@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"io/ioutil"
 
+	"github.com/fatih/color"
 	"github.com/meshplus/bitxhub-model/constant"
 	rpcx "github.com/meshplus/go-bitxhub-client"
-	"github.com/meshplus/pier/internal/repo"
 	"github.com/urfave/cli"
 )
 
@@ -24,8 +24,79 @@ var ruleCMD = cli.Command{
 					Required: true,
 				},
 				methodFlag,
+				adminKeyPathFlag,
 			},
 			Action: deployRule,
+		},
+		{
+			Name:  "bind",
+			Usage: "bind validation rule",
+			Flags: []cli.Flag{
+				cli.StringFlag{
+					Name:     "addr",
+					Usage:    "Specific rule addr",
+					Required: true,
+				},
+				methodFlag,
+				adminKeyPathFlag,
+			},
+			Action: bindRule,
+		},
+		{
+			Name:  "unbind",
+			Usage: "unbind validation rule",
+			Flags: []cli.Flag{
+				cli.StringFlag{
+					Name:     "addr",
+					Usage:    "Specific rule addr",
+					Required: true,
+				},
+				methodFlag,
+				adminKeyPathFlag,
+			},
+			Action: unbindRule,
+		},
+		{
+			Name:  "freeze",
+			Usage: "freeze validation rule",
+			Flags: []cli.Flag{
+				cli.StringFlag{
+					Name:     "addr",
+					Usage:    "Specific rule addr",
+					Required: true,
+				},
+				methodFlag,
+				adminKeyPathFlag,
+			},
+			Action: freezeRule,
+		},
+		{
+			Name:  "activate",
+			Usage: "activate validation rule",
+			Flags: []cli.Flag{
+				cli.StringFlag{
+					Name:     "addr",
+					Usage:    "Specific rule addr",
+					Required: true,
+				},
+				methodFlag,
+				adminKeyPathFlag,
+			},
+			Action: activateRule,
+		},
+		{
+			Name:  "logout",
+			Usage: "logout validation rule",
+			Flags: []cli.Flag{
+				cli.StringFlag{
+					Name:     "addr",
+					Usage:    "Specific rule addr",
+					Required: true,
+				},
+				methodFlag,
+				adminKeyPathFlag,
+			},
+			Action: logoutRule,
 		},
 	},
 }
@@ -33,18 +104,9 @@ var ruleCMD = cli.Command{
 func deployRule(ctx *cli.Context) error {
 	rulePath := ctx.String("path")
 	method := ctx.String("method")
+	chainAdminKeyPath := ctx.String("admin-key")
 
-	repoRoot, err := repo.PathRootWithDefault(ctx.GlobalString("repo"))
-	if err != nil {
-		return err
-	}
-
-	config, err := repo.UnmarshalConfig(repoRoot)
-	if err != nil {
-		return fmt.Errorf("init config error: %s", err)
-	}
-
-	client, err := loadClient(repo.KeyPath(repoRoot), config.Mode.Relay.Addrs, ctx)
+	client, _, err := initClientWithKeyPath(ctx, chainAdminKeyPath)
 	if err != nil {
 		return fmt.Errorf("load client: %w", err)
 	}
@@ -56,23 +118,149 @@ func deployRule(ctx *cli.Context) error {
 
 	contractAddr, err := client.DeployContract(contract, nil)
 	if err != nil {
-		return fmt.Errorf("deploy rule: %w", err)
+		color.Red("deploy rule error: %w", err)
+	} else {
+		color.Green(fmt.Sprintf("Deploy rule to bitxhub for appchain %s successfully: %s", method, contractAddr.String()))
+	}
+
+	return nil
+}
+
+func bindRule(ctx *cli.Context) error {
+	ruleAddr := ctx.String("addr")
+	method := ctx.String("method")
+	chainAdminKeyPath := ctx.String("admin-key")
+
+	client, _, err := initClientWithKeyPath(ctx, chainAdminKeyPath)
+	if err != nil {
+		return fmt.Errorf("load client: %w", err)
 	}
 
 	appchainMethod := fmt.Sprintf("%s:%s:.", bitxhubRootPrefix, method)
 	receipt, err := client.InvokeBVMContract(
 		constant.RuleManagerContractAddr.Address(),
-		"RegisterRule", nil,
-		rpcx.String(appchainMethod), rpcx.String(contractAddr.String()))
+		"BindRule", nil,
+		rpcx.String(appchainMethod), rpcx.String(ruleAddr))
 	if err != nil {
-		return fmt.Errorf("register rule")
+		return fmt.Errorf("Bind rule: %w", err)
 	}
 
-	fmt.Printf("Deploy rule for appchain %s to bitxhub successfully", method)
 	if !receipt.IsSuccess() {
-		fmt.Println("Deploy rule to bitxhub error: " + string(receipt.Ret))
+		color.Red(fmt.Sprintf("Bind rule to bitxhub for appchain %s error: %s", appchainMethod, string(receipt.Ret)))
 	} else {
-		fmt.Println("Deploy rule to bitxhub successfully")
+		color.Green(fmt.Sprintf("Bind rule to bitxhub for appchain %s successfully, wait for proposal %s to finish.", appchainMethod, string(receipt.Ret)))
+	}
+
+	return nil
+}
+
+func unbindRule(ctx *cli.Context) error {
+	ruleAddr := ctx.String("addr")
+	method := ctx.String("method")
+	chainAdminKeyPath := ctx.String("admin-key")
+
+	client, _, err := initClientWithKeyPath(ctx, chainAdminKeyPath)
+	if err != nil {
+		return fmt.Errorf("load client: %w", err)
+	}
+
+	appchainMethod := fmt.Sprintf("%s:%s:.", bitxhubRootPrefix, method)
+	receipt, err := client.InvokeBVMContract(
+		constant.RuleManagerContractAddr.Address(),
+		"UnbindRule", nil,
+		rpcx.String(appchainMethod), rpcx.String(ruleAddr))
+	if err != nil {
+		return fmt.Errorf("Unind rule: %w", err)
+	}
+
+	if !receipt.IsSuccess() {
+		color.Red(fmt.Sprintf("Unbind rule to bitxhub for appchain %s error: %s", appchainMethod, string(receipt.Ret)))
+	} else {
+		color.Green(fmt.Sprintf("Unbind rule to bitxhub for appchain %s successfully, wait for proposal %s to finish.", appchainMethod, string(receipt.Ret)))
+	}
+
+	return nil
+}
+
+func freezeRule(ctx *cli.Context) error {
+	ruleAddr := ctx.String("addr")
+	method := ctx.String("method")
+	chainAdminKeyPath := ctx.String("admin-key")
+
+	client, _, err := initClientWithKeyPath(ctx, chainAdminKeyPath)
+	if err != nil {
+		return fmt.Errorf("load client: %w", err)
+	}
+
+	appchainMethod := fmt.Sprintf("%s:%s:.", bitxhubRootPrefix, method)
+	receipt, err := client.InvokeBVMContract(
+		constant.RuleManagerContractAddr.Address(),
+		"FreezeRule", nil,
+		rpcx.String(appchainMethod), rpcx.String(ruleAddr))
+	if err != nil {
+		return fmt.Errorf("freeze rule: %w", err)
+	}
+
+	if !receipt.IsSuccess() {
+		color.Red(fmt.Sprintf("Freeze rule to bitxhub for appchain %s error: %s", appchainMethod, string(receipt.Ret)))
+	} else {
+		color.Green(fmt.Sprintf("Freeze rule to bitxhub for appchain %s successfully, wait for proposal %s to finish.", appchainMethod, string(receipt.Ret)))
+	}
+
+	return nil
+}
+
+func activateRule(ctx *cli.Context) error {
+	ruleAddr := ctx.String("addr")
+	method := ctx.String("method")
+	chainAdminKeyPath := ctx.String("admin-key")
+
+	client, _, err := initClientWithKeyPath(ctx, chainAdminKeyPath)
+	if err != nil {
+		return fmt.Errorf("load client: %w", err)
+	}
+
+	appchainMethod := fmt.Sprintf("%s:%s:.", bitxhubRootPrefix, method)
+	receipt, err := client.InvokeBVMContract(
+		constant.RuleManagerContractAddr.Address(),
+		"ActivateRule", nil,
+		rpcx.String(appchainMethod), rpcx.String(ruleAddr))
+	if err != nil {
+		return fmt.Errorf("activate rule: %w", err)
+	}
+
+	if !receipt.IsSuccess() {
+		color.Red(fmt.Sprintf("Activate rule to bitxhub for appchain %s error: %s", appchainMethod, string(receipt.Ret)))
+	} else {
+		color.Green(fmt.Sprintf("Activate rule to bitxhub for appchain %s successfully, wait for proposal %s to finish.", appchainMethod, string(receipt.Ret)))
+	}
+
+	return nil
+}
+
+func logoutRule(ctx *cli.Context) error {
+	ruleAddr := ctx.String("addr")
+	method := ctx.String("method")
+	chainAdminKeyPath := ctx.String("admin-key")
+
+	client, _, err := initClientWithKeyPath(ctx, chainAdminKeyPath)
+	if err != nil {
+		return fmt.Errorf("load client: %w", err)
+	}
+
+	appchainMethod := fmt.Sprintf("%s:%s:.", bitxhubRootPrefix, method)
+	receipt, err := client.InvokeBVMContract(
+		constant.RuleManagerContractAddr.Address(),
+		"LogoutRule", nil,
+		rpcx.String(appchainMethod), rpcx.String(ruleAddr))
+	if err != nil {
+		return fmt.Errorf("logout rule: %w", err)
+	}
+
+	if !receipt.IsSuccess() {
+		color.Red(fmt.Sprintf("Logout rule to bitxhub for appchain %s error: %s", appchainMethod, string(receipt.Ret)))
+	} else {
+		color.Green(fmt.Sprintf("Logout rule to bitxhub for appchain %s successfully, wait for proposal %s to finish.", appchainMethod, string(receipt.Ret)))
 	}
 
 	return nil
