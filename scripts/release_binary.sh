@@ -20,8 +20,8 @@ print_blue "===> 3. pack binarys"
 cd "${RELEASE_PATH}"
 if [ "$(uname)" == "Darwin" ]; then
   cp ../build/libwasmer.dylib .
-  tar zcvf pier_v"${APP_VERSION}"_Darwin_x86_64.tar.gz ./pier ./libwasmer.dylib
+  tar zcvf pier_"${APP_VERSION}"_Darwin_x86_64.tar.gz ./pier ./libwasmer.dylib
 else
   cp ../build/libwasmer.so .
-  tar zcvf pier_v"${APP_VERSION}"_Linux_x86_64.tar.gz ./pier ./libwasmer.so
+  tar zcvf pier_"${APP_VERSION}"_Linux_x86_64.tar.gz ./pier ./libwasmer.so
 fi
