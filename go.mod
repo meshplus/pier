@@ -37,3 +37,5 @@ require (
 )
 
 replace github.com/libp2p/go-libp2p-core => github.com/libp2p/go-libp2p-core v0.5.6
+
+replace github.com/meshplus/bitxhub-model => ../bitxhub-model

@@ -16,6 +16,9 @@ type Executor interface {
 	// and return the receipt ibtp for ack or callback
 	ExecuteIBTP(ibtp *pb.IBTP) (*pb.IBTP, error)
 
+	// Rollback rollbacks ibtp on appchain
+	Rollback(ibtp *pb.IBTP, isSrcChain bool)
+
 	// QueryInterchainMeta queries latest index map of ibtps executed on appchain
 	// For the returned map, key is the source chain ID,
 	// and value is the latest index of tx executed on appchain

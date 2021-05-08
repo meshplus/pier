@@ -131,3 +131,33 @@ func (e *ChannelExecutor) execCallback(ibtp *pb.IBTP) error {
 
 	return nil
 }
+
+func (e *ChannelExecutor) Rollback(ibtp *pb.IBTP, isSrcChain bool) {
+	if err := retry.Retry(func(attempt uint) error {
+		err := e.execRollback(ibtp, isSrcChain)
+		if err != nil {
+			e.logger.Errorf("Execute callback tx: %s, retry sending tx", err.Error())
+			return fmt.Errorf("execute callback tx: %w", err)
+		}
+		return nil
+	}, strategy.Wait(1*time.Second)); err != nil {
+		e.logger.Errorf("Execution of callback function failed: %s", err.Error())
+	}
+}
+
+// execRollback is the handler for rollback function of one interchain tx
+func (e *ChannelExecutor) execRollback(ibtp *pb.IBTP, isSrcChain bool) error {
+	// no need to send receipt for callback
+	resp, err := e.client.RollbackIBTP(ibtp, isSrcChain)
+	if err != nil {
+		return fmt.Errorf("rollback ibtp on source appchain %w", err)
+	}
+
+	e.logger.WithFields(logrus.Fields{
+		"index":  ibtp.Index,
+		"type":   ibtp.Type,
+		"status": resp.Status,
+		"msg":    resp.Message,
+	}).Info("Executed rollbcak")
+	return nil
+}

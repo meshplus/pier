@@ -212,7 +212,9 @@ func (syncer *WrapperSyncer) SendIBTP(ibtp *pb.IBTP) error {
 		errMsg := string(receipt.Ret)
 		if strings.Contains(errMsg, noBindRule) ||
 			strings.Contains(errMsg, appchainNotAvailable) {
-			syncer.logger.Panicf("Unrecoverable error: %s occurred, please try to solve it and restart pier", string(receipt.Ret))
+			syncer.logger.Errorf("Unrecoverable error: %s occurred, please try to solve it and restart pier", string(receipt.Ret))
+			syncer.rollbackHandler(ibtp.ID())
+			return nil
 		}
 		if strings.Contains(errMsg, ibtpIndexExist) {
 			// if ibtp index is lower than index recorded on bitxhub, then ignore this ibtp

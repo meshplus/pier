@@ -34,6 +34,7 @@ type WrapperSyncer struct {
 	ibtpC           chan *pb.IBTP
 	appchainHandler AppchainHandler
 	recoverHandler  RecoverUnionHandler
+	rollbackHandler RollbackHandler
 
 	mode        string
 	isRecover   bool
@@ -372,6 +373,15 @@ func (syncer *WrapperSyncer) RegisterAppchainHandler(handler AppchainHandler) er
 	}
 
 	syncer.appchainHandler = handler
+	return nil
+}
+
+func (syncer *WrapperSyncer) RegisterRollbackHandler(handler RollbackHandler) error {
+	if handler == nil {
+		return fmt.Errorf("register rollback handler: empty handler")
+	}
+
+	syncer.rollbackHandler = handler
 	return nil
 }
 
