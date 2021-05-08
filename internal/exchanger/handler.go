@@ -106,6 +106,16 @@ func (ex *Exchanger) applyInterchain(ibtp *pb.IBTP, entry logrus.FieldLogger) {
 	ex.executorCounter[ibtp.From] = ibtp.Index
 }
 
+func (ex *Exchanger) handleRollback(ibtpId string) error {
+	ibtp, err := ex.mnt.QueryIBTP(ibtpId)
+	if err != nil {
+		return fmt.Errorf("query ibtp by id %s: %v", ibtpId, err)
+	}
+
+	ex.exec.Rollback(ibtp, true)
+	return nil
+}
+
 // handleIBTP handle ibtps from bitxhub
 func (ex *Exchanger) handleUnionIBTP(ibtp *pb.IBTP) {
 	if ibtp.To == ex.appchainDID {

@@ -59,6 +59,10 @@ func (s *GRPCServer) SubmitIBTP(_ context.Context, ibtp *pb.IBTP) (*pb.SubmitIBT
 	return s.Impl.SubmitIBTP(ibtp)
 }
 
+func (s *GRPCServer) RollbackIBTP(ctx context.Context, req *pb.RollbackIBTPRequest) (*pb.RollbackIBTPResponse, error) {
+	return s.Impl.RollbackIBTP(req.Ibtp, req.SrcChain)
+}
+
 func (s *GRPCServer) GetOutMessage(_ context.Context, req *pb.GetOutMessageRequest) (*pb.IBTP, error) {
 	return s.Impl.GetOutMessage(req.To, req.Idx)
 }
@@ -215,6 +219,18 @@ func (g *GRPCClient) SubmitIBTP(ibtp *pb.IBTP) (*pb.SubmitIBTPResponse, error) {
 		}
 		return nil
 	}, strategy.Wait(1*time.Second))
+
+	return response, nil
+}
+
+func (g *GRPCClient) RollbackIBTP(ibtp *pb.IBTP, srcChain bool) (*pb.RollbackIBTPResponse, error) {
+	response, err := g.client.RollbackIBTP(g.doneContext, &pb.RollbackIBTPRequest{
+		Ibtp:     ibtp,
+		SrcChain: srcChain,
+	})
+	if err != nil {
+		return &pb.RollbackIBTPResponse{}, err
+	}
 
 	return response, nil
 }

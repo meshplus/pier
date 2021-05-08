@@ -137,6 +137,9 @@ func (ex *Exchanger) startWithDirectMode() error {
 }
 
 func (ex *Exchanger) startWithRelayMode() error {
+	if err := ex.syncer.RegisterRollbackHandler(ex.handleRollback); err != nil {
+		return fmt.Errorf("register router handler: %w", err)
+	}
 	// syncer should be started first in case to recover ibtp from monitor
 	if err := ex.syncer.Start(); err != nil {
 		return fmt.Errorf("syncer start: %w", err)
