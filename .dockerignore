@@ -1,4 +1,3 @@
 test/*
-bin/*
 plugins/build
 Dockerfile
