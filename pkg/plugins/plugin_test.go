@@ -318,6 +318,14 @@ func (mc *mockAppchainPluginClient) CommitCallback(ctx context.Context, in *pb.I
 	return nil, nil
 }
 
+func (mc *mockAppchainPluginClient) RollbackIBTP(ctx context.Context, in *pb.RollbackIBTPRequest, opts ...grpc.CallOption) (*pb.RollbackIBTPResponse, error) {
+	return nil, nil
+}
+
+func (mc *mockAppchainPluginClient) IncreaseInMeta(ctx context.Context, in *pb.IBTP, opts ...grpc.CallOption) (*pb.IBTP, error) {
+	return nil, nil
+}
+
 func (mc *mockAppchainPluginClient) GetReceipt(ctx context.Context, in *pb.IBTP, opts ...grpc.CallOption) (*pb.IBTP, error) {
 	if ctx == context.Background() {
 		return &pb.IBTP{

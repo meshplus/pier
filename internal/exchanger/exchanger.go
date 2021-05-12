@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/Rican7/retry"
+	"github.com/Rican7/retry/backoff"
 	"github.com/Rican7/retry/strategy"
 	"github.com/meshplus/bitxhub-kit/storage"
 	"github.com/meshplus/bitxhub-model/pb"
@@ -215,17 +216,18 @@ func (ex *Exchanger) listenAndSendIBTPFromMnt() {
 					if err := retry.Retry(func(attempt uint) error {
 						ibtp, err = ex.mnt.QueryIBTP(ibtp.ID())
 						if err != nil {
+							ex.logger.Errorf("Query ibtp %s from appchain: %s", ibtp.ID(), err.Error())
 							return err
 						}
 						return nil
-					}, strategy.Wait(500*time.Millisecond)); err != nil {
+					}, strategy.Backoff(backoff.Fibonacci(500*time.Millisecond))); err != nil {
 						ex.logger.Panic(err)
 					}
-					return nil
+					return fmt.Errorf("retry sending ibtp")
 				}
 				ex.interchainCounter[ibtp.To] = ibtp.Index
 				return nil
-			}, strategy.Wait(500*time.Millisecond)); err != nil {
+			}, strategy.Backoff(backoff.Fibonacci(500*time.Millisecond))); err != nil {
 				ex.logger.Panic(err)
 			}
 		}
@@ -238,19 +240,19 @@ func (ex *Exchanger) listenAndSendIBTPFromSyncer() {
 		select {
 		case <-ex.ctx.Done():
 			return
-		case ibtp, ok := <-ch:
+		case wIbtp, ok := <-ch:
 			if !ok {
 				ex.logger.Warn("Unexpected closed channel while listening on interchain ibtp")
 				return
 			}
-			entry := ex.logger.WithFields(logrus.Fields{"type": ibtp.Type, "id": ibtp.ID()})
+			entry := ex.logger.WithFields(logrus.Fields{"type": wIbtp.Ibtp.Type, "id": wIbtp.Ibtp.ID()})
 			entry.Debugf("Exchanger receives ibtp from syncer")
-			switch ibtp.Type {
+			switch wIbtp.Ibtp.Type {
 			case pb.IBTP_INTERCHAIN, pb.IBTP_ASSET_EXCHANGE_INIT,
 				pb.IBTP_ASSET_EXCHANGE_REDEEM, pb.IBTP_ASSET_EXCHANGE_REFUND:
-				ex.applyInterchain(ibtp, entry)
+				ex.applyInterchain(wIbtp, entry)
 			case pb.IBTP_RECEIPT_SUCCESS, pb.IBTP_RECEIPT_FAILURE, pb.IBTP_ASSET_EXCHANGE_RECEIPT:
-				ex.applyReceipt(ibtp, entry)
+				ex.applyReceipt(wIbtp, entry)
 			default:
 				entry.Errorf("wrong type of ibtp")
 			}
@@ -299,7 +301,7 @@ func (ex *Exchanger) sendIBTP(ibtp *pb.IBTP) error {
 	case repo.RelayMode:
 		err := ex.syncer.SendIBTP(ibtp)
 		if err != nil {
-			entry.Errorf("send ibtp to bitxhub: %s", err.Error())
+			entry.Errorf("Send ibtp to bitxhub: %s", err.Error())
 			if errors.Is(err, syncer.ErrMetaOutOfDate) {
 				ex.updateInterchainMeta()
 				return nil
@@ -336,45 +338,48 @@ func (ex *Exchanger) sendIBTP(ibtp *pb.IBTP) error {
 	return nil
 }
 
-func (ex *Exchanger) queryIBTP(from string, idx uint64) (*pb.IBTP, error) {
-	ibtp := &pb.IBTP{}
-	id := fmt.Sprintf("%s-%s-%d", from, ex.appchainDID, idx)
-
+func (ex *Exchanger) queryIBTP(id, target string) (*pb.IBTP, bool, error) {
+	verifiedTx := &pb.VerifiedTx{}
 	v := ex.store.Get(model.IBTPKey(id))
 	if v != nil {
-		if err := ibtp.Unmarshal(v); err != nil {
-			return nil, err
+		if err := verifiedTx.Unmarshal(v); err != nil {
+			return nil, false, err
 		}
-		return ibtp, nil
+		return verifiedTx.Tx.GetIBTP(), verifiedTx.Valid, nil
 	}
 
 	// query ibtp from counterpart chain
-	var err error
+	var (
+		ibtp    *pb.IBTP
+		isValid bool
+		err     error
+	)
 	switch ex.mode {
 	case repo.RelayMode:
-		ibtp, err = ex.syncer.QueryIBTP(id)
+		ibtp, isValid, err = ex.syncer.QueryIBTP(id)
 		if err != nil {
 			if errors.Is(err, syncer.ErrIBTPNotFound) {
 				ex.logger.Panicf("query ibtp by id %s from bitxhub: %s", id, err.Error())
 			}
-			return nil, fmt.Errorf("query ibtp from bitxhub: %s", err.Error())
+			return nil, false, fmt.Errorf("query ibtp from bitxhub: %s", err.Error())
 		}
 	case repo.DirectMode:
 		// query ibtp from another pier
 		msg := peermgr.Message(peerMsg.Message_IBTP_GET, true, []byte(id))
-		result, err := ex.peerMgr.Send(from, msg)
+		result, err := ex.peerMgr.Send(target, msg)
 		if err != nil {
-			return nil, err
+			return nil, false, err
 		}
 
+		ibtp = &pb.IBTP{}
 		if err := ibtp.Unmarshal(result.Payload.Data); err != nil {
-			return nil, err
+			return nil, false, err
 		}
 	default:
-		return nil, fmt.Errorf("unsupported pier mode")
+		return nil, false, fmt.Errorf("unsupported pier mode")
 	}
 
-	return ibtp, nil
+	return ibtp, isValid, nil
 }
 
 func copyCounterMap(original map[string]uint64) map[string]uint64 {

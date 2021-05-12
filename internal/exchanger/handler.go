@@ -14,11 +14,13 @@ import (
 	"github.com/meshplus/pier/internal/peermgr"
 	peerMsg "github.com/meshplus/pier/internal/peermgr/proto"
 	"github.com/meshplus/pier/internal/syncer"
+	"github.com/meshplus/pier/pkg/model"
 	"github.com/sirupsen/logrus"
 )
 
 // handleIBTP handle ibtps from bitxhub
-func (ex *Exchanger) handleIBTP(ibtp *pb.IBTP, entry logrus.FieldLogger) {
+func (ex *Exchanger) handleIBTP(wIbtp *model.WrappedIBTP, entry logrus.FieldLogger) {
+	ibtp := wIbtp.Ibtp
 	err := ex.checker.Check(ibtp)
 	if err != nil {
 		// todo: send receipt back to bitxhub
@@ -36,7 +38,7 @@ func (ex *Exchanger) handleIBTP(ibtp *pb.IBTP, entry logrus.FieldLogger) {
 		}
 	}
 
-	receipt, err := ex.exec.ExecuteIBTP(ibtp)
+	receipt, err := ex.exec.ExecuteIBTP(wIbtp)
 	if err != nil {
 		ex.logger.Errorf("execute ibtp error:%s", err.Error())
 	}
@@ -60,10 +62,10 @@ sendReceiptLoop:
 				receipt, err = ex.exec.QueryIBTPReceipt(ibtp)
 				if err != nil {
 					ex.logger.Errorf("Query ibtp receipt for %s error: %s", ibtp.ID(), err.Error())
-					time.Sleep(500 * time.Millisecond)
+					time.Sleep(1 * time.Second)
 					continue queryLoop
 				}
-				time.Sleep(500 * time.Millisecond)
+				time.Sleep(1 * time.Second)
 				continue sendReceiptLoop
 			}
 		}
@@ -72,7 +74,8 @@ sendReceiptLoop:
 	ex.logger.WithFields(logrus.Fields{"type": ibtp.Type, "id": ibtp.ID()}).Info("Handle ibtp success")
 }
 
-func (ex *Exchanger) applyReceipt(ibtp *pb.IBTP, entry logrus.FieldLogger) {
+func (ex *Exchanger) applyReceipt(wIbtp *model.WrappedIBTP, entry logrus.FieldLogger) {
+	ibtp := wIbtp.Ibtp
 	index := ex.callbackCounter[ibtp.To]
 	if index >= ibtp.Index {
 		entry.Infof("Ignore ibtp callback, expected index %d", index+1)
@@ -84,11 +87,12 @@ func (ex *Exchanger) applyReceipt(ibtp *pb.IBTP, entry logrus.FieldLogger) {
 		// todo: need to handle missing ibtp receipt or not?
 		return
 	}
-	ex.handleIBTP(ibtp, entry)
+	ex.handleIBTP(wIbtp, entry)
 	ex.callbackCounter[ibtp.To] = ibtp.Index
 }
 
-func (ex *Exchanger) applyInterchain(ibtp *pb.IBTP, entry logrus.FieldLogger) {
+func (ex *Exchanger) applyInterchain(wIbtp *model.WrappedIBTP, entry logrus.FieldLogger) {
+	ibtp := wIbtp.Ibtp
 	index := ex.executorCounter[ibtp.From]
 	if index >= ibtp.Index {
 		entry.Infof("Ignore ibtp, expected %d", index+1)
@@ -102,24 +106,24 @@ func (ex *Exchanger) applyInterchain(ibtp *pb.IBTP, entry logrus.FieldLogger) {
 			return
 		}
 	}
-	ex.handleIBTP(ibtp, entry)
+	ex.handleIBTP(wIbtp, entry)
 	ex.executorCounter[ibtp.From] = ibtp.Index
 }
 
-func (ex *Exchanger) handleRollback(ibtpId string) error {
-	ibtp, err := ex.mnt.QueryIBTP(ibtpId)
-	if err != nil {
-		return fmt.Errorf("query ibtp by id %s: %v", ibtpId, err)
+func (ex *Exchanger) handleRollback(ibtp *pb.IBTP) {
+	if ibtp.Category() == pb.IBTP_RESPONSE {
+		// if this is receipt type of ibtp, no need to rollback
+		return
 	}
-
 	ex.exec.Rollback(ibtp, true)
-	return nil
+	ex.callbackCounter[ibtp.To] = ibtp.Index
 }
 
 // handleIBTP handle ibtps from bitxhub
-func (ex *Exchanger) handleUnionIBTP(ibtp *pb.IBTP) {
+func (ex *Exchanger) handleUnionIBTP(wIbtp *model.WrappedIBTP) {
+	ibtp := wIbtp.Ibtp
 	if ibtp.To == ex.appchainDID {
-		ex.exec.ExecuteIBTP(ibtp)
+		ex.exec.ExecuteIBTP(wIbtp)
 		ex.logger.WithFields(logrus.Fields{
 			"index": ibtp.Index,
 			"type":  ibtp.Type,
@@ -232,19 +236,19 @@ func (ex *Exchanger) timeCost() func() {
 func (ex *Exchanger) handleSendIBTPMessage(stream network.Stream, msg *peerMsg.Message) {
 	ex.ch <- struct{}{}
 	go func(msg *peerMsg.Message) {
-		ibtp := &pb.IBTP{}
-		if err := ibtp.Unmarshal(msg.Payload.Data); err != nil {
+		wIbtp := &model.WrappedIBTP{}
+		if err := json.Unmarshal(msg.Payload.Data, wIbtp); err != nil {
 			ex.logger.Errorf("Unmarshal ibtp: %s", err.Error())
 			return
 		}
 		defer ex.timeCost()()
-		err := ex.checker.Check(ibtp)
+		err := ex.checker.Check(wIbtp.Ibtp)
 		if err != nil {
 			ex.logger.Error("check ibtp: %w", err)
 			return
 		}
 
-		ex.feedIBTP(ibtp)
+		ex.feedIBTP(wIbtp)
 		<-ex.ch
 	}(msg)
 }

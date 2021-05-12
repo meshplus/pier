@@ -23,7 +23,10 @@ type Client interface {
 	SubmitIBTP(*pb.IBTP) (*pb.SubmitIBTPResponse, error)
 
 	// RollbackIBTP rollbacks the interchain ibtp to appchain
-	RollbackIBTP(*pb.IBTP, bool) (*pb.RollbackIBTPResponse, error)
+	RollbackIBTP(ibtp *pb.IBTP, isSrcChain bool) (*pb.RollbackIBTPResponse, error)
+
+	// increase in meta without actually executing it
+	IncreaseInMeta(ibtp *pb.IBTP) (*pb.IBTP, error)
 
 	// GetOutMessage gets interchain ibtp by index and target chain_id from broker contract
 	GetOutMessage(to string, idx uint64) (*pb.IBTP, error)

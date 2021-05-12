@@ -8,19 +8,21 @@ import (
 	"strings"
 	"time"
 
-	"github.com/sirupsen/logrus"
-
 	"github.com/Rican7/retry"
 	"github.com/Rican7/retry/strategy"
 	appchainmgr "github.com/meshplus/bitxhub-core/appchain-mgr"
+	"github.com/meshplus/bitxhub-kit/types"
 	"github.com/meshplus/bitxhub-model/constant"
 	"github.com/meshplus/bitxhub-model/pb"
 	rpcx "github.com/meshplus/go-bitxhub-client"
 	"github.com/meshplus/pier/internal/repo"
+	"github.com/meshplus/pier/pkg/model"
+	"github.com/sirupsen/logrus"
 )
 
 const (
-	appchainNotAvailable = "appchain not available"
+	srcchainNotAvailable = "current appchain not available"
+	dstchainNotAvailable = "target appchain not available"
 	invalidIBTP          = "invalid ibtp"
 	ibtpIndexExist       = "index already exists"
 	ibtpIndexWrong       = "wrong index"
@@ -148,30 +150,35 @@ func (syncer *WrapperSyncer) QueryInterchainMeta() *pb.Interchain {
 	return interchainMeta
 }
 
-func (syncer *WrapperSyncer) QueryIBTP(ibtpID string) (*pb.IBTP, error) {
+func (syncer *WrapperSyncer) QueryIBTP(ibtpID string) (*pb.IBTP, bool, error) {
 	queryTx, err := syncer.client.GenerateContractTx(pb.TransactionData_BVM, constant.InterchainContractAddr.Address(),
 		"GetIBTPByID", rpcx.String(ibtpID))
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
 	queryTx.Nonce = 1
 	receipt, err := syncer.client.SendView(queryTx)
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
 
 	if !receipt.IsSuccess() {
-		return nil, fmt.Errorf("%w: %s", ErrIBTPNotFound, string(receipt.Ret))
+		return nil, false, fmt.Errorf("%w: %s", ErrIBTPNotFound, string(receipt.Ret))
 	}
 
-	ibtp := &pb.IBTP{}
-	if err := ibtp.Unmarshal(receipt.Ret); err != nil {
-		return nil, fmt.Errorf("unmarshal ibtp bytes %w", err)
+	hash := types.NewHash(receipt.Ret)
+	response, err := syncer.client.GetTransaction(hash.String())
+	if err != nil {
+		return nil, false, err
 	}
-	return ibtp, nil
+	receipt, err = syncer.client.GetReceipt(hash.String())
+	if err != nil {
+		return nil, false, err
+	}
+	return response.Tx.GetIBTP(), receipt.Status == pb.Receipt_FAILED, nil
 }
 
-func (syncer *WrapperSyncer) ListenIBTP() <-chan *pb.IBTP {
+func (syncer *WrapperSyncer) ListenIBTP() <-chan *model.WrappedIBTP {
 	return syncer.ibtpC
 }
 
@@ -211,9 +218,13 @@ func (syncer *WrapperSyncer) SendIBTP(ibtp *pb.IBTP) error {
 		// if no rule bind for this appchain or appchain not available, exit pier
 		errMsg := string(receipt.Ret)
 		if strings.Contains(errMsg, noBindRule) ||
-			strings.Contains(errMsg, appchainNotAvailable) {
-			syncer.logger.Errorf("Unrecoverable error: %s occurred, please try to solve it and restart pier", string(receipt.Ret))
-			syncer.rollbackHandler(ibtp.ID())
+			strings.Contains(errMsg, srcchainNotAvailable) {
+			return fmt.Errorf("appchain not valid: %s", errMsg)
+		}
+		// if target chain is not available, this ibtp should be rollback
+		if strings.Contains(errMsg, dstchainNotAvailable) {
+			syncer.logger.Errorf("Destination appchain is not available: %s, try to rollback in source appchain...", string(receipt.Ret))
+			syncer.rollbackHandler(ibtp)
 			return nil
 		}
 		if strings.Contains(errMsg, ibtpIndexExist) {
