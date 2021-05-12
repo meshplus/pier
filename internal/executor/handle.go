@@ -7,6 +7,7 @@ import (
 	"github.com/Rican7/retry"
 	"github.com/Rican7/retry/strategy"
 	"github.com/meshplus/bitxhub-model/pb"
+	"github.com/meshplus/pier/pkg/model"
 	"github.com/sirupsen/logrus"
 )
 
@@ -15,12 +16,12 @@ import (
 // And this receipt should be sent back to counterparty.
 // 2. ibtp for confirmation from counterparty. This kind of ibtp is used to confirm
 // the status of ibtp invoked by this pier, and it will return nothing.
-func (e *ChannelExecutor) ExecuteIBTP(ibtp *pb.IBTP) (*pb.IBTP, error) {
-	if ibtp == nil {
+func (e *ChannelExecutor) ExecuteIBTP(wIbtp *model.WrappedIBTP) (*pb.IBTP, error) {
+	if wIbtp == nil || wIbtp.Ibtp == nil {
 		e.logger.Error("empty ibtp structure")
 		return nil, fmt.Errorf("nil ibtp structure")
 	}
-
+	ibtp := wIbtp.Ibtp
 	e.logger.WithFields(logrus.Fields{
 		"index": ibtp.Index,
 		"type":  ibtp.Type,
@@ -31,9 +32,9 @@ func (e *ChannelExecutor) ExecuteIBTP(ibtp *pb.IBTP) (*pb.IBTP, error) {
 	switch ibtp.Type {
 	case pb.IBTP_INTERCHAIN, pb.IBTP_ASSET_EXCHANGE_INIT,
 		pb.IBTP_ASSET_EXCHANGE_REDEEM, pb.IBTP_ASSET_EXCHANGE_REFUND:
-		return e.applyInterchainIBTP(ibtp)
+		return e.applyInterchainIBTP(wIbtp)
 	case pb.IBTP_RECEIPT_SUCCESS, pb.IBTP_RECEIPT_FAILURE, pb.IBTP_ASSET_EXCHANGE_RECEIPT:
-		e.applyReceiptIBTP(ibtp)
+		e.applyReceiptIBTP(wIbtp)
 		return nil, nil
 	default:
 		return nil, fmt.Errorf("wrong ibtp type")
@@ -44,13 +45,18 @@ func (e *ChannelExecutor) ExecuteIBTP(ibtp *pb.IBTP) (*pb.IBTP, error) {
 // one receipt-type ibtp sent back to where it comes from.
 // if this interchain tx has callback function, get results from the execution
 // of it and set these results as callback function's args
-func (e *ChannelExecutor) applyInterchainIBTP(ibtp *pb.IBTP) (*pb.IBTP, error) {
+func (e *ChannelExecutor) applyInterchainIBTP(wIbtp *model.WrappedIBTP) (*pb.IBTP, error) {
+	ibtp := wIbtp.Ibtp
 	entry := e.logger.WithFields(logrus.Fields{
 		"from":  ibtp.From,
 		"type":  ibtp.Type,
 		"index": ibtp.Index,
 	})
 
+	if !wIbtp.IsValid {
+		// if this ibtp is invalid, just increase the inCounter index, cause source chain will rollback if this ibtp is failed
+		return e.client.IncreaseInMeta(wIbtp.Ibtp)
+	}
 	// todo: deal with plugin returned error
 	// execute interchain tx, and if execution failed, try to rollback
 	response, err := e.client.SubmitIBTP(ibtp)
@@ -77,7 +83,8 @@ func (e *ChannelExecutor) applyInterchainIBTP(ibtp *pb.IBTP) (*pb.IBTP, error) {
 	return response.Result, nil
 }
 
-func (e *ChannelExecutor) applyReceiptIBTP(ibtp *pb.IBTP) error {
+func (e *ChannelExecutor) applyReceiptIBTP(wIbtp *model.WrappedIBTP) error {
+	ibtp := wIbtp.Ibtp
 	pd := &pb.Payload{}
 	if err := pd.Unmarshal(ibtp.Payload); err != nil {
 		return fmt.Errorf("unmarshal receipt type ibtp payload: %w", err)
@@ -96,6 +103,10 @@ func (e *ChannelExecutor) applyReceiptIBTP(ibtp *pb.IBTP) error {
 		return fmt.Errorf("unmarshal payload content: %w", err)
 	}
 
+	// if this ibtp receipt fail, no need to rollback
+	if !wIbtp.IsValid {
+		return nil
+	}
 	// if this is a callback ibtp, retry it until it worked
 	// because it might be rollback in asset
 	if err := retry.Retry(func(attempt uint) error {

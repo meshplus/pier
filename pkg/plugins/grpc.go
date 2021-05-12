@@ -59,8 +59,12 @@ func (s *GRPCServer) SubmitIBTP(_ context.Context, ibtp *pb.IBTP) (*pb.SubmitIBT
 	return s.Impl.SubmitIBTP(ibtp)
 }
 
-func (s *GRPCServer) RollbackIBTP(ctx context.Context, req *pb.RollbackIBTPRequest) (*pb.RollbackIBTPResponse, error) {
+func (s *GRPCServer) RollbackIBTP(_ context.Context, req *pb.RollbackIBTPRequest) (*pb.RollbackIBTPResponse, error) {
 	return s.Impl.RollbackIBTP(req.Ibtp, req.SrcChain)
+}
+
+func (s *GRPCServer) IncreaseInMeta(_ context.Context, in *pb.IBTP) (*pb.IBTP, error) {
+	return s.Impl.IncreaseInMeta(in)
 }
 
 func (s *GRPCServer) GetOutMessage(_ context.Context, req *pb.GetOutMessageRequest) (*pb.IBTP, error) {
@@ -233,6 +237,24 @@ func (g *GRPCClient) RollbackIBTP(ibtp *pb.IBTP, srcChain bool) (*pb.RollbackIBT
 	}
 
 	return response, nil
+}
+
+func (g *GRPCClient) IncreaseInMeta(original *pb.IBTP) (*pb.IBTP, error) {
+	var (
+		ibtp *pb.IBTP
+		err  error
+	)
+	retry.Retry(func(attempt uint) error {
+		ibtp, err = g.client.IncreaseInMeta(g.doneContext, original)
+		if err != nil {
+			logger.Error("Increase in meta index request plugin server",
+				"ibtp id", original.ID(),
+				"err", err.Error())
+			return err
+		}
+		return nil
+	}, strategy.Wait(1*time.Second))
+	return ibtp, nil
 }
 
 func (g *GRPCClient) GetOutMessage(to string, idx uint64) (*pb.IBTP, error) {

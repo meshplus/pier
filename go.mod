@@ -20,7 +20,7 @@ require (
 	github.com/libp2p/go-libp2p-core v0.6.1
 	github.com/meshplus/bitxhub-core v1.3.0
 	github.com/meshplus/bitxhub-kit v1.2.0
-	github.com/meshplus/bitxhub-model v1.2.0
+	github.com/meshplus/bitxhub-model v1.2.1-0.20210512070527-c3a68359d36c
 	github.com/meshplus/bitxid v0.0.0-20210412025850-e0eaf0f9063a
 	github.com/meshplus/go-bitxhub-client v1.3.0
 	github.com/meshplus/go-lightp2p v0.0.0-20200817105923-6b3aee40fa54
@@ -37,5 +37,3 @@ require (
 )
 
 replace github.com/libp2p/go-libp2p-core => github.com/libp2p/go-libp2p-core v0.5.6
-
-replace github.com/meshplus/bitxhub-model => ../bitxhub-model

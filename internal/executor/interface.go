@@ -2,6 +2,7 @@ package executor
 
 import (
 	"github.com/meshplus/bitxhub-model/pb"
+	"github.com/meshplus/pier/pkg/model"
 )
 
 //go:generate mockgen -destination mock_executor/mock_executor.go -package mock_executor -source interface.go
@@ -14,7 +15,7 @@ type Executor interface {
 
 	// ExecuteIBTP handles interchain ibtps from other appchains
 	// and return the receipt ibtp for ack or callback
-	ExecuteIBTP(ibtp *pb.IBTP) (*pb.IBTP, error)
+	ExecuteIBTP(wIbtp *model.WrappedIBTP) (*pb.IBTP, error)
 
 	// Rollback rollbacks ibtp on appchain
 	Rollback(ibtp *pb.IBTP, isSrcChain bool)
