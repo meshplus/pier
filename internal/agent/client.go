@@ -159,6 +159,14 @@ func (client *BxhClient) CommitCallback(ibtp *pb.IBTP) error {
 	return nil
 }
 
+func (client *BxhClient) RollbackIBTP(ibtp *pb.IBTP, isSrcChain bool) (*pb.RollbackIBTPResponse, error) {
+	return nil, nil
+}
+
+func (client *BxhClient) IncreaseInMeta(ibtp *pb.IBTP) (*pb.IBTP, error) {
+	return nil, nil
+}
+
 func (client *BxhClient) GetReceipt(ibtp *pb.IBTP) (*pb.IBTP, error) {
 	return nil, nil
 }

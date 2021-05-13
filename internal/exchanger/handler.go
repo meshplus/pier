@@ -5,19 +5,20 @@ import (
 	"fmt"
 	"time"
 
-	rpcx "github.com/meshplus/go-bitxhub-client"
-
 	"github.com/Rican7/retry"
 	"github.com/Rican7/retry/strategy"
 	"github.com/meshplus/bitxhub-model/pb"
+	rpcx "github.com/meshplus/go-bitxhub-client"
 	network "github.com/meshplus/go-lightp2p"
 	"github.com/meshplus/pier/internal/peermgr"
 	peerMsg "github.com/meshplus/pier/internal/peermgr/proto"
+	"github.com/meshplus/pier/pkg/model"
 	"github.com/sirupsen/logrus"
 )
 
 // handleIBTP handle ibtps from bitxhub
-func (ex *Exchanger) handleIBTP(ibtp *pb.IBTP) {
+func (ex *Exchanger) handleIBTP(wIbtp *model.WrappedIBTP) {
+	ibtp := wIbtp.Ibtp
 	err := ex.checker.Check(ibtp)
 	if err != nil {
 		// todo: send receipt back to bitxhub
@@ -34,7 +35,7 @@ func (ex *Exchanger) handleIBTP(ibtp *pb.IBTP) {
 		}
 	}
 
-	receipt, err := ex.exec.ExecuteIBTP(ibtp)
+	receipt, err := ex.exec.ExecuteIBTP(wIbtp)
 	if err != nil {
 		ex.logger.Errorf("execute ibtp error:%s", err.Error())
 	}
@@ -50,23 +51,12 @@ func (ex *Exchanger) handleIBTP(ibtp *pb.IBTP) {
 	}
 }
 
-func (ex *Exchanger) applyReceipt(ibtp *pb.IBTP, entry logrus.FieldLogger) {
-	index := ex.callbackCounter[ibtp.To]
-	if index >= ibtp.Index {
-		entry.Infof("Ignore ibtp callback, expected index %d", index+1)
-		return
-	}
-
-	if index+1 < ibtp.Index {
-		entry.Infof("Get missing ibtp receipt, expected index %d", index+1)
-		// todo: need to handle missing ibtp receipt or not?
-		return
-	}
-	ex.handleIBTP(ibtp)
-	ex.callbackCounter[ibtp.To] = ibtp.Index
+func (ex *Exchanger) applyReceipt(wIbtp *model.WrappedIBTP) {
+	ex.feedIBTPReceipt(wIbtp)
 }
 
-func (ex *Exchanger) applyInterchain(ibtp *pb.IBTP, entry logrus.FieldLogger) {
+func (ex *Exchanger) applyInterchain(wIbtp *model.WrappedIBTP, entry logrus.FieldLogger) {
+	ibtp := wIbtp.Ibtp
 	index := ex.executorCounter[ibtp.From]
 	if index >= ibtp.Index {
 		entry.Infof("Ignore ibtp, expected %d", index+1)
@@ -81,14 +71,24 @@ func (ex *Exchanger) applyInterchain(ibtp *pb.IBTP, entry logrus.FieldLogger) {
 			return
 		}
 	}
-	ex.handleIBTP(ibtp)
+	ex.handleIBTP(wIbtp)
 	ex.executorCounter[ibtp.From] = ibtp.Index
 }
 
+func (ex *Exchanger) handleRollback(ibtp *pb.IBTP) {
+	if ibtp.Category() == pb.IBTP_RESPONSE {
+		// if this is receipt type of ibtp, no need to rollback
+		return
+	}
+	ex.feedIBTPReceipt(&model.WrappedIBTP{Ibtp: ibtp, IsValid: false})
+	ex.logger.Infof("Rollback in source chain successfully")
+}
+
 // handleIBTP handle ibtps from bitxhub
-func (ex *Exchanger) handleUnionIBTP(ibtp *pb.IBTP) {
+func (ex *Exchanger) handleUnionIBTP(wIbtp *model.WrappedIBTP) {
+	ibtp := wIbtp.Ibtp
 	if ibtp.To == ex.pierID {
-		ex.exec.ExecuteIBTP(ibtp)
+		ex.exec.ExecuteIBTP(wIbtp)
 		ex.logger.WithFields(logrus.Fields{
 			"index": ibtp.Index,
 			"type":  ibtp.Type,
@@ -136,11 +136,11 @@ func (ex *Exchanger) handleProviderAppchains() error {
 //handleRouterSendIBTPMessage handles IBTP from union interchain network
 func (ex *Exchanger) handleRouterSendIBTPMessage(stream network.Stream, msg *peerMsg.Message) {
 	handle := func() error {
-		ibtp := &pb.IBTP{}
-		if err := ibtp.Unmarshal(msg.Payload.Data); err != nil {
+		wIbtp := &model.WrappedIBTP{}
+		if err := json.Unmarshal(msg.Payload.Data, wIbtp); err != nil {
 			return fmt.Errorf("unmarshal ibtp: %w", err)
 		}
-
+		ibtp := wIbtp.Ibtp
 		entry := ex.logger.WithFields(logrus.Fields{
 			"index": ibtp.Index,
 			"type":  ibtp.Type,
@@ -201,19 +201,19 @@ func (ex *Exchanger) timeCost() func() {
 func (ex *Exchanger) handleSendIBTPMessage(stream network.Stream, msg *peerMsg.Message) {
 	ex.ch <- struct{}{}
 	go func(msg *peerMsg.Message) {
-		ibtp := &pb.IBTP{}
-		if err := ibtp.Unmarshal(msg.Payload.Data); err != nil {
+		wIbtp := &model.WrappedIBTP{}
+		if err := json.Unmarshal(msg.Payload.Data, wIbtp); err != nil {
 			ex.logger.Errorf("Unmarshal ibtp: %s", err.Error())
 			return
 		}
 		defer ex.timeCost()()
-		err := ex.checker.Check(ibtp)
+		err := ex.checker.Check(wIbtp.Ibtp)
 		if err != nil {
 			ex.logger.Error("check ibtp: %w", err)
 			return
 		}
 
-		ex.feedIBTP(ibtp)
+		ex.feedIBTP(wIbtp)
 		<-ex.ch
 	}(msg)
 }

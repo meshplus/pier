@@ -57,7 +57,7 @@ func TestSyncHeader001(t *testing.T) {
 	h3 := getBlockHeader(root, 3)
 	// mock invalid tx wrapper
 	w4, _ := getTxWrapper(t, txs, txs1, 4)
-	w4.InterchainTxWrappers[0].TransactionHashes = w4.InterchainTxWrappers[0].TransactionHashes[1:]
+	w4.InterchainTxWrappers[0].Transactions = w4.InterchainTxWrappers[0].Transactions[1:]
 	// mock nil wrapper
 	w5 := &pb.InterchainTxWrappers{}
 	// mock wrong height wrapper
@@ -126,7 +126,7 @@ func TestSyncHeader001(t *testing.T) {
 
 	require.Nil(t, receiveWrapper.Unmarshal(val))
 	for i, tx := range w3.InterchainTxWrappers[0].Transactions {
-		require.Equal(t, tx.TransactionHash.String(), receiveWrapper.InterchainTxWrappers[0].Transactions[i].TransactionHash.String())
+		require.Equal(t, tx.Tx.TransactionHash.String(), receiveWrapper.InterchainTxWrappers[0].Transactions[i].Tx.TransactionHash.String())
 	}
 	done <- true
 	require.Equal(t, uint64(3), syncer.height)
@@ -196,7 +196,7 @@ func TestSyncHeader002(t *testing.T) {
 	h3 := getBlockHeader(root, 3)
 	// mock invalid tx wrapper
 	w4, _ := getTxWrapper(t, txs, txs1, 4)
-	w4.InterchainTxWrappers[0].TransactionHashes = w4.InterchainTxWrappers[0].TransactionHashes[1:]
+	w4.InterchainTxWrappers[0].Transactions = w4.InterchainTxWrappers[0].Transactions[1:]
 
 	syncWrapperCh := make(chan interface{}, 4)
 	meta := &pb.ChainMeta{
@@ -240,7 +240,7 @@ func TestSyncHeader002(t *testing.T) {
 
 	require.Nil(t, receiveWrapper.Unmarshal(val))
 	for i, tx := range w3.InterchainTxWrappers[0].Transactions {
-		require.Equal(t, tx.TransactionHash.String(), receiveWrapper.InterchainTxWrappers[0].Transactions[i].TransactionHash.String())
+		require.Equal(t, tx.Tx.TransactionHash.String(), receiveWrapper.InterchainTxWrappers[0].Transactions[i].Tx.TransactionHash.String())
 	}
 	done <- true
 	require.Equal(t, uint64(3), syncer.height)
@@ -276,6 +276,10 @@ func TestQueryIBTP(t *testing.T) {
 	data, err := td.Marshal()
 	require.Nil(t, err)
 
+	normalTx := &pb.Transaction{
+		IBTP:    origin,
+		Payload: data,
+	}
 	tx := &pb.Transaction{
 		Payload: data,
 		IBTP:    origin,
@@ -288,25 +292,29 @@ func TestQueryIBTP(t *testing.T) {
 		Ret:    []byte("this is a failed receipt"),
 		Status: pb.Receipt_FAILED,
 	}
+	normalResponse := &pb.GetTransactionResponse{
+		Tx: normalTx,
+	}
 	client.EXPECT().GenerateContractTx(gomock.Any(), gomock.Any(), "GetIBTPByID", gomock.Any()).Return(tx, nil).AnyTimes()
 	// test for normal receipt
-	getTxResponse := &pb.GetTransactionResponse{
-		Tx: tx,
-	}
 	client.EXPECT().SendView(tx).Return(normalReceipt, nil)
-	client.EXPECT().GetTransaction(gomock.Any()).Return(getTxResponse, nil).AnyTimes()
-	ibtp, err := syncer.QueryIBTP(origin.ID())
+	client.EXPECT().GetTransaction(gomock.Any()).Return(normalResponse, nil)
+	client.EXPECT().GetReceipt(gomock.Any()).Return(normalReceipt, nil)
+	ibtp, _, err := syncer.QueryIBTP(origin.ID())
 	require.Nil(t, err)
 	require.Equal(t, origin, ibtp)
 
 	// test for abnormal receipt
 	client.EXPECT().SendView(tx).Return(badReceipt, nil)
-	ibtp, err = syncer.QueryIBTP(from)
+	client.EXPECT().GetTransaction(gomock.Any()).Return(nil, fmt.Errorf("bad ibtp 1"))
+	ibtp, _, err = syncer.QueryIBTP(from)
 	require.NotNil(t, err)
 	require.Nil(t, ibtp)
 
 	client.EXPECT().SendView(tx).Return(badReceipt1, nil)
-	ibtp, err = syncer.QueryIBTP(from)
+	client.EXPECT().GetTransaction(gomock.Any()).Return(normalResponse, nil)
+	client.EXPECT().GetReceipt(gomock.Any()).Return(nil, fmt.Errorf("bad ibtp 2"))
+	ibtp, _, err = syncer.QueryIBTP(from)
 	require.NotNil(t, err)
 	require.Nil(t, ibtp)
 }
@@ -455,43 +463,57 @@ func TestSendIBTP(t *testing.T) {
 		From: b,
 	}
 
-	r := &pb.Receipt{
-		Ret:    []byte("this is a test"),
-		Status: 0,
-	}
 	client.EXPECT().GenerateIBTPTx(gomock.Any()).Return(tx, nil).AnyTimes()
-	origin := &pb.IBTP{
-		From:      from,
-		Index:     1,
-		Timestamp: time.Now().UnixNano(),
-	}
-	receiptData, err := origin.Marshal()
-	require.Nil(t, err)
-	ibtpReceipt := &pb.Receipt{
-		Ret:    receiptData,
-		Status: pb.Receipt_SUCCESS,
-	}
-	queryIBTPTx := &pb.Transaction{}
-	txResponse := &pb.GetTransactionResponse{
-		Tx: tx,
-	}
-	client.EXPECT().GenerateContractTx(gomock.Any(), gomock.Any(), "GetIBTPByID", gomock.Any()).Return(queryIBTPTx, nil).AnyTimes()
-	client.EXPECT().SendView(queryIBTPTx).Return(ibtpReceipt, nil)
+
 	networkDownTime := 0
-	client.EXPECT().SendTransactionWithReceipt(gomock.Any(), gomock.Any()).DoAndReturn(
-		func(tx *pb.Transaction, opts *rpcx.TransactOpts) (*pb.Receipt, error) {
+	client.EXPECT().SendTransaction(gomock.Any(), gomock.Any()).DoAndReturn(
+		func(tx *pb.Transaction, opts *rpcx.TransactOpts) (string, error) {
 			networkDownTime++
 			if networkDownTime == 1 {
-				r.Status = pb.Receipt_FAILED
-				return r, nil
-			} else if networkDownTime == 2 {
-				return nil, fmt.Errorf("network broken")
+				return "", rpcx.ErrBrokenNetwork
 			}
-			r.Status = pb.Receipt_SUCCESS
+			return hash, nil
+		}).MaxTimes(4)
+
+	r := &pb.Receipt{
+		Ret:    []byte("this is a test"),
+		Status: pb.Receipt_SUCCESS,
+	}
+	receiptNetworkDownTime := 0
+	client.EXPECT().GetReceipt(hash).DoAndReturn(
+		func(ha string) (*pb.Receipt, error) {
+			receiptNetworkDownTime++
+			if receiptNetworkDownTime == 1 {
+				return nil, fmt.Errorf("not found receipt")
+			}
 			return r, nil
-		}).AnyTimes()
-	client.EXPECT().GetTransaction(gomock.Any()).Return(txResponse, nil)
+		}).MaxTimes(2)
 	require.Nil(t, syncer.SendIBTP(&pb.IBTP{}))
+
+	// test for receipt failed situation
+	client.EXPECT().SendTransaction(gomock.Any(), gomock.Any()).Return(hash, nil).AnyTimes()
+	errMsg1 := fmt.Sprintf("%s: can't find rule for this appcxhain", noBindRule)
+	errMsg2 := fmt.Sprintf("%s: appchain not registerd", srcchainNotAvailable)
+	errMsg3 := fmt.Sprintf("%s: ibtp verify error", invalidIBTP)
+	errMsg4 := fmt.Sprintf("%s: ibtp already on chain", ibtpIndexExist)
+	failReceipt := &pb.Receipt{
+		Ret:    []byte(errMsg1),
+		Status: pb.Receipt_FAILED,
+	}
+	client.EXPECT().GetReceipt(hash).Return(failReceipt, nil).AnyTimes()
+	require.NotNil(t, syncer.SendIBTP(&pb.IBTP{}))
+
+	failReceipt.Ret = []byte(errMsg2)
+	require.NotNil(t, syncer.SendIBTP(&pb.IBTP{}))
+
+	failReceipt.Ret = []byte(errMsg3)
+	err := syncer.SendIBTP(&pb.IBTP{})
+	require.NotNil(t, err)
+
+	// this ibtp sending should be ignored
+	failReceipt.Ret = []byte(errMsg4)
+	err = syncer.SendIBTP(&pb.IBTP{})
+	require.Nil(t, err)
 }
 
 func TestGetInterchainById(t *testing.T) {
@@ -606,13 +628,17 @@ func getBlockHeader(root *types.Hash, number uint64) *pb.BlockHeader {
 }
 
 func getTxWrapper(t *testing.T, interchainTxs []*pb.Transaction, innerchainTxs []*pb.Transaction, number uint64) (*pb.InterchainTxWrappers, *types.Hash) {
+	verifiedTxs := make([]*pb.VerifiedTx, len(interchainTxs))
+	for i, tx := range interchainTxs {
+		verifiedTxs[i] = &pb.VerifiedTx{
+			Tx:    tx,
+			Valid: true,
+		}
+	}
 	var l2roots []types.Hash
-	var interchainTxHashes []types.Hash
 	hashes := make([]merkletree.Content, 0, len(interchainTxs))
 	for i := 0; i < len(interchainTxs); i++ {
-		interchainHash := interchainTxs[i].Hash()
-		hashes = append(hashes, interchainHash)
-		interchainTxHashes = append(interchainTxHashes, *interchainHash)
+		hashes = append(hashes, verifiedTxs[i])
 	}
 
 	tree, err := merkletree.NewTree(hashes)
@@ -636,10 +662,9 @@ func getTxWrapper(t *testing.T, interchainTxs []*pb.Transaction, innerchainTxs [
 
 	wrappers := make([]*pb.InterchainTxWrapper, 0, 1)
 	wrapper := &pb.InterchainTxWrapper{
-		Transactions:      interchainTxs,
-		TransactionHashes: interchainTxHashes,
-		Height:            number,
-		L2Roots:           l2roots,
+		Transactions: verifiedTxs,
+		Height:       number,
+		L2Roots:      l2roots,
 	}
 	wrappers = append(wrappers, wrapper)
 	itw := &pb.InterchainTxWrappers{

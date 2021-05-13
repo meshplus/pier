@@ -7,6 +7,8 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/meshplus/pier/pkg/model"
+
 	"github.com/Rican7/retry"
 	"github.com/Rican7/retry/strategy"
 	"github.com/cbergoon/merkletree"
@@ -30,9 +32,10 @@ type WrapperSyncer struct {
 	storage         storage.Storage
 	logger          logrus.FieldLogger
 	wrappersC       chan *pb.InterchainTxWrappers
-	ibtpC           chan *pb.IBTP
+	ibtpC           chan *model.WrappedIBTP
 	appchainHandler AppchainHandler
 	recoverHandler  RecoverUnionHandler
+	rollbackHandler RollbackHandler
 
 	mode      string
 	isRecover bool
@@ -52,7 +55,7 @@ func New(pierID string, mode string, opts ...Option) (*WrapperSyncer, error) {
 
 	ws := &WrapperSyncer{
 		wrappersC: make(chan *pb.InterchainTxWrappers, maxChSize),
-		ibtpC:     make(chan *pb.IBTP, maxChSize),
+		ibtpC:     make(chan *model.WrappedIBTP, maxChSize),
 		client:    cfg.client,
 		lite:      cfg.lite,
 		storage:   cfg.storage,
@@ -311,11 +314,15 @@ func (syncer *WrapperSyncer) handleInterchainTxWrapper(w *pb.InterchainTxWrapper
 	}
 
 	for _, tx := range w.Transactions {
-		ibtp := tx.GetIBTP()
+		// if ibtp is failed
+		// 1. this is interchain type of ibtp, increase inCounter index
+		// 2. this is ibtp receipt type, rollback and increase callback index
+		ibtp := tx.Tx.GetIBTP()
 		if ibtp == nil {
 			syncer.logger.Errorf("empty ibtp in tx")
 			continue
 		}
+		wIBTP := &model.WrappedIBTP{Ibtp: ibtp, IsValid: tx.Valid}
 		if syncer.isRecover && syncer.isUnionMode() {
 			ic, ok := icm[ibtp.From]
 			if !ok {
@@ -333,7 +340,7 @@ func (syncer *WrapperSyncer) handleInterchainTxWrapper(w *pb.InterchainTxWrapper
 				}
 			}
 		}
-		syncer.ibtpC <- ibtp
+		syncer.ibtpC <- wIBTP
 	}
 
 	syncer.logger.WithFields(logrus.Fields{
@@ -361,18 +368,23 @@ func (syncer *WrapperSyncer) RegisterAppchainHandler(handler AppchainHandler) er
 	return nil
 }
 
+func (syncer *WrapperSyncer) RegisterRollbackHandler(handler RollbackHandler) error {
+	if handler == nil {
+		return fmt.Errorf("register rollback handler: empty handler")
+	}
+
+	syncer.rollbackHandler = handler
+	return nil
+}
+
 // verifyWrapper verifies the basic of merkle wrapper from bitxhub
 func (syncer *WrapperSyncer) verifyWrapper(w *pb.InterchainTxWrapper) (bool, error) {
 	if w.Height != syncer.getDemandHeight() {
 		return false, fmt.Errorf("wrong height of wrapper from bitxhub")
 	}
 
-	if w.Height == 1 || w.TransactionHashes == nil {
+	if w.Height == 1 {
 		return true, nil
-	}
-
-	if len(w.TransactionHashes) != len(w.Transactions) {
-		return false, fmt.Errorf("wrong size of interchain txs from bitxhub, hashes :%d, txs: %d", len(w.TransactionHashes), len(w.Transactions))
 	}
 
 	// validate if l2roots are correct
@@ -410,11 +422,8 @@ func (syncer *WrapperSyncer) verifyWrapper(w *pb.InterchainTxWrapper) (bool, err
 	}
 
 	hashes := make([]merkletree.Content, 0, len(w.Transactions))
-	existM := make(map[string]bool)
-	for _, hash := range w.TransactionHashes {
-		tmp := hash
-		hashes = append(hashes, &tmp)
-		existM[tmp.String()] = true
+	for _, tx := range w.Transactions {
+		hashes = append(hashes, tx)
 	}
 
 	tree, err := merkletree.NewTree(hashes)
@@ -432,14 +441,6 @@ func (syncer *WrapperSyncer) verifyWrapper(w *pb.InterchainTxWrapper) (bool, err
 	}
 	if !correctRoot {
 		return false, fmt.Errorf("incorrect trx hashes")
-	}
-
-	// verify if every interchain tx is valid
-	for _, tx := range w.Transactions {
-		if existM[tx.TransactionHash.String()] {
-			// TODO: how to deal with malicious tx found
-			continue
-		}
 	}
 
 	return true, nil

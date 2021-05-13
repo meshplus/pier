@@ -104,6 +104,36 @@ func (mr *MockClientMockRecorder) SubmitIBTP(arg0 interface{}) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SubmitIBTP", reflect.TypeOf((*MockClient)(nil).SubmitIBTP), arg0)
 }
 
+// RollbackIBTP mocks base method
+func (m *MockClient) RollbackIBTP(ibtp *pb.IBTP, isSrcChain bool) (*pb.RollbackIBTPResponse, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "RollbackIBTP", ibtp, isSrcChain)
+	ret0, _ := ret[0].(*pb.RollbackIBTPResponse)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// RollbackIBTP indicates an expected call of RollbackIBTP
+func (mr *MockClientMockRecorder) RollbackIBTP(ibtp, isSrcChain interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RollbackIBTP", reflect.TypeOf((*MockClient)(nil).RollbackIBTP), ibtp, isSrcChain)
+}
+
+// IncreaseInMeta mocks base method
+func (m *MockClient) IncreaseInMeta(ibtp *pb.IBTP) (*pb.IBTP, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "IncreaseInMeta", ibtp)
+	ret0, _ := ret[0].(*pb.IBTP)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// IncreaseInMeta indicates an expected call of IncreaseInMeta
+func (mr *MockClientMockRecorder) IncreaseInMeta(ibtp interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IncreaseInMeta", reflect.TypeOf((*MockClient)(nil).IncreaseInMeta), ibtp)
+}
+
 // GetOutMessage mocks base method
 func (m *MockClient) GetOutMessage(to string, idx uint64) (*pb.IBTP, error) {
 	m.ctrl.T.Helper()

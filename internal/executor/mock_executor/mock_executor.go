@@ -7,6 +7,7 @@ package mock_executor
 import (
 	gomock "github.com/golang/mock/gomock"
 	pb "github.com/meshplus/bitxhub-model/pb"
+	model "github.com/meshplus/pier/pkg/model"
 	reflect "reflect"
 )
 
@@ -62,18 +63,30 @@ func (mr *MockExecutorMockRecorder) Stop() *gomock.Call {
 }
 
 // ExecuteIBTP mocks base method
-func (m *MockExecutor) ExecuteIBTP(ibtp *pb.IBTP) (*pb.IBTP, error) {
+func (m *MockExecutor) ExecuteIBTP(wIbtp *model.WrappedIBTP) (*pb.IBTP, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ExecuteIBTP", ibtp)
+	ret := m.ctrl.Call(m, "ExecuteIBTP", wIbtp)
 	ret0, _ := ret[0].(*pb.IBTP)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // ExecuteIBTP indicates an expected call of ExecuteIBTP
-func (mr *MockExecutorMockRecorder) ExecuteIBTP(ibtp interface{}) *gomock.Call {
+func (mr *MockExecutorMockRecorder) ExecuteIBTP(wIbtp interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ExecuteIBTP", reflect.TypeOf((*MockExecutor)(nil).ExecuteIBTP), ibtp)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ExecuteIBTP", reflect.TypeOf((*MockExecutor)(nil).ExecuteIBTP), wIbtp)
+}
+
+// Rollback mocks base method
+func (m *MockExecutor) Rollback(ibtp *pb.IBTP, isSrcChain bool) {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "Rollback", ibtp, isSrcChain)
+}
+
+// Rollback indicates an expected call of Rollback
+func (mr *MockExecutorMockRecorder) Rollback(ibtp, isSrcChain interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Rollback", reflect.TypeOf((*MockExecutor)(nil).Rollback), ibtp, isSrcChain)
 }
 
 // QueryInterchainMeta mocks base method
