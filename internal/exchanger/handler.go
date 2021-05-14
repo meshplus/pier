@@ -115,8 +115,7 @@ func (ex *Exchanger) handleRollback(ibtp *pb.IBTP) {
 		// if this is receipt type of ibtp, no need to rollback
 		return
 	}
-	ex.exec.Rollback(ibtp, true)
-	ex.callbackCounter[ibtp.To] = ibtp.Index
+	ex.feedIBTPReceipt(&model.WrappedIBTP{Ibtp: ibtp, IsValid: false})
 }
 
 // handleIBTP handle ibtps from bitxhub
@@ -171,11 +170,12 @@ func (ex *Exchanger) handleProviderAppchains() error {
 //handleRouterSendIBTPMessage handles IBTP from union interchain network
 func (ex *Exchanger) handleRouterSendIBTPMessage(stream network.Stream, msg *peerMsg.Message) {
 	handle := func() error {
-		ibtp := &pb.IBTP{}
-		if err := ibtp.Unmarshal(msg.Payload.Data); err != nil {
+		wIbtp := &model.WrappedIBTP{}
+		if err := json.Unmarshal(msg.Payload.Data, wIbtp); err != nil {
 			return fmt.Errorf("unmarshal ibtp: %w", err)
 		}
 
+		ibtp := wIbtp.Ibtp
 		entry := ex.logger.WithFields(logrus.Fields{
 			"index": ibtp.Index,
 			"type":  ibtp.Type,

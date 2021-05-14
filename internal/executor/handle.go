@@ -34,8 +34,8 @@ func (e *ChannelExecutor) ExecuteIBTP(wIbtp *model.WrappedIBTP) (*pb.IBTP, error
 		pb.IBTP_ASSET_EXCHANGE_REDEEM, pb.IBTP_ASSET_EXCHANGE_REFUND:
 		return e.applyInterchainIBTP(wIbtp)
 	case pb.IBTP_RECEIPT_SUCCESS, pb.IBTP_RECEIPT_FAILURE, pb.IBTP_ASSET_EXCHANGE_RECEIPT:
-		e.applyReceiptIBTP(wIbtp)
-		return nil, nil
+		err := e.applyReceiptIBTP(wIbtp)
+		return nil, err
 	default:
 		return nil, fmt.Errorf("wrong ibtp type")
 	}
@@ -96,7 +96,9 @@ func (e *ChannelExecutor) applyReceiptIBTP(wIbtp *model.WrappedIBTP) error {
 	var err error
 	if pd.Encrypted {
 		contentByte, err = e.cryptor.Decrypt(contentByte, ibtp.To)
-		return fmt.Errorf("decrypt ibtp payload content: %w", err)
+		if err != nil {
+			return fmt.Errorf("decrypt ibtp payload content: %w", err)
+		}
 	}
 
 	if err := ct.Unmarshal(contentByte); err != nil {

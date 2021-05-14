@@ -14,8 +14,8 @@ import (
 func (ex *Exchanger) recoverRelay() {
 	// recover possible unrollbacked ibtp
 	callbackMeta := ex.exec.QueryCallbackMeta()
-	for to, idx := range callbackMeta {
-		beginIndex, ok := ex.interchainCounter[to]
+	for to, idx := range ex.interchainCounter {
+		beginIndex, ok := callbackMeta[to]
 		if !ok {
 			beginIndex = 0
 		}
@@ -89,8 +89,7 @@ func (ex *Exchanger) handleMissingCallback(to string, begin, end uint64) error {
 			}
 			// if this ibtp is not valid, try to rollback
 			if !isValid {
-				ex.handleRollback(ibtp)
-				ex.callbackCounter[ibtp.To] = ibtp.Index
+				ex.feedIBTPReceipt(&model.WrappedIBTP{Ibtp: ibtp, IsValid: false})
 			}
 			return nil
 		}, strategy.Wait(500*time.Millisecond), strategy.Limit(10)); err != nil {
@@ -123,7 +122,7 @@ func (ex *Exchanger) handleMissingIBTPFromMnt(to string, begin, end uint64) erro
 				// if err occurs, try to resend this ibtp
 				return err
 			}
-			ex.interchainCounter[ibtp.To] = ibtp.Index
+
 			return nil
 		}, strategy.Wait(500*time.Millisecond)); err != nil {
 			return err
