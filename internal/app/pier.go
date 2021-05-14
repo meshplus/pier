@@ -123,6 +123,11 @@ func NewPier(repoRoot string, config *repo.Config) (*Pier, error) {
 		if err != nil {
 			return nil, fmt.Errorf("cryptor create: %w", err)
 		}
+		pierHAConstructor, err := agency.GetPierHAConstructor(config.HA.Mode)
+		if err != nil {
+			return nil, fmt.Errorf("pier ha constructor not found")
+		}
+		pierHA = pierHAConstructor(nil, addr.String())
 
 		meta = &pb.Interchain{}
 		lite = &direct_lite.MockLite{}

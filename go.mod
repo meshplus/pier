@@ -4,10 +4,10 @@ go 1.13
 
 require (
 	github.com/Rican7/retry v0.1.0
-	github.com/btcsuite/btcd v0.21.0-beta
+	github.com/btcsuite/btcd v0.20.1-beta
 	github.com/cbergoon/merkletree v0.2.0
 	github.com/fatih/color v1.9.0
-	github.com/fsnotify/fsnotify v1.4.9
+	github.com/fsnotify/fsnotify v1.4.7
 	github.com/gin-gonic/gin v1.6.3
 	github.com/gobuffalo/packd v1.0.0
 	github.com/gobuffalo/packr v1.30.1
