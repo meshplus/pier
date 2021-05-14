@@ -175,7 +175,7 @@ func (syncer *WrapperSyncer) QueryIBTP(ibtpID string) (*pb.IBTP, bool, error) {
 	if err != nil {
 		return nil, false, err
 	}
-	return response.Tx.GetIBTP(), receipt.Status == pb.Receipt_FAILED, nil
+	return response.Tx.GetIBTP(), receipt.Status == pb.Receipt_SUCCESS, nil
 }
 
 func (syncer *WrapperSyncer) ListenIBTP() <-chan *model.WrappedIBTP {

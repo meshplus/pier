@@ -213,10 +213,11 @@ func (ex *Exchanger) listenAndSendIBTPFromMnt() {
 				if err := ex.sendIBTP(ibtp); err != nil {
 					ex.logger.Errorf("Send ibtp: %s", err.Error())
 					// if err occurs, try to get new ibtp and resend
+					ibtpID := ibtp.ID()
 					if err := retry.Retry(func(attempt uint) error {
-						ibtp, err = ex.mnt.QueryIBTP(ibtp.ID())
+						ibtp, err = ex.mnt.QueryIBTP(ibtpID)
 						if err != nil {
-							ex.logger.Errorf("Query ibtp %s from appchain: %s", ibtp.ID(), err.Error())
+							ex.logger.Errorf("Query ibtp %s from appchain: %s", ibtpID, err.Error())
 							return err
 						}
 						return nil
@@ -225,7 +226,6 @@ func (ex *Exchanger) listenAndSendIBTPFromMnt() {
 					}
 					return fmt.Errorf("retry sending ibtp")
 				}
-				ex.interchainCounter[ibtp.To] = ibtp.Index
 				return nil
 			}, strategy.Backoff(backoff.Fibonacci(500*time.Millisecond))); err != nil {
 				ex.logger.Panic(err)
@@ -335,6 +335,7 @@ func (ex *Exchanger) sendIBTP(ibtp *pb.IBTP) error {
 		}
 	}
 	entry.Info("Send ibtp success from monitor")
+	ex.interchainCounter[ibtp.To] = ibtp.Index
 	return nil
 }
 
