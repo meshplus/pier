@@ -40,18 +40,8 @@ func (mgr *Manager) handleMessage(s network.Stream, msg *peerproto.Message) {
 		mgr.logger.Error(err)
 	}
 
-	appchainRes := &appchainmgr.Appchain{}
-	if err := json.Unmarshal(res, appchainRes); err != nil {
-		mgr.logger.Error(err)
-		return
-	}
-
 	mgr.logger.WithFields(logrus.Fields{
-		"type":           msg.Type,
-		"from_id":        appchainRes.ID,
-		"name":           appchainRes.Name,
-		"desc":           appchainRes.Desc,
-		"chain_type":     appchainRes.ChainType,
-		"consensus_type": appchainRes.ConsensusType,
+		"type":    msg.Type,
+		"from_id": string(res),
 	}).Info("Handle appchain message")
 }

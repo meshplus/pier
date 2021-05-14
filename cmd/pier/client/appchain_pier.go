@@ -219,7 +219,7 @@ func savePierAppchain(ctx *cli.Context, path string) error {
 	validatorsPath := ctx.String("validators")
 	consensusType := ctx.String("consensusType")
 
-	url, err := getURL(ctx, fmt.Sprintf("%s?pier_id=%s", path, pier))
+	url, err := getURL(ctx, fmt.Sprintf("%s?pier_id=%s", GetAppchainUrl, pier))
 	if err != nil {
 		return err
 	}

@@ -159,23 +159,23 @@ func (g *Server) getAppchain(c *gin.Context) {
 		return
 	}
 
+	if !ackMsg.Payload.Ok {
+		res.Data = ackMsg.Payload.Data
+		c.JSON(http.StatusInternalServerError, res)
+		return
+	}
+
 	g.handleAckAppchain(c, ackMsg)
 }
 
 func (g *Server) handleAckAppchain(c *gin.Context, msg *peerproto.Message) {
-	app := appchainmgr.Appchain{}
-	if err := json.Unmarshal(msg.Payload.Data, &app); err != nil {
-		g.logger.Error(err)
-		return
-	}
-
 	res := &response{}
 
 	switch msg.Type {
 	case peerproto.Message_APPCHAIN_REGISTER:
-		res.Data = []byte(fmt.Sprintf("appchain register successfully, id is %s\n", app.ID))
+		res.Data = []byte(fmt.Sprintf("appchain register successfully, appchain is %s\n", string(msg.Payload.Data)))
 	case peerproto.Message_APPCHAIN_UPDATE:
-		res.Data = []byte(fmt.Sprintf("appchain update successfully, id is %s\n", app.ID))
+		res.Data = []byte(fmt.Sprintf("appchain update successfully, appchain is %s\n", string(msg.Payload.Data)))
 	case peerproto.Message_APPCHAIN_GET:
 		res.Data = msg.Payload.Data
 	}
