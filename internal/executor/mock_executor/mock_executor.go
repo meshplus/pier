@@ -5,63 +5,36 @@
 package mock_executor
 
 import (
+	reflect "reflect"
+
 	gomock "github.com/golang/mock/gomock"
 	pb "github.com/meshplus/bitxhub-model/pb"
-	reflect "reflect"
 )
 
-// MockExecutor is a mock of Executor interface
+// MockExecutor is a mock of Executor interface.
 type MockExecutor struct {
 	ctrl     *gomock.Controller
 	recorder *MockExecutorMockRecorder
 }
 
-// MockExecutorMockRecorder is the mock recorder for MockExecutor
+// MockExecutorMockRecorder is the mock recorder for MockExecutor.
 type MockExecutorMockRecorder struct {
 	mock *MockExecutor
 }
 
-// NewMockExecutor creates a new mock instance
+// NewMockExecutor creates a new mock instance.
 func NewMockExecutor(ctrl *gomock.Controller) *MockExecutor {
 	mock := &MockExecutor{ctrl: ctrl}
 	mock.recorder = &MockExecutorMockRecorder{mock}
 	return mock
 }
 
-// EXPECT returns an object that allows the caller to indicate expected use
+// EXPECT returns an object that allows the caller to indicate expected use.
 func (m *MockExecutor) EXPECT() *MockExecutorMockRecorder {
 	return m.recorder
 }
 
-// Start mocks base method
-func (m *MockExecutor) Start() error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Start")
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// Start indicates an expected call of Start
-func (mr *MockExecutorMockRecorder) Start() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Start", reflect.TypeOf((*MockExecutor)(nil).Start))
-}
-
-// Stop mocks base method
-func (m *MockExecutor) Stop() error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Stop")
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// Stop indicates an expected call of Stop
-func (mr *MockExecutorMockRecorder) Stop() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Stop", reflect.TypeOf((*MockExecutor)(nil).Stop))
-}
-
-// ExecuteIBTP mocks base method
+// ExecuteIBTP mocks base method.
 func (m *MockExecutor) ExecuteIBTP(ibtp *pb.IBTP) (*pb.IBTP, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ExecuteIBTP", ibtp)
@@ -70,27 +43,13 @@ func (m *MockExecutor) ExecuteIBTP(ibtp *pb.IBTP) (*pb.IBTP, error) {
 	return ret0, ret1
 }
 
-// ExecuteIBTP indicates an expected call of ExecuteIBTP
+// ExecuteIBTP indicates an expected call of ExecuteIBTP.
 func (mr *MockExecutorMockRecorder) ExecuteIBTP(ibtp interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ExecuteIBTP", reflect.TypeOf((*MockExecutor)(nil).ExecuteIBTP), ibtp)
 }
 
-// QueryInterchainMeta mocks base method
-func (m *MockExecutor) QueryInterchainMeta() map[string]uint64 {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "QueryInterchainMeta")
-	ret0, _ := ret[0].(map[string]uint64)
-	return ret0
-}
-
-// QueryInterchainMeta indicates an expected call of QueryInterchainMeta
-func (mr *MockExecutorMockRecorder) QueryInterchainMeta() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "QueryInterchainMeta", reflect.TypeOf((*MockExecutor)(nil).QueryInterchainMeta))
-}
-
-// QueryCallbackMeta mocks base method
+// QueryCallbackMeta mocks base method.
 func (m *MockExecutor) QueryCallbackMeta() map[string]uint64 {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "QueryCallbackMeta")
@@ -98,13 +57,13 @@ func (m *MockExecutor) QueryCallbackMeta() map[string]uint64 {
 	return ret0
 }
 
-// QueryCallbackMeta indicates an expected call of QueryCallbackMeta
+// QueryCallbackMeta indicates an expected call of QueryCallbackMeta.
 func (mr *MockExecutorMockRecorder) QueryCallbackMeta() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "QueryCallbackMeta", reflect.TypeOf((*MockExecutor)(nil).QueryCallbackMeta))
 }
 
-// QueryIBTPReceipt mocks base method
+// QueryIBTPReceipt mocks base method.
 func (m *MockExecutor) QueryIBTPReceipt(originalIBTP *pb.IBTP) (*pb.IBTP, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "QueryIBTPReceipt", originalIBTP)
@@ -113,8 +72,50 @@ func (m *MockExecutor) QueryIBTPReceipt(originalIBTP *pb.IBTP) (*pb.IBTP, error)
 	return ret0, ret1
 }
 
-// QueryIBTPReceipt indicates an expected call of QueryIBTPReceipt
+// QueryIBTPReceipt indicates an expected call of QueryIBTPReceipt.
 func (mr *MockExecutorMockRecorder) QueryIBTPReceipt(originalIBTP interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "QueryIBTPReceipt", reflect.TypeOf((*MockExecutor)(nil).QueryIBTPReceipt), originalIBTP)
+}
+
+// QueryInterchainMeta mocks base method.
+func (m *MockExecutor) QueryInterchainMeta() map[string]uint64 {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "QueryInterchainMeta")
+	ret0, _ := ret[0].(map[string]uint64)
+	return ret0
+}
+
+// QueryInterchainMeta indicates an expected call of QueryInterchainMeta.
+func (mr *MockExecutorMockRecorder) QueryInterchainMeta() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "QueryInterchainMeta", reflect.TypeOf((*MockExecutor)(nil).QueryInterchainMeta))
+}
+
+// Start mocks base method.
+func (m *MockExecutor) Start() error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Start")
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Start indicates an expected call of Start.
+func (mr *MockExecutorMockRecorder) Start() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Start", reflect.TypeOf((*MockExecutor)(nil).Start))
+}
+
+// Stop mocks base method.
+func (m *MockExecutor) Stop() error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Stop")
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Stop indicates an expected call of Stop.
+func (mr *MockExecutorMockRecorder) Stop() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Stop", reflect.TypeOf((*MockExecutor)(nil).Stop))
 }
