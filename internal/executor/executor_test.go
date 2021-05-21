@@ -13,6 +13,7 @@ import (
 	"github.com/meshplus/bitxhub-model/pb"
 	rpcx "github.com/meshplus/go-bitxhub-client"
 	"github.com/meshplus/pier/internal/txcrypto/mock_txcrypto"
+	"github.com/meshplus/pier/pkg/model"
 	"github.com/meshplus/pier/pkg/plugins/mock_client"
 	"github.com/stretchr/testify/require"
 )
@@ -75,20 +76,20 @@ func TestExecute(t *testing.T) {
 	require.Nil(t, exec.Start())
 
 	// test for normal ibtp execution
-	receipt, err := exec.ExecuteIBTP(ibtp1)
+	receipt, err := exec.ExecuteIBTP(&model.WrappedIBTP{Ibtp: ibtp1, IsValid: true})
 	require.Nil(t, err)
 	require.NotNil(t, receipt)
 
-	receipt, err = exec.ExecuteIBTP(ibtp1Receipt)
+	receipt, err = exec.ExecuteIBTP(&model.WrappedIBTP{Ibtp: ibtp1Receipt, IsValid: true})
 	require.Nil(t, err)
 	require.Nil(t, receipt)
 
 	// test for ibtp execute failure
-	receipt, err = exec.ExecuteIBTP(ibtp2)
+	receipt, err = exec.ExecuteIBTP(&model.WrappedIBTP{Ibtp: ibtp2, IsValid: true})
 	require.Nil(t, err)
 	require.NotNil(t, receipt)
 
-	receipt, err = exec.ExecuteIBTP(ibtp2Receipt)
+	receipt, err = exec.ExecuteIBTP(&model.WrappedIBTP{Ibtp: ibtp2Receipt, IsValid: true})
 	require.Nil(t, err)
 	require.Nil(t, receipt)
 
@@ -97,21 +98,21 @@ func TestExecute(t *testing.T) {
 	require.NotNil(t, err)
 
 	// test for wrong type ibtp execution
-	receipt, err = exec.ExecuteIBTP(wrongTypeIbtp)
+	receipt, err = exec.ExecuteIBTP(&model.WrappedIBTP{Ibtp: wrongTypeIbtp, IsValid: true})
 	require.NotNil(t, err)
 
 	// test for submit error ibtp execution
 	require.Panics(t, func() {
-		exec.ExecuteIBTP(submitErrorIbtp)
+		exec.ExecuteIBTP(&model.WrappedIBTP{Ibtp: submitErrorIbtp, IsValid: true})
 	})
 
 	// test for empty response ibtp execution
 	require.Panics(t, func() {
-		exec.ExecuteIBTP(emptyRespIbtp)
+		exec.ExecuteIBTP(&model.WrappedIBTP{Ibtp: emptyRespIbtp, IsValid: true})
 	})
 
 	// test for encrypted ibtp execution
-	receipt, err = exec.ExecuteIBTP(encryptedIbtpReceipt)
+	receipt, err = exec.ExecuteIBTP(&model.WrappedIBTP{Ibtp: encryptedIbtpReceipt, IsValid: true})
 	require.Nil(t, err)
 
 	// test QueryInterchainMeta
@@ -146,6 +147,23 @@ func TestQueryReceipt(t *testing.T) {
 	// test for nil ibtp receipt
 	receipt, err = exec.QueryIBTPReceipt(nil)
 	require.NotNil(t, err)
+}
+
+func TestRollback(t *testing.T) {
+	exec, cli := prepare(t)
+	defer exec.storage.Close()
+
+	originalIBTP := getIBTP(t, 1, pb.IBTP_INTERCHAIN, false)
+	resp := &pb.RollbackIBTPResponse{
+		Status:  true,
+		Message: "rollback success",
+	}
+	cli.EXPECT().RollbackIBTP(originalIBTP, gomock.Any()).Return(nil, fmt.Errorf("rollback error"))
+	cli.EXPECT().RollbackIBTP(originalIBTP, gomock.Any()).Return(resp, nil)
+
+	// test for retry of ibtp rollback
+	exec.Rollback(originalIBTP, false)
+	time.Sleep(2 * time.Second)
 }
 
 func prepare(t *testing.T) (*ChannelExecutor, *mock_client.MockClient) {

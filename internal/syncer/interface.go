@@ -3,6 +3,7 @@ package syncer
 import (
 	"github.com/meshplus/bitxhub-model/pb"
 	rpcx "github.com/meshplus/go-bitxhub-client"
+	"github.com/meshplus/pier/pkg/model"
 )
 
 type IBTPHandler func(ibtp *pb.IBTP)
@@ -10,6 +11,8 @@ type IBTPHandler func(ibtp *pb.IBTP)
 type AppchainHandler func() error
 
 type RecoverUnionHandler func(ibtp *pb.IBTP) (*rpcx.Interchain, error)
+
+type RollbackHandler func(ibtp *pb.IBTP)
 
 //go:generate mockgen -destination mock_syncer/mock_syncer.go -package mock_syncer -source interface.go
 type Syncer interface {
@@ -24,10 +27,10 @@ type Syncer interface {
 
 	// QueryIBTP query ibtp from bitxhub by its id.
 	// if error occurs, it means this ibtp is not existed on bitxhub
-	QueryIBTP(ibtpID string) (*pb.IBTP, error)
+	QueryIBTP(ibtpID string) (*pb.IBTP, bool, error)
 
 	// ListenIBTP listen on the ibtps destined for this pier from bitxhub
-	ListenIBTP() <-chan *pb.IBTP
+	ListenIBTP() <-chan *model.WrappedIBTP
 
 	// SendIBTP sends interchain or receipt type of ibtp to bitxhub
 	// if error occurs, user need to reconstruct this ibtp cause it means ibtp is invalid on bitxhub
@@ -49,4 +52,6 @@ type Syncer interface {
 
 	// RegisterAppchainHandler registers handler that fetch appchains information
 	RegisterAppchainHandler(handler AppchainHandler) error
+
+	RegisterRollbackHandler(handler RollbackHandler) error
 }

@@ -23,16 +23,12 @@ func (syncer *WrapperSyncer) persist(ws *pb.InterchainTxWrappers) error {
 
 	for _, w := range ws.InterchainTxWrappers {
 		for _, tx := range w.Transactions {
-			ibtp := tx.GetIBTP()
-			if ibtp == nil {
-				return fmt.Errorf("empty ibtp in tx")
-			}
-			data, err := ibtp.Marshal()
+			data, err := tx.Marshal()
 			if err != nil {
-				return fmt.Errorf("ibtp marshal: %w", err)
+				return fmt.Errorf("verifiedTx marshal: %w", err)
 			}
 
-			batch.Put(model.IBTPKey(ibtp.ID()), data)
+			batch.Put(model.IBTPKey(tx.GetTx().GetIBTP().ID()), data)
 		}
 	}
 	batch.Put(syncHeightKey(), []byte(strconv.FormatUint(syncer.height, 10)))

@@ -269,6 +269,14 @@ func (mc *mockAppchainPluginClient) SubmitIBTP(ctx context.Context, in *pb.IBTP,
 	return nil, nil
 }
 
+func (mc *mockAppchainPluginClient) RollbackIBTP(ctx context.Context, in *pb.RollbackIBTPRequest, opts ...grpc.CallOption) (*pb.RollbackIBTPResponse, error) {
+	return nil, nil
+}
+
+func (mc *mockAppchainPluginClient) IncreaseInMeta(ctx context.Context, in *pb.IBTP, opts ...grpc.CallOption) (*pb.IBTP, error) {
+	return nil, nil
+}
+
 func (mc *mockAppchainPluginClient) GetOutMessage(ctx context.Context, in *pb.GetOutMessageRequest, opts ...grpc.CallOption) (*pb.IBTP, error) {
 	return &pb.IBTP{
 		To:        in.To,
