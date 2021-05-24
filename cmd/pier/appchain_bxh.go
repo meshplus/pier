@@ -13,6 +13,7 @@ import (
 	"github.com/meshplus/bitxhub-model/constant"
 	rpcx "github.com/meshplus/go-bitxhub-client"
 	"github.com/meshplus/pier/internal/repo"
+	"github.com/tidwall/gjson"
 	"github.com/urfave/cli"
 )
 
@@ -235,7 +236,12 @@ func updateAppchain(ctx *cli.Context) error {
 		return fmt.Errorf("invoke update: %s", receipt.Ret)
 	}
 
-	fmt.Printf("the update request was submitted successfully, proposal id is %s\n", string(receipt.Ret))
+	proposalId := gjson.Get(string(receipt.Ret), "proposal_id").String()
+	if proposalId != "" {
+		fmt.Printf("the update request was submitted successfully, proposal id is %s\n", proposalId)
+	} else {
+		fmt.Printf("the update request was submitted successfully\n")
+	}
 
 	return nil
 }
@@ -261,7 +267,8 @@ func freezeAppchain(ctx *cli.Context) error {
 		return fmt.Errorf("invoke freeze: %s", receipt.Ret)
 	}
 
-	fmt.Printf("the freeze request was submitted successfully, proposal id is %s\n", string(receipt.Ret))
+	proposalId := gjson.Get(string(receipt.Ret), "proposal_id").String()
+	fmt.Printf("the freeze request was submitted successfully, proposal id is %s\n", proposalId)
 
 	return nil
 }
@@ -287,7 +294,8 @@ func activateAppchain(ctx *cli.Context) error {
 		return fmt.Errorf("invoke activate: %s", receipt.Ret)
 	}
 
-	fmt.Printf("the activate request was submitted successfully, proposal id is %s\n", string(receipt.Ret))
+	proposalId := gjson.Get(string(receipt.Ret), "proposal_id").String()
+	fmt.Printf("the activate request was submitted successfully, proposal id is %s\n", proposalId)
 
 	return nil
 }
@@ -313,7 +321,8 @@ func logoutAppchain(ctx *cli.Context) error {
 		return fmt.Errorf("invoke logout: %s", receipt.Ret)
 	}
 
-	fmt.Printf("the logout request was submitted successfully, proposal id is %s\n", string(receipt.Ret))
+	proposalId := gjson.Get(string(receipt.Ret), "proposal_id").String()
+	fmt.Printf("the logout request was submitted successfully, proposal id is %s\n", proposalId)
 
 	return nil
 }
