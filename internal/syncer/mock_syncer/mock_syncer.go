@@ -11,6 +11,7 @@ import (
 	appchain_mgr "github.com/meshplus/bitxhub-core/appchain-mgr"
 	pb "github.com/meshplus/bitxhub-model/pb"
 	syncer "github.com/meshplus/pier/internal/syncer"
+	model "github.com/meshplus/pier/pkg/model"
 )
 
 // MockSyncer is a mock of Syncer interface.
@@ -96,10 +97,10 @@ func (mr *MockSyncerMockRecorder) GetInterchainById(from interface{}) *gomock.Ca
 }
 
 // ListenIBTP mocks base method.
-func (m *MockSyncer) ListenIBTP() <-chan *pb.IBTP {
+func (m *MockSyncer) ListenIBTP() <-chan *model.WrappedIBTP {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ListenIBTP")
-	ret0, _ := ret[0].(<-chan *pb.IBTP)
+	ret0, _ := ret[0].(<-chan *model.WrappedIBTP)
 	return ret0
 }
 
@@ -110,12 +111,13 @@ func (mr *MockSyncerMockRecorder) ListenIBTP() *gomock.Call {
 }
 
 // QueryIBTP mocks base method.
-func (m *MockSyncer) QueryIBTP(ibtpID string) (*pb.IBTP, error) {
+func (m *MockSyncer) QueryIBTP(ibtpID string) (*pb.IBTP, bool, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "QueryIBTP", ibtpID)
 	ret0, _ := ret[0].(*pb.IBTP)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
+	ret1, _ := ret[1].(bool)
+	ret2, _ := ret[2].(error)
+	return ret0, ret1, ret2
 }
 
 // QueryIBTP indicates an expected call of QueryIBTP.
@@ -164,6 +166,20 @@ func (m *MockSyncer) RegisterRecoverHandler(arg0 syncer.RecoverUnionHandler) err
 func (mr *MockSyncerMockRecorder) RegisterRecoverHandler(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RegisterRecoverHandler", reflect.TypeOf((*MockSyncer)(nil).RegisterRecoverHandler), arg0)
+}
+
+// RegisterRollbackHandler mocks base method.
+func (m *MockSyncer) RegisterRollbackHandler(handler syncer.RollbackHandler) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "RegisterRollbackHandler", handler)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// RegisterRollbackHandler indicates an expected call of RegisterRollbackHandler.
+func (mr *MockSyncerMockRecorder) RegisterRollbackHandler(handler interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RegisterRollbackHandler", reflect.TypeOf((*MockSyncer)(nil).RegisterRollbackHandler), handler)
 }
 
 // SendIBTP mocks base method.

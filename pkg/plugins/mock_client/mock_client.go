@@ -152,6 +152,21 @@ func (mr *MockClientMockRecorder) GetReceipt(ibtp interface{}) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetReceipt", reflect.TypeOf((*MockClient)(nil).GetReceipt), ibtp)
 }
 
+// IncreaseInMeta mocks base method.
+func (m *MockClient) IncreaseInMeta(ibtp *pb.IBTP) (*pb.IBTP, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "IncreaseInMeta", ibtp)
+	ret0, _ := ret[0].(*pb.IBTP)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// IncreaseInMeta indicates an expected call of IncreaseInMeta.
+func (mr *MockClientMockRecorder) IncreaseInMeta(ibtp interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IncreaseInMeta", reflect.TypeOf((*MockClient)(nil).IncreaseInMeta), ibtp)
+}
+
 // Initialize mocks base method.
 func (m *MockClient) Initialize(configPath, pierID string, extra []byte) error {
 	m.ctrl.T.Helper()
@@ -178,6 +193,21 @@ func (m *MockClient) Name() string {
 func (mr *MockClientMockRecorder) Name() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Name", reflect.TypeOf((*MockClient)(nil).Name))
+}
+
+// RollbackIBTP mocks base method.
+func (m *MockClient) RollbackIBTP(ibtp *pb.IBTP, isSrcChain bool) (*pb.RollbackIBTPResponse, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "RollbackIBTP", ibtp, isSrcChain)
+	ret0, _ := ret[0].(*pb.RollbackIBTPResponse)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// RollbackIBTP indicates an expected call of RollbackIBTP.
+func (mr *MockClientMockRecorder) RollbackIBTP(ibtp, isSrcChain interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RollbackIBTP", reflect.TypeOf((*MockClient)(nil).RollbackIBTP), ibtp, isSrcChain)
 }
 
 // Start mocks base method.
