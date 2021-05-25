@@ -7,6 +7,7 @@ import (
 	"github.com/Rican7/retry"
 	"github.com/Rican7/retry/strategy"
 	"github.com/meshplus/bitxhub-model/pb"
+	"github.com/meshplus/pier/pkg/model"
 )
 
 // ---- gRPC Server domain ----
@@ -255,6 +256,18 @@ func (g *GRPCClient) IncreaseInMeta(original *pb.IBTP) (*pb.IBTP, error) {
 		return nil
 	}, strategy.Wait(1*time.Second))
 	return ibtp, nil
+}
+
+func (g *GRPCClient) GetMintEvent() <-chan *model.MintEvent {
+	return nil
+}
+
+func (g *GRPCClient) Unescrow(unescrowEvent *model.UnescrowEvent) error {
+	return nil
+}
+
+func (g *GRPCClient) GetUpdateMeta() <-chan model.UpdatedMeta {
+	return nil
 }
 
 func (g *GRPCClient) GetOutMessage(to string, idx uint64) (*pb.IBTP, error) {

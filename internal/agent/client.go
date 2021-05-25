@@ -11,6 +11,7 @@ import (
 	"github.com/meshplus/bitxhub-model/constant"
 	"github.com/meshplus/bitxhub-model/pb"
 	rpcx "github.com/meshplus/go-bitxhub-client"
+	"github.com/meshplus/pier/pkg/model"
 	"github.com/meshplus/pier/pkg/plugins"
 )
 
@@ -170,6 +171,18 @@ func (client *BxhClient) RollbackIBTP(ibtp *pb.IBTP, isSrcChain bool) (*pb.Rollb
 
 func (client *BxhClient) IncreaseInMeta(ibtp *pb.IBTP) (*pb.IBTP, error) {
 	return nil, nil
+}
+
+func (client *BxhClient) GetUpdateMeta() <-chan model.UpdatedMeta {
+	return nil
+}
+
+func (client *BxhClient) GetMintEvent() <-chan *model.MintEvent {
+	return nil
+}
+
+func (client *BxhClient) Unescrow(unescrowEvent *model.UnescrowEvent) error {
+	return nil
 }
 
 // Name .

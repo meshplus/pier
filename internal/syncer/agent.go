@@ -182,6 +182,11 @@ func (syncer *WrapperSyncer) ListenIBTP() <-chan *model.WrappedIBTP {
 	return syncer.ibtpC
 }
 
+func (syncer *WrapperSyncer) ListenUnescrow(unescrowEvent *model.UnescrowEvent) error {
+	// todo(tyx): implement this
+	return nil
+}
+
 func (syncer *WrapperSyncer) SendIBTP(ibtp *pb.IBTP) error {
 	proof := ibtp.GetProof()
 	proofHash := sha256.Sum256(proof)
@@ -242,6 +247,16 @@ func (syncer *WrapperSyncer) SendIBTP(ibtp *pb.IBTP) error {
 		}
 		return fmt.Errorf("unknown error, retry for %s anyway", ibtp.ID())
 	}
+	return nil
+}
+
+func (syncer *WrapperSyncer) SendUpdateMeta(meta model.UpdatedMeta) error {
+	// todo(tyx): implement this
+	return nil
+}
+
+func (syncer *WrapperSyncer) SendMintEvent(mintEvnt *model.MintEvent) error {
+	// todo(tyx): implement this
 	return nil
 }
 

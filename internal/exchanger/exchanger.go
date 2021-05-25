@@ -95,6 +95,8 @@ func (ex *Exchanger) Start() error {
 	}
 	if ex.mode != repo.UnionMode {
 		go ex.listenAndSendIBTPFromMnt()
+		go ex.listenUpdateMeta()
+		go ex.listenMintEvent()
 	}
 	if ex.mode != repo.DirectMode {
 		go ex.listenAndSendIBTPFromSyncer()

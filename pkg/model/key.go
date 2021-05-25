@@ -19,3 +19,14 @@ type WrappedIBTP struct {
 	Ibtp    *pb.IBTP
 	IsValid bool
 }
+
+type MintEvent struct {
+	ReceiptData []byte
+	Proof       []byte
+}
+
+type UnescrowEvent struct {
+}
+
+type UpdatedMeta interface {
+}
