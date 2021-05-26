@@ -280,10 +280,12 @@ func testApplyReceipt(t *testing.T) {
 	wReceiptIBTP2 := &model.WrappedIBTP{Ibtp: receiptIBTP2, IsValid: true}
 	//mockSyncer.EXPECT().GetAssetExchangeSigns(assetTxID).Return(nil, fmt.Errorf("get signs error"))
 	//mockSyncer.EXPECT().GetAssetExchangeSigns(gomock.Any()).Return(signs, nil)
-	mockExecutor.EXPECT().ExecuteIBTP(wReceiptIBTP2).Return(nil, nil)
+	mockExecutor.EXPECT().ExecuteIBTP(gomock.Any()).Return(nil, nil).AnyTimes()
+	inCh <- wReceiptIBTP2
+	// test for duplicated receipt
 	inCh <- wReceiptIBTP2
 	time.Sleep(2 * time.Millisecond)
-	require.Equal(t, uint64(2), mockExchanger.callbackCounter[from])
+	require.Equal(t, uint64(3), mockExchanger.callbackCounter[from])
 }
 
 func testRollback(t *testing.T) {

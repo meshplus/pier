@@ -8,8 +8,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/meshplus/pier/pkg/model"
-
 	"github.com/Rican7/retry"
 	"github.com/Rican7/retry/strategy"
 	"github.com/cbergoon/merkletree"
@@ -19,6 +17,7 @@ import (
 	rpcx "github.com/meshplus/go-bitxhub-client"
 	"github.com/meshplus/pier/internal/lite"
 	"github.com/meshplus/pier/internal/repo"
+	"github.com/meshplus/pier/pkg/model"
 	"github.com/sirupsen/logrus"
 )
 
@@ -353,6 +352,7 @@ func (syncer *WrapperSyncer) handleInterchainTxWrapper(w *pb.InterchainTxWrapper
 		syncer.logger.WithFields(logrus.Fields{
 			"ibtp_id": ibtp.ID(),
 			"type":    ibtp.Type,
+			"status":  wIBTP.IsValid,
 		}).Debugf("Sync IBTP from bitxhub")
 		syncer.ibtpC <- wIBTP
 	}

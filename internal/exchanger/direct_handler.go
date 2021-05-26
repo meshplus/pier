@@ -34,6 +34,11 @@ func (pool *Pool) delete(idx uint64) {
 	pool.ibtps.Delete(idx)
 }
 
+func (pool *Pool) has(idx uint64) bool {
+	_, ok := pool.ibtps.Load(idx)
+	return ok
+}
+
 func (pool *Pool) get(index uint64) *model.WrappedIBTP {
 	ibtp, ok := pool.ibtps.Load(index)
 	if !ok {
