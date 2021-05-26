@@ -4,14 +4,26 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/meshplus/bitxhub-model/pb"
-
 	"github.com/Rican7/retry"
 	"github.com/Rican7/retry/strategy"
+	"github.com/meshplus/bitxhub-model/pb"
+	"github.com/meshplus/pier/pkg/model"
 	"github.com/sirupsen/logrus"
 )
 
 func (ex *Exchanger) recoverRelay() {
+	// recover possible unrollbacked ibtp
+	callbackMeta := ex.exec.QueryCallbackMeta()
+	for to, idx := range ex.interchainCounter {
+		beginIndex, ok := callbackMeta[to]
+		if !ok {
+			beginIndex = 0
+		}
+
+		if err := ex.handleMissingCallback(to, beginIndex+1, idx+1); err != nil {
+			ex.logger.WithFields(logrus.Fields{"address": to, "error": err.Error()}).Panic("Get missing callbacks from bitxhub")
+		}
+	}
 	// recover unsent interchain ibtp
 	mntMeta := ex.mnt.QueryOuterMeta()
 	for to, idx := range mntMeta {
@@ -21,7 +33,7 @@ func (ex *Exchanger) recoverRelay() {
 		}
 
 		if err := ex.handleMissingIBTPFromMnt(to, beginIndex+1, idx+1); err != nil {
-			ex.logger.WithFields(logrus.Fields{"address": to, "error": err.Error()}).Panic("Get missing receipt from contract")
+			ex.logger.WithFields(logrus.Fields{"address": to, "error": err.Error()}).Panic("Get missing event from contract")
 		}
 	}
 
@@ -59,6 +71,35 @@ func (ex *Exchanger) recoverDirect(dstPierID string, interchainIndex uint64, rec
 	}
 }
 
+func (ex *Exchanger) handleMissingCallback(to string, begin, end uint64) error {
+	if begin < 1 {
+		return fmt.Errorf("begin index for missing callbacks is required >= 1")
+	}
+	for ; begin < end; begin++ {
+		ex.logger.WithFields(logrus.Fields{
+			"to":    to,
+			"index": begin,
+		}).Info("Get missing callbacks from bitxhub")
+
+		if err := retry.Retry(func(attempt uint) error {
+			ibtp, isValid, err := ex.queryIBTP(fmt.Sprintf("%s-%s-%d", ex.appchainDID, to, begin), to)
+			if err != nil {
+				ex.logger.Errorf("Fetch ibtp: %s", err.Error())
+				return err
+			}
+			// if this ibtp is not valid, try to rollback
+			if !isValid {
+				ex.feedIBTPReceipt(&model.WrappedIBTP{Ibtp: ibtp, IsValid: false})
+			}
+			return nil
+		}, strategy.Wait(500*time.Millisecond), strategy.Limit(10)); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 func (ex *Exchanger) handleMissingIBTPFromMnt(to string, begin, end uint64) error {
 	if begin < 1 {
 		return fmt.Errorf("begin index for missing ibtp is required >= 1")
@@ -81,9 +122,9 @@ func (ex *Exchanger) handleMissingIBTPFromMnt(to string, begin, end uint64) erro
 				// if err occurs, try to resend this ibtp
 				return err
 			}
-			ex.interchainCounter[ibtp.To] = ibtp.Index
+
 			return nil
-		}, strategy.Wait(500*time.Millisecond), strategy.Limit(10)); err != nil {
+		}, strategy.Wait(500*time.Millisecond)); err != nil {
 			return err
 		}
 	}
@@ -103,11 +144,12 @@ func (ex *Exchanger) handleMissingIBTPFromSyncer(from string, begin, end uint64)
 
 		ibtpID := fmt.Sprintf("%s-%s-%d", from, ex.appchainDID, begin)
 		var (
-			ibtp *pb.IBTP
-			err  error
+			ibtp    *pb.IBTP
+			isValid bool
+			err     error
 		)
 		retry.Retry(func(attempt uint) error {
-			ibtp, err = ex.syncer.QueryIBTP(ibtpID)
+			ibtp, isValid, err = ex.syncer.QueryIBTP(ibtpID)
 			if err != nil {
 				ex.logger.Errorf("Fetch ibtp %s: %s", ibtpID, err.Error())
 				return fmt.Errorf("fetch ibtp %s: %w", ibtpID, err)
@@ -115,7 +157,7 @@ func (ex *Exchanger) handleMissingIBTPFromSyncer(from string, begin, end uint64)
 			return nil
 		}, strategy.Wait(1*time.Second))
 		entry := ex.logger.WithFields(logrus.Fields{"type": ibtp.Type, "id": ibtp.ID()})
-		ex.handleIBTP(ibtp, entry)
+		ex.handleIBTP(&model.WrappedIBTP{Ibtp: ibtp, IsValid: isValid}, entry)
 		ex.executorCounter[ibtp.From] = ibtp.Index
 	}
 
@@ -135,9 +177,10 @@ func (ex *Exchanger) handleMissingReceipt(from string, begin uint64, end uint64)
 		entry = entry.WithFields(logrus.Fields{
 			"index": begin,
 		})
+		entry.Info("Send missing receipt to bitxhub")
 
 		retry.Retry(func(attempt uint) error {
-			original, err := ex.queryIBTP(from, begin)
+			original, _, err := ex.queryIBTP(fmt.Sprintf("%s-%s-%d", from, ex.appchainDID, begin), from)
 			if err != nil {
 				return err
 			}
@@ -154,7 +197,7 @@ func (ex *Exchanger) handleMissingReceipt(from string, begin uint64, end uint64)
 			}
 			ex.sourceReceiptCounter[from] = receipt.Index
 			return nil
-		}, strategy.Wait(500*time.Millisecond))
+		}, strategy.Wait(1*time.Second))
 	}
 	return nil
 }

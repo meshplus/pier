@@ -22,9 +22,9 @@ const (
 	fakeDocHash        = "QmQVxzUqN2Yv2UHUQXYwH8dSNkM8ReJ9qPqwJsf8zzoNUi"
 )
 
-type RegisterResult struct {
-	ChainID    string `json:"chain_id"`
+type GovernanceResult struct {
 	ProposalID string `json:"proposal_id"`
+	Extra      []byte `json:"extra"`
 }
 
 var methodCommand = cli.Command{
@@ -94,11 +94,14 @@ func registerMethod(ctx *cli.Context) error {
 	}
 
 	// get repo public key
-	pubKey, err := getPubKey(chainAdminKeyPath)
+	repoRoot, err := repo.PathRootWithDefault(ctx.GlobalString("repo"))
+	if err != nil {
+		return err
+	}
+	pubKey, err := getPubKey(repo.KeyPath(repoRoot))
 	if err != nil {
 		return fmt.Errorf("get public key: %w", err)
 	}
-
 	client, address, err := initClientWithKeyPath(ctx, chainAdminKeyPath)
 	if err != nil {
 		return err
@@ -121,11 +124,11 @@ func registerMethod(ctx *cli.Context) error {
 	if !receipt.IsSuccess() {
 		return fmt.Errorf("register method info faild: %s", string(receipt.Ret))
 	}
-	ret := &RegisterResult{}
+	ret := &GovernanceResult{}
 	if err := json.Unmarshal(receipt.Ret, ret); err != nil {
 		return err
 	}
-	fmt.Printf("Register appchain method info for %s successfully, wait for proposal %s to finish.\n", ret.ChainID, ret.ProposalID)
+	fmt.Printf("Register appchain method info for %s successfully, wait for proposal %s to finish.\n", string(ret.Extra), ret.ProposalID)
 	return nil
 }
 

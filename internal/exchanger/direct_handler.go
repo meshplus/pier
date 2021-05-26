@@ -6,44 +6,46 @@ import (
 	"time"
 
 	"github.com/meshplus/bitxhub-model/pb"
+	"github.com/meshplus/pier/pkg/model"
 	"github.com/sirupsen/logrus"
 )
 
 type Pool struct {
 	ibtps *sync.Map
-	ch    chan *pb.IBTP
+	ch    chan *model.WrappedIBTP
 }
 
 func NewPool() *Pool {
 	return &Pool{
 		ibtps: &sync.Map{},
-		ch:    make(chan *pb.IBTP, 40960),
+		ch:    make(chan *model.WrappedIBTP, 40960),
 	}
 }
 
-func (pool *Pool) feed(ibtp *pb.IBTP) {
+func (pool *Pool) feed(ibtp *model.WrappedIBTP) {
 	pool.ch <- ibtp
 }
 
-func (pool *Pool) put(ibtp *pb.IBTP) {
-	pool.ibtps.Store(ibtp.Index, ibtp)
+func (pool *Pool) put(ibtp *model.WrappedIBTP) {
+	pool.ibtps.Store(ibtp.Ibtp.Index, ibtp)
 }
 
 func (pool *Pool) delete(idx uint64) {
 	pool.ibtps.Delete(idx)
 }
 
-func (pool *Pool) get(index uint64) *pb.IBTP {
+func (pool *Pool) get(index uint64) *model.WrappedIBTP {
 	ibtp, ok := pool.ibtps.Load(index)
 	if !ok {
 		return nil
 	}
 
-	return ibtp.(*pb.IBTP)
+	return ibtp.(*model.WrappedIBTP)
 }
 
-func (ex *Exchanger) feedIBTP(ibtp *pb.IBTP) {
+func (ex *Exchanger) feedIBTP(wIbtp *model.WrappedIBTP) {
 	var pool *Pool
+	ibtp := wIbtp.Ibtp
 	act, loaded := ex.ibtps.Load(ibtp.From)
 	if !loaded {
 		pool = NewPool()
@@ -51,7 +53,7 @@ func (ex *Exchanger) feedIBTP(ibtp *pb.IBTP) {
 	} else {
 		pool = act.(*Pool)
 	}
-	pool.feed(ibtp)
+	pool.feed(wIbtp)
 
 	if !loaded {
 		go func(pool *Pool) {
@@ -61,7 +63,8 @@ func (ex *Exchanger) feedIBTP(ibtp *pb.IBTP) {
 				}
 			}()
 			inMeta := ex.exec.QueryInterchainMeta()
-			for ibtp := range pool.ch {
+			for wIbtp := range pool.ch {
+				ibtp := wIbtp.Ibtp
 				idx := inMeta[ibtp.From]
 				if ibtp.Index <= idx {
 					pool.delete(ibtp.Index)
@@ -69,31 +72,31 @@ func (ex *Exchanger) feedIBTP(ibtp *pb.IBTP) {
 					continue
 				}
 				if idx+1 == ibtp.Index {
-					ex.processIBTP(ibtp)
+					ex.processIBTP(wIbtp)
 					pool.delete(ibtp.Index)
 					index := ibtp.Index + 1
-					ibtp := pool.get(index)
-					for ibtp != nil {
-						ex.processIBTP(ibtp)
-						pool.delete(ibtp.Index)
+					wIbtp := pool.get(index)
+					for wIbtp != nil {
+						ex.processIBTP(wIbtp)
+						pool.delete(wIbtp.Ibtp.Index)
 						index++
-						ibtp = pool.get(index)
+						wIbtp = pool.get(index)
 					}
 				} else {
-					pool.put(ibtp)
+					pool.put(wIbtp)
 				}
 			}
 		}(pool)
 	}
 }
 
-func (ex *Exchanger) processIBTP(ibtp *pb.IBTP) {
-	receipt, err := ex.exec.ExecuteIBTP(ibtp)
+func (ex *Exchanger) processIBTP(wIbtp *model.WrappedIBTP) {
+	receipt, err := ex.exec.ExecuteIBTP(wIbtp)
 	if err != nil {
 		ex.logger.Errorf("Execute ibtp error: %s", err.Error())
 		return
 	}
-	ex.postHandleIBTP(ibtp.From, receipt)
+	ex.postHandleIBTP(wIbtp.Ibtp.From, receipt)
 	ex.sendIBTPCounter.Inc()
 }
 
@@ -106,7 +109,7 @@ func (ex *Exchanger) feedReceipt(receipt *pb.IBTP) {
 	} else {
 		pool = act.(*Pool)
 	}
-	pool.feed(receipt)
+	pool.feed(&model.WrappedIBTP{Ibtp: receipt, IsValid: true})
 
 	if !loaded {
 		go func(pool *Pool) {
@@ -116,26 +119,28 @@ func (ex *Exchanger) feedReceipt(receipt *pb.IBTP) {
 				}
 			}()
 			callbackMeta := ex.exec.QueryCallbackMeta()
-			for ibtp := range pool.ch {
+			for wIbtp := range pool.ch {
+				ibtp := wIbtp.Ibtp
 				if ibtp.Index <= callbackMeta[ibtp.To] {
 					pool.delete(ibtp.Index)
 					ex.logger.Warn("ignore ibtp with invalid index")
 					continue
 				}
 				if callbackMeta[ibtp.To]+1 == ibtp.Index {
-					ex.processIBTP(ibtp)
+					ex.processIBTP(wIbtp)
 					pool.delete(ibtp.Index)
 					index := ibtp.Index + 1
-					ibtp := pool.get(index)
-					for ibtp != nil {
-						receipt, _ := ex.exec.ExecuteIBTP(ibtp)
+					wIbtp := pool.get(index)
+					for wIbtp != nil {
+						ibtp := wIbtp.Ibtp
+						receipt, _ := ex.exec.ExecuteIBTP(wIbtp)
 						ex.postHandleIBTP(ibtp.From, receipt)
 						pool.delete(ibtp.Index)
 						index++
-						ibtp = pool.get(index)
+						wIbtp = pool.get(index)
 					}
 				} else {
-					pool.put(ibtp)
+					pool.put(wIbtp)
 				}
 			}
 		}(pool)
