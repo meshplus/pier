@@ -7,8 +7,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/meshplus/pier/pkg/model"
-
 	"github.com/Rican7/retry"
 	"github.com/Rican7/retry/strategy"
 	"github.com/meshplus/bitxhub-model/pb"
@@ -76,12 +74,12 @@ func (m *AppchainMonitor) ListenIBTP() <-chan *pb.IBTP {
 	return m.recvCh
 }
 
-func (m *AppchainMonitor) ListenUpdateMeta() <-chan model.UpdatedMeta {
+func (m *AppchainMonitor) ListenUpdateMeta() <-chan *pb.UpdateMeta {
 	return m.client.GetUpdateMeta()
 }
 
-func (m *AppchainMonitor) ListenMintEvent() <-chan *model.MintEvent {
-	return m.client.GetMintEvent()
+func (m *AppchainMonitor) ListenLockEvent() <-chan *pb.LockEvent {
+	return m.client.GetLockEvent()
 }
 
 // QueryIBTP queries interchain tx recorded in appchain given ibtp id

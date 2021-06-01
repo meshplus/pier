@@ -7,7 +7,6 @@ import (
 	"github.com/Rican7/retry"
 	"github.com/Rican7/retry/strategy"
 	"github.com/meshplus/bitxhub-model/pb"
-	"github.com/meshplus/pier/pkg/model"
 )
 
 // ---- gRPC Server domain ----
@@ -131,6 +130,67 @@ func (s *GRPCServer) Type(context.Context, *pb.Empty) (*pb.TypeResponse, error) 
 	return &pb.TypeResponse{
 		Type: s.Impl.Type(),
 	}, nil
+}
+
+func (s *GRPCServer) GetLockEvent(empty *pb.Empty, server pb.AppchainPlugin_GetLockEventServer) error {
+	ctx := server.Context()
+	lockC := s.Impl.GetLockEvent()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return nil
+		case lock, ok := <-lockC:
+			if !ok {
+				logger.Error("get lock channel has closed")
+				return nil
+			}
+			if err := retry.Retry(func(attempt uint) error {
+				if err := server.Send(lock); err != nil {
+					logger.Error("plugin send lock err", "error", err)
+					return err
+				}
+				return nil
+			}, strategy.Wait(1*time.Second)); err != nil {
+				logger.Error("Execution of plugin server sending lock failed", "error", err)
+			}
+		}
+	}
+}
+
+func (s *GRPCServer) GetUpdateMeta(empty *pb.Empty, server pb.AppchainPlugin_GetUpdateMetaServer) error {
+	ctx := server.Context()
+	metaC := s.Impl.GetUpdateMeta()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return nil
+		case meta, ok := <-metaC:
+			if !ok {
+				logger.Error("get meta channel has closed")
+				return nil
+			}
+			if err := retry.Retry(func(attempt uint) error {
+				if err := server.Send(meta); err != nil {
+					logger.Error("plugin send meta err", "error", err)
+					return err
+				}
+				return nil
+			}, strategy.Wait(1*time.Second)); err != nil {
+				logger.Error("Execution of plugin server sending meta failed", "error", err)
+			}
+		}
+	}
+}
+
+func (s *GRPCServer) UnEscrow(ctx context.Context, lock *pb.UnLock) (*pb.Empty, error) {
+	err := s.Impl.Unescrow(lock)
+	if err != nil {
+		return nil, err
+	}
+
+	return &pb.Empty{}, nil
 }
 
 // ---- gRPC Client domain ----
@@ -258,16 +318,82 @@ func (g *GRPCClient) IncreaseInMeta(original *pb.IBTP) (*pb.IBTP, error) {
 	return ibtp, nil
 }
 
-func (g *GRPCClient) GetMintEvent() <-chan *model.MintEvent {
+func (g *GRPCClient) GetLockEvent() <-chan *pb.LockEvent {
+	event, err := g.client.GetLockEvent(g.doneContext, &pb.Empty{})
+	if err != nil {
+		panic(err.Error())
+	}
+
+	lockEvents := make(chan *pb.LockEvent, 10)
+	go func() {
+		defer close(lockEvents)
+
+		for {
+			var (
+				lockEvent *pb.LockEvent
+				err       error
+			)
+			if err := retry.Retry(func(attempt uint) error {
+				lockEvent, err = event.Recv()
+				if err != nil {
+					logger.Error("Plugin grpc client recv ibtp", "error", err)
+					// End the stream
+					return err
+				}
+				return nil
+			}, strategy.Wait(1*time.Second)); err != nil {
+				logger.Error("Execution of client recv failed", "error", err)
+			}
+
+			select {
+			case <-g.doneContext.Done():
+				return
+			case lockEvents <- lockEvent:
+			}
+		}
+	}()
+	return lockEvents
+}
+
+func (g *GRPCClient) Unescrow(unlock *pb.UnLock) error {
 	return nil
 }
 
-func (g *GRPCClient) Unescrow(unescrowEvent *model.UnescrowEvent) error {
-	return nil
-}
+func (g *GRPCClient) GetUpdateMeta() <-chan *pb.UpdateMeta {
+	event, err := g.client.GetUpdateMeta(g.doneContext, &pb.Empty{})
+	if err != nil {
+		panic(err.Error())
+	}
 
-func (g *GRPCClient) GetUpdateMeta() <-chan model.UpdatedMeta {
-	return nil
+	updateMetaEvents := make(chan *pb.UpdateMeta, 10)
+	go func() {
+		defer close(updateMetaEvents)
+
+		for {
+			var (
+				updateMetaEvent *pb.UpdateMeta
+				err             error
+			)
+			if err := retry.Retry(func(attempt uint) error {
+				updateMetaEvent, err = event.Recv()
+				if err != nil {
+					logger.Error("Plugin grpc client recv ibtp", "error", err)
+					// End the stream
+					return err
+				}
+				return nil
+			}, strategy.Wait(1*time.Second)); err != nil {
+				logger.Error("Execution of client recv failed", "error", err)
+			}
+
+			select {
+			case <-g.doneContext.Done():
+				return
+			case updateMetaEvents <- updateMetaEvent:
+			}
+		}
+	}()
+	return updateMetaEvents
 }
 
 func (g *GRPCClient) GetOutMessage(to string, idx uint64) (*pb.IBTP, error) {

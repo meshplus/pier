@@ -34,17 +34,19 @@ type Syncer interface {
 	ListenIBTP() <-chan *model.WrappedIBTP
 
 	// ListenUnescrow listen on the UnescrowEvent destined for this pier-related appchain from bitxhub
-	ListenUnescrow(unescrowEvent *model.UnescrowEvent) error
+	ListenUnescrow() chan *model.UnescrowEvent
 
 	// SendIBTP sends interchain or receipt type of ibtp to bitxhub
 	// if error occurs, user need to reconstruct this ibtp cause it means ibtp is invalid on bitxhub
 	SendIBTP(ibtp *pb.IBTP) error
 
 	// SendUpdateMeta sends to-update appchain meta(like block headers in appchain) to bitxhub
-	SendUpdateMeta(meta model.UpdatedMeta) error
+	SendUpdateMeta(meta *pb.UpdateMeta) error
 
 	// SendMintEvent sends asset exchange event(finalized) in appchain to bitxhub
-	SendMintEvent(mintEvnt *model.MintEvent) error
+	SendLockEvent(lockEvt *pb.LockEvent) error
+
+	GetAssetCurrentBlockHeader() uint64
 
 	GetAssetExchangeSigns(id string) ([]byte, error)
 

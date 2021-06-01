@@ -6,6 +6,7 @@ require (
 	github.com/Rican7/retry v0.1.0
 	github.com/btcsuite/btcd v0.21.0-beta
 	github.com/cbergoon/merkletree v0.2.0
+	github.com/ethereum/go-ethereum v1.10.2
 	github.com/fatih/color v1.9.0
 	github.com/fsnotify/fsnotify v1.4.9
 	github.com/gin-gonic/gin v1.6.3
@@ -20,7 +21,7 @@ require (
 	github.com/libp2p/go-libp2p-core v0.6.1
 	github.com/meshplus/bitxhub-core v1.3.1-0.20210524071255-789fd9ab501c
 	github.com/meshplus/bitxhub-kit v1.2.1-0.20210524063043-9afae78ac098
-	github.com/meshplus/bitxhub-model v1.2.1-0.20210524063354-5d48e2fee178
+	github.com/meshplus/bitxhub-model v1.2.1-0.20210604033409-dbc9b8cc59b2
 	github.com/meshplus/bitxid v0.0.0-20210412025850-e0eaf0f9063a
 	github.com/meshplus/go-bitxhub-client v1.3.0
 	github.com/meshplus/go-lightp2p v0.0.0-20200817105923-6b3aee40fa54

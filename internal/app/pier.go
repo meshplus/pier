@@ -189,10 +189,15 @@ func NewPier(repoRoot string, config *repo.Config) (*Pier, error) {
 		return nil, fmt.Errorf("unsupported mode")
 	}
 
-	//use meta info to instantiate monitor and executor module
-	extra, err := json.Marshal(meta.InterchainCounter)
-	if err != nil {
-		return nil, fmt.Errorf("marshal interchain meta: %w", err)
+	var extra []byte
+	if !config.Mode.Relay.Asset {
+		//use meta info to instantiate monitor and executor module
+		extra, err = json.Marshal(meta.InterchainCounter)
+		if err != nil {
+			return nil, fmt.Errorf("marshal interchain meta: %w", err)
+		}
+	} else {
+		sync.GetAppchains()
 	}
 
 	var cli plugins.Client

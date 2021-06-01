@@ -100,6 +100,7 @@ func (ex *Exchanger) Start() error {
 	}
 	if ex.mode != repo.DirectMode {
 		go ex.listenAndSendIBTPFromSyncer()
+		go ex.listenUnescrowEventFromSyncer()
 	}
 
 	ex.logger.Info("Exchanger started")

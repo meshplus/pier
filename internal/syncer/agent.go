@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math/big"
 	"strings"
 	"time"
 
@@ -182,9 +183,8 @@ func (syncer *WrapperSyncer) ListenIBTP() <-chan *model.WrappedIBTP {
 	return syncer.ibtpC
 }
 
-func (syncer *WrapperSyncer) ListenUnescrow(unescrowEvent *model.UnescrowEvent) error {
-	// todo(tyx): implement this
-	return nil
+func (syncer *WrapperSyncer) ListenUnescrow() chan *model.UnescrowEvent {
+	return syncer.unescrowEventCh
 }
 
 func (syncer *WrapperSyncer) SendIBTP(ibtp *pb.IBTP) error {
@@ -250,14 +250,73 @@ func (syncer *WrapperSyncer) SendIBTP(ibtp *pb.IBTP) error {
 	return nil
 }
 
-func (syncer *WrapperSyncer) SendUpdateMeta(meta model.UpdatedMeta) error {
-	// todo(tyx): implement this
+func (syncer *WrapperSyncer) SendUpdateMeta(meta *pb.UpdateMeta) error {
+	data, err := json.Marshal(&meta)
+	if err != nil {
+		return err
+	}
+	tx, err := syncer.client.GenerateContractTx(pb.TransactionData_BVM, constant.EthHeaderMgrContractAddr.Address(), "InsertBlockHeaders",
+		rpcx.Bytes(data))
+	if err != nil {
+		return err
+	}
+	syncer.retryFunc(func(attempt uint) error {
+		txHash, err := syncer.client.SendTransaction(tx, nil)
+		if err != nil {
+			syncer.logger.WithFields(logrus.Fields{
+				"tx_hash": txHash,
+				"error":   err,
+			}).Error("Send update meta to BXH error")
+			return err
+		}
+		return nil
+	})
 	return nil
 }
 
-func (syncer *WrapperSyncer) SendMintEvent(mintEvnt *model.MintEvent) error {
-	// todo(tyx): implement this
+func (syncer *WrapperSyncer) SendLockEvent(lockEvt *pb.LockEvent) error {
+	tx, err := syncer.client.GenerateContractTx(pb.TransactionData_BVM, constant.EthHeaderMgrContractAddr.Address(), "Mint",
+		rpcx.Bytes(lockEvt.Receipt), rpcx.Bytes(lockEvt.Proof))
+	if err != nil {
+		return err
+	}
+
+	syncer.retryFunc(func(attempt uint) error {
+		txHash, err := syncer.client.SendTransaction(tx, nil)
+		if err != nil {
+			syncer.logger.WithFields(logrus.Fields{
+				"tx_hash": txHash,
+				"error":   err,
+			}).Error("Send Lock Event to BXH error")
+			return err
+		}
+		return nil
+	})
 	return nil
+}
+
+func (syncer *WrapperSyncer) GetAssetCurrentBlockHeader() uint64 {
+	var header uint64
+	if err := syncer.retryFunc(func(attempt uint) error {
+		queryTx, err := syncer.client.GenerateContractTx(pb.TransactionData_BVM,
+			constant.EthHeaderMgrContractAddr.Address(), "CurrentBlockHeader")
+		if err != nil {
+			return err
+		}
+		queryTx.Nonce = 1
+		receipt, err := syncer.client.SendView(queryTx)
+		if err != nil {
+			return err
+		}
+		if !receipt.IsSuccess() {
+			return fmt.Errorf("receipt: %s", receipt.Ret)
+		}
+		header = new(big.Int).SetBytes(receipt.Ret).Uint64()
+		return nil
+	}); err != nil {
+		syncer.logger.Panicf("query interchain meta: %s", err.Error())
+	}
+	return header
 }
 
 func (syncer *WrapperSyncer) retryFunc(handle func(uint) error) error {

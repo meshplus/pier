@@ -110,6 +110,20 @@ func (mr *MockSyncerMockRecorder) ListenIBTP() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListenIBTP", reflect.TypeOf((*MockSyncer)(nil).ListenIBTP))
 }
 
+// ListenUnescrow mocks base method.
+func (m *MockSyncer) ListenUnescrow() chan *model.UnescrowEvent {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ListenUnescrow")
+	ret0, _ := ret[0].(chan *model.UnescrowEvent)
+	return ret0
+}
+
+// ListenUnescrow indicates an expected call of ListenUnescrow.
+func (mr *MockSyncerMockRecorder) ListenUnescrow() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListenUnescrow", reflect.TypeOf((*MockSyncer)(nil).ListenUnescrow))
+}
+
 // QueryIBTP mocks base method.
 func (m *MockSyncer) QueryIBTP(ibtpID string) (*pb.IBTP, bool, error) {
 	m.ctrl.T.Helper()
@@ -194,6 +208,34 @@ func (m *MockSyncer) SendIBTP(ibtp *pb.IBTP) error {
 func (mr *MockSyncerMockRecorder) SendIBTP(ibtp interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SendIBTP", reflect.TypeOf((*MockSyncer)(nil).SendIBTP), ibtp)
+}
+
+// SendLockEvent mocks base method.
+func (m *MockSyncer) SendLockEvent(mintEvnt *model.LockEvent) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SendLockEvent", mintEvnt)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// SendLockEvent indicates an expected call of SendLockEvent.
+func (mr *MockSyncerMockRecorder) SendLockEvent(mintEvnt interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SendLockEvent", reflect.TypeOf((*MockSyncer)(nil).SendLockEvent), mintEvnt)
+}
+
+// SendUpdateMeta mocks base method.
+func (m *MockSyncer) SendUpdateMeta(meta model.UpdatedMeta) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SendUpdateMeta", meta)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// SendUpdateMeta indicates an expected call of SendUpdateMeta.
+func (mr *MockSyncerMockRecorder) SendUpdateMeta(meta interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SendUpdateMeta", reflect.TypeOf((*MockSyncer)(nil).SendUpdateMeta), meta)
 }
 
 // Start mocks base method.

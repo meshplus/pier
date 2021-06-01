@@ -34,6 +34,7 @@ type WrapperSyncer struct {
 	logger          logrus.FieldLogger
 	wrappersC       chan *pb.InterchainTxWrappers
 	ibtpC           chan *model.WrappedIBTP
+	unescrowEventCh chan *model.UnescrowEvent
 	appchainHandler AppchainHandler
 	recoverHandler  RecoverUnionHandler
 	rollbackHandler RollbackHandler
@@ -61,15 +62,16 @@ func New(pierID, appchainDID string, mode string, opts ...Option) (*WrapperSynce
 	}
 
 	ws := &WrapperSyncer{
-		wrappersC:   make(chan *pb.InterchainTxWrappers, maxChSize),
-		ibtpC:       make(chan *model.WrappedIBTP, maxChSize),
-		client:      cfg.client,
-		lite:        cfg.lite,
-		storage:     cfg.storage,
-		logger:      cfg.logger,
-		mode:        mode,
-		pierID:      pierID,
-		appchainDID: appchainDID,
+		wrappersC:       make(chan *pb.InterchainTxWrappers, maxChSize),
+		ibtpC:           make(chan *model.WrappedIBTP, maxChSize),
+		unescrowEventCh: make(chan *model.UnescrowEvent, maxChSize),
+		client:          cfg.client,
+		lite:            cfg.lite,
+		storage:         cfg.storage,
+		logger:          cfg.logger,
+		mode:            mode,
+		pierID:          pierID,
+		appchainDID:     appchainDID,
 	}
 
 	return ws, nil
@@ -99,6 +101,7 @@ func (syncer *WrapperSyncer) Start() error {
 
 	go syncer.syncInterchainTxWrappers()
 	go syncer.listenInterchainTxWrappers()
+	go syncer.syncUnescrowEvent()
 
 	syncer.logger.WithFields(logrus.Fields{
 		"current_height": syncer.height,
@@ -197,6 +200,19 @@ func (syncer *WrapperSyncer) syncInterchainTxWrappers() {
 			}
 
 			loop(ch)
+		}
+	}
+}
+
+// listen burn event from bitxhub
+func (syncer *WrapperSyncer) syncUnescrowEvent() {
+	ticker := time.NewTicker(2 * time.Second)
+	for {
+		select {
+		case <-ticker.C:
+			// todo: filter burn event from bitxhub
+		case <-syncer.ctx.Done():
+			return
 		}
 	}
 }

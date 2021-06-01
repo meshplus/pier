@@ -25,6 +25,7 @@ report_caller = false
 [mode]
 type = "relay" # relay, direct or union
 [mode.relay]
+asset = true
 addrs = ["localhost:60011", "localhost:60012", "localhost:60013", "localhost:60014"]
 timeout_limit = "1s"
 quorum = 2

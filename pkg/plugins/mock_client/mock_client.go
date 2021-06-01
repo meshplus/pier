@@ -9,6 +9,7 @@ import (
 
 	gomock "github.com/golang/mock/gomock"
 	pb "github.com/meshplus/bitxhub-model/pb"
+	model "github.com/meshplus/pier/pkg/model"
 )
 
 // MockClient is a mock of Client interface.
@@ -107,6 +108,20 @@ func (mr *MockClientMockRecorder) GetInMeta() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetInMeta", reflect.TypeOf((*MockClient)(nil).GetInMeta))
 }
 
+// GetLockEvent mocks base method.
+func (m *MockClient) GetLockEvent() <-chan *model.LockEvent {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetLockEvent")
+	ret0, _ := ret[0].(<-chan *model.LockEvent)
+	return ret0
+}
+
+// GetLockEvent indicates an expected call of GetLockEvent.
+func (mr *MockClientMockRecorder) GetLockEvent() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetLockEvent", reflect.TypeOf((*MockClient)(nil).GetLockEvent))
+}
+
 // GetOutMessage mocks base method.
 func (m *MockClient) GetOutMessage(to string, idx uint64) (*pb.IBTP, error) {
 	m.ctrl.T.Helper()
@@ -150,6 +165,20 @@ func (m *MockClient) GetReceipt(ibtp *pb.IBTP) (*pb.IBTP, error) {
 func (mr *MockClientMockRecorder) GetReceipt(ibtp interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetReceipt", reflect.TypeOf((*MockClient)(nil).GetReceipt), ibtp)
+}
+
+// GetUpdateMeta mocks base method.
+func (m *MockClient) GetUpdateMeta() <-chan model.UpdatedMeta {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetUpdateMeta")
+	ret0, _ := ret[0].(<-chan model.UpdatedMeta)
+	return ret0
+}
+
+// GetUpdateMeta indicates an expected call of GetUpdateMeta.
+func (mr *MockClientMockRecorder) GetUpdateMeta() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetUpdateMeta", reflect.TypeOf((*MockClient)(nil).GetUpdateMeta))
 }
 
 // IncreaseInMeta mocks base method.
@@ -265,4 +294,18 @@ func (m *MockClient) Type() string {
 func (mr *MockClientMockRecorder) Type() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Type", reflect.TypeOf((*MockClient)(nil).Type))
+}
+
+// Unescrow mocks base method.
+func (m *MockClient) Unescrow(unescrowEvent *model.UnescrowEvent) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Unescrow", unescrowEvent)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Unescrow indicates an expected call of Unescrow.
+func (mr *MockClientMockRecorder) Unescrow(unescrowEvent interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Unescrow", reflect.TypeOf((*MockClient)(nil).Unescrow), unescrowEvent)
 }

@@ -55,6 +55,7 @@ type Mode struct {
 
 // Relay are configs about bitxhub
 type Relay struct {
+	Asset        bool          `toml:"asset" json:"asset"`
 	Addrs        []string      `toml:"addrs" json:"addrs"`
 	TimeoutLimit time.Duration `mapstructure:"timeout_limit" json:"timeout_limit"`
 	Quorum       uint64        `toml:"quorum" json:"quorum"`

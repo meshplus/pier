@@ -9,6 +9,7 @@ import (
 
 	gomock "github.com/golang/mock/gomock"
 	pb "github.com/meshplus/bitxhub-model/pb"
+	model "github.com/meshplus/pier/pkg/model"
 )
 
 // MockMonitor is a mock of Monitor interface.
@@ -46,6 +47,34 @@ func (m *MockMonitor) ListenIBTP() <-chan *pb.IBTP {
 func (mr *MockMonitorMockRecorder) ListenIBTP() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListenIBTP", reflect.TypeOf((*MockMonitor)(nil).ListenIBTP))
+}
+
+// ListenLockEvent mocks base method.
+func (m *MockMonitor) ListenLockEvent() <-chan *model.LockEvent {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ListenLockEvent")
+	ret0, _ := ret[0].(<-chan *model.LockEvent)
+	return ret0
+}
+
+// ListenLockEvent indicates an expected call of ListenLockEvent.
+func (mr *MockMonitorMockRecorder) ListenLockEvent() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListenLockEvent", reflect.TypeOf((*MockMonitor)(nil).ListenLockEvent))
+}
+
+// ListenUpdateMeta mocks base method.
+func (m *MockMonitor) ListenUpdateMeta() <-chan model.UpdatedMeta {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ListenUpdateMeta")
+	ret0, _ := ret[0].(<-chan model.UpdatedMeta)
+	return ret0
+}
+
+// ListenUpdateMeta indicates an expected call of ListenUpdateMeta.
+func (mr *MockMonitorMockRecorder) ListenUpdateMeta() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListenUpdateMeta", reflect.TypeOf((*MockMonitor)(nil).ListenUpdateMeta))
 }
 
 // QueryIBTP mocks base method.

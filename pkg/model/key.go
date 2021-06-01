@@ -3,6 +3,7 @@ package model
 import (
 	"fmt"
 
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/meshplus/bitxhub-model/pb"
 )
 
@@ -20,7 +21,7 @@ type WrappedIBTP struct {
 	IsValid bool
 }
 
-type MintEvent struct {
+type LockEvent struct {
 	ReceiptData []byte
 	Proof       []byte
 }
@@ -28,5 +29,4 @@ type MintEvent struct {
 type UnescrowEvent struct {
 }
 
-type UpdatedMeta interface {
-}
+type UpdatedMeta []*types.Header
