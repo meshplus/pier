@@ -19,9 +19,9 @@ cd "${PROJECT_PATH}" && make build
 print_blue "===> 3. pack binarys"
 cd "${RELEASE_PATH}"
 if [ "$(uname)" == "Darwin" ]; then
-  cp ../build/libwasmer.dylib .
+  cp ../build/wasm/lib/darwin-amd64/libwasmer.dylib .
   tar zcvf pier_darwin_x86_64_"${APP_VERSION}".tar.gz ./pier ./libwasmer.dylib
 else
-  cp ../build/libwasmer.so .
+  cp ../build/wasm/lib/linux-amd64/libwasmer.so .
   tar zcvf pier_linux-amd64_"${APP_VERSION}".tar.gz ./pier ./libwasmer.so
 fi
