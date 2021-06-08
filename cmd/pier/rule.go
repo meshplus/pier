@@ -44,62 +44,6 @@ var ruleCMD = cli.Command{
 			Action: updateMasterRule,
 		},
 		{
-			Name:  "bind",
-			Usage: "bind validation rule",
-			Flags: []cli.Flag{
-				cli.StringFlag{
-					Name:     "addr",
-					Usage:    "Specific rule addr",
-					Required: true,
-				},
-				methodFlag,
-				adminKeyPathFlag,
-			},
-			Action: bindRule,
-		},
-		{
-			Name:  "unbind",
-			Usage: "unbind validation rule",
-			Flags: []cli.Flag{
-				cli.StringFlag{
-					Name:     "addr",
-					Usage:    "Specific rule addr",
-					Required: true,
-				},
-				methodFlag,
-				adminKeyPathFlag,
-			},
-			Action: unbindRule,
-		},
-		{
-			Name:  "freeze",
-			Usage: "freeze validation rule",
-			Flags: []cli.Flag{
-				cli.StringFlag{
-					Name:     "addr",
-					Usage:    "Specific rule addr",
-					Required: true,
-				},
-				methodFlag,
-				adminKeyPathFlag,
-			},
-			Action: freezeRule,
-		},
-		{
-			Name:  "activate",
-			Usage: "activate validation rule",
-			Flags: []cli.Flag{
-				cli.StringFlag{
-					Name:     "addr",
-					Usage:    "Specific rule addr",
-					Required: true,
-				},
-				methodFlag,
-				adminKeyPathFlag,
-			},
-			Action: activateRule,
-		},
-		{
 			Name:  "logout",
 			Usage: "logout validation rule",
 			Flags: []cli.Flag{
@@ -332,8 +276,7 @@ func logoutRule(ctx *cli.Context) error {
 	if !receipt.IsSuccess() {
 		color.Red(fmt.Sprintf("Logout rule to bitxhub for appchain %s error: %s", appchainMethod, string(receipt.Ret)))
 	} else {
-		proposalId := gjson.Get(string(receipt.Ret), "proposal_id").String()
-		color.Green(fmt.Sprintf("Logout rule to bitxhub for appchain %s successfully, wait for proposal %s to finish.", appchainMethod, proposalId))
+		color.Green("The logout request was submitted successfully\n")
 	}
 
 	return nil
