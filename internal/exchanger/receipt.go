@@ -33,6 +33,11 @@ func (ex *Exchanger) feedIBTPReceipt(receipt *model.WrappedIBTP) {
 					entry.Warn("Ignore ibtp with invalid index")
 					continue
 				}
+				if pool.has(ibtp.Index) {
+					// ignore duplicated receipt
+					entry.Warn("Ignore ibtp with duplicated index")
+					continue
+				}
 				if ex.callbackCounter[ibtp.To]+1 == ibtp.Index {
 					// if this is a failed receipt, try to rollback
 					// else handle it in normal way

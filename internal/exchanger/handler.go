@@ -81,14 +81,7 @@ func (ex *Exchanger) applyReceipt(wIbtp *model.WrappedIBTP, entry logrus.FieldLo
 		entry.Infof("Ignore ibtp callback, expected index %d", index+1)
 		return
 	}
-
-	if index+1 < ibtp.Index {
-		entry.Infof("Get missing ibtp receipt, expected index %d", index+1)
-		// todo: need to handle missing ibtp receipt or not?
-		return
-	}
-	ex.handleIBTP(wIbtp, entry)
-	ex.callbackCounter[ibtp.To] = ibtp.Index
+	ex.feedIBTPReceipt(wIbtp)
 }
 
 func (ex *Exchanger) applyInterchain(wIbtp *model.WrappedIBTP, entry logrus.FieldLogger) {
