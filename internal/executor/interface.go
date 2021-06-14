@@ -32,4 +32,15 @@ type Executor interface {
 
 	// QueryIBTPReceipt query receipt for original interchain ibtp
 	QueryIBTPReceipt(originalIBTP *pb.IBTP) (*pb.IBTP, error)
+
+	// SendBurnEvent send unlock event to plugins
+	SendBurnEvent(unLockEvt *pb.UnLock) error
+
+	QueryFilterLockStart(appchainIndex int64) int64
+
+	QueryLockEventByIndex(index int64) *pb.LockEvent
+
+	QueryAppchainIndex() int64
+
+	QueryRelayIndex() int64
 }

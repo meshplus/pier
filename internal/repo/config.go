@@ -57,6 +57,7 @@ type Mode struct {
 type Relay struct {
 	Asset        bool          `toml:"asset" json:"asset"`
 	Addrs        []string      `toml:"addrs" json:"addrs"`
+	JsonrpcAddr  string        `mapstructure:"jsonrpc_addr" json:"jsonrpc_addr"`
 	TimeoutLimit time.Duration `mapstructure:"timeout_limit" json:"timeout_limit"`
 	Quorum       uint64        `toml:"quorum" json:"quorum"`
 	Validators   []string      `toml:"validators" json:"validators"`
@@ -123,8 +124,9 @@ func DefaultConfig() *Config {
 		Mode: Mode{
 			Type: "relay",
 			Relay: Relay{
-				Addrs:  []string{"localhost:60011"},
-				Quorum: 2,
+				Addrs:       []string{"localhost:60011"},
+				JsonrpcAddr: "ws://localhost:60011",
+				Quorum:      2,
 				Validators: []string{
 					"0x000f1a7a08ccc48e5d30f80850cf1cf283aa3abd",
 					"0xe93b92f1da08f925bdee44e91e7768380ae83307",

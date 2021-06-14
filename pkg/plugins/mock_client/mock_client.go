@@ -297,7 +297,7 @@ func (mr *MockClientMockRecorder) Type() *gomock.Call {
 }
 
 // Unescrow mocks base method.
-func (m *MockClient) Unescrow(unescrowEvent *model.UnescrowEvent) error {
+func (m *MockClient) Unescrow(unescrowEvent *model.BurnEvent) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Unescrow", unescrowEvent)
 	ret0, _ := ret[0].(error)

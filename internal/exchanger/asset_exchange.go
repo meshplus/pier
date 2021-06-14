@@ -44,18 +44,34 @@ func (ex *Exchanger) listenMintEvent() {
 	}
 }
 
-func (ex *Exchanger) listenUnescrowEventFromSyncer() {
-	ch := ex.syncer.ListenUnescrow()
+func (ex *Exchanger) listenBurnEventFromSyncer() {
+	// start bxhJsonRpc client
+	ex.syncer.JsonrpcClient().Start(ex.aRelayIndex)
+	ch := ex.syncer.ListenBurn()
 	for {
 		select {
 		case <-ex.ctx.Done():
 			return
-		case _, ok := <-ch:
+		case burnEvent, ok := <-ch:
 			if !ok {
-				ex.logger.Warn("Unexpected closed channel while listening on interchain ibtp")
+				ex.logger.Warn("Unexpected closed channel while listening on interchain burn event")
 				return
 			}
-			// todo(tyx): handle burn event
+			// query the lasted aRelayIndex
+			ex.aRelayIndex = ex.exec.QueryRelayIndex()
+			// do handleMissingEvent
+			if int64(burnEvent.GetRelayIndex())-1 > ex.aRelayIndex {
+				ex.handleMissingBurnFromSyncer(ex.aRelayIndex, int64(burnEvent.GetRelayIndex())-1)
+			}
+			// get mutil signs
+			burnEvent.MultiSigns, _ = ex.syncer.GetEVMSigns(burnEvent.TxId)
+			if err := ex.exec.SendBurnEvent(burnEvent); err != nil {
+				// handle sending error
+				ex.logger.Errorf("Send unlock event error: %s", err.Error())
+				return
+			}
+			ex.logger.Info("unlock event successfully")
+
 		}
 	}
 }

@@ -71,6 +71,24 @@ func (syncer *WrapperSyncer) GetIBTPSigns(ibtp *pb.IBTP) ([]byte, error) {
 	return signs, nil
 }
 
+func (syncer *WrapperSyncer) GetEVMSigns(txHash string) ([][]byte, error) {
+	resp, err := syncer.client.GetMultiSigns(txHash, pb.GetMultiSignsRequest_BURN)
+	if err != nil {
+		return nil, err
+	}
+
+	if resp == nil || resp.Sign == nil {
+		return nil, fmt.Errorf("get empty signatures for asset exchange id %s", txHash)
+	}
+
+	var signs [][]byte
+	for _, sign := range resp.Sign {
+		signs = append(signs, sign)
+	}
+
+	return signs, nil
+}
+
 func (syncer *WrapperSyncer) GetAppchains() ([]*appchainmgr.Appchain, error) {
 	tx, err := syncer.client.GenerateContractTx(pb.TransactionData_BVM, constant.AppchainMgrContractAddr.Address(), "Appchains")
 	if err != nil {
@@ -183,8 +201,8 @@ func (syncer *WrapperSyncer) ListenIBTP() <-chan *model.WrappedIBTP {
 	return syncer.ibtpC
 }
 
-func (syncer *WrapperSyncer) ListenUnescrow() chan *model.UnescrowEvent {
-	return syncer.unescrowEventCh
+func (syncer *WrapperSyncer) ListenBurn() chan *pb.UnLock {
+	return syncer.burnEvent
 }
 
 func (syncer *WrapperSyncer) SendIBTP(ibtp *pb.IBTP) error {

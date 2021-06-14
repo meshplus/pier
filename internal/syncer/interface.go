@@ -23,6 +23,9 @@ type Syncer interface {
 	// Stop stops the service of syncer
 	Stop() error
 
+	// JsonrpcClient get the JsonrpcClient
+	JsonrpcClient() *Client
+
 	// QueryInterchainMeta queries meta including interchain and receipt related meta from bitxhub
 	QueryInterchainMeta() *pb.Interchain
 
@@ -34,7 +37,7 @@ type Syncer interface {
 	ListenIBTP() <-chan *model.WrappedIBTP
 
 	// ListenUnescrow listen on the UnescrowEvent destined for this pier-related appchain from bitxhub
-	ListenUnescrow() chan *model.UnescrowEvent
+	ListenBurn() chan *pb.UnLock
 
 	// SendIBTP sends interchain or receipt type of ibtp to bitxhub
 	// if error occurs, user need to reconstruct this ibtp cause it means ibtp is invalid on bitxhub
@@ -53,6 +56,9 @@ type Syncer interface {
 	//getIBTPSigns gets ibtp signs from bitxhub cluster
 	GetIBTPSigns(ibtp *pb.IBTP) ([]byte, error)
 
+	//getEVMSigns gets evm signs from bitxhub cluster
+	GetEVMSigns(txHash string) ([][]byte, error)
+
 	//GetAppchains gets appchains from bitxhub node
 	GetAppchains() ([]*appchainmgr.Appchain, error)
 
@@ -66,4 +72,6 @@ type Syncer interface {
 	RegisterAppchainHandler(handler AppchainHandler) error
 
 	RegisterRollbackHandler(handler RollbackHandler) error
+
+	QueryBurnEventByIndex(index int64) *pb.UnLock
 }

@@ -2,6 +2,7 @@ package exchanger
 
 import (
 	"fmt"
+	"math/big"
 	"time"
 
 	"github.com/Rican7/retry"
@@ -10,6 +11,53 @@ import (
 	"github.com/meshplus/pier/pkg/model"
 	"github.com/sirupsen/logrus"
 )
+
+func (ex *Exchanger) handleMissingLockFromMnt(rAppchainIndex int64, aAppchainIndex int64) error {
+	if rAppchainIndex < aAppchainIndex {
+		for index := rAppchainIndex + 1; index < aAppchainIndex+1; index++ {
+			// query missing lock event
+			lockEvent := ex.exec.QueryLockEventByIndex(index)
+			ex.logger.Info("Receive lock event from monitor")
+			// syner mint
+			err := ex.syncer.SendLockEvent(lockEvent)
+			if err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func (ex *Exchanger) handleMissingBurnFromSyncer(aRelayIndex int64, rRelayIndex int64) error {
+	if aRelayIndex < rRelayIndex {
+		for index := aRelayIndex + 1; index < rRelayIndex+1; index++ {
+			// query missing burn event
+			burnEvent := ex.syncer.QueryBurnEventByIndex(index)
+			ex.logger.Info("Receive burn event from syner")
+			// syner unlock
+			err := ex.exec.SendBurnEvent(burnEvent)
+			if err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func (ex *Exchanger) recoverMintAndBurnRelay() {
+	ex.rRelayIndex = ex.syncer.JsonrpcClient().RelayIndex()
+	ex.rAppchainIndex = ex.syncer.JsonrpcClient().AppchainIndex()
+	ex.aRelayIndex = ex.exec.QueryRelayIndex()
+	ex.aAppchainIndex = ex.exec.QueryAppchainIndex()
+	height, _ := ex.syncer.JsonrpcClient().InterchainSwapSession().Index2Height(big.NewInt(ex.rRelayIndex))
+	ex.rIndex2Height = height.Int64()
+	ex.aIndex2Height = ex.exec.QueryFilterLockStart(ex.aAppchainIndex)
+
+	// deal missing lock event
+	ex.handleMissingLockFromMnt(ex.rAppchainIndex, ex.aAppchainIndex)
+	// deal missing burn event
+	ex.handleMissingBurnFromSyncer(ex.aRelayIndex, ex.rRelayIndex)
+}
 
 func (ex *Exchanger) recoverRelay() {
 	// recover possible unrollbacked ibtp

@@ -151,6 +151,11 @@ func NewPier(repoRoot string, config *repo.Config) (*Pier, error) {
 		if err != nil {
 			return nil, fmt.Errorf("create bitxhub client: %w", err)
 		}
+		// todo new jsonrpcClient
+		jsonrpcClient, err := syncer.InitializeJsonRpcClient(config.Mode.Relay.JsonrpcAddr, client)
+		if err != nil {
+			return nil, fmt.Errorf("create bitxhub jsonrpc client: %w, %s", err, config.Mode.Relay.JsonrpcAddr)
+		}
 
 		// agent queries appchain info from bitxhub
 		meta, err = getInterchainMeta(client, config.Appchain.DID)
@@ -174,7 +179,7 @@ func NewPier(repoRoot string, config *repo.Config) (*Pier, error) {
 		}
 
 		sync, err = syncer.New(addr.String(), config.Appchain.DID, repo.RelayMode,
-			syncer.WithClient(client), syncer.WithLite(lite),
+			syncer.WithClient(client), syncer.WithLite(lite), syncer.WithConfig(config), syncer.WithEthClient(jsonrpcClient),
 			syncer.WithStorage(store), syncer.WithLogger(loggers.Logger(loggers.Syncer)),
 		)
 		if err != nil {

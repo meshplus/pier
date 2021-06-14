@@ -66,4 +66,12 @@ type Client interface {
 
 	// Type gets type of blockchain from plugin
 	Type() string
+
+	QueryFilterLockStart(appchainIndex int64) int64
+
+	QueryLockEventByIndex(index int64) *pb.LockEvent
+
+	QueryAppchainIndex() int64
+
+	QueryRelayIndex() int64
 }

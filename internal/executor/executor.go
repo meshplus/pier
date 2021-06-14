@@ -78,3 +78,31 @@ func (e *ChannelExecutor) QueryIBTPReceipt(originalIBTP *pb.IBTP) (*pb.IBTP, err
 	}
 	return e.client.GetReceipt(originalIBTP)
 }
+
+func (e *ChannelExecutor) SendBurnEvent(unLockEvt *pb.UnLock) error {
+	err := e.client.Unescrow(unLockEvt)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (e *ChannelExecutor) QueryFilterLockStart(appchainIndex int64) int64 {
+	res := e.client.QueryFilterLockStart(appchainIndex)
+	return res
+}
+
+func (e *ChannelExecutor) QueryLockEventByIndex(index int64) *pb.LockEvent {
+	res := e.client.QueryLockEventByIndex(index)
+	return res
+}
+
+func (e *ChannelExecutor) QueryAppchainIndex() int64 {
+	res := e.client.QueryAppchainIndex()
+	return res
+}
+
+func (e *ChannelExecutor) QueryRelayIndex() int64 {
+	res := e.client.QueryRelayIndex()
+	return res
+}
