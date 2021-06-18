@@ -369,6 +369,19 @@ func (ex *Exchanger) handleGetInterchainMessage(stream network.Stream, msg *peer
 	}
 }
 
+func (ex *Exchanger) handleCheckHashMessage(stream network.Stream, msg *peerMsg.Message) {
+	response := ex.exec.CheckHash(string(msg.Payload.Data))
+	data, err := response.Marshal()
+	if err != nil {
+		panic(err)
+	}
+	retMsg := peermgr.Message(peerMsg.Message_ACK, true, data)
+	if err := ex.peerMgr.AsyncSendWithStream(stream, retMsg); err != nil {
+		ex.logger.Error(err)
+		return
+	}
+}
+
 func (ex *Exchanger) fetchSignsToIBTP(ibtp *pb.IBTP) error {
 	signs, err := ex.syncer.GetAssetExchangeSigns(string(ibtp.Extra))
 	if err != nil {

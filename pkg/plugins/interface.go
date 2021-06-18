@@ -52,6 +52,8 @@ type Client interface {
 	// GetReceipt gets receipt of an executed IBTP
 	GetReceipt(ibtp *pb.IBTP) (*pb.IBTP, error)
 
+	CheckHash(hash string) (*pb.CheckHashResponse, error)
+
 	// Name gets name of blockchain from plugin
 	Name() string
 

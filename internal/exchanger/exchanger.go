@@ -89,6 +89,8 @@ func (ex *Exchanger) Start() error {
 		err = ex.startWithRelayMode()
 	case repo.UnionMode:
 		err = ex.startWithUnionMode()
+	case repo.PocMode:
+		err = ex.startWithPocMode()
 	}
 
 	if err != nil {
@@ -145,6 +147,37 @@ func (ex *Exchanger) startWithRelayMode() error {
 	// syncer should be started first in case to recover ibtp from monitor
 	if err := ex.syncer.Start(); err != nil {
 		return fmt.Errorf("syncer start: %w", err)
+	}
+
+	// recover exchanger before relay any interchain msgs
+	ex.recoverRelay()
+
+	return nil
+}
+
+func (ex *Exchanger) startWithPocMode() error {
+	if err := ex.syncer.RegisterRollbackHandler(ex.handleRollback); err != nil {
+		return fmt.Errorf("register router handler: %w", err)
+	}
+	// syncer should be started first in case to recover ibtp from monitor
+	if err := ex.syncer.Start(); err != nil {
+		return fmt.Errorf("syncer start: %w", err)
+	}
+
+	if err := ex.apiServer.Start(); err != nil {
+		return fmt.Errorf("peerMgr start: %w", err)
+	}
+
+	if err := ex.peerMgr.RegisterConnectHandler(ex.handleNewConnection); err != nil {
+		return fmt.Errorf("register on connection handler: %w", err)
+	}
+
+	if err := ex.peerMgr.RegisterMsgHandler(peerMsg.Message_Check_Hash, ex.handleCheckHashMessage); err != nil {
+		return fmt.Errorf("register query interchain msg handler: %w", err)
+	}
+
+	if err := ex.peerMgr.Start(); err != nil {
+		return fmt.Errorf("peerMgr start: %w", err)
 	}
 
 	// recover exchanger before relay any interchain msgs

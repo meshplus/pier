@@ -10,20 +10,20 @@ dir = "logs"
 filename = "pier.log"
 report_caller = false
 [log.module]
-  api_server   = "info"
-  appchain_mgr = "info"
-  bxh_lite     = "info"
-  executor     = "info"
-  exchanger    = "info"
-  monitor      = "info"
-  peer_mgr     = "info"
-  router       = "info"
-  rule_mgr     = "info"
-  swarm        = "info"
-  syncer       = "info"
+api_server = "info"
+appchain_mgr = "info"
+bxh_lite = "info"
+executor = "info"
+exchanger = "info"
+monitor = "info"
+peer_mgr = "info"
+router = "info"
+rule_mgr = "info"
+swarm = "info"
+syncer = "info"
 
 [mode]
-type = "relay" # relay, direct or union
+type = "poc" # relay, direct, union or poc(include relay and direct)
 [mode.relay]
 addrs = ["localhost:60011", "localhost:60012", "localhost:60013", "localhost:60014"]
 timeout_limit = "1s"
@@ -40,6 +40,15 @@ peers = []
 [mode.union]
 connectors = []
 providers = 1
+
+[poc]
+algo="secp256k1" # secp256k1, ed25519 and sm2
+validators = [
+    "0x07628b5ffcaa341af16e721832cd4fd211717780",
+    "0x3de52dba2d878335f8532f95961d33cbce1b1f37",
+    "0xe7b8aec4b005f8c66ac6a68310ff165daf23c602",
+    "0xa92ff2bfbde5f31b6e59c21c730ef452ae2c0438",
+]
 
 [security]
 enable_tls = false

@@ -267,3 +267,7 @@ func (client *BxhClient) generateCallback(original *pb.IBTP, args [][]byte, stat
 		Version:   original.Version,
 	}, nil
 }
+
+func (client *BxhClient) CheckHash(hash string) (*pb.CheckHashResponse, error) {
+	panic("implement me")
+}

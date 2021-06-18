@@ -67,6 +67,10 @@ func (s *GRPCServer) IncreaseInMeta(_ context.Context, in *pb.IBTP) (*pb.IBTP, e
 	return s.Impl.IncreaseInMeta(in)
 }
 
+func (s *GRPCServer) CheckHash(_ context.Context, req *pb.CheckHashRequest) (*pb.CheckHashResponse, error) {
+	return s.Impl.CheckHash(req.GetHash())
+}
+
 func (s *GRPCServer) GetOutMessage(_ context.Context, req *pb.GetOutMessageRequest) (*pb.IBTP, error) {
 	return s.Impl.GetOutMessage(req.To, req.Idx)
 }
@@ -261,6 +265,12 @@ func (g *GRPCClient) GetOutMessage(to string, idx uint64) (*pb.IBTP, error) {
 	return g.client.GetOutMessage(g.doneContext, &pb.GetOutMessageRequest{
 		To:  to,
 		Idx: idx,
+	})
+}
+
+func (g *GRPCClient) CheckHash(hash string) (*pb.CheckHashResponse, error) {
+	return g.client.CheckHash(g.doneContext, &pb.CheckHashRequest{
+		Hash: hash,
 	})
 }
 

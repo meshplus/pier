@@ -7,6 +7,8 @@ import (
 	"net/http"
 	"path/filepath"
 
+	"github.com/meshplus/pier/internal/checker"
+
 	"github.com/gin-gonic/gin"
 	appchainmgr "github.com/meshplus/bitxhub-core/appchain-mgr"
 	"github.com/meshplus/bitxhub-kit/crypto/asym"
@@ -24,6 +26,7 @@ type Server struct {
 	router      *gin.Engine
 	peerMgr     peermgr.PeerManager
 	appchainMgr *appchain.Manager
+	checker     checker.Checker
 	config      *repo.Config
 	logger      logrus.FieldLogger
 
@@ -60,6 +63,7 @@ func (g *Server) Start() error {
 		v1.GET(client.GetAppchainUrl, g.getAppchain)
 
 		v1.POST(client.RegisterRuleUrl, g.registerRule)
+		v1.POST(client.CheckHashUrl, g.checkHash)
 	}
 
 	go func() {

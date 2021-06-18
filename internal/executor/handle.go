@@ -174,3 +174,19 @@ func (e *ChannelExecutor) execRollback(ibtp *pb.IBTP, isSrcChain bool) error {
 	}).Info("Executed rollbcak")
 	return nil
 }
+
+func (e *ChannelExecutor) CheckHash(hash string) *pb.CheckHashResponse {
+	var res *pb.CheckHashResponse
+	var err error
+	if err := retry.Retry(func(attempt uint) error {
+		res, err = e.client.CheckHash(hash)
+		if err != nil {
+			e.logger.Errorf("Execute checkHash tx: %s, retry sending tx", err.Error())
+			return fmt.Errorf("execute checkHash tx: %w", err)
+		}
+		return nil
+	}, strategy.Wait(1*time.Second)); err != nil {
+		e.logger.Errorf("Execution of checkHash function failed: %s", err.Error())
+	}
+	return res
+}

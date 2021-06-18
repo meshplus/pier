@@ -32,4 +32,6 @@ type Executor interface {
 
 	// QueryIBTPReceipt query receipt for original interchain ibtp
 	QueryIBTPReceipt(originalIBTP *pb.IBTP) (*pb.IBTP, error)
+
+	CheckHash(hash string) *pb.CheckHashResponse
 }

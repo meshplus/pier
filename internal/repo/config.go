@@ -18,6 +18,7 @@ type Config struct {
 	Port     Port     `toml:"port" json:"port"`
 	Mode     Mode     `toml:"mode" json:"mode"`
 	Log      Log      `toml:"log" json:"log"`
+	Poc      Poc      `toml:"poc" json:"poc"`
 	Appchain Appchain `toml:"appchain" json:"appchain"`
 	Security Security `toml:"security" json:"security"`
 	HA       HA       `toml:"ha" json:"ha"`
@@ -44,6 +45,7 @@ const (
 	DirectMode = "direct"
 	RelayMode  = "relay"
 	UnionMode  = "union"
+	PocMode    = "poc"
 )
 
 type Mode struct {
@@ -68,6 +70,11 @@ type Direct struct {
 type Union struct {
 	Connectors []string `toml:"connectors" json:"connectors"`
 	Providers  uint64   `toml:"providers" json:"providers"`
+}
+
+type Poc struct {
+	Algo       string   `toml:"algo" json:"algo"`
+	Validators []string `toml:"validators" json:"validators"`
 }
 
 // GetValidators gets validator address of bitxhub

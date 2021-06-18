@@ -189,6 +189,73 @@ func NewPier(repoRoot string, config *repo.Config) (*Pier, error) {
 			return nil, fmt.Errorf("pier ha constructor not found")
 		}
 		pierHA = pierHAConstructor(client, addr.String())
+	case repo.PocMode:
+		peerManager, err = peermgr.New(config, nodePrivKey, privateKey, 1, loggers.Logger(loggers.PeerMgr))
+		if err != nil {
+			return nil, fmt.Errorf("peerMgr create: %w", err)
+		}
+
+		apiServer, err = api.NewServer(nil, peerManager, config, loggers.Logger(loggers.ApiServer))
+		if err != nil {
+			return nil, fmt.Errorf("gin service create: %w", err)
+		}
+
+		// pier register to bitxhub and got meta infos about its related
+		// appchain from bitxhub
+		opts := []rpcx.Option{
+			rpcx.WithLogger(logger),
+			rpcx.WithPrivateKey(privateKey),
+		}
+		nodesInfo := make([]*rpcx.NodeInfo, 0, len(config.Mode.Relay.Addrs))
+		for _, addr := range config.Mode.Relay.Addrs {
+			nodeInfo := &rpcx.NodeInfo{Addr: addr}
+			if config.Security.EnableTLS {
+				nodeInfo.CertPath = filepath.Join(config.RepoRoot, config.Security.Tlsca)
+				nodeInfo.EnableTLS = config.Security.EnableTLS
+				nodeInfo.CommonName = config.Security.CommonName
+			}
+			nodesInfo = append(nodesInfo, nodeInfo)
+		}
+		opts = append(opts, rpcx.WithNodesInfo(nodesInfo...), rpcx.WithTimeoutLimit(config.Mode.Relay.TimeoutLimit))
+		client, err := rpcx.New(opts...)
+		if err != nil {
+			return nil, fmt.Errorf("create bitxhub client: %w", err)
+		}
+
+		// agent queries appchain info from bitxhub
+		meta, err = getInterchainMeta(client)
+		if err != nil {
+			return nil, err
+		}
+
+		chain, err = getAppchainInfo(client)
+		if err != nil {
+			return nil, err
+		}
+
+		cryptor, err = txcrypto.NewRelayCryptor(client, privateKey)
+		if err != nil {
+			return nil, fmt.Errorf("cryptor create: %w", err)
+		}
+
+		lite, err = bxh_lite.New(client, store, loggers.Logger(loggers.BxhLite))
+		if err != nil {
+			return nil, fmt.Errorf("lite create: %w", err)
+		}
+
+		sync, err = syncer.New(addr.String(), repo.RelayMode,
+			syncer.WithClient(client), syncer.WithLite(lite),
+			syncer.WithStorage(store), syncer.WithLogger(loggers.Logger(loggers.Syncer)),
+		)
+		if err != nil {
+			return nil, fmt.Errorf("syncer create: %w", err)
+		}
+		pierHAConstructor, err := agency.GetPierHAConstructor(config.HA.Mode)
+		if err != nil {
+			return nil, fmt.Errorf("pier ha constructor not found")
+		}
+		pierHA = pierHAConstructor(client, addr.String())
+
 	default:
 		return nil, fmt.Errorf("unsupported mode")
 	}
