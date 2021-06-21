@@ -112,10 +112,9 @@ func (ex *Exchanger) Start() error {
 		go ex.listenUpdateMeta()
 		go ex.listenMintEvent()
 		go ex.listenAndSendIBTPFromSyncer()
-		go ex.listenBurnEventFromSyncer()
+		ex.recoverMintAndBurnRelay()
 	case repo.UnionMode:
 		go ex.listenAndSendIBTPFromSyncer()
-		go ex.listenBurnEventFromSyncer()
 	}
 
 	ex.logger.Info("Exchanger started")
@@ -165,7 +164,6 @@ func (ex *Exchanger) startWithRelayMode() error {
 	}
 	// recover exchanger before relay any interchain msgs
 	ex.recoverRelay()
-	ex.recoverMintAndBurnRelay()
 
 	return nil
 }

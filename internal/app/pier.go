@@ -151,7 +151,7 @@ func NewPier(repoRoot string, config *repo.Config) (*Pier, error) {
 		if err != nil {
 			return nil, fmt.Errorf("create bitxhub client: %w", err)
 		}
-		// todo new jsonrpcClient
+		// new jsonrpcClient
 		jsonrpcClient, err := syncer.InitializeJsonRpcClient(config.Mode.Relay.JsonrpcAddr, client)
 		if err != nil {
 			return nil, fmt.Errorf("create bitxhub jsonrpc client: %w, %s", err, config.Mode.Relay.JsonrpcAddr)
@@ -202,7 +202,12 @@ func NewPier(repoRoot string, config *repo.Config) (*Pier, error) {
 			return nil, fmt.Errorf("marshal interchain meta: %w", err)
 		}
 	} else {
-		sync.GetAppchains()
+		//get eth height to plugins
+		extra, err = json.Marshal(sync.GetAssetCurrentBlockHeader())
+		if err != nil {
+			return nil, fmt.Errorf("marshal eth height: %w", err)
+		}
+		logger.Infof("relay eth height: %s", string(extra))
 	}
 
 	var cli plugins.Client

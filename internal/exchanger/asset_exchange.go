@@ -13,7 +13,6 @@ func (ex *Exchanger) listenUpdateMeta() {
 				return
 			}
 			if err := ex.syncer.SendUpdateMeta(updateMeta); err != nil {
-				// todo(tyx): handle sending error
 				ex.logger.Errorf("Send update meta error: %s", err.Error())
 				return
 			}
@@ -34,11 +33,15 @@ func (ex *Exchanger) listenMintEvent() {
 				ex.logger.Warn("Unexpected closed channel while listening on lock event")
 				return
 			}
+			// do handleMissingEvent
+			if int64(lockEvent.GetAppchainIndex())-1 > ex.rAppchainIndex {
+				ex.handleMissingLockFromMnt(ex.rAppchainIndex, int64(lockEvent.GetAppchainIndex())-1)
+			}
 			if err := ex.syncer.SendLockEvent(lockEvent); err != nil {
-				// todo(tyx): handle sending error
 				ex.logger.Errorf("Send lock event error: %s", err.Error())
 				return
 			}
+			ex.rAppchainIndex++
 			ex.logger.Info("Lock event successfully")
 		}
 	}
@@ -57,8 +60,6 @@ func (ex *Exchanger) listenBurnEventFromSyncer() {
 				ex.logger.Warn("Unexpected closed channel while listening on interchain burn event")
 				return
 			}
-			// query the lasted aRelayIndex
-			ex.aRelayIndex = ex.exec.QueryRelayIndex()
 			// do handleMissingEvent
 			if int64(burnEvent.GetRelayIndex())-1 > ex.aRelayIndex {
 				ex.handleMissingBurnFromSyncer(ex.aRelayIndex, int64(burnEvent.GetRelayIndex())-1)
@@ -70,6 +71,7 @@ func (ex *Exchanger) listenBurnEventFromSyncer() {
 				ex.logger.Errorf("Send unlock event error: %s", err.Error())
 				return
 			}
+			ex.aRelayIndex++
 			ex.logger.Info("unlock event successfully")
 
 		}

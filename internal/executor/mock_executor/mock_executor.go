@@ -50,6 +50,20 @@ func (mr *MockExecutorMockRecorder) ExecuteIBTP(wIbtp interface{}) *gomock.Call 
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ExecuteIBTP", reflect.TypeOf((*MockExecutor)(nil).ExecuteIBTP), wIbtp)
 }
 
+// QueryAppchainIndex mocks base method.
+func (m *MockExecutor) QueryAppchainIndex() int64 {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "QueryAppchainIndex")
+	ret0, _ := ret[0].(int64)
+	return ret0
+}
+
+// QueryAppchainIndex indicates an expected call of QueryAppchainIndex.
+func (mr *MockExecutorMockRecorder) QueryAppchainIndex() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "QueryAppchainIndex", reflect.TypeOf((*MockExecutor)(nil).QueryAppchainIndex))
+}
+
 // QueryCallbackMeta mocks base method.
 func (m *MockExecutor) QueryCallbackMeta() map[string]uint64 {
 	m.ctrl.T.Helper()
@@ -62,6 +76,20 @@ func (m *MockExecutor) QueryCallbackMeta() map[string]uint64 {
 func (mr *MockExecutorMockRecorder) QueryCallbackMeta() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "QueryCallbackMeta", reflect.TypeOf((*MockExecutor)(nil).QueryCallbackMeta))
+}
+
+// QueryFilterLockStart mocks base method.
+func (m *MockExecutor) QueryFilterLockStart(appchainIndex int64) int64 {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "QueryFilterLockStart", appchainIndex)
+	ret0, _ := ret[0].(int64)
+	return ret0
+}
+
+// QueryFilterLockStart indicates an expected call of QueryFilterLockStart.
+func (mr *MockExecutorMockRecorder) QueryFilterLockStart(appchainIndex interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "QueryFilterLockStart", reflect.TypeOf((*MockExecutor)(nil).QueryFilterLockStart), appchainIndex)
 }
 
 // QueryIBTPReceipt mocks base method.
@@ -93,6 +121,34 @@ func (mr *MockExecutorMockRecorder) QueryInterchainMeta() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "QueryInterchainMeta", reflect.TypeOf((*MockExecutor)(nil).QueryInterchainMeta))
 }
 
+// QueryLockEventByIndex mocks base method.
+func (m *MockExecutor) QueryLockEventByIndex(index int64) *pb.LockEvent {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "QueryLockEventByIndex", index)
+	ret0, _ := ret[0].(*pb.LockEvent)
+	return ret0
+}
+
+// QueryLockEventByIndex indicates an expected call of QueryLockEventByIndex.
+func (mr *MockExecutorMockRecorder) QueryLockEventByIndex(index interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "QueryLockEventByIndex", reflect.TypeOf((*MockExecutor)(nil).QueryLockEventByIndex), index)
+}
+
+// QueryRelayIndex mocks base method.
+func (m *MockExecutor) QueryRelayIndex() int64 {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "QueryRelayIndex")
+	ret0, _ := ret[0].(int64)
+	return ret0
+}
+
+// QueryRelayIndex indicates an expected call of QueryRelayIndex.
+func (mr *MockExecutorMockRecorder) QueryRelayIndex() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "QueryRelayIndex", reflect.TypeOf((*MockExecutor)(nil).QueryRelayIndex))
+}
+
 // Rollback mocks base method.
 func (m *MockExecutor) Rollback(ibtp *pb.IBTP, isSrcChain bool) {
 	m.ctrl.T.Helper()
@@ -103,6 +159,20 @@ func (m *MockExecutor) Rollback(ibtp *pb.IBTP, isSrcChain bool) {
 func (mr *MockExecutorMockRecorder) Rollback(ibtp, isSrcChain interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Rollback", reflect.TypeOf((*MockExecutor)(nil).Rollback), ibtp, isSrcChain)
+}
+
+// SendBurnEvent mocks base method.
+func (m *MockExecutor) SendBurnEvent(unLockEvt *pb.UnLock) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SendBurnEvent", unLockEvt)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// SendBurnEvent indicates an expected call of SendBurnEvent.
+func (mr *MockExecutorMockRecorder) SendBurnEvent(unLockEvt interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SendBurnEvent", reflect.TypeOf((*MockExecutor)(nil).SendBurnEvent), unLockEvt)
 }
 
 // Start mocks base method.

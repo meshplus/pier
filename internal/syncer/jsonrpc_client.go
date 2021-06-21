@@ -19,9 +19,6 @@ import (
 	rpcx "github.com/meshplus/go-bitxhub-client"
 )
 
-//go:generate abigen --sol ./example/broker.sol --pkg main --out broker.go
-//go:generate abigen --sol ./example/interchain.sol --pkg main --out interchain.go
-//go:generate abigen --sol ./example/escrows.sol --pkg main --out escrows.go
 type Client struct {
 	ctx                   context.Context
 	ethClient             *ethclient.Client
@@ -89,13 +86,6 @@ func (c *Client) RelayIndex() int64 {
 	return c.relayIndex
 }
 
-const (
-	EtherType        = "ethereum"
-	InvokeInterchain = "invokeInterchain"
-	Threshold        = 20
-	MintEventName    = "Mint"
-)
-
 var (
 	logger = hclog.New(&hclog.LoggerOptions{
 		Name:   "client",
@@ -135,9 +125,10 @@ func InitializeJsonRpcClient(url string, grpcClient rpcx.Client) (*Client, error
 	relayIndex, _ := interchainSwapSession.RelayIndex()
 	c.relayIndex = relayIndex.Int64()
 	appchainIndex, _ := interchainSwapSession.AppchainIndex()
-	c.relayIndex = appchainIndex.Int64()
+	c.appchainIndex = appchainIndex.Int64()
 	c.filterOptCh = make(chan *bind.FilterOpts, 1024)
 	c.logCh = make(chan *contracts.InterchainSwapBurn, 1024)
+	c.burnCh = make(chan *pb.UnLock, 1024)
 	c.ethClient = etherCli
 	c.interchainSwapSession = interchainSwapSession
 	c.ctx = context.Background()
@@ -146,7 +137,7 @@ func InitializeJsonRpcClient(url string, grpcClient rpcx.Client) (*Client, error
 }
 
 func (c *Client) Start(aRelayIndex int64) {
-	c.filterLog(aRelayIndex)
+	go c.filterLog(aRelayIndex)
 	go c.listenBurn()
 }
 
