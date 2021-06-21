@@ -56,7 +56,7 @@ func New(config *repo.Config, nodePrivKey crypto.PrivateKey, privKey crypto.Priv
 		if err != nil {
 			return nil, fmt.Errorf("load peers: %w", err)
 		}
-	case repo.DirectMode:
+	case repo.DirectMode, repo.PocMode:
 		local, remotes, err = loadPeers(config.Mode.Direct.Peers, libp2pPrivKey)
 		if err != nil {
 			return nil, fmt.Errorf("load peers: %w", err)

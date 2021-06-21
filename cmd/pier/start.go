@@ -59,9 +59,7 @@ func start(ctx *cli.Context) error {
 	var pier *app.Pier
 
 	switch config.Mode.Type {
-	case repo.RelayMode:
-		fallthrough
-	case repo.DirectMode:
+	case repo.RelayMode, repo.DirectMode, repo.PocMode:
 		if err := checkPlugin(config.Appchain.Plugin); err != nil {
 			return fmt.Errorf("check plugin: %w", err)
 		}

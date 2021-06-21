@@ -168,10 +168,6 @@ func (ex *Exchanger) startWithPocMode() error {
 		return fmt.Errorf("peerMgr start: %w", err)
 	}
 
-	if err := ex.peerMgr.RegisterConnectHandler(ex.handleNewConnection); err != nil {
-		return fmt.Errorf("register on connection handler: %w", err)
-	}
-
 	if err := ex.peerMgr.RegisterMsgHandler(peerMsg.Message_Check_Hash, ex.handleCheckHashMessage); err != nil {
 		return fmt.Errorf("register query interchain msg handler: %w", err)
 	}

@@ -53,6 +53,7 @@ type Mode struct {
 	Relay  Relay  `toml:"relay" json:"relay"`
 	Direct Direct `toml:"direct" json:"direct"`
 	Union  Union  `toml:"union" json:"union"`
+	Poc    Poc    `toml:"poc" json:"poc"`
 }
 
 // Relay are configs about bitxhub
