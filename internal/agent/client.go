@@ -23,6 +23,22 @@ type BxhClient struct {
 	appchainmgr.Appchain
 }
 
+func (client *BxhClient) QueryFilterLockStart(appchainIndex int64) int64 {
+	return 0
+}
+
+func (client *BxhClient) QueryLockEventByIndex(index int64) *pb.LockEvent {
+	return nil
+}
+
+func (client *BxhClient) QueryAppchainIndex() int64 {
+	return 0
+}
+
+func (client *BxhClient) QueryRelayIndex() int64 {
+	return 0
+}
+
 var _ plugins.Client = (*BxhClient)(nil)
 
 // CreateClient creates plugin client from agent

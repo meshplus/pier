@@ -52,6 +52,20 @@ func (mr *MockSyncerMockRecorder) GetAppchains() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetAppchains", reflect.TypeOf((*MockSyncer)(nil).GetAppchains))
 }
 
+// GetAssetCurrentBlockHeader mocks base method.
+func (m *MockSyncer) GetAssetCurrentBlockHeader() uint64 {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetAssetCurrentBlockHeader")
+	ret0, _ := ret[0].(uint64)
+	return ret0
+}
+
+// GetAssetCurrentBlockHeader indicates an expected call of GetAssetCurrentBlockHeader.
+func (mr *MockSyncerMockRecorder) GetAssetCurrentBlockHeader() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetAssetCurrentBlockHeader", reflect.TypeOf((*MockSyncer)(nil).GetAssetCurrentBlockHeader))
+}
+
 // GetAssetExchangeSigns mocks base method.
 func (m *MockSyncer) GetAssetExchangeSigns(id string) ([]byte, error) {
 	m.ctrl.T.Helper()
@@ -65,6 +79,21 @@ func (m *MockSyncer) GetAssetExchangeSigns(id string) ([]byte, error) {
 func (mr *MockSyncerMockRecorder) GetAssetExchangeSigns(id interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetAssetExchangeSigns", reflect.TypeOf((*MockSyncer)(nil).GetAssetExchangeSigns), id)
+}
+
+// GetEVMSigns mocks base method.
+func (m *MockSyncer) GetEVMSigns(txHash string) ([][]byte, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetEVMSigns", txHash)
+	ret0, _ := ret[0].([][]byte)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetEVMSigns indicates an expected call of GetEVMSigns.
+func (mr *MockSyncerMockRecorder) GetEVMSigns(txHash interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetEVMSigns", reflect.TypeOf((*MockSyncer)(nil).GetEVMSigns), txHash)
 }
 
 // GetIBTPSigns mocks base method.
@@ -96,6 +125,34 @@ func (mr *MockSyncerMockRecorder) GetInterchainById(from interface{}) *gomock.Ca
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetInterchainById", reflect.TypeOf((*MockSyncer)(nil).GetInterchainById), from)
 }
 
+// JsonrpcClient mocks base method.
+func (m *MockSyncer) JsonrpcClient() *syncer.Client {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "JsonrpcClient")
+	ret0, _ := ret[0].(*syncer.Client)
+	return ret0
+}
+
+// JsonrpcClient indicates an expected call of JsonrpcClient.
+func (mr *MockSyncerMockRecorder) JsonrpcClient() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "JsonrpcClient", reflect.TypeOf((*MockSyncer)(nil).JsonrpcClient))
+}
+
+// ListenBurn mocks base method.
+func (m *MockSyncer) ListenBurn() chan *pb.UnLock {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ListenBurn")
+	ret0, _ := ret[0].(chan *pb.UnLock)
+	return ret0
+}
+
+// ListenBurn indicates an expected call of ListenBurn.
+func (mr *MockSyncerMockRecorder) ListenBurn() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListenBurn", reflect.TypeOf((*MockSyncer)(nil).ListenBurn))
+}
+
 // ListenIBTP mocks base method.
 func (m *MockSyncer) ListenIBTP() <-chan *model.WrappedIBTP {
 	m.ctrl.T.Helper()
@@ -110,18 +167,18 @@ func (mr *MockSyncerMockRecorder) ListenIBTP() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListenIBTP", reflect.TypeOf((*MockSyncer)(nil).ListenIBTP))
 }
 
-// ListenUnescrow mocks base method.
-func (m *MockSyncer) ListenUnescrow() chan *model.UnescrowEvent {
+// QueryBurnEventByIndex mocks base method.
+func (m *MockSyncer) QueryBurnEventByIndex(index int64) *pb.UnLock {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ListenUnescrow")
-	ret0, _ := ret[0].(chan *model.UnescrowEvent)
+	ret := m.ctrl.Call(m, "QueryBurnEventByIndex", index)
+	ret0, _ := ret[0].(*pb.UnLock)
 	return ret0
 }
 
-// ListenUnescrow indicates an expected call of ListenUnescrow.
-func (mr *MockSyncerMockRecorder) ListenUnescrow() *gomock.Call {
+// QueryBurnEventByIndex indicates an expected call of QueryBurnEventByIndex.
+func (mr *MockSyncerMockRecorder) QueryBurnEventByIndex(index interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListenUnescrow", reflect.TypeOf((*MockSyncer)(nil).ListenUnescrow))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "QueryBurnEventByIndex", reflect.TypeOf((*MockSyncer)(nil).QueryBurnEventByIndex), index)
 }
 
 // QueryIBTP mocks base method.
@@ -211,21 +268,21 @@ func (mr *MockSyncerMockRecorder) SendIBTP(ibtp interface{}) *gomock.Call {
 }
 
 // SendLockEvent mocks base method.
-func (m *MockSyncer) SendLockEvent(mintEvnt *model.LockEvent) error {
+func (m *MockSyncer) SendLockEvent(lockEvt *pb.LockEvent) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "SendLockEvent", mintEvnt)
+	ret := m.ctrl.Call(m, "SendLockEvent", lockEvt)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // SendLockEvent indicates an expected call of SendLockEvent.
-func (mr *MockSyncerMockRecorder) SendLockEvent(mintEvnt interface{}) *gomock.Call {
+func (mr *MockSyncerMockRecorder) SendLockEvent(lockEvt interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SendLockEvent", reflect.TypeOf((*MockSyncer)(nil).SendLockEvent), mintEvnt)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SendLockEvent", reflect.TypeOf((*MockSyncer)(nil).SendLockEvent), lockEvt)
 }
 
 // SendUpdateMeta mocks base method.
-func (m *MockSyncer) SendUpdateMeta(meta model.UpdatedMeta) error {
+func (m *MockSyncer) SendUpdateMeta(meta *pb.UpdateMeta) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "SendUpdateMeta", meta)
 	ret0, _ := ret[0].(error)

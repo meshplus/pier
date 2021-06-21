@@ -151,7 +151,7 @@ func NewPier(repoRoot string, config *repo.Config) (*Pier, error) {
 		if err != nil {
 			return nil, fmt.Errorf("create bitxhub client: %w", err)
 		}
-		// todo new jsonrpcClient
+		// new jsonrpcClient
 		jsonrpcClient, err := syncer.InitializeJsonRpcClient(config.Mode.Relay.JsonrpcAddr, client)
 		if err != nil {
 			return nil, fmt.Errorf("create bitxhub jsonrpc client: %w, %s", err, config.Mode.Relay.JsonrpcAddr)
@@ -202,7 +202,12 @@ func NewPier(repoRoot string, config *repo.Config) (*Pier, error) {
 			return nil, fmt.Errorf("marshal interchain meta: %w", err)
 		}
 	} else {
-		sync.GetAppchains()
+		//get eth height to plugins
+		extra, err = json.Marshal(sync.GetAssetCurrentBlockHeader())
+		if err != nil {
+			return nil, fmt.Errorf("marshal eth height: %w", err)
+		}
+		logger.Infof("relay eth height: %s", string(extra))
 	}
 
 	var cli plugins.Client
@@ -407,19 +412,19 @@ func (pier *Pier) startPierHA() {
 					"source_receipt_counter": pier.meta.SourceReceiptCounter,
 				}).Info("Pier information")
 				if err := pier.monitor.Start(); err != nil {
-					pier.logger.Errorf("monitor start: %w", err)
+					pier.logger.Errorf("monitor start: %v", err)
 					return
 				}
 				if err := pier.exec.Start(); err != nil {
-					pier.logger.Errorf("executor start: %w", err)
+					pier.logger.Errorf("executor start: %v", err)
 					return
 				}
 				if err := pier.lite.Start(); err != nil {
-					pier.logger.Errorf("lite start: %w", err)
+					pier.logger.Errorf("lite start: %v", err)
 					return
 				}
 				if err := pier.exchanger.Start(); err != nil {
-					pier.logger.Errorf("exchanger start: %w", err)
+					pier.logger.Errorf("exchanger start: %v", err)
 					return
 				}
 				status = true

@@ -9,7 +9,6 @@ import (
 
 	gomock "github.com/golang/mock/gomock"
 	pb "github.com/meshplus/bitxhub-model/pb"
-	model "github.com/meshplus/pier/pkg/model"
 )
 
 // MockMonitor is a mock of Monitor interface.
@@ -50,10 +49,10 @@ func (mr *MockMonitorMockRecorder) ListenIBTP() *gomock.Call {
 }
 
 // ListenLockEvent mocks base method.
-func (m *MockMonitor) ListenLockEvent() <-chan *model.LockEvent {
+func (m *MockMonitor) ListenLockEvent() <-chan *pb.LockEvent {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ListenLockEvent")
-	ret0, _ := ret[0].(<-chan *model.LockEvent)
+	ret0, _ := ret[0].(<-chan *pb.LockEvent)
 	return ret0
 }
 
@@ -64,10 +63,10 @@ func (mr *MockMonitorMockRecorder) ListenLockEvent() *gomock.Call {
 }
 
 // ListenUpdateMeta mocks base method.
-func (m *MockMonitor) ListenUpdateMeta() <-chan model.UpdatedMeta {
+func (m *MockMonitor) ListenUpdateMeta() <-chan *pb.UpdateMeta {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ListenUpdateMeta")
-	ret0, _ := ret[0].(<-chan model.UpdatedMeta)
+	ret0, _ := ret[0].(<-chan *pb.UpdateMeta)
 	return ret0
 }
 

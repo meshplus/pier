@@ -14,6 +14,26 @@ type GRPCServer struct {
 	Impl Client
 }
 
+func (s *GRPCServer) QueryFilterLockStart(ctx context.Context, request *pb.QueryFilterLockStartRequest) (*pb.QueryFilterLockStartResponse, error) {
+	response := s.Impl.QueryFilterLockStart(request.AppchainIndex)
+	return &pb.QueryFilterLockStartResponse{LockStart: response}, nil
+}
+
+func (s *GRPCServer) QueryLockEventByIndex(ctx context.Context, request *pb.QueryLockEventByIndexRequest) (*pb.LockEvent, error) {
+	response := s.Impl.QueryLockEventByIndex(request.Index)
+	return response, nil
+}
+
+func (s *GRPCServer) QueryAppchainIndex(ctx context.Context, empty *pb.Empty) (*pb.QueryAppchainIndexResponse, error) {
+	response := s.Impl.QueryAppchainIndex()
+	return &pb.QueryAppchainIndexResponse{AppchainIndex: response}, nil
+}
+
+func (s *GRPCServer) QueryRelayIndex(ctx context.Context, empty *pb.Empty) (*pb.QueryRelayIndexResponse, error) {
+	response := s.Impl.QueryRelayIndex()
+	return &pb.QueryRelayIndexResponse{RelayIndex: response}, nil
+}
+
 func (s *GRPCServer) Initialize(_ context.Context, req *pb.InitializeRequest) (*pb.Empty, error) {
 	err := s.Impl.Initialize(req.ConfigPath, req.PierId, req.Extra)
 	return &pb.Empty{}, err
@@ -201,6 +221,30 @@ type GRPCClient struct {
 	doneContext context.Context
 }
 
+func (g *GRPCClient) QueryFilterLockStart(appchainIndex int64) int64 {
+	response, _ := g.client.QueryFilterLockStart(g.doneContext, &pb.QueryFilterLockStartRequest{
+		AppchainIndex: appchainIndex,
+	})
+	return response.GetLockStart()
+}
+
+func (g *GRPCClient) QueryLockEventByIndex(index int64) *pb.LockEvent {
+	response, _ := g.client.QueryLockEventByIndex(g.doneContext, &pb.QueryLockEventByIndexRequest{
+		Index: index,
+	})
+	return response
+}
+
+func (g *GRPCClient) QueryAppchainIndex() int64 {
+	response, _ := g.client.QueryAppchainIndex(g.doneContext, &pb.Empty{})
+	return response.AppchainIndex
+}
+
+func (g *GRPCClient) QueryRelayIndex() int64 {
+	response, _ := g.client.QueryRelayIndex(g.doneContext, &pb.Empty{})
+	return response.RelayIndex
+}
+
 func (g *GRPCClient) Initialize(configPath string, pierID string, extra []byte) error {
 	_, err := g.client.Initialize(g.doneContext, &pb.InitializeRequest{
 		PierId:     pierID,
@@ -356,6 +400,10 @@ func (g *GRPCClient) GetLockEvent() <-chan *pb.LockEvent {
 }
 
 func (g *GRPCClient) Unescrow(unlock *pb.UnLock) error {
+	_, err := g.client.UnEscrow(g.doneContext, unlock)
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
