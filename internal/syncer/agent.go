@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+	"strconv"
 	"strings"
 	"time"
 
@@ -269,24 +270,27 @@ func (syncer *WrapperSyncer) SendIBTP(ibtp *pb.IBTP) error {
 }
 
 func (syncer *WrapperSyncer) SendUpdateMeta(meta *pb.UpdateMeta) error {
-	data, err := json.Marshal(&meta)
-	if err != nil {
-		return err
-	}
-	tx, err := syncer.client.GenerateContractTx(pb.TransactionData_BVM, constant.EthHeaderMgrContractAddr.Address(), "InsertBlockHeaders",
-		rpcx.Bytes(data))
+	tx, err := syncer.client.GenerateContractTx(pb.TransactionData_BVM,
+		constant.EthHeaderMgrContractAddr.Address(),
+		"InsertBlockHeaders",
+		rpcx.Bytes(meta.GetMeta()))
 	if err != nil {
 		return err
 	}
 	syncer.retryFunc(func(attempt uint) error {
-		txHash, err := syncer.client.SendTransaction(tx, nil)
+		receipt, err := syncer.client.SendTransactionWithReceipt(tx, nil)
 		if err != nil {
 			syncer.logger.WithFields(logrus.Fields{
-				"tx_hash": txHash,
+				"tx_hash": receipt.TxHash,
 				"error":   err,
 			}).Error("Send update meta to BXH error")
 			return err
 		}
+		if receipt.Status == pb.Receipt_FAILED {
+			syncer.logger.Errorf("insert block headers error: %s", string(receipt.Ret))
+			return errors.New("insert block headers error")
+		}
+		syncer.ethHeight = meta.EndHeader
 		return nil
 	})
 	return nil
@@ -300,13 +304,21 @@ func (syncer *WrapperSyncer) SendLockEvent(lockEvt *pb.LockEvent) error {
 	}
 
 	syncer.retryFunc(func(attempt uint) error {
-		txHash, err := syncer.client.SendTransaction(tx, nil)
+		// wait bitxhub 15 confirmed block
+		if lockEvt.BlockNumber >= syncer.ethHeight-15 {
+			return errors.New("sendLockEvent wait bitxhub 15 confirmed block, bitxhub current eth header=" + strconv.FormatUint(syncer.ethHeight, 10))
+		}
+		receipt, err := syncer.client.SendTransactionWithReceipt(tx, nil)
 		if err != nil {
 			syncer.logger.WithFields(logrus.Fields{
-				"tx_hash": txHash,
+				"tx_hash": receipt.TxHash,
 				"error":   err,
 			}).Error("Send Lock Event to BXH error")
 			return err
+		}
+		if receipt.Status == pb.Receipt_FAILED {
+			syncer.logger.Errorf("send lock event error: %s", string(receipt.Ret))
+			return errors.New("send lock event error")
 		}
 		return nil
 	})
@@ -334,6 +346,7 @@ func (syncer *WrapperSyncer) GetAssetCurrentBlockHeader() uint64 {
 	}); err != nil {
 		syncer.logger.Panicf("query interchain meta: %s", err.Error())
 	}
+	syncer.ethHeight = header
 	return header
 }
 

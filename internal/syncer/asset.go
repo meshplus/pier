@@ -22,7 +22,7 @@ func (c *Client) listenBurn() {
 					Token:      log.EthToken.String(),
 					From:       log.Burner.String(),
 					Receipt:    log.Recipient.String(),
-					Amount:     log.Amount.Uint64(),
+					Amount:     log.Amount.Bytes(),
 					RelayIndex: log.RelayIndex.Uint64(),
 					TxId:       log.Raw.TxHash.String(),
 				}
@@ -54,12 +54,43 @@ func (c *Client) listenBurn() {
 }
 
 func (c *Client) filterLog(aRelayIndex int64) {
-	height, _ := c.interchainSwapSession.Index2Height(big.NewInt(aRelayIndex))
-	start := height.Uint64()
-	end := start + 500
-	filterOpt := &bind.FilterOpts{
-		Start: start,
-		End:   &end,
+	ticker := time.NewTicker(5 * time.Second)
+	defer ticker.Stop()
+	height, err := c.interchainSwapSession.Index2Height(big.NewInt(aRelayIndex))
+	if err != nil {
+		logger.Error("get interchainSwapSession Index2Height", "error", err.Error())
 	}
-	c.filterOptCh <- filterOpt
+	currentStart := height.Uint64()
+
+	for {
+		select {
+		case <-ticker.C:
+			// get latest blockchain height and got all finalized headers into pool
+			latestHeight, err := c.ethClient.BlockNumber(c.ctx)
+			if err != nil {
+				logger.Error("get most recent height", "error", err.Error())
+				continue
+			}
+			if latestHeight == currentStart {
+				continue
+			}
+			var end uint64
+
+			if latestHeight < currentStart+500 {
+				end = latestHeight
+			} else {
+				end = currentStart + 500
+			}
+			filterOpt := &bind.FilterOpts{
+				Start: currentStart,
+				End:   &end,
+			}
+
+			c.filterOptCh <- filterOpt
+			currentStart = end + 1
+		case <-c.ctx.Done():
+			ticker.Stop()
+			return
+		}
+	}
 }

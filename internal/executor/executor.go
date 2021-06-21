@@ -3,7 +3,10 @@ package executor
 import (
 	"context"
 	"fmt"
+	"time"
 
+	"github.com/Rican7/retry"
+	"github.com/Rican7/retry/strategy"
 	"github.com/meshplus/bitxhub-kit/storage"
 	"github.com/meshplus/bitxhub-model/pb"
 	"github.com/meshplus/pier/internal/txcrypto"
@@ -80,11 +83,24 @@ func (e *ChannelExecutor) QueryIBTPReceipt(originalIBTP *pb.IBTP) (*pb.IBTP, err
 }
 
 func (e *ChannelExecutor) SendBurnEvent(unLockEvt *pb.UnLock) error {
-	err := e.client.Unescrow(unLockEvt)
-	if err != nil {
-		return err
-	}
+	e.retryFunc(func(attempt uint) error {
+		err := e.client.Unescrow(unLockEvt)
+		if err != nil {
+			return err
+		}
+		return nil
+	})
 	return nil
+}
+
+func (e *ChannelExecutor) retryFunc(handle func(uint) error) error {
+	return retry.Retry(func(attempt uint) error {
+		if err := handle(attempt); err != nil {
+			e.logger.Errorf("retry failed for reason: %s", err.Error())
+			return err
+		}
+		return nil
+	}, strategy.Wait(500*time.Millisecond))
 }
 
 func (e *ChannelExecutor) QueryFilterLockStart(appchainIndex int64) int64 {

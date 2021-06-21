@@ -43,6 +43,7 @@ type WrapperSyncer struct {
 	mode        string
 	isRecover   bool
 	height      uint64
+	ethHeight   uint64
 	pierID      string
 	appchainDID string
 	ctx         context.Context
@@ -50,8 +51,19 @@ type WrapperSyncer struct {
 }
 
 func (syncer *WrapperSyncer) QueryBurnEventByIndex(index int64) *pb.UnLock {
-	unLock := syncer.jsonrpcClient.QueryBurnEventByIndex(index)
-	unLock.MultiSigns, _ = syncer.GetEVMSigns(unLock.TxId)
+	var unLock *pb.UnLock
+	syncer.retryFunc(func(attempt uint) error {
+		unLock = syncer.jsonrpcClient.QueryBurnEventByIndex(index)
+		signs, err := syncer.GetEVMSigns(unLock.TxId)
+		if err != nil {
+			syncer.logger.WithFields(logrus.Fields{
+				"burn txid": unLock.TxId,
+			}).Error("Syncer GetEVMSigns")
+			return err
+		}
+		unLock.MultiSigns = signs
+		return nil
+	})
 	return unLock
 }
 

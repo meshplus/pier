@@ -9,7 +9,6 @@ import (
 
 	gomock "github.com/golang/mock/gomock"
 	pb "github.com/meshplus/bitxhub-model/pb"
-	model "github.com/meshplus/pier/pkg/model"
 )
 
 // MockClient is a mock of Client interface.
@@ -109,10 +108,10 @@ func (mr *MockClientMockRecorder) GetInMeta() *gomock.Call {
 }
 
 // GetLockEvent mocks base method.
-func (m *MockClient) GetLockEvent() <-chan *model.LockEvent {
+func (m *MockClient) GetLockEvent() <-chan *pb.LockEvent {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetLockEvent")
-	ret0, _ := ret[0].(<-chan *model.LockEvent)
+	ret0, _ := ret[0].(<-chan *pb.LockEvent)
 	return ret0
 }
 
@@ -168,10 +167,10 @@ func (mr *MockClientMockRecorder) GetReceipt(ibtp interface{}) *gomock.Call {
 }
 
 // GetUpdateMeta mocks base method.
-func (m *MockClient) GetUpdateMeta() <-chan model.UpdatedMeta {
+func (m *MockClient) GetUpdateMeta() <-chan *pb.UpdateMeta {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetUpdateMeta")
-	ret0, _ := ret[0].(<-chan model.UpdatedMeta)
+	ret0, _ := ret[0].(<-chan *pb.UpdateMeta)
 	return ret0
 }
 
@@ -222,6 +221,62 @@ func (m *MockClient) Name() string {
 func (mr *MockClientMockRecorder) Name() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Name", reflect.TypeOf((*MockClient)(nil).Name))
+}
+
+// QueryAppchainIndex mocks base method.
+func (m *MockClient) QueryAppchainIndex() int64 {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "QueryAppchainIndex")
+	ret0, _ := ret[0].(int64)
+	return ret0
+}
+
+// QueryAppchainIndex indicates an expected call of QueryAppchainIndex.
+func (mr *MockClientMockRecorder) QueryAppchainIndex() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "QueryAppchainIndex", reflect.TypeOf((*MockClient)(nil).QueryAppchainIndex))
+}
+
+// QueryFilterLockStart mocks base method.
+func (m *MockClient) QueryFilterLockStart(appchainIndex int64) int64 {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "QueryFilterLockStart", appchainIndex)
+	ret0, _ := ret[0].(int64)
+	return ret0
+}
+
+// QueryFilterLockStart indicates an expected call of QueryFilterLockStart.
+func (mr *MockClientMockRecorder) QueryFilterLockStart(appchainIndex interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "QueryFilterLockStart", reflect.TypeOf((*MockClient)(nil).QueryFilterLockStart), appchainIndex)
+}
+
+// QueryLockEventByIndex mocks base method.
+func (m *MockClient) QueryLockEventByIndex(index int64) *pb.LockEvent {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "QueryLockEventByIndex", index)
+	ret0, _ := ret[0].(*pb.LockEvent)
+	return ret0
+}
+
+// QueryLockEventByIndex indicates an expected call of QueryLockEventByIndex.
+func (mr *MockClientMockRecorder) QueryLockEventByIndex(index interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "QueryLockEventByIndex", reflect.TypeOf((*MockClient)(nil).QueryLockEventByIndex), index)
+}
+
+// QueryRelayIndex mocks base method.
+func (m *MockClient) QueryRelayIndex() int64 {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "QueryRelayIndex")
+	ret0, _ := ret[0].(int64)
+	return ret0
+}
+
+// QueryRelayIndex indicates an expected call of QueryRelayIndex.
+func (mr *MockClientMockRecorder) QueryRelayIndex() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "QueryRelayIndex", reflect.TypeOf((*MockClient)(nil).QueryRelayIndex))
 }
 
 // RollbackIBTP mocks base method.
@@ -297,15 +352,15 @@ func (mr *MockClientMockRecorder) Type() *gomock.Call {
 }
 
 // Unescrow mocks base method.
-func (m *MockClient) Unescrow(unescrowEvent *model.BurnEvent) error {
+func (m *MockClient) Unescrow(unlock *pb.UnLock) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Unescrow", unescrowEvent)
+	ret := m.ctrl.Call(m, "Unescrow", unlock)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // Unescrow indicates an expected call of Unescrow.
-func (mr *MockClientMockRecorder) Unescrow(unescrowEvent interface{}) *gomock.Call {
+func (mr *MockClientMockRecorder) Unescrow(unlock interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Unescrow", reflect.TypeOf((*MockClient)(nil).Unescrow), unescrowEvent)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Unescrow", reflect.TypeOf((*MockClient)(nil).Unescrow), unlock)
 }
