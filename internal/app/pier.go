@@ -190,6 +190,7 @@ func NewPier(repoRoot string, config *repo.Config) (*Pier, error) {
 		}
 		pierHA = pierHAConstructor(client, addr.String())
 	case repo.PocMode:
+		ck = &checker.MockChecker{}
 		peerManager, err = peermgr.New(config, nodePrivKey, privateKey, 1, loggers.Logger(loggers.PeerMgr))
 		if err != nil {
 			return nil, fmt.Errorf("peerMgr create: %w", err)

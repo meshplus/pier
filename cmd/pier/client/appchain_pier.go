@@ -161,6 +161,23 @@ var clientCMD = cli.Command{
 			},
 			Action: registerAppchainRule,
 		},
+		{
+			Name:  "check",
+			Usage: "check hash by specific pierId",
+			Flags: []cli.Flag{
+				cli.StringFlag{
+					Name:     "pier_id",
+					Usage:    "specific pier id",
+					Required: true,
+				},
+				cli.StringFlag{
+					Name:     "key",
+					Usage:    "specific key",
+					Required: true,
+				},
+			},
+			Action: checkHash,
+		},
 	},
 }
 
@@ -311,6 +328,26 @@ func getPierAppchain(ctx *cli.Context) error {
 		return err
 	}
 	fmt.Println(parseResponse(res))
+
+	return nil
+}
+
+func checkHash(ctx *cli.Context) error {
+	targetPierID := ctx.String("pier_id")
+	key := ctx.String("key")
+	url, err := getURL(ctx, fmt.Sprintf("%s?pier_id=%s&key=%s", CheckHashUrl, targetPierID, key))
+	if err != nil {
+		return err
+	}
+	res, err := httpPost(url, nil)
+	if err != nil {
+		return err
+	}
+	resStr, err := parseResponse(res)
+	if err != nil {
+		return err
+	}
+	fmt.Println(resStr)
 
 	return nil
 }

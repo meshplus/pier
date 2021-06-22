@@ -313,6 +313,16 @@ func (ex *Exchanger) Stop() error {
 		if err := ex.router.Stop(); err != nil {
 			return fmt.Errorf("router stop:%w", err)
 		}
+	case repo.PocMode:
+		if err := ex.apiServer.Stop(); err != nil {
+			return fmt.Errorf("gin service stop: %w", err)
+		}
+		if err := ex.peerMgr.Stop(); err != nil {
+			return fmt.Errorf("peerMgr stop: %w", err)
+		}
+		if err := ex.syncer.Stop(); err != nil {
+			return fmt.Errorf("syncer stop: %w", err)
+		}
 	}
 
 	ex.logger.Info("Exchanger stopped")
@@ -326,7 +336,7 @@ func (ex *Exchanger) sendIBTP(ibtp *pb.IBTP) error {
 	switch ex.mode {
 	case repo.UnionMode:
 		fallthrough
-	case repo.RelayMode:
+	case repo.RelayMode, repo.PocMode:
 		err := ex.syncer.SendIBTP(ibtp)
 		if err != nil {
 			entry.Errorf("Send ibtp to bitxhub: %s", err.Error())
@@ -379,7 +389,7 @@ func (ex *Exchanger) queryIBTP(id, target string) (*pb.IBTP, bool, error) {
 		err     error
 	)
 	switch ex.mode {
-	case repo.RelayMode:
+	case repo.RelayMode, repo.PocMode:
 		ibtp, isValid, err = ex.syncer.QueryIBTP(id)
 		if err != nil {
 			if errors.Is(err, syncer.ErrIBTPNotFound) {
