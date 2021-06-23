@@ -62,7 +62,7 @@ func (c *Client) QueryBurnEventByIndex(index int64) *pb.UnLock {
 				Token:      event.EthToken.String(),
 				From:       event.Burner.String(),
 				Receipt:    event.Recipient.String(),
-				Amount:     event.Amount.Uint64(),
+				Amount:     event.Amount.Bytes(),
 				RelayIndex: event.RelayIndex.Uint64(),
 				TxId:       event.Raw.TxHash.String(),
 			}

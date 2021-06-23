@@ -27,7 +27,7 @@ type = "relay" # relay, direct or union
 [mode.relay]
 asset = true
 addrs = ["localhost:60011", "localhost:60012", "localhost:60013", "localhost:60014"]
-jsonrpc_addr = "ws://host.docker.internal:8546"
+jsonrpc_addr = "http://localhost:8881"
 timeout_limit = "1s"
 quorum = 2
 validators = [

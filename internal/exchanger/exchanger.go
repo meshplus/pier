@@ -104,15 +104,13 @@ func (ex *Exchanger) Start() error {
 	switch ex.mode {
 	case repo.DirectMode:
 		go ex.listenAndSendIBTPFromMnt()
-		go ex.listenUpdateMeta()
-		go ex.listenMintEvent()
 	case repo.RelayMode:
+		go ex.listenAndSendIBTPFromSyncer()
+		ex.recoverMintAndBurnRelay()
 		go ex.listenAndSendIBTPFromMnt()
 		// miner and burn
 		go ex.listenUpdateMeta()
 		go ex.listenMintEvent()
-		go ex.listenAndSendIBTPFromSyncer()
-		ex.recoverMintAndBurnRelay()
 	case repo.UnionMode:
 		go ex.listenAndSendIBTPFromSyncer()
 	}

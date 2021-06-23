@@ -18,11 +18,12 @@ func (c *Client) listenBurn() {
 			// query this block from ethereum and generate mintEvent and proof for pier
 			if err := retry.Retry(func(attempt uint) error {
 
+				logger.Info("log.amount", log.Amount.Uint64())
 				c.burnCh <- &pb.UnLock{
 					Token:      log.EthToken.String(),
 					From:       log.Burner.String(),
 					Receipt:    log.Recipient.String(),
-					Amount:     log.Amount.Uint64(),
+					Amount:     log.Amount.Bytes(),
 					RelayIndex: log.RelayIndex.Uint64(),
 					TxId:       log.Raw.TxHash.String(),
 				}
