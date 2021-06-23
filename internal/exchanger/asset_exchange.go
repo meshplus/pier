@@ -40,6 +40,9 @@ func (ex *Exchanger) listenMintEvent() {
 				ex.logger.Warn("Unexpected closed channel while listening on lock event")
 				return
 			}
+			if int64(lockEvent.AppchainIndex) <= ex.rAppchainIndex {
+				continue
+			}
 			// do handleMissingEvent
 			if int64(lockEvent.GetAppchainIndex())-1 > ex.rAppchainIndex {
 				ex.handleMissingLockFromMnt(ex.rAppchainIndex, int64(lockEvent.GetAppchainIndex())-1)
@@ -67,6 +70,9 @@ func (ex *Exchanger) listenBurnEventFromSyncer() {
 				ex.logger.Warn("Unexpected closed channel while listening on interchain burn event")
 				return
 			}
+			if int64(burnEvent.RelayIndex) <= ex.rRelayIndex {
+				continue
+			}
 			// do handleMissingEvent
 			if int64(burnEvent.GetRelayIndex())-1 > ex.aRelayIndex {
 				ex.handleMissingBurnFromSyncer(ex.aRelayIndex, int64(burnEvent.GetRelayIndex())-1)
@@ -90,7 +96,7 @@ func (ex *Exchanger) listenBurnEventFromSyncer() {
 				return
 			}
 			ex.aRelayIndex++
-			ex.logger.Info("unlock event successfully")
+			ex.logger.Infof("unlock event successfully, txid=%s", burnEvent.TxId)
 		}
 	}
 }
