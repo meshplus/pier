@@ -87,7 +87,7 @@ func (c *Client) filterLog(aRelayIndex int64) {
 			}
 
 			c.filterOptCh <- filterOpt
-			currentStart = end
+			currentStart = end + 1
 		case <-c.ctx.Done():
 			ticker.Stop()
 			return

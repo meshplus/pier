@@ -70,7 +70,7 @@ func (ex *Exchanger) listenBurnEventFromSyncer() {
 				ex.logger.Warn("Unexpected closed channel while listening on interchain burn event")
 				return
 			}
-			if int64(burnEvent.RelayIndex) <= ex.rRelayIndex {
+			if int64(burnEvent.RelayIndex) <= ex.aRelayIndex {
 				continue
 			}
 			// do handleMissingEvent
