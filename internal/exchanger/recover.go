@@ -59,7 +59,6 @@ func (ex *Exchanger) recoverMintAndBurnRelay() {
 	ex.handleMissingLockFromMnt(ex.rAppchainIndex, ex.aAppchainIndex)
 	// deal missing burn event
 	ex.handleMissingBurnFromSyncer(ex.aRelayIndex, ex.rRelayIndex)
-	go ex.listenBurnEventFromSyncer()
 }
 
 func (ex *Exchanger) recoverRelay() {

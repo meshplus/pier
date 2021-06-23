@@ -57,8 +57,11 @@ func (c *Client) listenBurn() {
 func (c *Client) filterLog(aRelayIndex int64) {
 	ticker := time.NewTicker(5 * time.Second)
 	defer ticker.Stop()
-	height, _ := c.interchainSwapSession.Index2Height(big.NewInt(aRelayIndex))
-	currentStart := height.Uint64() + 1
+	height, err := c.interchainSwapSession.Index2Height(big.NewInt(aRelayIndex))
+	if err != nil {
+		logger.Error("get interchainSwapSession Index2Height", "error", err.Error())
+	}
+	currentStart := height.Uint64()
 
 	for {
 		select {
