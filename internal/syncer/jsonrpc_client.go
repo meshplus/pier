@@ -122,9 +122,17 @@ func InitializeJsonRpcClient(url string, grpcClient rpcx.Client) (*Client, error
 	}
 
 	c := &Client{}
-	relayIndex, _ := interchainSwapSession.RelayIndex()
+	relayIndex, err := interchainSwapSession.RelayIndex()
+	if err != nil {
+		logger.Error("interchainSwapSession.RelayIndex err", "error", err)
+		return nil, err
+	}
 	c.relayIndex = relayIndex.Int64()
-	appchainIndex, _ := interchainSwapSession.AppchainIndex()
+	appchainIndex, err := interchainSwapSession.AppchainIndex()
+	if err != nil {
+		logger.Error("interchainSwapSession.AppchainIndex err", "error", err)
+		return nil, err
+	}
 	c.appchainIndex = appchainIndex.Int64()
 	c.filterOptCh = make(chan *bind.FilterOpts, 1024)
 	c.logCh = make(chan *contracts.InterchainSwapBurn, 1024)
