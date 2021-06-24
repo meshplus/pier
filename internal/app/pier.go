@@ -204,6 +204,8 @@ func NewPier(repoRoot string, config *repo.Config) (*Pier, error) {
 	} else {
 		//get eth height to plugins
 		extra, err = json.Marshal(sync.GetAssetCurrentBlockHeader())
+
+		extra = []byte("11111")
 		if err != nil {
 			return nil, fmt.Errorf("marshal eth height: %w", err)
 		}

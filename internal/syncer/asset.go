@@ -71,7 +71,7 @@ func (c *Client) filterLog(aRelayIndex int64) {
 				logger.Error("get most recent height", "error", err.Error())
 				continue
 			}
-			if latestHeight == currentStart {
+			if latestHeight < currentStart {
 				continue
 			}
 			var end uint64
@@ -85,6 +85,8 @@ func (c *Client) filterLog(aRelayIndex int64) {
 				Start: currentStart,
 				End:   &end,
 			}
+			logger.Info("current bitxhub filter log batch info", "start", currentStart)
+			logger.Info("current bitxhub filter log batch info", "end", end)
 
 			c.filterOptCh <- filterOpt
 			currentStart = end + 1
