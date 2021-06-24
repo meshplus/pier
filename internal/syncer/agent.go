@@ -289,6 +289,7 @@ func (syncer *WrapperSyncer) SendUpdateMeta(meta *pb.UpdateMeta) error {
 			syncer.logger.Errorf("insert block headers error: %s", string(receipt.Ret))
 			return errors.New("insert block headers error")
 		}
+		syncer.ethHeight = meta.EndHeader
 		return nil
 	})
 	return nil
@@ -302,6 +303,10 @@ func (syncer *WrapperSyncer) SendLockEvent(lockEvt *pb.LockEvent) error {
 	}
 
 	syncer.retryFunc(func(attempt uint) error {
+		// wait bitxhub 15 confirmed block
+		if lockEvt.BlockNumber >= syncer.ethHeight-15 {
+			return errors.New("sendLockEvent wait bitxhub 15 confirmed block, bitxhub current eth header=" + string(syncer.ethHeight))
+		}
 		receipt, err := syncer.client.SendTransactionWithReceipt(tx, nil)
 		if err != nil {
 			syncer.logger.WithFields(logrus.Fields{
@@ -340,6 +345,7 @@ func (syncer *WrapperSyncer) GetAssetCurrentBlockHeader() uint64 {
 	}); err != nil {
 		syncer.logger.Panicf("query interchain meta: %s", err.Error())
 	}
+	syncer.ethHeight = header
 	return header
 }
 

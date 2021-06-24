@@ -43,6 +43,7 @@ type WrapperSyncer struct {
 	mode        string
 	isRecover   bool
 	height      uint64
+	ethHeight   uint64
 	pierID      string
 	appchainDID string
 	ctx         context.Context
