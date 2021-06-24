@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+	"strconv"
 	"strings"
 	"time"
 
@@ -305,7 +306,7 @@ func (syncer *WrapperSyncer) SendLockEvent(lockEvt *pb.LockEvent) error {
 	syncer.retryFunc(func(attempt uint) error {
 		// wait bitxhub 15 confirmed block
 		if lockEvt.BlockNumber >= syncer.ethHeight-15 {
-			return errors.New("sendLockEvent wait bitxhub 15 confirmed block, bitxhub current eth header=" + string(syncer.ethHeight))
+			return errors.New("sendLockEvent wait bitxhub 15 confirmed block, bitxhub current eth header=" + strconv.FormatUint(syncer.ethHeight, 10))
 		}
 		receipt, err := syncer.client.SendTransactionWithReceipt(tx, nil)
 		if err != nil {

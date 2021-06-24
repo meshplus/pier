@@ -412,19 +412,19 @@ func (pier *Pier) startPierHA() {
 					"source_receipt_counter": pier.meta.SourceReceiptCounter,
 				}).Info("Pier information")
 				if err := pier.monitor.Start(); err != nil {
-					pier.logger.Errorf("monitor start: %w", err)
+					pier.logger.Errorf("monitor start: %v", err)
 					return
 				}
 				if err := pier.exec.Start(); err != nil {
-					pier.logger.Errorf("executor start: %w", err)
+					pier.logger.Errorf("executor start: %v", err)
 					return
 				}
 				if err := pier.lite.Start(); err != nil {
-					pier.logger.Errorf("lite start: %w", err)
+					pier.logger.Errorf("lite start: %v", err)
 					return
 				}
 				if err := pier.exchanger.Start(); err != nil {
-					pier.logger.Errorf("exchanger start: %w", err)
+					pier.logger.Errorf("exchanger start: %v", err)
 					return
 				}
 				status = true
