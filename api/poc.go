@@ -1,7 +1,6 @@
 package api
 
 import (
-	"encoding/json"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -51,37 +50,8 @@ func (g *Server) handleAckCheckHash(c *gin.Context, msg *peerproto.Message) {
 }
 
 func (g *Server) verifyPoc(c *gin.Context, chr *pb.CheckHashResponse, res *response, validators []string) {
-	header := &PocCitaHeader{}
-	err := json.Unmarshal(chr.HeaderData, &header)
-	if err != nil {
-		res.Data = []byte(err.Error())
-		c.JSON(http.StatusInternalServerError, res)
-		return
-	}
-	N := len(validators)
-	f := (N - 1) / 3
-	threshold := (N + f + 2) / 2
-	if threshold > len(header.Proof.Bft.Commits) {
-		res.Data = []byte("threshold is too low")
-		c.JSON(http.StatusInternalServerError, res)
-		return
-	}
-
-	receipt := &TransactionReceipt{}
-	err = json.Unmarshal(chr.ReceiptData, &receipt)
-	if err != nil {
-		res.Data = []byte(err.Error())
-		c.JSON(http.StatusInternalServerError, res)
-		return
-	}
-
-	for _, log := range receipt.Logs {
-		if log.Removed {
-			continue
-		}
-		// find log
+	if chr.Res {
 		res.Data = []byte("TRUE")
-		return
 	}
 	res.Data = []byte("FALSE")
 }

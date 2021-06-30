@@ -654,8 +654,8 @@ github.com/meshplus/bitxhub-model v1.1.2-0.20210312014622-c3ad532b64ad h1:aTK2R7
 github.com/meshplus/bitxhub-model v1.1.2-0.20210312014622-c3ad532b64ad/go.mod h1:x3H+TL24wcByzHegenLfs+5PQkQGNsk8eCm31QJMa+Q=
 github.com/meshplus/bitxhub-model v1.1.2-0.20210513074749-d31e04a9f41d h1:MiNmt9Dd9xSaUgmU4wp5yDAyw7ukOgTADcN5tGPRY24=
 github.com/meshplus/bitxhub-model v1.1.2-0.20210513074749-d31e04a9f41d/go.mod h1:x3H+TL24wcByzHegenLfs+5PQkQGNsk8eCm31QJMa+Q=
-github.com/meshplus/bitxhub-model v1.1.2-0.20210618023344-31082c0318d3 h1:kwUNJgHsqGjEetRlmoFaLKXTp0W9Yx17PnI/8Tz2Lkw=
-github.com/meshplus/bitxhub-model v1.1.2-0.20210618023344-31082c0318d3/go.mod h1:x3H+TL24wcByzHegenLfs+5PQkQGNsk8eCm31QJMa+Q=
+github.com/meshplus/bitxhub-model v1.1.2-0.20210630034932-474333444ed0 h1:ft2msFCp1k3jShA2VPz0sWxcW26Hxcv3J9H+aNsJFJQ=
+github.com/meshplus/bitxhub-model v1.1.2-0.20210630034932-474333444ed0/go.mod h1:x3H+TL24wcByzHegenLfs+5PQkQGNsk8eCm31QJMa+Q=
 github.com/meshplus/bitxid v0.0.0-20210412025850-e0eaf0f9063a h1:c4ESPDa60Jd4zfzZIGGTyzhfaVM3vKN+xV2G9BwIDGQ=
 github.com/meshplus/bitxid v0.0.0-20210412025850-e0eaf0f9063a/go.mod h1:vAldSRfDe2Qo7exsSTbchVmZWXPY7fhWQrRw18QJHho=
 github.com/meshplus/go-bitxhub-client v1.0.0-rc4.0.20210416022059-22729ce4c0f2 h1:9mLsGd8u1OxqQrHY0cvNxAjmxID59Y87q9MTbg0lQqM=
