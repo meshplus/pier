@@ -329,7 +329,7 @@ func (ex *Exchanger) sendIBTP(ibtp *pb.IBTP) error {
 			ex.logger.Panic(err)
 		}
 	}
-	//entry.Info("Send ibtp success from monitor")
+	entry.Info("Send ibtp success from monitor")
 	return nil
 }
 

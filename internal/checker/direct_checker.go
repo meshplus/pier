@@ -1,7 +1,6 @@
 package checker
 
 import (
-	"crypto/sha256"
 	"encoding/json"
 	"fmt"
 	"sync"
@@ -61,8 +60,7 @@ func (c *DirectChecker) Check(ibtp *pb.IBTP) error {
 				return fmt.Errorf("not found rule address from appchain:%s", appchain.ID)
 			}
 		} else {
-			codeHash := sha256.Sum256(code)
-			validatorAddr = types.NewAddress(codeHash[:]).String()
+			validatorAddr = appchain.ID
 		}
 
 		c.appchainCache.Store(chainID, &appchainRule{
