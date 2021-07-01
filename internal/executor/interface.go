@@ -37,14 +37,14 @@ type Executor interface {
 	SendBurnEvent(unLockEvt *pb.UnLock) error
 
 	// QueryFilterLockStart query the lasted lock event height in appchain
-	QueryFilterLockStart(appchainIndex int64) int64
+	QueryFilterLockStart(appchainIndex uint64) uint64
 
 	// QueryLockEventByIndex query A lock event by lock index
-	QueryLockEventByIndex(index int64) *pb.LockEvent
+	QueryLockEventByIndex(index uint64) *pb.LockEvent
 
 	// QueryAppchainIndex query the lasted lock event index from appchain
-	QueryAppchainIndex() int64
+	QueryAppchainIndex() uint64
 
 	// QueryRelayIndex query the lasted burn event index from appchain
-	QueryRelayIndex() int64
+	QueryRelayIndex() uint64
 }

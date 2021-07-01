@@ -152,7 +152,7 @@ func NewPier(repoRoot string, config *repo.Config) (*Pier, error) {
 			return nil, fmt.Errorf("create bitxhub client: %w", err)
 		}
 		// new jsonrpcClient
-		jsonrpcClient, err := syncer.InitializeJsonRpcClient(config.Mode.Relay.JsonrpcAddr, client)
+		jsonrpcClient, err := syncer.InitializeJsonRpcClient(config.Mode.Relay.JsonrpcAddr, client, syncer.WithLogger(loggers.Logger(loggers.JsonrpcClient)))
 		if err != nil {
 			return nil, fmt.Errorf("create bitxhub jsonrpc client: %w, %s", err, config.Mode.Relay.JsonrpcAddr)
 		}

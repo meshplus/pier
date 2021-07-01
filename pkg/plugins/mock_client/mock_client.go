@@ -224,11 +224,12 @@ func (mr *MockClientMockRecorder) Name() *gomock.Call {
 }
 
 // QueryAppchainIndex mocks base method.
-func (m *MockClient) QueryAppchainIndex() int64 {
+func (m *MockClient) QueryAppchainIndex() (uint64, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "QueryAppchainIndex")
-	ret0, _ := ret[0].(int64)
-	return ret0
+	ret0, _ := ret[0].(uint64)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
 }
 
 // QueryAppchainIndex indicates an expected call of QueryAppchainIndex.
@@ -238,11 +239,12 @@ func (mr *MockClientMockRecorder) QueryAppchainIndex() *gomock.Call {
 }
 
 // QueryFilterLockStart mocks base method.
-func (m *MockClient) QueryFilterLockStart(appchainIndex int64) int64 {
+func (m *MockClient) QueryFilterLockStart(appchainIndex uint64) (uint64, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "QueryFilterLockStart", appchainIndex)
-	ret0, _ := ret[0].(int64)
-	return ret0
+	ret0, _ := ret[0].(uint64)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
 }
 
 // QueryFilterLockStart indicates an expected call of QueryFilterLockStart.
@@ -252,11 +254,12 @@ func (mr *MockClientMockRecorder) QueryFilterLockStart(appchainIndex interface{}
 }
 
 // QueryLockEventByIndex mocks base method.
-func (m *MockClient) QueryLockEventByIndex(index int64) *pb.LockEvent {
+func (m *MockClient) QueryLockEventByIndex(index uint64) (*pb.LockEvent, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "QueryLockEventByIndex", index)
 	ret0, _ := ret[0].(*pb.LockEvent)
-	return ret0
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
 }
 
 // QueryLockEventByIndex indicates an expected call of QueryLockEventByIndex.
@@ -266,11 +269,12 @@ func (mr *MockClientMockRecorder) QueryLockEventByIndex(index interface{}) *gomo
 }
 
 // QueryRelayIndex mocks base method.
-func (m *MockClient) QueryRelayIndex() int64 {
+func (m *MockClient) QueryRelayIndex() (uint64, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "QueryRelayIndex")
-	ret0, _ := ret[0].(int64)
-	return ret0
+	ret0, _ := ret[0].(uint64)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
 }
 
 // QueryRelayIndex indicates an expected call of QueryRelayIndex.

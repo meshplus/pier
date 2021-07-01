@@ -50,7 +50,7 @@ type WrapperSyncer struct {
 	cancel      context.CancelFunc
 }
 
-func (syncer *WrapperSyncer) QueryBurnEventByIndex(index int64) *pb.UnLock {
+func (syncer *WrapperSyncer) QueryBurnEventByIndex(index uint64) *pb.UnLock {
 	var unLock *pb.UnLock
 	syncer.retryFunc(func(attempt uint) error {
 		unLock = syncer.jsonrpcClient.QueryBurnEventByIndex(index)

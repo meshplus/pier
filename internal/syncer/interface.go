@@ -73,5 +73,5 @@ type Syncer interface {
 
 	RegisterRollbackHandler(handler RollbackHandler) error
 
-	QueryBurnEventByIndex(index int64) *pb.UnLock
+	QueryBurnEventByIndex(index uint64) *pb.UnLock
 }

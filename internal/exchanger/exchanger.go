@@ -39,12 +39,12 @@ type Exchanger struct {
 	callbackCounter      map[string]uint64
 	sourceReceiptCounter map[string]uint64
 	// control the mint and burn index
-	rRelayIndex    int64
-	rAppchainIndex int64
-	aRelayIndex    int64
-	aAppchainIndex int64
-	rIndex2Height  int64
-	aIndex2Height  int64
+	rRelayIndex    uint64
+	rAppchainIndex uint64
+	aRelayIndex    uint64
+	aAppchainIndex uint64
+	rIndex2Height  uint64
+	aIndex2Height  uint64
 
 	apiServer       *api.Server
 	peerMgr         peermgr.PeerManager

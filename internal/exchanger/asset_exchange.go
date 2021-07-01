@@ -40,13 +40,11 @@ func (ex *Exchanger) listenMintEvent() {
 				ex.logger.Warn("Unexpected closed channel while listening on lock event")
 				return
 			}
-			if int64(lockEvent.AppchainIndex) <= ex.rAppchainIndex {
+			if lockEvent.AppchainIndex <= ex.rAppchainIndex {
 				continue
 			}
 			// do handleMissingEvent
-			if int64(lockEvent.GetAppchainIndex())-1 > ex.rAppchainIndex {
-				ex.handleMissingLockFromMnt(ex.rAppchainIndex, int64(lockEvent.GetAppchainIndex())-1)
-			}
+			ex.handleMissingLockFromMnt(ex.rAppchainIndex, lockEvent.GetAppchainIndex()-1)
 			if err := ex.syncer.SendLockEvent(lockEvent); err != nil {
 				ex.logger.Errorf("Send lock event error: %s", err.Error())
 				return
@@ -70,13 +68,11 @@ func (ex *Exchanger) listenBurnEventFromSyncer() {
 				ex.logger.Warn("Unexpected closed channel while listening on interchain burn event")
 				return
 			}
-			if int64(burnEvent.RelayIndex) <= ex.aRelayIndex {
+			if burnEvent.RelayIndex <= ex.aRelayIndex {
 				continue
 			}
 			// do handleMissingEvent
-			if int64(burnEvent.GetRelayIndex())-1 > ex.aRelayIndex {
-				ex.handleMissingBurnFromSyncer(ex.aRelayIndex, int64(burnEvent.GetRelayIndex())-1)
-			}
+			ex.handleMissingBurnFromSyncer(ex.aRelayIndex, burnEvent.GetRelayIndex()-1)
 			// get mutil signs
 			var (
 				multiSigns [][]byte

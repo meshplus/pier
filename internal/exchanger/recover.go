@@ -2,7 +2,6 @@ package exchanger
 
 import (
 	"fmt"
-	"math/big"
 	"time"
 
 	"github.com/Rican7/retry"
@@ -12,7 +11,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-func (ex *Exchanger) handleMissingLockFromMnt(rAppchainIndex int64, aAppchainIndex int64) error {
+func (ex *Exchanger) handleMissingLockFromMnt(rAppchainIndex uint64, aAppchainIndex uint64) error {
 	if rAppchainIndex < aAppchainIndex {
 		for index := rAppchainIndex + 1; index < aAppchainIndex+1; index++ {
 			// query missing lock event
@@ -29,7 +28,7 @@ func (ex *Exchanger) handleMissingLockFromMnt(rAppchainIndex int64, aAppchainInd
 	return nil
 }
 
-func (ex *Exchanger) handleMissingBurnFromSyncer(aRelayIndex int64, rRelayIndex int64) error {
+func (ex *Exchanger) handleMissingBurnFromSyncer(aRelayIndex uint64, rRelayIndex uint64) error {
 	if aRelayIndex < rRelayIndex {
 		for index := aRelayIndex + 1; index < rRelayIndex+1; index++ {
 			// query missing burn event
@@ -51,12 +50,7 @@ func (ex *Exchanger) recoverMintAndBurnRelay() {
 	ex.rAppchainIndex = ex.syncer.JsonrpcClient().AppchainIndex()
 	ex.aRelayIndex = ex.exec.QueryRelayIndex()
 	ex.aAppchainIndex = ex.exec.QueryAppchainIndex()
-	height, err := ex.syncer.JsonrpcClient().InterchainSwapSession().Index2Height(big.NewInt(ex.rRelayIndex))
-	if err != nil {
-		ex.logger.Errorf("Receive interchainSwap index from bitxhub failed:%v", err)
-		panic(err)
-	}
-	ex.rIndex2Height = height.Int64()
+	ex.rIndex2Height = ex.syncer.JsonrpcClient().GetInterchainSwapIndex2Height(ex.rRelayIndex).Uint64()
 	ex.aIndex2Height = ex.exec.QueryFilterLockStart(ex.aAppchainIndex)
 
 	// deal missing lock event

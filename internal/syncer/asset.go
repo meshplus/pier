@@ -37,7 +37,7 @@ func (c *Client) listenBurn() {
 				}
 				return nil
 			}, strategy.Wait(1*time.Second)); err != nil {
-				logger.Error("Can't get filter burn event", "error", err.Error())
+				c.logger.Error("Can't get filter burn event", "error", err.Error())
 			}
 			for iter.Next() {
 				c.logCh <- iter.Event
@@ -48,12 +48,12 @@ func (c *Client) listenBurn() {
 	}
 }
 
-func (c *Client) filterLog(aRelayIndex int64) {
+func (c *Client) filterLog(aRelayIndex uint64) {
 	ticker := time.NewTicker(5 * time.Second)
 	defer ticker.Stop()
-	height, err := c.interchainSwapSession.Index2Height(big.NewInt(aRelayIndex))
+	height, err := c.interchainSwapSession.Index2Height(new(big.Int).SetUint64(aRelayIndex))
 	if err != nil {
-		logger.Error("get interchainSwapSession Index2Height", "error", err.Error())
+		c.logger.Error("get interchainSwapSession Index2Height", "error", err.Error())
 	}
 	currentStart := height.Uint64()
 
@@ -63,7 +63,7 @@ func (c *Client) filterLog(aRelayIndex int64) {
 			// get latest blockchain height and got all finalized headers into pool
 			latestHeight, err := c.ethClient.BlockNumber(c.ctx)
 			if err != nil {
-				logger.Error("get most recent height", "error", err.Error())
+				c.logger.Error("get most recent height", "error", err.Error())
 				continue
 			}
 			if latestHeight == currentStart {

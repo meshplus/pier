@@ -15,23 +15,23 @@ type GRPCServer struct {
 }
 
 func (s *GRPCServer) QueryFilterLockStart(ctx context.Context, request *pb.QueryFilterLockStartRequest) (*pb.QueryFilterLockStartResponse, error) {
-	response := s.Impl.QueryFilterLockStart(request.AppchainIndex)
-	return &pb.QueryFilterLockStartResponse{LockStart: response}, nil
+	response, err := s.Impl.QueryFilterLockStart(request.AppchainIndex)
+	return &pb.QueryFilterLockStartResponse{LockStart: response}, err
 }
 
 func (s *GRPCServer) QueryLockEventByIndex(ctx context.Context, request *pb.QueryLockEventByIndexRequest) (*pb.LockEvent, error) {
-	response := s.Impl.QueryLockEventByIndex(request.Index)
-	return response, nil
+	response, err := s.Impl.QueryLockEventByIndex(request.Index)
+	return response, err
 }
 
 func (s *GRPCServer) QueryAppchainIndex(ctx context.Context, empty *pb.Empty) (*pb.QueryAppchainIndexResponse, error) {
-	response := s.Impl.QueryAppchainIndex()
-	return &pb.QueryAppchainIndexResponse{AppchainIndex: response}, nil
+	response, err := s.Impl.QueryAppchainIndex()
+	return &pb.QueryAppchainIndexResponse{AppchainIndex: response}, err
 }
 
 func (s *GRPCServer) QueryRelayIndex(ctx context.Context, empty *pb.Empty) (*pb.QueryRelayIndexResponse, error) {
-	response := s.Impl.QueryRelayIndex()
-	return &pb.QueryRelayIndexResponse{RelayIndex: response}, nil
+	response, err := s.Impl.QueryRelayIndex()
+	return &pb.QueryRelayIndexResponse{RelayIndex: response}, err
 }
 
 func (s *GRPCServer) Initialize(_ context.Context, req *pb.InitializeRequest) (*pb.Empty, error) {
@@ -221,40 +221,40 @@ type GRPCClient struct {
 	doneContext context.Context
 }
 
-func (g *GRPCClient) QueryFilterLockStart(appchainIndex int64) int64 {
+func (g *GRPCClient) QueryFilterLockStart(appchainIndex uint64) (uint64, error) {
 	response, err := g.client.QueryFilterLockStart(g.doneContext, &pb.QueryFilterLockStartRequest{
 		AppchainIndex: appchainIndex,
 	})
 	if err != nil {
-		panic(err.Error())
+		return 0, err
 	}
-	return response.GetLockStart()
+	return response.GetLockStart(), nil
 }
 
-func (g *GRPCClient) QueryLockEventByIndex(index int64) *pb.LockEvent {
+func (g *GRPCClient) QueryLockEventByIndex(index uint64) (*pb.LockEvent, error) {
 	response, err := g.client.QueryLockEventByIndex(g.doneContext, &pb.QueryLockEventByIndexRequest{
 		Index: index,
 	})
 	if err != nil {
-		panic(err.Error())
+		return nil, err
 	}
-	return response
+	return response, nil
 }
 
-func (g *GRPCClient) QueryAppchainIndex() int64 {
+func (g *GRPCClient) QueryAppchainIndex() (uint64, error) {
 	response, err := g.client.QueryAppchainIndex(g.doneContext, &pb.Empty{})
 	if err != nil {
-		panic(err.Error())
+		return 0, err
 	}
-	return response.AppchainIndex
+	return response.AppchainIndex, nil
 }
 
-func (g *GRPCClient) QueryRelayIndex() int64 {
+func (g *GRPCClient) QueryRelayIndex() (uint64, error) {
 	response, err := g.client.QueryRelayIndex(g.doneContext, &pb.Empty{})
 	if err != nil {
-		panic(err.Error())
+		return 0, err
 	}
-	return response.RelayIndex
+	return response.RelayIndex, nil
 }
 
 func (g *GRPCClient) Initialize(configPath string, pierID string, extra []byte) error {

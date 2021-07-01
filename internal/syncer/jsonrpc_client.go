@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"math/big"
-	"os"
 	"time"
 
 	"github.com/Rican7/retry"
@@ -12,27 +11,28 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
-	"github.com/hashicorp/go-hclog"
 	contracts "github.com/meshplus/bitxhub-core/eth-contracts"
 	"github.com/meshplus/bitxhub-model/constant"
 	"github.com/meshplus/bitxhub-model/pb"
 	rpcx "github.com/meshplus/go-bitxhub-client"
+	"github.com/sirupsen/logrus"
 )
 
 type Client struct {
 	ctx                   context.Context
 	ethClient             *ethclient.Client
+	logger                logrus.FieldLogger
 	interchainSwapSession *contracts.InterchainSwapSession
-	appchainIndex         int64
-	relayIndex            int64
+	appchainIndex         uint64
+	relayIndex            uint64
 	filterOptCh           chan *bind.FilterOpts
 	logCh                 chan *contracts.InterchainSwapBurn
 	burnCh                chan *pb.UnLock
 }
 
-func (c *Client) QueryBurnEventByIndex(index int64) *pb.UnLock {
+func (c *Client) QueryBurnEventByIndex(index uint64) *pb.UnLock {
 	var burnCh *pb.UnLock
-	height, _ := c.interchainSwapSession.Index2Height(big.NewInt(index))
+	height := c.GetInterchainSwapIndex2Height(index)
 	end := height.Uint64()
 	filterOpt := &bind.FilterOpts{
 		Start: end,
@@ -49,11 +49,11 @@ func (c *Client) QueryBurnEventByIndex(index int64) *pb.UnLock {
 		}
 		return nil
 	}, strategy.Wait(1*time.Second)); err != nil {
-		logger.Error("Can't get filter burn event", "error", err.Error())
+		c.logger.Error("Can't get filter burn event", "error", err.Error())
 	}
 	for iter.Next() {
 		event := iter.Event
-		if index != event.RelayIndex.Int64() {
+		if index != event.RelayIndex.Uint64() {
 			continue
 		}
 		burnCh = &pb.UnLock{
@@ -73,24 +73,21 @@ func (c *Client) InterchainSwapSession() *contracts.InterchainSwapSession {
 	return c.interchainSwapSession
 }
 
-func (c *Client) AppchainIndex() int64 {
+func (c *Client) AppchainIndex() uint64 {
 	return c.appchainIndex
 }
 
-func (c *Client) RelayIndex() int64 {
+func (c *Client) RelayIndex() uint64 {
 	return c.relayIndex
 }
 
-var (
-	logger = hclog.New(&hclog.LoggerOptions{
-		Name:   "client",
-		Output: os.Stderr,
-		Level:  hclog.Trace,
-	})
-)
-
-func InitializeJsonRpcClient(url string, grpcClient rpcx.Client) (*Client, error) {
-
+func InitializeJsonRpcClient(url string, grpcClient rpcx.Client, opts ...Option) (*Client, error) {
+	c := &Client{}
+	cfg, err := GenerateConfig(opts...)
+	if err != nil {
+		return nil, err
+	}
+	c.logger = cfg.logger
 	etherCli, err := ethclient.Dial(url)
 	if err != nil {
 		return nil, err
@@ -115,27 +112,79 @@ func InitializeJsonRpcClient(url string, grpcClient rpcx.Client) (*Client, error
 			Pending: false,
 		},
 	}
-
-	c := &Client{}
-	relayIndex, _ := interchainSwapSession.RelayIndex()
-	c.relayIndex = relayIndex.Int64()
-	appchainIndex, _ := interchainSwapSession.AppchainIndex()
-	c.appchainIndex = appchainIndex.Int64()
+	c.interchainSwapSession = interchainSwapSession
+	c.relayIndex = c.GetInterchainSwapRelayIndex().Uint64()
+	c.appchainIndex = c.GetInterchainSwapAppchainIndex().Uint64()
 	c.filterOptCh = make(chan *bind.FilterOpts, 1024)
 	c.logCh = make(chan *contracts.InterchainSwapBurn, 1024)
 	c.burnCh = make(chan *pb.UnLock, 1024)
 	c.ethClient = etherCli
-	c.interchainSwapSession = interchainSwapSession
+
 	c.ctx = context.Background()
 
 	return c, nil
 }
 
-func (c *Client) Start(aRelayIndex int64) {
+func (c *Client) Start(aRelayIndex uint64) {
 	go c.filterLog(aRelayIndex)
 	go c.listenBurn()
 }
 
 func (c *Client) Stop() error {
 	return nil
+}
+
+func (c *Client) GetInterchainSwapIndex2Height(index uint64) *big.Int {
+	var (
+		height *big.Int
+		err    error
+	)
+	c.retryFunc(func(attempt uint) error {
+		height, err = c.interchainSwapSession.Index2Height(new(big.Int).SetUint64(index))
+		if err != nil {
+			return err
+		}
+		return nil
+	})
+	return height
+}
+
+func (c *Client) GetInterchainSwapRelayIndex() *big.Int {
+	var (
+		index *big.Int
+		err   error
+	)
+	c.retryFunc(func(attempt uint) error {
+		index, err = c.interchainSwapSession.RelayIndex()
+		if err != nil {
+			return err
+		}
+		return nil
+	})
+	return index
+}
+
+func (c *Client) GetInterchainSwapAppchainIndex() *big.Int {
+	var (
+		index *big.Int
+		err   error
+	)
+	c.retryFunc(func(attempt uint) error {
+		index, err = c.interchainSwapSession.AppchainIndex()
+		if err != nil {
+			return err
+		}
+		return nil
+	})
+	return index
+}
+
+func (c *Client) retryFunc(handle func(uint) error) error {
+	return retry.Retry(func(attempt uint) error {
+		if err := handle(attempt); err != nil {
+			c.logger.Errorf("retry failed for reason: %s", err.Error())
+			return err
+		}
+		return nil
+	}, strategy.Wait(500*time.Millisecond))
 }

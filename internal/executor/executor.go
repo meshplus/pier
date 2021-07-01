@@ -103,22 +103,62 @@ func (e *ChannelExecutor) retryFunc(handle func(uint) error) error {
 	}, strategy.Wait(500*time.Millisecond))
 }
 
-func (e *ChannelExecutor) QueryFilterLockStart(appchainIndex int64) int64 {
-	res := e.client.QueryFilterLockStart(appchainIndex)
+func (e *ChannelExecutor) QueryFilterLockStart(appchainIndex uint64) uint64 {
+	var (
+		res uint64
+		err error
+	)
+	e.retryFunc(func(attempt uint) error {
+		res, err = e.client.QueryFilterLockStart(appchainIndex)
+		if err != nil {
+			return err
+		}
+		return nil
+	})
 	return res
 }
 
-func (e *ChannelExecutor) QueryLockEventByIndex(index int64) *pb.LockEvent {
-	res := e.client.QueryLockEventByIndex(index)
+func (e *ChannelExecutor) QueryLockEventByIndex(index uint64) *pb.LockEvent {
+	var (
+		res *pb.LockEvent
+		err error
+	)
+	e.retryFunc(func(attempt uint) error {
+		res, err = e.client.QueryLockEventByIndex(index)
+		if err != nil {
+			return err
+		}
+		return nil
+	})
 	return res
 }
 
-func (e *ChannelExecutor) QueryAppchainIndex() int64 {
-	res := e.client.QueryAppchainIndex()
+func (e *ChannelExecutor) QueryAppchainIndex() uint64 {
+	var (
+		res uint64
+		err error
+	)
+	e.retryFunc(func(attempt uint) error {
+		res, err = e.client.QueryAppchainIndex()
+		if err != nil {
+			return err
+		}
+		return nil
+	})
 	return res
 }
 
-func (e *ChannelExecutor) QueryRelayIndex() int64 {
-	res := e.client.QueryRelayIndex()
+func (e *ChannelExecutor) QueryRelayIndex() uint64 {
+	var (
+		res uint64
+		err error
+	)
+	e.retryFunc(func(attempt uint) error {
+		res, err = e.client.QueryRelayIndex()
+		if err != nil {
+			return err
+		}
+		return nil
+	})
 	return res
 }

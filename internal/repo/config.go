@@ -92,17 +92,18 @@ type Log struct {
 }
 
 type LogModule struct {
-	ApiServer   string `mapstructure:"api_server" toml:"api_server" json:"api_server"`
-	AppchainMgr string `mapstructure:"appchain_mgr" toml:"appchain_mgr" json:"appchain_mgr"`
-	BxhLite     string `mapstructure:"bxh_lite" toml:"bxh_lite" json:"bxh_lite"`
-	Exchanger   string `toml:"exchanger" json:"exchanger"`
-	Executor    string `toml:"executor" json:"executor"`
-	Monitor     string `toml:"monitor" json:"monitor"`
-	PeerMgr     string `mapstructure:"peer_mgr" toml:"peer_mgr" json:"peer_mgr"`
-	Router      string `toml:"router" json:"router"`
-	RuleMgr     string `mapstructure:"rule_mgr" toml:"rule_mgr" json:"rule_mgr"`
-	Swarm       string `toml:"swarm" json:"swarm"`
-	Syncer      string `toml:"syncer" json:"syncer"`
+	ApiServer     string `mapstructure:"api_server" toml:"api_server" json:"api_server"`
+	AppchainMgr   string `mapstructure:"appchain_mgr" toml:"appchain_mgr" json:"appchain_mgr"`
+	BxhLite       string `mapstructure:"bxh_lite" toml:"bxh_lite" json:"bxh_lite"`
+	Exchanger     string `toml:"exchanger" json:"exchanger"`
+	Executor      string `toml:"executor" json:"executor"`
+	Monitor       string `toml:"monitor" json:"monitor"`
+	PeerMgr       string `mapstructure:"peer_mgr" toml:"peer_mgr" json:"peer_mgr"`
+	Router        string `toml:"router" json:"router"`
+	RuleMgr       string `mapstructure:"rule_mgr" toml:"rule_mgr" json:"rule_mgr"`
+	Swarm         string `toml:"swarm" json:"swarm"`
+	Syncer        string `toml:"syncer" json:"syncer"`
+	JsonrpcClient string `mapstructure:"jsonrpc_client" toml:"jsonrpc_client" json:"jsonrpc_client"`
 }
 
 // Appchain are configs about appchain
