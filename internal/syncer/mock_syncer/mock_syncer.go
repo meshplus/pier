@@ -168,7 +168,7 @@ func (mr *MockSyncerMockRecorder) ListenIBTP() *gomock.Call {
 }
 
 // QueryBurnEventByIndex mocks base method.
-func (m *MockSyncer) QueryBurnEventByIndex(index int64) *pb.UnLock {
+func (m *MockSyncer) QueryBurnEventByIndex(index uint64) *pb.UnLock {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "QueryBurnEventByIndex", index)
 	ret0, _ := ret[0].(*pb.UnLock)

@@ -51,10 +51,10 @@ func (mr *MockExecutorMockRecorder) ExecuteIBTP(wIbtp interface{}) *gomock.Call 
 }
 
 // QueryAppchainIndex mocks base method.
-func (m *MockExecutor) QueryAppchainIndex() int64 {
+func (m *MockExecutor) QueryAppchainIndex() uint64 {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "QueryAppchainIndex")
-	ret0, _ := ret[0].(int64)
+	ret0, _ := ret[0].(uint64)
 	return ret0
 }
 
@@ -79,10 +79,10 @@ func (mr *MockExecutorMockRecorder) QueryCallbackMeta() *gomock.Call {
 }
 
 // QueryFilterLockStart mocks base method.
-func (m *MockExecutor) QueryFilterLockStart(appchainIndex int64) int64 {
+func (m *MockExecutor) QueryFilterLockStart(appchainIndex uint64) uint64 {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "QueryFilterLockStart", appchainIndex)
-	ret0, _ := ret[0].(int64)
+	ret0, _ := ret[0].(uint64)
 	return ret0
 }
 
@@ -122,7 +122,7 @@ func (mr *MockExecutorMockRecorder) QueryInterchainMeta() *gomock.Call {
 }
 
 // QueryLockEventByIndex mocks base method.
-func (m *MockExecutor) QueryLockEventByIndex(index int64) *pb.LockEvent {
+func (m *MockExecutor) QueryLockEventByIndex(index uint64) *pb.LockEvent {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "QueryLockEventByIndex", index)
 	ret0, _ := ret[0].(*pb.LockEvent)
@@ -136,10 +136,10 @@ func (mr *MockExecutorMockRecorder) QueryLockEventByIndex(index interface{}) *go
 }
 
 // QueryRelayIndex mocks base method.
-func (m *MockExecutor) QueryRelayIndex() int64 {
+func (m *MockExecutor) QueryRelayIndex() uint64 {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "QueryRelayIndex")
-	ret0, _ := ret[0].(int64)
+	ret0, _ := ret[0].(uint64)
 	return ret0
 }
 
