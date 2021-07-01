@@ -38,6 +38,13 @@ type Exchanger struct {
 	executorCounter      map[string]uint64
 	callbackCounter      map[string]uint64
 	sourceReceiptCounter map[string]uint64
+	// control the mint and burn index
+	rRelayIndex    uint64
+	rAppchainIndex uint64
+	aRelayIndex    uint64
+	aAppchainIndex uint64
+	rIndex2Height  uint64
+	aIndex2Height  uint64
 
 	apiServer       *api.Server
 	peerMgr         peermgr.PeerManager
@@ -93,14 +100,20 @@ func (ex *Exchanger) Start() error {
 	if err != nil {
 		return err
 	}
-	if ex.mode != repo.UnionMode {
+
+	switch ex.mode {
+	case repo.DirectMode:
 		go ex.listenAndSendIBTPFromMnt()
+	case repo.RelayMode:
 		go ex.listenUpdateMeta()
-		go ex.listenMintEvent()
-	}
-	if ex.mode != repo.DirectMode {
 		go ex.listenAndSendIBTPFromSyncer()
-		go ex.listenUnescrowEventFromSyncer()
+		ex.recoverMintAndBurnRelay()
+		go ex.listenAndSendIBTPFromMnt()
+		// miner and burn
+		go ex.listenMintEvent()
+		go ex.listenBurnEventFromSyncer()
+	case repo.UnionMode:
+		go ex.listenAndSendIBTPFromSyncer()
 	}
 
 	ex.logger.Info("Exchanger started")
@@ -148,7 +161,6 @@ func (ex *Exchanger) startWithRelayMode() error {
 	if err := ex.syncer.Start(); err != nil {
 		return fmt.Errorf("syncer start: %w", err)
 	}
-
 	// recover exchanger before relay any interchain msgs
 	ex.recoverRelay()
 

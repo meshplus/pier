@@ -3,7 +3,10 @@ package executor
 import (
 	"context"
 	"fmt"
+	"time"
 
+	"github.com/Rican7/retry"
+	"github.com/Rican7/retry/strategy"
 	"github.com/meshplus/bitxhub-kit/storage"
 	"github.com/meshplus/bitxhub-model/pb"
 	"github.com/meshplus/pier/internal/txcrypto"
@@ -77,4 +80,85 @@ func (e *ChannelExecutor) QueryIBTPReceipt(originalIBTP *pb.IBTP) (*pb.IBTP, err
 		return nil, fmt.Errorf("empty original ibtp")
 	}
 	return e.client.GetReceipt(originalIBTP)
+}
+
+func (e *ChannelExecutor) SendBurnEvent(unLockEvt *pb.UnLock) error {
+	e.retryFunc(func(attempt uint) error {
+		err := e.client.Unescrow(unLockEvt)
+		if err != nil {
+			return err
+		}
+		return nil
+	})
+	return nil
+}
+
+func (e *ChannelExecutor) retryFunc(handle func(uint) error) error {
+	return retry.Retry(func(attempt uint) error {
+		if err := handle(attempt); err != nil {
+			e.logger.Errorf("retry failed for reason: %s", err.Error())
+			return err
+		}
+		return nil
+	}, strategy.Wait(500*time.Millisecond))
+}
+
+func (e *ChannelExecutor) QueryFilterLockStart(appchainIndex uint64) uint64 {
+	var (
+		res uint64
+		err error
+	)
+	e.retryFunc(func(attempt uint) error {
+		res, err = e.client.QueryFilterLockStart(appchainIndex)
+		if err != nil {
+			return err
+		}
+		return nil
+	})
+	return res
+}
+
+func (e *ChannelExecutor) QueryLockEventByIndex(index uint64) *pb.LockEvent {
+	var (
+		res *pb.LockEvent
+		err error
+	)
+	e.retryFunc(func(attempt uint) error {
+		res, err = e.client.QueryLockEventByIndex(index)
+		if err != nil {
+			return err
+		}
+		return nil
+	})
+	return res
+}
+
+func (e *ChannelExecutor) QueryAppchainIndex() uint64 {
+	var (
+		res uint64
+		err error
+	)
+	e.retryFunc(func(attempt uint) error {
+		res, err = e.client.QueryAppchainIndex()
+		if err != nil {
+			return err
+		}
+		return nil
+	})
+	return res
+}
+
+func (e *ChannelExecutor) QueryRelayIndex() uint64 {
+	var (
+		res uint64
+		err error
+	)
+	e.retryFunc(func(attempt uint) error {
+		res, err = e.client.QueryRelayIndex()
+		if err != nil {
+			return err
+		}
+		return nil
+	})
+	return res
 }

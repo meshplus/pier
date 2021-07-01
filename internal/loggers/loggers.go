@@ -7,18 +7,19 @@ import (
 )
 
 const (
-	ApiServer   = "api_server"
-	App         = "app"
-	AppchainMgr = "appchain_mgr"
-	BxhLite     = "bxh_lite"
-	Executor    = "executor"
-	Exchanger   = "exchanger"
-	Monitor     = "monitor"
-	PeerMgr     = "peer_mgr"
-	Router      = "router"
-	RuleMgr     = "rule_mgr"
-	Swarm       = "swarm"
-	Syncer      = "syncer"
+	ApiServer     = "api_server"
+	App           = "app"
+	AppchainMgr   = "appchain_mgr"
+	BxhLite       = "bxh_lite"
+	Executor      = "executor"
+	Exchanger     = "exchanger"
+	Monitor       = "monitor"
+	PeerMgr       = "peer_mgr"
+	Router        = "router"
+	RuleMgr       = "rule_mgr"
+	Swarm         = "swarm"
+	Syncer        = "syncer"
+	JsonrpcClient = "jsonrpc_client"
 )
 
 var w *loggerWrapper
@@ -53,6 +54,8 @@ func InitializeLogger(config *repo.Config) {
 	m[Syncer].Logger.SetLevel(log.ParseLevel(config.Log.Module.Syncer))
 	m[PeerMgr] = log.NewWithModule(PeerMgr)
 	m[PeerMgr].Logger.SetLevel(log.ParseLevel(config.Log.Module.PeerMgr))
+	m[JsonrpcClient] = log.NewWithModule(JsonrpcClient)
+	m[JsonrpcClient].Logger.SetLevel(log.ParseLevel(config.Log.Module.JsonrpcClient))
 	w = &loggerWrapper{loggers: m}
 }
 

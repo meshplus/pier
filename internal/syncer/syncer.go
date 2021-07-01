@@ -34,18 +34,41 @@ type WrapperSyncer struct {
 	logger          logrus.FieldLogger
 	wrappersC       chan *pb.InterchainTxWrappers
 	ibtpC           chan *model.WrappedIBTP
-	unescrowEventCh chan *model.UnescrowEvent
+	burnEvent       chan *pb.UnLock
 	appchainHandler AppchainHandler
 	recoverHandler  RecoverUnionHandler
 	rollbackHandler RollbackHandler
+	jsonrpcClient   *Client
 
 	mode        string
 	isRecover   bool
 	height      uint64
+	ethHeight   uint64
 	pierID      string
 	appchainDID string
 	ctx         context.Context
 	cancel      context.CancelFunc
+}
+
+func (syncer *WrapperSyncer) QueryBurnEventByIndex(index uint64) *pb.UnLock {
+	var unLock *pb.UnLock
+	syncer.retryFunc(func(attempt uint) error {
+		unLock = syncer.jsonrpcClient.QueryBurnEventByIndex(index)
+		signs, err := syncer.GetEVMSigns(unLock.TxId)
+		if err != nil {
+			syncer.logger.WithFields(logrus.Fields{
+				"burn txid": unLock.TxId,
+			}).Error("Syncer GetEVMSigns")
+			return err
+		}
+		unLock.MultiSigns = signs
+		return nil
+	})
+	return unLock
+}
+
+func (syncer *WrapperSyncer) JsonrpcClient() *Client {
+	return syncer.jsonrpcClient
 }
 
 type SubscriptionKey struct {
@@ -62,16 +85,17 @@ func New(pierID, appchainDID string, mode string, opts ...Option) (*WrapperSynce
 	}
 
 	ws := &WrapperSyncer{
-		wrappersC:       make(chan *pb.InterchainTxWrappers, maxChSize),
-		ibtpC:           make(chan *model.WrappedIBTP, maxChSize),
-		unescrowEventCh: make(chan *model.UnescrowEvent, maxChSize),
-		client:          cfg.client,
-		lite:            cfg.lite,
-		storage:         cfg.storage,
-		logger:          cfg.logger,
-		mode:            mode,
-		pierID:          pierID,
-		appchainDID:     appchainDID,
+		wrappersC:     make(chan *pb.InterchainTxWrappers, maxChSize),
+		ibtpC:         make(chan *model.WrappedIBTP, maxChSize),
+		burnEvent:     make(chan *pb.UnLock, maxChSize),
+		client:        cfg.client,
+		lite:          cfg.lite,
+		storage:       cfg.storage,
+		logger:        cfg.logger,
+		jsonrpcClient: cfg.ethClient,
+		mode:          mode,
+		pierID:        pierID,
+		appchainDID:   appchainDID,
 	}
 
 	return ws, nil
@@ -101,7 +125,7 @@ func (syncer *WrapperSyncer) Start() error {
 
 	go syncer.syncInterchainTxWrappers()
 	go syncer.listenInterchainTxWrappers()
-	go syncer.syncUnescrowEvent()
+	go syncer.syncBurnEvent()
 
 	syncer.logger.WithFields(logrus.Fields{
 		"current_height": syncer.height,
@@ -205,14 +229,29 @@ func (syncer *WrapperSyncer) syncInterchainTxWrappers() {
 }
 
 // listen burn event from bitxhub
-func (syncer *WrapperSyncer) syncUnescrowEvent() {
-	ticker := time.NewTicker(2 * time.Second)
+func (syncer *WrapperSyncer) syncBurnEvent() {
+	loop := func(ch <-chan *pb.UnLock) {
+		for {
+			select {
+			case event, ok := <-ch:
+				if !ok {
+					syncer.logger.Warn("Unexpected closed channel while syncing interchain tx wrapper")
+					return
+				}
+				syncer.burnEvent <- event
+			case <-syncer.ctx.Done():
+				return
+			}
+		}
+
+	}
 	for {
 		select {
-		case <-ticker.C:
-			// todo: filter burn event from bitxhub
 		case <-syncer.ctx.Done():
 			return
+		default:
+			ch := syncer.jsonrpcClient.burnCh
+			loop(ch)
 		}
 	}
 }

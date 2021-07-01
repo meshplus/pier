@@ -57,6 +57,7 @@ type Mode struct {
 type Relay struct {
 	Asset        bool          `toml:"asset" json:"asset"`
 	Addrs        []string      `toml:"addrs" json:"addrs"`
+	JsonrpcAddr  string        `mapstructure:"jsonrpc_addr" json:"jsonrpc_addr"`
 	TimeoutLimit time.Duration `mapstructure:"timeout_limit" json:"timeout_limit"`
 	Quorum       uint64        `toml:"quorum" json:"quorum"`
 	Validators   []string      `toml:"validators" json:"validators"`
@@ -91,17 +92,18 @@ type Log struct {
 }
 
 type LogModule struct {
-	ApiServer   string `mapstructure:"api_server" toml:"api_server" json:"api_server"`
-	AppchainMgr string `mapstructure:"appchain_mgr" toml:"appchain_mgr" json:"appchain_mgr"`
-	BxhLite     string `mapstructure:"bxh_lite" toml:"bxh_lite" json:"bxh_lite"`
-	Exchanger   string `toml:"exchanger" json:"exchanger"`
-	Executor    string `toml:"executor" json:"executor"`
-	Monitor     string `toml:"monitor" json:"monitor"`
-	PeerMgr     string `mapstructure:"peer_mgr" toml:"peer_mgr" json:"peer_mgr"`
-	Router      string `toml:"router" json:"router"`
-	RuleMgr     string `mapstructure:"rule_mgr" toml:"rule_mgr" json:"rule_mgr"`
-	Swarm       string `toml:"swarm" json:"swarm"`
-	Syncer      string `toml:"syncer" json:"syncer"`
+	ApiServer     string `mapstructure:"api_server" toml:"api_server" json:"api_server"`
+	AppchainMgr   string `mapstructure:"appchain_mgr" toml:"appchain_mgr" json:"appchain_mgr"`
+	BxhLite       string `mapstructure:"bxh_lite" toml:"bxh_lite" json:"bxh_lite"`
+	Exchanger     string `toml:"exchanger" json:"exchanger"`
+	Executor      string `toml:"executor" json:"executor"`
+	Monitor       string `toml:"monitor" json:"monitor"`
+	PeerMgr       string `mapstructure:"peer_mgr" toml:"peer_mgr" json:"peer_mgr"`
+	Router        string `toml:"router" json:"router"`
+	RuleMgr       string `mapstructure:"rule_mgr" toml:"rule_mgr" json:"rule_mgr"`
+	Swarm         string `toml:"swarm" json:"swarm"`
+	Syncer        string `toml:"syncer" json:"syncer"`
+	JsonrpcClient string `mapstructure:"jsonrpc_client" toml:"jsonrpc_client" json:"jsonrpc_client"`
 }
 
 // Appchain are configs about appchain
@@ -123,8 +125,9 @@ func DefaultConfig() *Config {
 		Mode: Mode{
 			Type: "relay",
 			Relay: Relay{
-				Addrs:  []string{"localhost:60011"},
-				Quorum: 2,
+				Addrs:       []string{"localhost:60011"},
+				JsonrpcAddr: "http://localhost:8881",
+				Quorum:      2,
 				Validators: []string{
 					"0x000f1a7a08ccc48e5d30f80850cf1cf283aa3abd",
 					"0xe93b92f1da08f925bdee44e91e7768380ae83307",

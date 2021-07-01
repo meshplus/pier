@@ -261,6 +261,34 @@ type mockAppchainPluginClient struct {
 	count uint64
 }
 
+func (mc *mockAppchainPluginClient) GetLockEvent(ctx context.Context, in *pb.Empty, opts ...grpc.CallOption) (pb.AppchainPlugin_GetLockEventClient, error) {
+	panic("implement me")
+}
+
+func (mc *mockAppchainPluginClient) GetUpdateMeta(ctx context.Context, in *pb.Empty, opts ...grpc.CallOption) (pb.AppchainPlugin_GetUpdateMetaClient, error) {
+	panic("implement me")
+}
+
+func (mc *mockAppchainPluginClient) UnEscrow(ctx context.Context, in *pb.UnLock, opts ...grpc.CallOption) (*pb.Empty, error) {
+	panic("implement me")
+}
+
+func (mc *mockAppchainPluginClient) QueryFilterLockStart(ctx context.Context, in *pb.QueryFilterLockStartRequest, opts ...grpc.CallOption) (*pb.QueryFilterLockStartResponse, error) {
+	panic("implement me")
+}
+
+func (mc *mockAppchainPluginClient) QueryLockEventByIndex(ctx context.Context, in *pb.QueryLockEventByIndexRequest, opts ...grpc.CallOption) (*pb.LockEvent, error) {
+	panic("implement me")
+}
+
+func (mc *mockAppchainPluginClient) QueryAppchainIndex(ctx context.Context, in *pb.Empty, opts ...grpc.CallOption) (*pb.QueryAppchainIndexResponse, error) {
+	panic("implement me")
+}
+
+func (mc *mockAppchainPluginClient) QueryRelayIndex(ctx context.Context, in *pb.Empty, opts ...grpc.CallOption) (*pb.QueryRelayIndexResponse, error) {
+	panic("implement me")
+}
+
 func (mc *mockAppchainPluginClient) Initialize(ctx context.Context, in *pb.InitializeRequest, opts ...grpc.CallOption) (*pb.Empty, error) {
 	if in.PierId == to {
 		return nil, fmt.Errorf("initialize error")

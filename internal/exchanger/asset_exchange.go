@@ -1,5 +1,12 @@
 package exchanger
 
+import (
+	"time"
+
+	"github.com/Rican7/retry"
+	"github.com/Rican7/retry/strategy"
+)
+
 func (ex *Exchanger) listenUpdateMeta() {
 	ch := ex.mnt.ListenUpdateMeta()
 	for {
@@ -13,7 +20,6 @@ func (ex *Exchanger) listenUpdateMeta() {
 				return
 			}
 			if err := ex.syncer.SendUpdateMeta(updateMeta); err != nil {
-				// todo(tyx): handle sending error
 				ex.logger.Errorf("Send update meta error: %s", err.Error())
 				return
 			}
@@ -34,28 +40,69 @@ func (ex *Exchanger) listenMintEvent() {
 				ex.logger.Warn("Unexpected closed channel while listening on lock event")
 				return
 			}
+			if lockEvent.AppchainIndex <= ex.rAppchainIndex {
+				continue
+			}
+			// do handleMissingEvent
+			ex.handleMissingLockFromMnt(ex.rAppchainIndex, lockEvent.GetAppchainIndex()-1)
 			if err := ex.syncer.SendLockEvent(lockEvent); err != nil {
-				// todo(tyx): handle sending error
 				ex.logger.Errorf("Send lock event error: %s", err.Error())
 				return
 			}
+			ex.rAppchainIndex++
 			ex.logger.Info("Lock event successfully")
 		}
 	}
 }
 
-func (ex *Exchanger) listenUnescrowEventFromSyncer() {
-	ch := ex.syncer.ListenUnescrow()
+func (ex *Exchanger) listenBurnEventFromSyncer() {
+	// start bxhJsonRpc client
+	ex.syncer.JsonrpcClient().Start(ex.aRelayIndex)
+	ch := ex.syncer.ListenBurn()
 	for {
 		select {
 		case <-ex.ctx.Done():
 			return
-		case _, ok := <-ch:
+		case burnEvent, ok := <-ch:
 			if !ok {
-				ex.logger.Warn("Unexpected closed channel while listening on interchain ibtp")
+				ex.logger.Warn("Unexpected closed channel while listening on interchain burn event")
 				return
 			}
-			// todo(tyx): handle burn event
+			if burnEvent.RelayIndex <= ex.aRelayIndex {
+				continue
+			}
+			// do handleMissingEvent
+			ex.handleMissingBurnFromSyncer(ex.aRelayIndex, burnEvent.GetRelayIndex()-1)
+			// get mutil signs
+			var (
+				multiSigns [][]byte
+				err        error
+			)
+			ex.retryFunc(func(attempt uint) error {
+				multiSigns, err = ex.syncer.GetEVMSigns(burnEvent.TxId)
+				if err != nil {
+					return err
+				}
+				return nil
+			})
+			burnEvent.MultiSigns = multiSigns
+			if err := ex.exec.SendBurnEvent(burnEvent); err != nil {
+				// handle sending error
+				ex.logger.Errorf("Send unlock event error: %s", err.Error())
+				return
+			}
+			ex.aRelayIndex++
+			ex.logger.Infof("unlock event successfully, txid=%s", burnEvent.TxId)
 		}
 	}
+}
+
+func (ex *Exchanger) retryFunc(handle func(uint) error) error {
+	return retry.Retry(func(attempt uint) error {
+		if err := handle(attempt); err != nil {
+			ex.logger.Errorf("retry failed for reason: %s", err.Error())
+			return err
+		}
+		return nil
+	}, strategy.Wait(500*time.Millisecond))
 }

@@ -66,4 +66,16 @@ type Client interface {
 
 	// Type gets type of blockchain from plugin
 	Type() string
+
+	// QueryFilterLockStart query the lasted lock event height in appchain
+	QueryFilterLockStart(appchainIndex uint64) (uint64, error)
+
+	// QueryLockEventByIndex query A lock event by lock index
+	QueryLockEventByIndex(index uint64) (*pb.LockEvent, error)
+
+	// QueryAppchainIndex query the lasted lock event index from appchain
+	QueryAppchainIndex() (uint64, error)
+
+	// QueryRelayIndex query the lasted burn event index from appchain
+	QueryRelayIndex() (uint64, error)
 }

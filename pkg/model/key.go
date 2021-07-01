@@ -26,7 +26,14 @@ type LockEvent struct {
 	Proof       []byte
 }
 
-type UnescrowEvent struct {
+type BurnEvent struct {
+	Token      string
+	From       string
+	Receipt    string
+	Amount     uint64
+	TxId       string
+	RelayIndex uint64
+	MultiSigns [][]byte
 }
 
 type UpdatedMeta []*types.Header

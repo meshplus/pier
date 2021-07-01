@@ -11,6 +11,54 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+func (ex *Exchanger) handleMissingLockFromMnt(rAppchainIndex uint64, aAppchainIndex uint64) error {
+	if rAppchainIndex < aAppchainIndex {
+		for index := rAppchainIndex + 1; index < aAppchainIndex+1; index++ {
+			// query missing lock event
+			lockEvent := ex.exec.QueryLockEventByIndex(index)
+			ex.logger.Info("recover get lock event from monitor,index=%d", index)
+			// syner mint
+			err := ex.syncer.SendLockEvent(lockEvent)
+			if err != nil {
+				return err
+			}
+			ex.rAppchainIndex++
+		}
+	}
+	return nil
+}
+
+func (ex *Exchanger) handleMissingBurnFromSyncer(aRelayIndex uint64, rRelayIndex uint64) error {
+	if aRelayIndex < rRelayIndex {
+		for index := aRelayIndex + 1; index < rRelayIndex+1; index++ {
+			// query missing burn event
+			burnEvent := ex.syncer.QueryBurnEventByIndex(index)
+			ex.logger.Info("recover get burn event from syner,index=%d", index)
+			// syner unlock
+			err := ex.exec.SendBurnEvent(burnEvent)
+			if err != nil {
+				return err
+			}
+			ex.aRelayIndex++
+		}
+	}
+	return nil
+}
+
+func (ex *Exchanger) recoverMintAndBurnRelay() {
+	ex.rRelayIndex = ex.syncer.JsonrpcClient().RelayIndex()
+	ex.rAppchainIndex = ex.syncer.JsonrpcClient().AppchainIndex()
+	ex.aRelayIndex = ex.exec.QueryRelayIndex()
+	ex.aAppchainIndex = ex.exec.QueryAppchainIndex()
+	ex.rIndex2Height = ex.syncer.JsonrpcClient().GetInterchainSwapIndex2Height(ex.rRelayIndex).Uint64()
+	ex.aIndex2Height = ex.exec.QueryFilterLockStart(ex.aAppchainIndex)
+
+	// deal missing lock event
+	ex.handleMissingLockFromMnt(ex.rAppchainIndex, ex.aAppchainIndex)
+	// deal missing burn event
+	ex.handleMissingBurnFromSyncer(ex.aRelayIndex, ex.rRelayIndex)
+}
+
 func (ex *Exchanger) recoverRelay() {
 	// recover possible unrollbacked ibtp
 	callbackMeta := ex.exec.QueryCallbackMeta()
