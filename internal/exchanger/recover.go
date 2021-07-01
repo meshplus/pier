@@ -17,7 +17,7 @@ func (ex *Exchanger) handleMissingLockFromMnt(rAppchainIndex int64, aAppchainInd
 		for index := rAppchainIndex + 1; index < aAppchainIndex+1; index++ {
 			// query missing lock event
 			lockEvent := ex.exec.QueryLockEventByIndex(index)
-			ex.logger.Info("Receive lock event from monitor")
+			ex.logger.Info("recover get lock event from monitor,index=%d", index)
 			// syner mint
 			err := ex.syncer.SendLockEvent(lockEvent)
 			if err != nil {
@@ -34,7 +34,7 @@ func (ex *Exchanger) handleMissingBurnFromSyncer(aRelayIndex int64, rRelayIndex 
 		for index := aRelayIndex + 1; index < rRelayIndex+1; index++ {
 			// query missing burn event
 			burnEvent := ex.syncer.QueryBurnEventByIndex(index)
-			ex.logger.Info("Receive burn event from syner")
+			ex.logger.Info("recover get burn event from syner,index=%d", index)
 			// syner unlock
 			err := ex.exec.SendBurnEvent(burnEvent)
 			if err != nil {
@@ -51,7 +51,11 @@ func (ex *Exchanger) recoverMintAndBurnRelay() {
 	ex.rAppchainIndex = ex.syncer.JsonrpcClient().AppchainIndex()
 	ex.aRelayIndex = ex.exec.QueryRelayIndex()
 	ex.aAppchainIndex = ex.exec.QueryAppchainIndex()
-	height, _ := ex.syncer.JsonrpcClient().InterchainSwapSession().Index2Height(big.NewInt(ex.rRelayIndex))
+	height, err := ex.syncer.JsonrpcClient().InterchainSwapSession().Index2Height(big.NewInt(ex.rRelayIndex))
+	if err != nil {
+		ex.logger.Errorf("Receive interchainSwap index from bitxhub failed:%v", err)
+		panic(err)
+	}
 	ex.rIndex2Height = height.Int64()
 	ex.aIndex2Height = ex.exec.QueryFilterLockStart(ex.aAppchainIndex)
 
