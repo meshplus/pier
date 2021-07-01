@@ -56,20 +56,15 @@ func (c *Client) QueryBurnEventByIndex(index int64) *pb.UnLock {
 		if index != event.RelayIndex.Int64() {
 			continue
 		}
-		// query muti-sign from relay chain
-		if err := retry.Retry(func(attempt uint) error {
-			burnCh = &pb.UnLock{
-				Token:      event.EthToken.String(),
-				From:       event.Burner.String(),
-				Receipt:    event.Recipient.String(),
-				Amount:     event.Amount.Bytes(),
-				RelayIndex: event.RelayIndex.Uint64(),
-				TxId:       event.Raw.TxHash.String(),
-			}
-			return nil
-		}, strategy.Wait(1*time.Second)); err != nil {
-			logger.Error("Can't retrieve mint event from receipt", "error", err.Error())
+		burnCh = &pb.UnLock{
+			Token:      event.EthToken.String(),
+			From:       event.Burner.String(),
+			Receipt:    event.Recipient.String(),
+			Amount:     event.Amount.Bytes(),
+			RelayIndex: event.RelayIndex.Uint64(),
+			TxId:       event.Raw.TxHash.String(),
 		}
+
 	}
 	return burnCh
 }

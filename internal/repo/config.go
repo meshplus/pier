@@ -125,7 +125,7 @@ func DefaultConfig() *Config {
 			Type: "relay",
 			Relay: Relay{
 				Addrs:       []string{"localhost:60011"},
-				JsonrpcAddr: "ws://localhost:60011",
+				JsonrpcAddr: "http://localhost:8881",
 				Quorum:      2,
 				Validators: []string{
 					"0x000f1a7a08ccc48e5d30f80850cf1cf283aa3abd",

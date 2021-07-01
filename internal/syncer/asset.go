@@ -16,20 +16,15 @@ func (c *Client) listenBurn() {
 		select {
 		case log := <-c.logCh:
 			// query this block from ethereum and generate mintEvent and proof for pier
-			if err := retry.Retry(func(attempt uint) error {
-
-				c.burnCh <- &pb.UnLock{
-					Token:      log.EthToken.String(),
-					From:       log.Burner.String(),
-					Receipt:    log.Recipient.String(),
-					Amount:     log.Amount.Bytes(),
-					RelayIndex: log.RelayIndex.Uint64(),
-					TxId:       log.Raw.TxHash.String(),
-				}
-				return nil
-			}, strategy.Wait(1*time.Second)); err != nil {
-				logger.Error("Can't retrieve burn event from receipt", "error", err.Error())
+			c.burnCh <- &pb.UnLock{
+				Token:      log.EthToken.String(),
+				From:       log.Burner.String(),
+				Receipt:    log.Recipient.String(),
+				Amount:     log.Amount.Bytes(),
+				RelayIndex: log.RelayIndex.Uint64(),
+				TxId:       log.Raw.TxHash.String(),
 			}
+
 		case filterOpt := <-c.filterOptCh:
 			var (
 				iter *contracts.InterchainSwapBurnIterator
