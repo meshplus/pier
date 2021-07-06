@@ -11,7 +11,7 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
-	contracts "github.com/meshplus/bitxhub-core/eth-contracts"
+	contracts "github.com/meshplus/bitxhub-core/eth-contracts/interchain-contracts"
 	"github.com/meshplus/bitxhub-model/constant"
 	"github.com/meshplus/bitxhub-model/pb"
 	rpcx "github.com/meshplus/go-bitxhub-client"
@@ -28,6 +28,7 @@ type Client struct {
 	filterOptCh           chan *bind.FilterOpts
 	logCh                 chan *contracts.InterchainSwapBurn
 	burnCh                chan *pb.UnLock
+	pierId                string
 }
 
 func (c *Client) QueryBurnEventByIndex(index uint64) *pb.UnLock {
@@ -53,11 +54,11 @@ func (c *Client) QueryBurnEventByIndex(index uint64) *pb.UnLock {
 	}
 	for iter.Next() {
 		event := iter.Event
-		if index != event.RelayIndex.Uint64() {
+		if c.pierId != event.Pier.Hex() || index != event.RelayIndex.Uint64() {
 			continue
 		}
 		burnCh = &pb.UnLock{
-			Token:      event.EthToken.String(),
+			Token:      event.AppToken.String(),
 			From:       event.Burner.String(),
 			Receipt:    event.Recipient.String(),
 			Amount:     event.Amount.Bytes(),
@@ -81,7 +82,7 @@ func (c *Client) RelayIndex() uint64 {
 	return c.relayIndex
 }
 
-func InitializeJsonRpcClient(url string, grpcClient rpcx.Client, opts ...Option) (*Client, error) {
+func InitializeJsonRpcClient(pierId string, url string, grpcClient rpcx.Client, opts ...Option) (*Client, error) {
 	c := &Client{}
 	cfg, err := GenerateConfig(opts...)
 	if err != nil {
@@ -112,6 +113,7 @@ func InitializeJsonRpcClient(url string, grpcClient rpcx.Client, opts ...Option)
 			Pending: false,
 		},
 	}
+	c.pierId = pierId
 	c.interchainSwapSession = interchainSwapSession
 	c.relayIndex = c.GetInterchainSwapRelayIndex().Uint64()
 	c.appchainIndex = c.GetInterchainSwapAppchainIndex().Uint64()
@@ -140,7 +142,7 @@ func (c *Client) GetInterchainSwapIndex2Height(index uint64) *big.Int {
 		err    error
 	)
 	c.retryFunc(func(attempt uint) error {
-		height, err = c.interchainSwapSession.Index2Height(new(big.Int).SetUint64(index))
+		height, err = c.interchainSwapSession.Index2Height(common.HexToAddress(c.pierId), new(big.Int).SetUint64(index))
 		if err != nil {
 			return err
 		}
@@ -155,7 +157,7 @@ func (c *Client) GetInterchainSwapRelayIndex() *big.Int {
 		err   error
 	)
 	c.retryFunc(func(attempt uint) error {
-		index, err = c.interchainSwapSession.RelayIndex()
+		index, err = c.interchainSwapSession.RelayIndex(common.HexToAddress(c.pierId))
 		if err != nil {
 			return err
 		}
@@ -170,7 +172,7 @@ func (c *Client) GetInterchainSwapAppchainIndex() *big.Int {
 		err   error
 	)
 	c.retryFunc(func(attempt uint) error {
-		index, err = c.interchainSwapSession.AppchainIndex()
+		index, err = c.interchainSwapSession.AppchainIndex(common.HexToAddress(c.pierId))
 		if err != nil {
 			return err
 		}

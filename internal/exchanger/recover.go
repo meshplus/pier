@@ -16,7 +16,7 @@ func (ex *Exchanger) handleMissingLockFromMnt(rAppchainIndex uint64, aAppchainIn
 		for index := rAppchainIndex + 1; index < aAppchainIndex+1; index++ {
 			// query missing lock event
 			lockEvent := ex.exec.QueryLockEventByIndex(index)
-			ex.logger.Info("recover get lock event from monitor,index=%d", index)
+			ex.logger.Info("recover get lock event from monitor,index=", index)
 			// syner mint
 			err := ex.syncer.SendLockEvent(lockEvent)
 			if err != nil {
@@ -33,7 +33,7 @@ func (ex *Exchanger) handleMissingBurnFromSyncer(aRelayIndex uint64, rRelayIndex
 		for index := aRelayIndex + 1; index < rRelayIndex+1; index++ {
 			// query missing burn event
 			burnEvent := ex.syncer.QueryBurnEventByIndex(index)
-			ex.logger.Info("recover get burn event from syner,index=%d", index)
+			ex.logger.Info("recover get burn event from syner,index=", index)
 			// syner unlock
 			err := ex.exec.SendBurnEvent(burnEvent)
 			if err != nil {

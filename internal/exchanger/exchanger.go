@@ -105,7 +105,7 @@ func (ex *Exchanger) Start() error {
 	case repo.DirectMode:
 		go ex.listenAndSendIBTPFromMnt()
 	case repo.RelayMode:
-		go ex.listenUpdateMeta()
+		// go ex.listenUpdateMeta()
 		go ex.listenAndSendIBTPFromSyncer()
 		ex.recoverMintAndBurnRelay()
 		go ex.listenAndSendIBTPFromMnt()

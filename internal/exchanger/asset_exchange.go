@@ -35,6 +35,7 @@ func (ex *Exchanger) listenMintEvent() {
 		case <-ex.ctx.Done():
 			return
 		case lockEvent, ok := <-ch:
+			// todo log add event
 			ex.logger.Info("Receive lock event from monitor")
 			if !ok {
 				ex.logger.Warn("Unexpected closed channel while listening on lock event")
