@@ -240,6 +240,9 @@ func (g *GRPCClient) RollbackIBTP(ibtp *pb.IBTP, srcChain bool) (*pb.RollbackIBT
 		return &pb.RollbackIBTPResponse{}, err
 	}
 
+	if response == nil {
+		return &pb.RollbackIBTPResponse{}, err
+	}
 	return response, nil
 }
 

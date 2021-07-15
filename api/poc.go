@@ -52,6 +52,7 @@ func (g *Server) handleAckCheckHash(c *gin.Context, msg *peerproto.Message) {
 func (g *Server) verifyPoc(c *gin.Context, chr *pb.CheckHashResponse, res *response, validators []string) {
 	if chr.Res {
 		res.Data = []byte("TRUE")
+		return
 	}
 	res.Data = []byte("FALSE")
 }
