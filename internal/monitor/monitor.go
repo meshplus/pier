@@ -27,18 +27,20 @@ type AppchainMonitor struct {
 	ctx       context.Context
 	cancel    context.CancelFunc
 	cryptor   txcrypto.Cryptor
+	checkSum  bool
 }
 
 // New creates monitor instance given client interacting with appchain and interchainCounter about appchain.
-func New(client plugins.Client, cryptor txcrypto.Cryptor, logger logrus.FieldLogger) (*AppchainMonitor, error) {
+func New(client plugins.Client, cryptor txcrypto.Cryptor, logger logrus.FieldLogger, checkSum bool) (*AppchainMonitor, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	return &AppchainMonitor{
-		client:  client,
-		cryptor: cryptor,
-		logger:  logger,
-		recvCh:  make(chan *pb.IBTP, 1024),
-		ctx:     ctx,
-		cancel:  cancel,
+		client:   client,
+		cryptor:  cryptor,
+		logger:   logger,
+		recvCh:   make(chan *pb.IBTP, 1024),
+		ctx:      ctx,
+		cancel:   cancel,
+		checkSum: checkSum,
 	}, nil
 }
 
@@ -124,7 +126,11 @@ func (m *AppchainMonitor) QueryOuterMeta() map[string]uint64 {
 			return err
 		}
 		for to, index := range meta {
-			checkSumMeta[types.NewAddressByStr(to).String()] = index
+			if m.checkSum {
+				checkSumMeta[types.NewAddressByStr(to).String()] = index
+			} else {
+				checkSumMeta[to] = index
+			}
 		}
 		return nil
 	}, strategy.Wait(2*time.Second)); err != nil {

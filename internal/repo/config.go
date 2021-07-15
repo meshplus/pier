@@ -112,8 +112,9 @@ type LogModule struct {
 
 // Appchain are configs about appchain
 type Appchain struct {
-	Config string `toml:"config" json:"config"`
-	Plugin string `toml:"plugin" json:"plugin"`
+	Config   string `toml:"config" json:"config"`
+	Plugin   string `toml:"plugin" json:"plugin"`
+	CheckSum bool   `mapstructure:"check_sum" toml:"check_sum" json:"check_sum"`
 }
 
 // DefaultConfig returns config with default value

@@ -61,3 +61,4 @@ mode = "single"
 [appchain]
 plugin = "appchain_plugin"
 config = "fabric"
+check_sum = false

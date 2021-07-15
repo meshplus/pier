@@ -16,29 +16,31 @@ var _ Executor = (*ChannelExecutor)(nil)
 
 // ChannelExecutor represents the necessary data for executing interchain txs in appchain
 type ChannelExecutor struct {
-	client  plugins.Client // the client to interact with appchain
-	storage storage.Storage
-	id      string // appchain id
-	cryptor txcrypto.Cryptor
-	logger  logrus.FieldLogger
-	ctx     context.Context
-	cancel  context.CancelFunc
+	client   plugins.Client // the client to interact with appchain
+	storage  storage.Storage
+	id       string // appchain id
+	cryptor  txcrypto.Cryptor
+	logger   logrus.FieldLogger
+	ctx      context.Context
+	cancel   context.CancelFunc
+	checkSum bool
 }
 
 // New creates new instance of Executor. agent is for interacting with counterpart chain
 // client is for interacting with appchain, meta is for recording interchain tx meta information
 // and ds is for persisting some runtime messages
-func New(client plugins.Client, pierID string, storage storage.Storage, cryptor txcrypto.Cryptor, logger logrus.FieldLogger) (*ChannelExecutor, error) {
+func New(client plugins.Client, pierID string, storage storage.Storage, cryptor txcrypto.Cryptor, logger logrus.FieldLogger, checkSum bool) (*ChannelExecutor, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	return &ChannelExecutor{
-		client:  client,
-		ctx:     ctx,
-		cancel:  cancel,
-		storage: storage,
-		id:      pierID,
-		cryptor: cryptor,
-		logger:  logger,
+		client:   client,
+		ctx:      ctx,
+		cancel:   cancel,
+		storage:  storage,
+		id:       pierID,
+		cryptor:  cryptor,
+		logger:   logger,
+		checkSum: checkSum,
 	}, nil
 }
 
@@ -61,6 +63,9 @@ func (e *ChannelExecutor) QueryInterchainMeta() map[string]uint64 {
 	if err != nil {
 		return map[string]uint64{}
 	}
+	if !e.checkSum {
+		return execMeta
+	}
 	checkSumMeta := make(map[string]uint64, len(execMeta))
 	for from, index := range execMeta {
 		checkSumMeta[types.NewAddressByStr(from).String()] = index
@@ -72,6 +77,9 @@ func (e *ChannelExecutor) QueryCallbackMeta() map[string]uint64 {
 	callbackMeta, err := e.client.GetCallbackMeta()
 	if err != nil {
 		return map[string]uint64{}
+	}
+	if !e.checkSum {
+		return callbackMeta
 	}
 	checkSumMeta := make(map[string]uint64, len(callbackMeta))
 	for from, index := range callbackMeta {

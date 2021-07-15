@@ -280,12 +280,12 @@ func NewPier(repoRoot string, config *repo.Config) (*Pier, error) {
 		logger.Panic(err)
 	}
 
-	mnt, err := monitor.New(cli, cryptor, loggers.Logger(loggers.Monitor))
+	mnt, err := monitor.New(cli, cryptor, loggers.Logger(loggers.Monitor), config.Appchain.CheckSum)
 	if err != nil {
 		return nil, fmt.Errorf("monitor create: %w", err)
 	}
 
-	exec, err := executor.New(cli, addr.String(), store, cryptor, loggers.Logger(loggers.Executor))
+	exec, err := executor.New(cli, addr.String(), store, cryptor, loggers.Logger(loggers.Executor), config.Appchain.CheckSum)
 	if err != nil {
 		return nil, fmt.Errorf("executor create: %w", err)
 	}
@@ -397,7 +397,7 @@ func NewUnionPier(repoRoot string, config *repo.Config) (*Pier, error) {
 	}
 
 	cli := agent.CreateClient(client)
-	exec, err := executor.New(cli, addr.String(), store, nil, loggers.Logger(loggers.Executor))
+	exec, err := executor.New(cli, addr.String(), store, nil, loggers.Logger(loggers.Executor), config.Appchain.CheckSum)
 	if err != nil {
 		return nil, fmt.Errorf("executor create: %w", err)
 	}
