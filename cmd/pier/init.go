@@ -14,7 +14,16 @@ import (
 var initCMD = cli.Command{
 	Name:  "init",
 	Usage: "Initialize pier local configuration",
+	Flags: []cli.Flag{
+		cli.StringFlag{
+			Name:     "algo",
+			Usage:    "crypto algorithm",
+			Value:    "Secp256k1",
+			Required: false,
+		},
+	},
 	Action: func(ctx *cli.Context) error {
+		algo := ctx.String("algo")
 		repoRoot, err := repo.PathRootWithDefault(ctx.GlobalString("repo"))
 		if err != nil {
 			return err
@@ -26,11 +35,11 @@ var initCMD = cli.Command{
 			input := bufio.NewScanner(os.Stdin)
 			input.Scan()
 			if input.Text() == "Y" || input.Text() == "y" {
-				return repo.Initialize(repoRoot)
+				return repo.Initialize(repoRoot, algo)
 			}
 			return nil
 		}
 
-		return repo.Initialize(repoRoot)
+		return repo.Initialize(repoRoot, algo)
 	},
 }

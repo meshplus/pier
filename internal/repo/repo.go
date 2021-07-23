@@ -55,7 +55,7 @@ var RootPath string
 
 // Initialize creates .pier path and necessary configuration,
 // account file and so on.
-func Initialize(repoRoot string) error {
+func Initialize(repoRoot string, algo string) error {
 	if _, err := os.Stat(repoRoot); os.IsNotExist(err) {
 		err := os.MkdirAll(repoRoot, 0755)
 		if err != nil {
@@ -65,7 +65,16 @@ func Initialize(repoRoot string) error {
 
 	box := packr.NewBox(ConfigPath)
 
-	privKey, err := asym.GenerateKeyPair(crypto.Secp256k1)
+	keyType, err := crypto.CryptoNameToType(algo)
+	if err != nil {
+		return err
+	}
+
+	if supportedKeyType := asym.SupportedKeyType(keyType); !supportedKeyType {
+		return fmt.Errorf("unsupport crypto algo:%s", algo)
+	}
+
+	privKey, err := asym.GenerateKeyPair(keyType)
 	if err != nil {
 		return fmt.Errorf("create private key error: %s", err)
 	}
