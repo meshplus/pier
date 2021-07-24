@@ -48,6 +48,7 @@ type Exchanger struct {
 	ch              chan struct{} //control the concurrent count
 	ibtps           sync.Map
 	receipts        sync.Map
+	rollbackCh      chan *pb.IBTP
 
 	logger logrus.FieldLogger
 	ctx    context.Context
@@ -73,6 +74,7 @@ func New(typ, pierID string, meta *pb.Interchain, opts ...Option) (*Exchanger, e
 		sourceReceiptCounter: copyCounterMap(meta.SourceReceiptCounter),
 		executorCounter:      copyCounterMap(config.exec.QueryInterchainMeta()),
 		callbackCounter:      copyCounterMap(config.exec.QueryCallbackMeta()),
+		rollbackCh:           make(chan *pb.IBTP, 1024),
 		mode:                 typ,
 		pierID:               pierID,
 		ctx:                  ctx,
@@ -150,6 +152,8 @@ func (ex *Exchanger) startWithRelayMode() error {
 	// recover exchanger before relay any interchain msgs
 	ex.recoverRelay()
 
+	go ex.sendRollbackedIBTP()
+
 	return nil
 }
 
@@ -182,6 +186,24 @@ func (ex *Exchanger) startWithUnionMode() error {
 		return fmt.Errorf("syncer start: %w", err)
 	}
 	return nil
+}
+
+func (ex *Exchanger) sendRollbackedIBTP() {
+	for {
+		select {
+		case <-ex.ctx.Done():
+			return
+		case ibtp, ok := <-ex.rollbackCh:
+			if !ok {
+				ex.logger.Warn("Unexpected closed channel while listening on interchain ibtp")
+				return
+			}
+			ibtp.Type = pb.IBTP_ROLLBACK
+			if err := ex.sendIBTP(ibtp); err != nil {
+				ex.logger.Infof("Send rollbacked ibtp: %s", err.Error())
+			}
+		}
+	}
 }
 
 func (ex *Exchanger) listenAndSendIBTPFromMnt() {
@@ -300,8 +322,9 @@ func (ex *Exchanger) sendIBTP(ibtp *pb.IBTP) error {
 	case repo.RelayMode:
 		err := ex.syncer.SendIBTP(ibtp)
 		if err != nil {
-			entry.Errorf("Send ibtp to bitxhub: %s", err.Error())
-			return fmt.Errorf("send ibtp to bitxhub: %s", err.Error())
+			entry.Errorf("Send ibtp %s to bitxhub timeout, need rollback", err.Error())
+			ex.handleRollback(ibtp, "")
+			ex.rollbackCh <- ibtp
 		}
 	case repo.DirectMode:
 		// send ibtp to another pier

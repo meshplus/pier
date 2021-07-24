@@ -397,7 +397,6 @@ github.com/grpc-ecosystem/go-grpc-middleware v1.0.1-0.20190118093823-f849b5445de
 github.com/grpc-ecosystem/go-grpc-prometheus v1.2.0/go.mod h1:8NvIoxWQoOIhqOTXgfV/d3M/q6VIi02HzZEHgUlZvzk=
 github.com/grpc-ecosystem/grpc-gateway v1.9.0/go.mod h1:vNeuVxBJEsws4ogUvrchl83t/GYV9WGTSLVdBhOQFDY=
 github.com/grpc-ecosystem/grpc-gateway v1.9.5/go.mod h1:vNeuVxBJEsws4ogUvrchl83t/GYV9WGTSLVdBhOQFDY=
-github.com/grpc-ecosystem/grpc-gateway v1.13.0 h1:sBDQoHXrOlfPobnKw69FIKa1wg9qsLLvvQ/Y19WtFgI=
 github.com/grpc-ecosystem/grpc-gateway v1.13.0/go.mod h1:8XEsbTttt/W+VvjtQhLACqCisSPWTxCZ7sBRjU6iH9c=
 github.com/grpc-ecosystem/grpc-gateway v1.16.0 h1:gmcG1KaJ57LophUzW0Hy8NmPhnMZb4M0+kPpLofRdBo=
 github.com/grpc-ecosystem/grpc-gateway v1.16.0/go.mod h1:BDjrQk3hbvj6Nolgz8mAMFbcEtjT1g+wF4CSlocrBnw=
@@ -844,12 +843,11 @@ github.com/meshplus/bitxhub-kit v1.2.1-0.20210723100713-b8d99c166281 h1:7l+X1MDi
 github.com/meshplus/bitxhub-kit v1.2.1-0.20210723100713-b8d99c166281/go.mod h1:PX4myHC9HVc9TKwOqWn+Ngafu8b5mRIwvxzn5c4C9H4=
 github.com/meshplus/bitxhub-model v1.0.0-rc3/go.mod h1:ZCctQIYTlE3vJ8Lhkrgs9bWwNA+Dw4JzojOSIzLVU6E=
 github.com/meshplus/bitxhub-model v1.1.1/go.mod h1:lUl9vPZXM9tP+B0ABRW/2eOW/6KCmjFTdoiTj5Vut/A=
-github.com/meshplus/bitxhub-model v1.1.2-0.20201021152621-0b3c17c54b23 h1:ys+2VjPrt6nr5xEVgRsVxowipkF425IOcI5HV53M5bA=
 github.com/meshplus/bitxhub-model v1.1.2-0.20201021152621-0b3c17c54b23/go.mod h1:4qWBZx5wv7WZzUqiuBsbkQqQ2Ju8aOFpsoNpBBNy8Us=
-github.com/meshplus/bitxhub-model v1.1.2-0.20210513074749-d31e04a9f41d h1:MiNmt9Dd9xSaUgmU4wp5yDAyw7ukOgTADcN5tGPRY24=
 github.com/meshplus/bitxhub-model v1.1.2-0.20210513074749-d31e04a9f41d/go.mod h1:x3H+TL24wcByzHegenLfs+5PQkQGNsk8eCm31QJMa+Q=
-github.com/meshplus/bitxhub-model v1.1.2-0.20210723101055-4a432d0aa239 h1:VW4nTmbM1eNeyIgXoEU6QKdRXv1KnsRpWqwVDaadirg=
 github.com/meshplus/bitxhub-model v1.1.2-0.20210723101055-4a432d0aa239/go.mod h1:Y1g0JRrPf1bqrNMh4TFtUQv/LDEWq7Xz+FCoCOQRAIY=
+github.com/meshplus/bitxhub-model v1.1.2-0.20210724105649-55b7bde6bc91 h1:qzz1q2frYXT3lPahB6YIkQH0c/LjaHGBClDgXy22utQ=
+github.com/meshplus/bitxhub-model v1.1.2-0.20210724105649-55b7bde6bc91/go.mod h1:Y1g0JRrPf1bqrNMh4TFtUQv/LDEWq7Xz+FCoCOQRAIY=
 github.com/meshplus/bitxid v0.0.0-20210412025850-e0eaf0f9063a h1:c4ESPDa60Jd4zfzZIGGTyzhfaVM3vKN+xV2G9BwIDGQ=
 github.com/meshplus/bitxid v0.0.0-20210412025850-e0eaf0f9063a/go.mod h1:vAldSRfDe2Qo7exsSTbchVmZWXPY7fhWQrRw18QJHho=
 github.com/meshplus/go-bitxhub-client v1.0.0-rc4.0.20210723101506-80137149c993 h1:sKy2VK1pu9v9X0s+85eyaDTxsPIf8HM+ITSbTHmzrfo=
@@ -1538,7 +1536,6 @@ google.golang.org/genproto v0.0.0-20190801165951-fa694d86fc64/go.mod h1:DMBHOl98
 google.golang.org/genproto v0.0.0-20190819201941-24fa4b261c55 h1:gSJIx1SDwno+2ElGhA4+qG2zF97qiUzTM+rQ0klBOcE=
 google.golang.org/genproto v0.0.0-20190819201941-24fa4b261c55/go.mod h1:DMBHOl98Agz4BDEuKkezgsaosCRResVns1a3J2ZsMNc=
 google.golang.org/genproto v0.0.0-20190911173649-1774047e7e51/go.mod h1:IbNlFCBrqXvoKpeg0TB2l7cyZUmoaFKYIwrEpbDKLA8=
-google.golang.org/genproto v0.0.0-20190927181202-20e1ac93f88c h1:hrpEMCZ2O7DR5gC1n2AJGVhrwiEjOi35+jxtIuZpTMo=
 google.golang.org/genproto v0.0.0-20190927181202-20e1ac93f88c/go.mod h1:IbNlFCBrqXvoKpeg0TB2l7cyZUmoaFKYIwrEpbDKLA8=
 google.golang.org/genproto v0.0.0-20191108220845-16a3f7862a1a/go.mod h1:n3cpQtvxv34hfy77yVDNjmbRyujviMdxYliBSkLhpCc=
 google.golang.org/genproto v0.0.0-20191115194625-c23dd37a84c9/go.mod h1:n3cpQtvxv34hfy77yVDNjmbRyujviMdxYliBSkLhpCc=

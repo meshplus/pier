@@ -26,10 +26,30 @@ func (ex *Exchanger) recoverRelay() {
 	}
 	// recover unsent interchain ibtp
 	mntMeta := ex.mnt.QueryOuterMeta()
+	srcRollbackMeta := ex.mnt.QuerySrcRollbackMeta()
 	for to, idx := range mntMeta {
 		beginIndex, ok := ex.interchainCounter[to]
 		if !ok {
 			beginIndex = 0
+		}
+
+		rollbackIndex, ok := srcRollbackMeta[to]
+		if !ok {
+			rollbackIndex = 0
+		}
+
+		// the appchain didn't send ibtp because of network issue, and the interchain tx has already been rollbacked
+		// in src appchain, so need to set interchain index on bitxhub to avoid index omitting
+		if err := ex.handleRollbackedIBTP(to, beginIndex+1, rollbackIndex+1); err != nil {
+			ex.logger.WithFields(logrus.Fields{
+				"address": to,
+				"error":   err.Error(),
+			}).Panic("Send rollbacked ibtp")
+		}
+
+		if rollbackIndex > beginIndex {
+			beginIndex = rollbackIndex
+			ex.interchainCounter[to] = beginIndex
 		}
 
 		if err := ex.handleMissingIBTPFromMnt(to, beginIndex+1, idx+1); err != nil {
@@ -40,12 +60,69 @@ func (ex *Exchanger) recoverRelay() {
 	// recover unsent receipt to counterpart chain
 	execMeta := ex.exec.QueryInterchainMeta()
 	for from, idx := range execMeta {
-		beginIndex, ok := ex.sourceReceiptCounter[from]
+		curIdx, ok := ex.sourceReceiptCounter[from]
+		if curIdx >= idx {
+			continue
+		}
+		beginIndex := curIdx + 1
 		if !ok {
-			beginIndex = 0
+			beginIndex = 1
 		}
 
-		if err := ex.handleMissingReceipt(from, beginIndex+1, idx+1); err != nil {
+		// Rollback the last receipt on bitxhub if it is not rollbacked on dst appchain
+		ibtpId := fmt.Sprintf("%s-%s-%d", from, ex.pierID, beginIndex)
+		status := pb.TransactionStatus_BEGIN
+		if err := retry.Retry(func(attempt uint) error {
+			stat, err := ex.syncer.GetTxStatus(ibtpId)
+			if err != nil {
+				ex.logger.WithFields(logrus.Fields{
+					"error": err,
+					"id":    ibtpId,
+				}).Error("Get tx status")
+				return err
+			}
+
+			status = stat
+
+			return nil
+		}, strategy.Wait(2*time.Second)); err != nil {
+			ex.logger.WithFields(logrus.Fields{
+				"id":    ibtpId,
+				"error": err,
+			}).Errorf("Retry to get tx status")
+		}
+
+		if status == pb.TransactionStatus_ROLLBACK {
+			dstRollbackMeta := ex.exec.QueryDstRollbackMeta()
+			if dstRollbackMeta[from] < beginIndex {
+				var ibtp *pb.IBTP
+				if err := retry.Retry(func(attempt uint) error {
+					original, _, err := ex.queryIBTP(ibtpId, from)
+					if err != nil {
+						ex.logger.WithFields(logrus.Fields{
+							"id":    ibtpId,
+							"error": err,
+						}).Errorf("Retry to get query ibtp")
+						return err
+					}
+
+					ibtp = original
+
+					return nil
+				}, strategy.Wait(2*time.Second)); err != nil {
+					ex.logger.WithFields(logrus.Fields{
+						"id":    ibtpId,
+						"error": err,
+					}).Panic("Retry to query IBTP")
+				}
+				ex.exec.Rollback(ibtp, false)
+				ex.logger.WithFields(logrus.Fields{
+					"id": ibtp.ID(),
+				}).Info("Rollback ibtp")
+			}
+		}
+
+		if err := ex.handleMissingReceipt(from, beginIndex, idx+1); err != nil {
 			ex.logger.WithFields(logrus.Fields{"address": from, "error": err.Error()}).Panic("Get missing receipt from contract")
 		}
 	}
@@ -69,6 +146,28 @@ func (ex *Exchanger) recoverDirect(dstPierID string, interchainIndex uint64, rec
 	if err := ex.handleMissingReceipt(dstPierID, receiptIndex+1, idx+1); err != nil {
 		ex.logger.WithFields(logrus.Fields{"address": dstPierID, "error": err.Error()}).Panic("Get missing receipt from contract")
 	}
+}
+
+func (ex *Exchanger) handleRollbackedIBTP(to string, begin, end uint64) error {
+	for ; begin < end; begin++ {
+		ex.logger.WithFields(logrus.Fields{
+			"to":    to,
+			"index": begin,
+		}).Info("Send Rollbacked IBTP")
+
+		ibtp, err := ex.mnt.QueryIBTP(fmt.Sprintf("%s-%s-%d", ex.pierID, to, begin))
+		if err != nil {
+			return fmt.Errorf("fetch ibtp:%w", err)
+		}
+
+		ibtp.Type = pb.IBTP_ROLLBACK
+
+		if err := ex.sendIBTP(ibtp); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func (ex *Exchanger) handleMissingIBTPFromMnt(to string, begin, end uint64) error {

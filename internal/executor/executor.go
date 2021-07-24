@@ -80,6 +80,18 @@ func (e *ChannelExecutor) QueryCallbackMeta() map[string]uint64 {
 	return checkSumMeta
 }
 
+func (e *ChannelExecutor) QueryDstRollbackMeta() map[string]uint64 {
+	dstRollbackMeta, err := e.client.GetDstRollbackMeta()
+	if err != nil {
+		return map[string]uint64{}
+	}
+	checkSumMeta := make(map[string]uint64, len(dstRollbackMeta))
+	for from, index := range dstRollbackMeta {
+		checkSumMeta[types.NewAddressByStr(from).String()] = index
+	}
+	return checkSumMeta
+}
+
 // getReceipt only generates one receipt given source chain id and interchain tx index
 func (e *ChannelExecutor) QueryIBTPReceipt(originalIBTP *pb.IBTP) (*pb.IBTP, error) {
 	if originalIBTP == nil {

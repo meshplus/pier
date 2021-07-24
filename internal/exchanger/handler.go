@@ -3,6 +3,7 @@ package exchanger
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/Rican7/retry"
@@ -48,6 +49,9 @@ func (ex *Exchanger) handleIBTP(wIbtp *model.WrappedIBTP) {
 	err = ex.syncer.SendIBTP(receipt)
 	if err != nil {
 		ex.logger.Errorf("send ibtp error:%v", err)
+		if strings.Contains(err.Error(), "rollback") {
+			ex.exec.Rollback(ibtp, false)
+		}
 	}
 }
 
@@ -75,7 +79,20 @@ func (ex *Exchanger) applyInterchain(wIbtp *model.WrappedIBTP, entry logrus.Fiel
 	ex.executorCounter[ibtp.From] = ibtp.Index
 }
 
-func (ex *Exchanger) handleRollback(ibtp *pb.IBTP) {
+func (ex *Exchanger) handleRollback(ibtp *pb.IBTP, ibtpId string) {
+	var err error
+	if ibtp == nil {
+		if err := retry.Retry(func(attempt uint) error {
+			ibtp, err = ex.mnt.QueryIBTP(ibtpId)
+			if err != nil {
+				ex.logger.Warnf("query ibtp %s: %v", err)
+				return err
+			}
+			return nil
+		}, strategy.Wait(time.Second*1)); err != nil {
+			ex.logger.Panic(err)
+		}
+	}
 	if ibtp.Category() == pb.IBTP_RESPONSE {
 		// if this is receipt type of ibtp, no need to rollback
 		return

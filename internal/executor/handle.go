@@ -32,7 +32,8 @@ func (e *ChannelExecutor) ExecuteIBTP(wIbtp *model.WrappedIBTP) (*pb.IBTP, error
 
 	switch ibtp.Type {
 	case pb.IBTP_INTERCHAIN, pb.IBTP_ASSET_EXCHANGE_INIT,
-		pb.IBTP_ASSET_EXCHANGE_REDEEM, pb.IBTP_ASSET_EXCHANGE_REFUND:
+		pb.IBTP_ASSET_EXCHANGE_REDEEM, pb.IBTP_ASSET_EXCHANGE_REFUND,
+		pb.IBTP_ROLLBACK:
 		return e.applyInterchainIBTP(wIbtp)
 	case pb.IBTP_RECEIPT_SUCCESS, pb.IBTP_RECEIPT_FAILURE, pb.IBTP_ASSET_EXCHANGE_RECEIPT:
 		e.applyReceiptIBTP(wIbtp)

@@ -46,6 +46,14 @@ type Client interface {
 	// executed callback txs for each receiving chain
 	GetCallbackMeta() (map[string]uint64, error)
 
+	// GetSrcRollbackMeta gets an index map, which implicates the greatest index of
+	// executed rollback txs to each receiving chain
+	GetSrcRollbackMeta() (map[string]uint64, error)
+
+	// GetDstRollbackMeta gets an index map, which implicates the greatest index of
+	// executed rollback txs from each source chain
+	GetDstRollbackMeta() (map[string]uint64, error)
+
 	// CommitCallback is a callback function when get receipt from bitxhub success
 	CommitCallback(ibtp *pb.IBTP) error
 

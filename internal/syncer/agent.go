@@ -4,6 +4,8 @@ import (
 	"crypto/sha256"
 	"encoding/json"
 	"fmt"
+	"github.com/sirupsen/logrus"
+	"strconv"
 	"strings"
 	"time"
 
@@ -15,7 +17,6 @@ import (
 	rpcx "github.com/meshplus/go-bitxhub-client"
 	"github.com/meshplus/pier/internal/repo"
 	"github.com/meshplus/pier/pkg/model"
-	"github.com/sirupsen/logrus"
 )
 
 const (
@@ -192,7 +193,13 @@ func (syncer *WrapperSyncer) SendIBTP(ibtp *pb.IBTP) error {
 	}
 	tx.Extra = proof
 	var receipt *pb.Receipt
-	syncer.retryFunc(func(attempt uint) error {
+	strategies := []strategy.Strategy{strategy.Wait(2 * time.Second)}
+	if ibtp.Type != pb.IBTP_ROLLBACK {
+		strategies = append(strategies, strategy.Limit(5))
+	}
+
+	var retErr error
+	if err := retry.Retry(func(attempt uint) error {
 		hash, err := syncer.client.SendTransaction(tx, nil)
 		if err != nil {
 			syncer.logger.Errorf("Send ibtp error: %s", err.Error())
@@ -202,37 +209,45 @@ func (syncer *WrapperSyncer) SendIBTP(ibtp *pb.IBTP) error {
 		if err != nil {
 			return fmt.Errorf("get tx receipt by hash %s: %w", hash, err)
 		}
+		if !receipt.IsSuccess() {
+			syncer.logger.WithFields(logrus.Fields{
+				"ibtp_id":   ibtp.ID(),
+				"ibtp_type": ibtp.Type,
+				"msg":       string(receipt.Ret),
+			}).Error("Receipt result for ibtp")
+			// if no rule bind for this appchain or appchain not available, exit pier
+			errMsg := string(receipt.Ret)
+			if strings.Contains(errMsg, noBindRule) || strings.Contains(errMsg, srcchainNotAvailable) {
+				return fmt.Errorf("appchain not valid: %s", errMsg)
+			}
+			// if target chain is not available, this ibtp should be rollback
+			if strings.Contains(errMsg, dstchainNotAvailable) {
+				syncer.logger.Errorf("Destination appchain is not available, try to rollback in source appchain...")
+				syncer.rollbackHandler(ibtp, "")
+				return nil
+			}
+			if strings.Contains(errMsg, ibtpIndexExist) {
+				// if ibtp index is lower than index recorded on bitxhub, then ignore this ibtp
+				return nil
+			}
+			if strings.Contains(errMsg, invalidIBTP) {
+				// if this ibtp structure is not compatible or verify failed
+				// try to get new ibtp and resend
+				return fmt.Errorf("invalid ibtp %s", ibtp.ID())
+			}
+			if strings.Contains(errMsg, "has been rollback") {
+				syncer.logger.WithField("id", ibtp.ID()).Warnf("Tx has been rollback")
+				retErr = fmt.Errorf("rollback ibtp %s", ibtp.ID())
+				return nil
+			}
+			return fmt.Errorf("unknown error, retry for %s anyway", ibtp.ID())
+		}
+
 		return nil
-	})
-	if !receipt.IsSuccess() {
-		syncer.logger.WithFields(logrus.Fields{
-			"ibtp_id":   ibtp.ID(),
-			"ibtp_type": ibtp.Type,
-			"msg":       string(receipt.Ret),
-		}).Error("Receipt result for ibtp")
-		// if no rule bind for this appchain or appchain not available, exit pier
-		errMsg := string(receipt.Ret)
-		if strings.Contains(errMsg, noBindRule) || strings.Contains(errMsg, srcchainNotAvailable) {
-			return fmt.Errorf("appchain not valid: %s", errMsg)
-		}
-		// if target chain is not available, this ibtp should be rollback
-		if strings.Contains(errMsg, dstchainNotAvailable) {
-			syncer.logger.Errorf("Destination appchain is not available, try to rollback in source appchain...")
-			syncer.rollbackHandler(ibtp)
-			return nil
-		}
-		if strings.Contains(errMsg, ibtpIndexExist) {
-			// if ibtp index is lower than index recorded on bitxhub, then ignore this ibtp
-			return nil
-		}
-		if strings.Contains(errMsg, invalidIBTP) {
-			// if this ibtp structure is not compatible or verify failed
-			// try to get new ibtp and resend
-			return fmt.Errorf("invalid ibtp %s", ibtp.ID())
-		}
-		return fmt.Errorf("unknown error, retry for %s anyway", ibtp.ID())
+	}, strategies...); err != nil {
+		return err
 	}
-	return nil
+	return retErr
 }
 
 func (syncer *WrapperSyncer) retryFunc(handle func(uint) error) error {
@@ -243,4 +258,22 @@ func (syncer *WrapperSyncer) retryFunc(handle func(uint) error) error {
 		}
 		return nil
 	}, strategy.Wait(500*time.Millisecond))
+}
+
+func (syncer *WrapperSyncer) GetTxStatus(id string) (pb.TransactionStatus, error) {
+	receipt, err := syncer.client.InvokeBVMContract(constant.TransactionMgrContractAddr.Address(), "GetStatus", nil, rpcx.String(id))
+	if err != nil {
+		return pb.TransactionStatus_BEGIN, err
+	}
+
+	if !receipt.IsSuccess() {
+		return pb.TransactionStatus_BEGIN, fmt.Errorf("receipt: %s", receipt.Ret)
+	}
+
+	status, err := strconv.Atoi(string(receipt.Ret))
+	if err != nil {
+		return pb.TransactionStatus_BEGIN, err
+	}
+
+	return pb.TransactionStatus(status), nil
 }
