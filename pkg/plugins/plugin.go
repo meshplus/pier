@@ -8,6 +8,8 @@ import (
 	"google.golang.org/grpc"
 )
 
+var _ pb.AppchainPluginServer = (*GRPCServer)(nil)
+
 // Handshake is a common handshake that is shared by plugin and host.
 var (
 	Handshake = plugin.HandshakeConfig{

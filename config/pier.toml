@@ -44,9 +44,11 @@ connectors = []
 providers = 1
 
 [security]
-enable_tls = false
-tlsca = "certs/ca.pem"
-common_name = "localhost"
+enable_tls = true
+access_cert = ["node1.cert", "node2.cert", "node3.cert", "node4.cert"]
+access_key = "node.priv"
+tlsca = "certs/agency.cert"
+common_name = "BitXHub"
 
 [HA]
 mode = "single"

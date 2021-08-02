@@ -1,7 +1,9 @@
 package repo
 
 import (
+	"crypto/rand"
 	"crypto/x509"
+	"crypto/x509/pkix"
 	"encoding/pem"
 	"fmt"
 	"io/ioutil"
@@ -40,6 +42,9 @@ const (
 
 	// NodeKeyName
 	NodeKeyName = "node.priv"
+
+	// NodeCsrName
+	NodeCsrName = "node.csr"
 
 	// KeyPassword
 	KeyPassword = "bitxhub"
@@ -191,6 +196,7 @@ func generateNodePrivateKey(target string, opt crypto.KeyType) error {
 
 	path := filepath.Join(target, NodeKeyName)
 	f, err := os.Create(path)
+	defer f.Close()
 	if err != nil {
 		return fmt.Errorf("create file: %w", err)
 	}
@@ -200,6 +206,48 @@ func generateNodePrivateKey(target string, opt crypto.KeyType) error {
 		return fmt.Errorf("pem encode: %w", err)
 	}
 
+	// generate csr file
+	org := "pier"
+	privPath := path
+	join := filepath.Join(target, NodeCsrName)
+
+	privData, err := ioutil.ReadFile(privPath)
+	if err != nil {
+		return err
+	}
+	block, _ := pem.Decode(privData)
+	key, err := x509.ParseECPrivateKey(block.Bytes)
+	if err != nil {
+		return fmt.Errorf("Error occurred when parsing private key. Please make sure it's secp256r1 private key.")
+	}
+
+	template := &x509.CertificateRequest{
+		Subject: pkix.Name{
+			Country:            []string{"CN"},
+			Locality:           []string{"HangZhou"},
+			Province:           []string{"ZheJiang"},
+			OrganizationalUnit: []string{"BitXHub"},
+			Organization:       []string{org},
+			StreetAddress:      []string{"street", "address"},
+			PostalCode:         []string{"324000"},
+			CommonName:         "BitXHub",
+		},
+	}
+	data, err := x509.CreateCertificateRequest(rand.Reader, template, key)
+	if err != nil {
+		return err
+	}
+
+	f2, err := os.Create(join)
+	defer f2.Close()
+	if err != nil {
+		return fmt.Errorf("create file: %w", err)
+	}
+
+	err = pem.Encode(f2, &pem.Block{Type: "CSR", Bytes: data})
+	if err != nil {
+		return fmt.Errorf("pem encode: %w", err)
+	}
 	return nil
 }
 

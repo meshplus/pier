@@ -276,12 +276,14 @@ func NewUnionPier(repoRoot string, config *repo.Config) (*Pier, error) {
 		rpcx.WithPrivateKey(privateKey),
 	}
 	nodesInfo := make([]*rpcx.NodeInfo, 0, len(config.Mode.Union.Addrs))
-	for _, addr := range config.Mode.Union.Addrs {
+	for index, addr := range config.Mode.Union.Addrs {
 		nodeInfo := &rpcx.NodeInfo{Addr: addr}
 		if config.Security.EnableTLS {
 			nodeInfo.CertPath = filepath.Join(config.RepoRoot, config.Security.Tlsca)
 			nodeInfo.EnableTLS = config.Security.EnableTLS
 			nodeInfo.CommonName = config.Security.CommonName
+			nodeInfo.AccessCert = filepath.Join(config.RepoRoot, config.Security.AccessCert[index])
+			nodeInfo.AccessKey = filepath.Join(config.RepoRoot, config.Security.AccessKey)
 		}
 		nodesInfo = append(nodesInfo, nodeInfo)
 	}
@@ -472,16 +474,17 @@ func newBitXHubClient(logger logrus.FieldLogger, privateKey crypto.PrivateKey, c
 		rpcx.WithPrivateKey(privateKey),
 	}
 	nodesInfo := make([]*rpcx.NodeInfo, 0, len(config.Mode.Relay.Addrs))
-	for _, addr := range config.Mode.Relay.Addrs {
+	for index, addr := range config.Mode.Relay.Addrs {
 		nodeInfo := &rpcx.NodeInfo{Addr: addr}
 		if config.Security.EnableTLS {
 			nodeInfo.CertPath = filepath.Join(config.RepoRoot, config.Security.Tlsca)
 			nodeInfo.EnableTLS = config.Security.EnableTLS
 			nodeInfo.CommonName = config.Security.CommonName
+			nodeInfo.AccessCert = filepath.Join(config.RepoRoot, config.Security.AccessCert[index])
+			nodeInfo.AccessKey = filepath.Join(config.RepoRoot, config.Security.AccessKey)
 		}
 		nodesInfo = append(nodesInfo, nodeInfo)
 	}
 	opts = append(opts, rpcx.WithNodesInfo(nodesInfo...), rpcx.WithTimeoutLimit(config.Mode.Relay.TimeoutLimit))
-
 	return rpcx.New(opts...)
 }
