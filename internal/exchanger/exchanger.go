@@ -248,10 +248,9 @@ func (ex *Exchanger) listenAndSendIBTPFromSyncer() {
 			entry := ex.logger.WithFields(logrus.Fields{"type": wIbtp.Ibtp.Type, "id": wIbtp.Ibtp.ID()})
 			entry.Debugf("Exchanger receives ibtp from syncer")
 			switch wIbtp.Ibtp.Type {
-			case pb.IBTP_INTERCHAIN, pb.IBTP_ASSET_EXCHANGE_INIT,
-				pb.IBTP_ASSET_EXCHANGE_REDEEM, pb.IBTP_ASSET_EXCHANGE_REFUND:
+			case pb.IBTP_INTERCHAIN:
 				ex.applyInterchain(wIbtp, entry)
-			case pb.IBTP_RECEIPT_SUCCESS, pb.IBTP_RECEIPT_FAILURE, pb.IBTP_ASSET_EXCHANGE_RECEIPT:
+			case pb.IBTP_RECEIPT_SUCCESS, pb.IBTP_RECEIPT_FAILURE:
 				ex.applyReceipt(wIbtp, entry)
 			default:
 				entry.Errorf("wrong type of ibtp")

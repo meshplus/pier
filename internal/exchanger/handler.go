@@ -27,16 +27,6 @@ func (ex *Exchanger) handleIBTP(wIbtp *model.WrappedIBTP, entry logrus.FieldLogg
 		return
 	}
 	entry.Debugf("IBTP pass check")
-	if pb.IBTP_ASSET_EXCHANGE_REDEEM == ibtp.Type || pb.IBTP_ASSET_EXCHANGE_REFUND == ibtp.Type {
-		if err := retry.Retry(func(attempt uint) error {
-			if err := ex.fetchSignsToIBTP(ibtp); err != nil {
-				return err
-			}
-			return nil
-		}, strategy.Wait(1*time.Second)); err != nil {
-			ex.logger.Panic(err)
-		}
-	}
 
 	receipt, err := ex.exec.ExecuteIBTP(wIbtp)
 	if err != nil {

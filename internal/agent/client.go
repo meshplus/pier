@@ -46,7 +46,7 @@ func (client *BxhClient) SubmitIBTP(ibtp *pb.IBTP) (*pb.SubmitIBTPResponse, erro
 	}
 
 	args := []*pb.Arg{}
-	args = append(args, rpcx.String(content.DstContractId))
+	//args = append(args, rpcx.String(content.DstContractId))
 	args = append(args, rpcx.String(content.Func))
 	realArg, err := json.Marshal(content.Args)
 	if err != nil {
@@ -231,10 +231,8 @@ func (client *BxhClient) generateCallback(original *pb.IBTP, args [][]byte, stat
 	}
 
 	content := &pb.Content{
-		SrcContractId: originalContent.DstContractId,
-		DstContractId: originalContent.SrcContractId,
-		Func:          originalContent.Callback,
-		Args:          args,
+		Func: originalContent.Callback,
+		Args: args,
 	}
 	b, err := content.Marshal()
 	if err != nil {
@@ -254,17 +252,14 @@ func (client *BxhClient) generateCallback(original *pb.IBTP, args [][]byte, stat
 		if !status {
 			typ = pb.IBTP_RECEIPT_FAILURE
 		}
-	} else {
-		typ = pb.IBTP_ASSET_EXCHANGE_RECEIPT
 	}
 
 	return &pb.IBTP{
-		From:      original.From,
-		To:        original.To,
-		Index:     original.Index,
-		Type:      typ,
-		Timestamp: time.Now().UnixNano(),
-		Payload:   pdb,
-		Version:   original.Version,
+		From:    original.From,
+		To:      original.To,
+		Index:   original.Index,
+		Type:    typ,
+		Payload: pdb,
+		Version: original.Version,
 	}, nil
 }
