@@ -21,10 +21,15 @@ var ruleCMD = cli.Command{
 			Flags: []cli.Flag{
 				cli.StringFlag{
 					Name:     "path",
-					Usage:    "Specific rule path",
+					Usage:    "Specify rule path",
 					Required: true,
 				},
-				methodFlag,
+
+				cli.StringFlag{
+					Name:     "appchain-id",
+					Usage:    "Specify appchain id",
+					Required: true,
+				},
 				adminKeyPathFlag,
 			},
 			Action: deployRule,
@@ -62,7 +67,7 @@ var ruleCMD = cli.Command{
 
 func deployRule(ctx *cli.Context) error {
 	rulePath := ctx.String("path")
-	method := ctx.String("method")
+	appchainID := ctx.String("appchain-id")
 	chainAdminKeyPath := ctx.String("admin-key")
 
 	client, _, err := initClientWithKeyPath(ctx, chainAdminKeyPath)
@@ -81,27 +86,26 @@ func deployRule(ctx *cli.Context) error {
 		color.Red("Deploy rule error: %w", err)
 		return nil
 	} else {
-		color.Green(fmt.Sprintf("Deploy rule to bitxhub for appchain %s successfully: %s", method, contractAddr.String()))
+		color.Green(fmt.Sprintf("Deploy rule to bitxhub for appchain %s successfully: %s", appchainID, contractAddr.String()))
 	}
 
 	// 2. register
-	appchainMethod := fmt.Sprintf("%s:%s:.", bitxhubRootPrefix, method)
 	receipt, err := client.InvokeBVMContract(
 		constant.RuleManagerContractAddr.Address(),
 		"RegisterRule", nil,
-		rpcx.String(appchainMethod), rpcx.String(contractAddr.String()))
+		rpcx.String(appchainID), rpcx.String(contractAddr.String()))
 	if err != nil {
 		return fmt.Errorf("Register rule: %w", err)
 	}
 
 	if !receipt.IsSuccess() {
-		color.Red(fmt.Sprintf("Register rule to bitxhub for appchain %s error: %s", appchainMethod, string(receipt.Ret)))
+		color.Red(fmt.Sprintf("Register rule to bitxhub for appchain %s error: %s", appchainID, string(receipt.Ret)))
 	} else {
 		proposalId := gjson.Get(string(receipt.Ret), "proposal_id").String()
 		if proposalId != "" {
-			color.Green(fmt.Sprintf("Register rule to bitxhub for appchain %s successfully, the bind request was submitted successfully, wait for proposal %s to finish.", appchainMethod, proposalId))
+			color.Green(fmt.Sprintf("Register rule to bitxhub for appchain %s successfully, the bind request was submitted successfully, wait for proposal %s to finish.", appchainID, proposalId))
 		} else {
-			color.Green(fmt.Sprintf("Register rule to bitxhub for appchain %s successfully.", appchainMethod))
+			color.Green(fmt.Sprintf("Register rule to bitxhub for appchain %s successfully.", appchainID))
 		}
 
 	}

@@ -1,14 +1,14 @@
 package syncer
 
 import (
+	"bytes"
 	"context"
-	"encoding/json"
+	"crypto/sha256"
 	"fmt"
+	"sort"
 	"strconv"
 	"sync/atomic"
 	"time"
-
-	"github.com/meshplus/pier/pkg/model"
 
 	"github.com/Rican7/retry"
 	"github.com/Rican7/retry/strategy"
@@ -19,6 +19,7 @@ import (
 	rpcx "github.com/meshplus/go-bitxhub-client"
 	"github.com/meshplus/pier/internal/lite"
 	"github.com/meshplus/pier/internal/repo"
+	"github.com/meshplus/pier/pkg/model"
 	"github.com/sirupsen/logrus"
 )
 
@@ -38,13 +39,13 @@ type WrapperSyncer struct {
 	recoverHandler  RecoverUnionHandler
 	rollbackHandler RollbackHandler
 
-	mode        string
-	isRecover   bool
-	height      uint64
-	pierID      string
-	appchainDID string
-	ctx         context.Context
-	cancel      context.CancelFunc
+	mode       string
+	isRecover  bool
+	height     uint64
+	pierID     string
+	appchainID string
+	ctx        context.Context
+	cancel     context.CancelFunc
 }
 
 type SubscriptionKey struct {
@@ -54,22 +55,22 @@ type SubscriptionKey struct {
 
 // New creates instance of WrapperSyncer given agent interacting with bitxhub,
 // validators addresses of bitxhub and local storage
-func New(pierID, appchainDID string, mode string, opts ...Option) (*WrapperSyncer, error) {
+func New(pierID, appchainID string, mode string, opts ...Option) (*WrapperSyncer, error) {
 	cfg, err := GenerateConfig(opts...)
 	if err != nil {
 		return nil, err
 	}
 
 	ws := &WrapperSyncer{
-		wrappersC:   make(chan *pb.InterchainTxWrappers, maxChSize),
-		ibtpC:       make(chan *model.WrappedIBTP, maxChSize),
-		client:      cfg.client,
-		lite:        cfg.lite,
-		storage:     cfg.storage,
-		logger:      cfg.logger,
-		mode:        mode,
-		pierID:      pierID,
-		appchainDID: appchainDID,
+		wrappersC:  make(chan *pb.InterchainTxWrappers, maxChSize),
+		ibtpC:      make(chan *model.WrappedIBTP, maxChSize),
+		client:     cfg.client,
+		lite:       cfg.lite,
+		storage:    cfg.storage,
+		logger:     cfg.logger,
+		mode:       mode,
+		pierID:     pierID,
+		appchainID: appchainID,
 	}
 
 	return ws, nil
@@ -129,7 +130,7 @@ func (syncer *WrapperSyncer) recover(begin, end uint64) {
 	}
 
 	ch := make(chan *pb.InterchainTxWrappers, maxChSize)
-	if err := syncer.client.GetInterchainTxWrappers(syncer.ctx, syncer.appchainDID, begin, end, ch); err != nil {
+	if err := syncer.client.GetInterchainTxWrappers(syncer.ctx, syncer.appchainID, begin, end, ch); err != nil {
 		syncer.logger.WithFields(logrus.Fields{"begin": begin, "end": end, "error": err}).Warn("get interchain tx wrapper")
 	}
 
@@ -214,10 +215,8 @@ func (syncer *WrapperSyncer) getWrappersChannel() chan *pb.InterchainTxWrappers 
 		subscriptType = pb.SubscriptionRequest_INTERCHAIN_TX_WRAPPER
 	}
 	// retry for network reason
-	subKey := &SubscriptionKey{syncer.pierID, syncer.appchainDID}
-	subKeyData, _ := json.Marshal(subKey)
 	if err := retry.Retry(func(attempt uint) error {
-		rawCh, err = syncer.client.Subscribe(syncer.ctx, subscriptType, subKeyData)
+		rawCh, err = syncer.client.Subscribe(syncer.ctx, subscriptType, []byte(syncer.appchainID))
 		if err != nil {
 			return err
 		}
@@ -277,7 +276,7 @@ func (syncer *WrapperSyncer) listenInterchainTxWrappers() {
 				}).Info("Get interchain tx wrapper")
 
 				ch := make(chan *pb.InterchainTxWrappers, maxChSize)
-				if err := syncer.client.GetInterchainTxWrappers(syncer.ctx, syncer.appchainDID, syncer.getDemandHeight(), w.Height, ch); err != nil {
+				if err := syncer.client.GetInterchainTxWrappers(syncer.ctx, syncer.appchainID, syncer.getDemandHeight(), w.Height, ch); err != nil {
 					syncer.logger.WithFields(logrus.Fields{"begin": syncer.height, "end": w.Height, "error": err}).Warn("Get interchain tx wrapper")
 					continue
 				}
@@ -323,6 +322,10 @@ func (syncer *WrapperSyncer) handleInterchainTxWrapper(w *pb.InterchainTxWrapper
 		return false
 	}
 
+	for _, ibtpId := range w.TimeoutIbtps {
+		syncer.rollbackHandler(nil, ibtpId)
+	}
+
 	for _, tx := range w.Transactions {
 		// if ibtp is failed
 		// 1. this is interchain type of ibtp, increase inCounter index
@@ -358,9 +361,10 @@ func (syncer *WrapperSyncer) handleInterchainTxWrapper(w *pb.InterchainTxWrapper
 	}
 
 	syncer.logger.WithFields(logrus.Fields{
-		"height": w.Height,
-		"count":  len(w.Transactions),
-		"index":  i,
+		"height":      w.Height,
+		"count":       len(w.Transactions),
+		"index":       i,
+		"timeout IDs": w.TimeoutIbtps,
 	}).Info("Handle interchain tx wrapper")
 	return true
 }
@@ -394,7 +398,7 @@ func (syncer *WrapperSyncer) RegisterRollbackHandler(handler RollbackHandler) er
 // verifyWrapper verifies the basic of merkle wrapper from bitxhub
 func (syncer *WrapperSyncer) verifyWrapper(w *pb.InterchainTxWrapper) (bool, error) {
 	if w.Height != syncer.getDemandHeight() {
-		return false, fmt.Errorf("wrong height of wrapper from bitxhub")
+		return false, fmt.Errorf("wrong height of wrapper from bitxhub: exp: %d, act: %d", syncer.getDemandHeight(), w.Height)
 	}
 	if w.Height == 1 {
 		return true, nil
@@ -455,6 +459,68 @@ func (syncer *WrapperSyncer) verifyWrapper(w *pb.InterchainTxWrapper) (bool, err
 	if !correctRoot {
 		return false, fmt.Errorf("incorrect trx hashes")
 	}
+
+	return syncer.verifyTimeoutIBTPs(w, header)
+}
+
+// verifyWrapper verifies the basic of merkle wrapper from bitxhub
+func (syncer *WrapperSyncer) verifyTimeoutIBTPs(w *pb.InterchainTxWrapper, header *pb.BlockHeader) (bool, error) {
+	// validate if TimeoutL2Roots are correct
+	if len(w.TimeoutL2Roots) == 0 {
+		// verify timeout ibtps root
+		if (&types.Hash{}).String() != header.TimeoutRoot.String() {
+			syncer.logger.Errorf("TimeoutRoot: %s, %s", (&types.Hash{}).String(), header.TimeoutRoot.String())
+			return false, fmt.Errorf("tx wrapper empty timeout ibtp merkle root is wrong")
+		}
+	} else {
+		l2RootHashes := make([]merkletree.Content, 0, len(w.TimeoutL2Roots))
+		sort.Slice(w.TimeoutL2Roots, func(i, j int) bool {
+			return bytes.Compare(w.TimeoutL2Roots[i].Bytes(), w.TimeoutL2Roots[j].Bytes()) < 0
+		})
+		for _, root := range w.TimeoutL2Roots {
+			l2root := root
+			l2RootHashes = append(l2RootHashes, &l2root)
+		}
+		l1Tree, err := merkletree.NewTree(l2RootHashes)
+		if err != nil {
+			return false, fmt.Errorf("init timeout l1 merkle tree: %w", err)
+		}
+
+		// verify timeout ibtps root
+		if types.NewHash(l1Tree.MerkleRoot()).String() != header.TimeoutRoot.String() {
+			syncer.logger.Errorf("TimeoutRoot: %s, %s", types.NewHash(l1Tree.MerkleRoot()).String(), header.TimeoutRoot.String())
+			return false, fmt.Errorf("tx wrapper timeout ibtps merkle root is wrong")
+		}
+	}
+
+	// validate if the timeout ibtps exists
+	if len(w.TimeoutIbtps) == 0 {
+		return true, nil
+	}
+
+	hashes := make([]merkletree.Content, 0, len(w.TimeoutIbtps))
+	for _, id := range w.TimeoutIbtps {
+		hash := sha256.Sum256([]byte(id))
+		hashes = append(hashes, types.NewHash(hash[:]))
+	}
+
+	tree, err := merkletree.NewTree(hashes)
+	if err != nil {
+		return false, fmt.Errorf("init timeout merkle tree: %w", err)
+	}
+
+	l2root := types.NewHash(tree.MerkleRoot())
+	correctRoot := false
+	for _, rootHash := range w.TimeoutL2Roots {
+		if rootHash.String() == l2root.String() {
+			correctRoot = true
+			break
+		}
+	}
+	if !correctRoot {
+		return false, fmt.Errorf("incorrect timeout ibtps")
+	}
+
 	return true, nil
 }
 

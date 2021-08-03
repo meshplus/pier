@@ -13,7 +13,7 @@ type AppchainHandler func() error
 
 type RecoverUnionHandler func(ibtp *pb.IBTP) (*rpcx.Interchain, error)
 
-type RollbackHandler func(ibtp *pb.IBTP)
+type RollbackHandler func(ibtp *pb.IBTP, ibtpId string)
 
 //go:generate mockgen -destination mock_syncer/mock_syncer.go -package mock_syncer -source interface.go
 type Syncer interface {
@@ -24,11 +24,11 @@ type Syncer interface {
 	Stop() error
 
 	// QueryInterchainMeta queries meta including interchain and receipt related meta from bitxhub
-	QueryInterchainMeta() *pb.Interchain
+	QueryInterchainMeta(servicePair string) *pb.Interchain
 
 	// QueryIBTP query ibtp from bitxhub by its id.
 	// if error occurs, it means this ibtp is not existed on bitxhub
-	QueryIBTP(ibtpID string) (*pb.IBTP, bool, error)
+	QueryIBTP(ibtpID string, isReq bool) (*pb.IBTP, bool, error)
 
 	// ListenIBTP listen on the ibtps destined for this pier from bitxhub
 	ListenIBTP() <-chan *model.WrappedIBTP
@@ -55,4 +55,6 @@ type Syncer interface {
 	RegisterAppchainHandler(handler AppchainHandler) error
 
 	RegisterRollbackHandler(handler RollbackHandler) error
+
+	GetTxStatus(id string) (pb.TransactionStatus, error)
 }

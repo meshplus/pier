@@ -43,21 +43,21 @@ import (
 
 // Pier represents the necessary data for starting the pier app
 type Pier struct {
-	privateKey crypto.PrivateKey
-	plugin     plugins.Client
-	grpcPlugin *plugin.Client
-	monitor    monitor.Monitor
-	exec       executor.Executor
-	lite       lite.Lite
-	pierHA     agency.PierHA
-	storage    storage.Storage
-	exchanger  exchanger.IExchanger
-	ctx        context.Context
-	cancel     context.CancelFunc
-	appchain   *appchainmgr.Appchain
-	meta       *pb.Interchain
-	config     *repo.Config
-	logger     logrus.FieldLogger
+	privateKey  crypto.PrivateKey
+	plugin      plugins.Client
+	grpcPlugin  *plugin.Client
+	monitor     monitor.Monitor
+	exec        executor.Executor
+	lite        lite.Lite
+	pierHA      agency.PierHA
+	storage     storage.Storage
+	exchanger   exchanger.IExchanger
+	ctx         context.Context
+	cancel      context.CancelFunc
+	appchain    *appchainmgr.Appchain
+	serviceMeta map[string]*pb.Interchain
+	config      *repo.Config
+	logger      logrus.FieldLogger
 }
 
 // NewPier instantiates pier instance.
@@ -91,9 +91,10 @@ func NewPier(repoRoot string, config *repo.Config) (*Pier, error) {
 		pierHA    agency.PierHA
 		sync      syncer.Syncer
 		apiServer *api.Server
-		meta      *pb.Interchain
 		//chain       *appchainmgr.Appchain
 		peerManager peermgr.PeerManager
+		bxhID       string
+		serviceMeta = make(map[string]*pb.Interchain)
 	)
 
 	switch config.Mode.Type {
@@ -108,7 +109,7 @@ func NewPier(repoRoot string, config *repo.Config) (*Pier, error) {
 			return nil, fmt.Errorf("ruleMgr create: %w", err)
 		}
 
-		appchainMgr, err := appchain.NewManager(config.Appchain.DID, store, peerManager, loggers.Logger(loggers.AppchainMgr))
+		appchainMgr, err := appchain.NewManager(config.Appchain.ID, store, peerManager, loggers.Logger(loggers.AppchainMgr))
 		if err != nil {
 			return nil, fmt.Errorf("ruleMgr create: %w", err)
 		}
@@ -125,43 +126,21 @@ func NewPier(repoRoot string, config *repo.Config) (*Pier, error) {
 			return nil, fmt.Errorf("cryptor create: %w", err)
 		}
 
-		meta = &pb.Interchain{}
 		lite = &direct_lite.MockLite{}
 	case repo.RelayMode:
 		ck = &checker.MockChecker{}
 
-		// pier register to bitxhub and got meta infos about its related
-		// appchain from bitxhub
-		opts := []rpcx.Option{
-			rpcx.WithLogger(logger),
-			rpcx.WithPrivateKey(privateKey),
-		}
-		nodesInfo := make([]*rpcx.NodeInfo, 0, len(config.Mode.Relay.Addrs))
-		for _, addr := range config.Mode.Relay.Addrs {
-			nodeInfo := &rpcx.NodeInfo{Addr: addr}
-			if config.Security.EnableTLS {
-				nodeInfo.CertPath = filepath.Join(config.RepoRoot, config.Security.Tlsca)
-				nodeInfo.EnableTLS = config.Security.EnableTLS
-				nodeInfo.CommonName = config.Security.CommonName
-			}
-			nodesInfo = append(nodesInfo, nodeInfo)
-		}
-		opts = append(opts, rpcx.WithNodesInfo(nodesInfo...), rpcx.WithTimeoutLimit(config.Mode.Relay.TimeoutLimit))
-		client, err := rpcx.New(opts...)
+		client, err := newBitXHubClient(logger, privateKey, config)
 		if err != nil {
 			return nil, fmt.Errorf("create bitxhub client: %w", err)
 		}
 
-		// agent queries appchain info from bitxhub
-		meta, err = getInterchainMeta(client, config.Appchain.DID)
+		bxhID = config.Mode.Relay.BitXHubID
+		// agent queries all services' meta about current appchain from bitxhub
+		serviceMeta, err = syncer.GetServiceInterchainMeta(client, bxhID, config.Appchain.ID)
 		if err != nil {
 			return nil, err
 		}
-
-		//chain, err = getAppchainInfo(client)
-		//if err != nil {
-		//	return nil, err
-		//}
 
 		cryptor, err = txcrypto.NewRelayCryptor(client, privateKey)
 		if err != nil {
@@ -173,24 +152,26 @@ func NewPier(repoRoot string, config *repo.Config) (*Pier, error) {
 			return nil, fmt.Errorf("lite create: %w", err)
 		}
 
-		sync, err = syncer.New(addr.String(), config.Appchain.DID, repo.RelayMode,
+		sync, err = syncer.New(addr.String(), config.Appchain.ID, repo.RelayMode,
 			syncer.WithClient(client), syncer.WithLite(lite),
 			syncer.WithStorage(store), syncer.WithLogger(loggers.Logger(loggers.Syncer)),
 		)
 		if err != nil {
 			return nil, fmt.Errorf("syncer create: %w", err)
 		}
+
 		pierHAConstructor, err := agency.GetPierHAConstructor(config.HA.Mode)
 		if err != nil {
 			return nil, fmt.Errorf("pier ha constructor not found")
 		}
-		pierHA = pierHAConstructor(client, config.Appchain.DID)
+
+		pierHA = pierHAConstructor(client, config.Appchain.ID)
 	default:
 		return nil, fmt.Errorf("unsupported mode")
 	}
 
 	//use meta info to instantiate monitor and executor module
-	extra, err := json.Marshal(meta.InterchainCounter)
+	extra, err := json.Marshal(serviceMeta)
 	if err != nil {
 		return nil, fmt.Errorf("marshal interchain meta: %w", err)
 	}
@@ -198,7 +179,7 @@ func NewPier(repoRoot string, config *repo.Config) (*Pier, error) {
 	var cli plugins.Client
 	var grpcPlugin *plugin.Client
 	err = retry.Retry(func(attempt uint) error {
-		cli, grpcPlugin, err = plugins.CreateClient(config.Appchain.DID, config.Appchain, extra)
+		cli, grpcPlugin, err = plugins.CreateClient(config.Appchain.ID, config.Appchain, extra)
 		if err != nil {
 			logger.Errorf("client plugin create:%s", err)
 		}
@@ -208,17 +189,19 @@ func NewPier(repoRoot string, config *repo.Config) (*Pier, error) {
 		logger.Panic(err)
 	}
 
+	serviceMeta = filterServiceMeta(serviceMeta, bxhID, config.Appchain.ID, cli.GetServices())
+
 	mnt, err := monitor.New(cli, cryptor, loggers.Logger(loggers.Monitor))
 	if err != nil {
 		return nil, fmt.Errorf("monitor create: %w", err)
 	}
 
-	exec, err := executor.New(cli, config.Appchain.DID, store, cryptor, loggers.Logger(loggers.Executor))
+	exec, err := executor.New(cli, config.Appchain.ID, store, cryptor, loggers.Logger(loggers.Executor))
 	if err != nil {
 		return nil, fmt.Errorf("executor create: %w", err)
 	}
 
-	ex, err = exchanger.New(config.Mode.Type, config.Appchain.DID, meta,
+	ex, err = exchanger.New(config.Mode.Type, config.Appchain.ID, serviceMeta,
 		exchanger.WithChecker(ck),
 		exchanger.WithExecutor(exec),
 		exchanger.WithMonitor(mnt),
@@ -235,21 +218,20 @@ func NewPier(repoRoot string, config *repo.Config) (*Pier, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	return &Pier{
-		privateKey: privateKey,
-		plugin:     cli,
-		grpcPlugin: grpcPlugin,
-		//appchain:   chain,
-		meta:      meta,
-		monitor:   mnt,
-		exchanger: ex,
-		exec:      exec,
-		lite:      lite,
-		pierHA:    pierHA,
-		logger:    logger,
-		storage:   store,
-		ctx:       ctx,
-		cancel:    cancel,
-		config:    config,
+		privateKey:  privateKey,
+		plugin:      cli,
+		grpcPlugin:  grpcPlugin,
+		serviceMeta: serviceMeta,
+		monitor:     mnt,
+		exchanger:   ex,
+		exec:        exec,
+		lite:        lite,
+		pierHA:      pierHA,
+		logger:      logger,
+		storage:     store,
+		ctx:         ctx,
+		cancel:      cancel,
+		config:      config,
 	}, nil
 }
 
@@ -273,9 +255,9 @@ func NewUnionPier(repoRoot string, config *repo.Config) (*Pier, error) {
 		ex          exchanger.IExchanger
 		lite        lite.Lite
 		sync        syncer.Syncer
-		meta        *pb.Interchain
 		ck          checker.Checker
 		peerManager peermgr.PeerManager
+		serviceMeta = make(map[string]*pb.Interchain)
 	)
 
 	ck = &checker.MockChecker{}
@@ -309,14 +291,12 @@ func NewUnionPier(repoRoot string, config *repo.Config) (*Pier, error) {
 		return nil, fmt.Errorf("create bitxhub client: %w", err)
 	}
 
-	meta = &pb.Interchain{}
-
 	lite, err = bxh_lite.New(client, store, loggers.Logger(loggers.BxhLite))
 	if err != nil {
 		return nil, fmt.Errorf("lite create: %w", err)
 	}
 
-	sync, err = syncer.New(addr.String(), config.Appchain.DID, repo.UnionMode,
+	sync, err = syncer.New(addr.String(), config.Appchain.ID, repo.UnionMode,
 		syncer.WithClient(client), syncer.WithLite(lite), syncer.WithStorage(store), syncer.WithLogger(loggers.Logger(loggers.Syncer)),
 	)
 	if err != nil {
@@ -331,7 +311,7 @@ func NewUnionPier(repoRoot string, config *repo.Config) (*Pier, error) {
 
 	router := router.New(peerManager, store, loggers.Logger(loggers.Router), peerManager.(*peermgr.Swarm).ConnectedPeerIDs())
 
-	ex, err = exchanger.New(config.Mode.Type, addr.String(), meta,
+	ex, err = exchanger.New(config.Mode.Type, addr.String(), serviceMeta,
 		exchanger.WithExecutor(exec),
 		exchanger.WithPeerMgr(peerManager),
 		exchanger.WithChecker(ck),
@@ -347,16 +327,16 @@ func NewUnionPier(repoRoot string, config *repo.Config) (*Pier, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	return &Pier{
-		privateKey: privateKey,
-		meta:       meta,
-		exchanger:  ex,
-		exec:       exec,
-		lite:       lite,
-		storage:    store,
-		logger:     logger,
-		ctx:        ctx,
-		cancel:     cancel,
-		config:     config,
+		privateKey:  privateKey,
+		serviceMeta: serviceMeta,
+		exchanger:   ex,
+		exec:        exec,
+		lite:        lite,
+		storage:     store,
+		logger:      logger,
+		ctx:         ctx,
+		cancel:      cancel,
+		config:      config,
 	}, nil
 }
 
@@ -390,12 +370,15 @@ func (pier *Pier) startPierHA() {
 				if status {
 					continue
 				}
-				pier.logger.WithFields(logrus.Fields{
-					"id":                     pier.meta.ID,
-					"interchain_counter":     pier.meta.InterchainCounter,
-					"receipt_counter":        pier.meta.ReceiptCounter,
-					"source_receipt_counter": pier.meta.SourceReceiptCounter,
-				}).Info("Pier information")
+				for serviceID, meta := range pier.serviceMeta {
+					pier.logger.WithFields(logrus.Fields{
+						"id":                        serviceID,
+						"interchain_counter":        meta.InterchainCounter,
+						"receipt_counter":           meta.ReceiptCounter,
+						"source_interchain_counter": meta.SourceInterchainCounter,
+						"source_receipt_counter":    meta.SourceReceiptCounter,
+					}).Infof("Pier information of service %s", serviceID)
+				}
 				if err := pier.monitor.Start(); err != nil {
 					pier.logger.Errorf("monitor start: %w", err)
 					return
@@ -460,4 +443,45 @@ func (pier *Pier) Type() string {
 		return pier.plugin.Type()
 	}
 	return repo.UnionMode
+}
+
+func filterServiceMeta(serviceInterchain map[string]*pb.Interchain, bxhID, appchainID string, serviceIDs []string) map[string]*pb.Interchain {
+	result := make(map[string]*pb.Interchain)
+
+	for _, id := range serviceIDs {
+		fullServiceID := fmt.Sprintf("%s:%s:%s", bxhID, appchainID, id)
+		val, ok := serviceInterchain[fullServiceID]
+		if !ok {
+			val = &pb.Interchain{
+				ID:                      fullServiceID,
+				InterchainCounter:       make(map[string]uint64),
+				ReceiptCounter:          make(map[string]uint64),
+				SourceInterchainCounter: make(map[string]uint64),
+				SourceReceiptCounter:    make(map[string]uint64),
+			}
+		}
+		result[fullServiceID] = val
+	}
+
+	return result
+}
+
+func newBitXHubClient(logger logrus.FieldLogger, privateKey crypto.PrivateKey, config *repo.Config) (rpcx.Client, error) {
+	opts := []rpcx.Option{
+		rpcx.WithLogger(logger),
+		rpcx.WithPrivateKey(privateKey),
+	}
+	nodesInfo := make([]*rpcx.NodeInfo, 0, len(config.Mode.Relay.Addrs))
+	for _, addr := range config.Mode.Relay.Addrs {
+		nodeInfo := &rpcx.NodeInfo{Addr: addr}
+		if config.Security.EnableTLS {
+			nodeInfo.CertPath = filepath.Join(config.RepoRoot, config.Security.Tlsca)
+			nodeInfo.EnableTLS = config.Security.EnableTLS
+			nodeInfo.CommonName = config.Security.CommonName
+		}
+		nodesInfo = append(nodesInfo, nodeInfo)
+	}
+	opts = append(opts, rpcx.WithNodesInfo(nodesInfo...), rpcx.WithTimeoutLimit(config.Mode.Relay.TimeoutLimit))
+
+	return rpcx.New(opts...)
 }

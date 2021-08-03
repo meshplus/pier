@@ -9,17 +9,11 @@ import (
 	"github.com/meshplus/bitxhub-model/pb"
 )
 
+var _ pb.AppchainPluginServer = (*GRPCServer)(nil)
+
 // ---- gRPC Server domain ----
 type GRPCServer struct {
 	Impl Client
-}
-
-func (s *GRPCServer) GetSrcRollbackMeta(ctx context.Context, empty *pb.Empty) (*pb.GetMetaResponse, error) {
-	panic("implement me")
-}
-
-func (s *GRPCServer) GetDstRollbackMeta(ctx context.Context, empty *pb.Empty) (*pb.GetMetaResponse, error) {
-	panic("implement me")
 }
 
 func (s *GRPCServer) GetLockEvent(empty *pb.Empty, server pb.AppchainPlugin_GetLockEventServer) error {
@@ -148,12 +142,49 @@ func (s *GRPCServer) GetCallbackMeta(context.Context, *pb.Empty) (*pb.GetMetaRes
 	}, nil
 }
 
+func (s *GRPCServer) GetSrcRollbackMeta(ctx context.Context, empty *pb.Empty) (*pb.GetMetaResponse, error) {
+	m, err := s.Impl.GetSrcRollbackMeta()
+	if err != nil {
+		return nil, err
+	}
+
+	return &pb.GetMetaResponse{
+		Meta: m,
+	}, nil
+}
+
+func (s *GRPCServer) GetDstRollbackMeta(ctx context.Context, empty *pb.Empty) (*pb.GetMetaResponse, error) {
+	m, err := s.Impl.GetDstRollbackMeta()
+	if err != nil {
+		return nil, err
+	}
+
+	return &pb.GetMetaResponse{
+		Meta: m,
+	}, nil
+}
+
 func (s *GRPCServer) CommitCallback(_ context.Context, _ *pb.IBTP) (*pb.Empty, error) {
 	return &pb.Empty{}, nil
 }
 
 func (s *GRPCServer) GetReceipt(_ context.Context, ibtp *pb.IBTP) (*pb.IBTP, error) {
 	return s.Impl.GetReceipt(ibtp)
+}
+
+func (s *GRPCServer) GetServices(ctx context.Context, empty *pb.Empty) (*pb.ServicesResponse, error) {
+	return &pb.ServicesResponse{
+		Service: s.Impl.GetServices(),
+	}, nil
+}
+
+func (s *GRPCServer) GetChainID(ctx context.Context, empty *pb.Empty) (*pb.ChainIDResponse, error) {
+	bxhID, apchainID := s.Impl.GetChainID()
+
+	return &pb.ChainIDResponse{
+		BxhID:      bxhID,
+		AppchainID: apchainID,
+	}, nil
 }
 
 func (s *GRPCServer) Name(context.Context, *pb.Empty) (*pb.NameResponse, error) {
@@ -342,12 +373,48 @@ func (g *GRPCClient) GetCallbackMeta() (map[string]uint64, error) {
 	return response.Meta, nil
 }
 
+func (g *GRPCClient) GetSrcRollbackMeta() (map[string]uint64, error) {
+	response, err := g.client.GetSrcRollbackMeta(g.doneContext, &pb.Empty{})
+	if err != nil {
+		return nil, err
+	}
+
+	return response.Meta, nil
+}
+
+func (g *GRPCClient) GetDstRollbackMeta() (map[string]uint64, error) {
+	response, err := g.client.GetDstRollbackMeta(g.doneContext, &pb.Empty{})
+	if err != nil {
+		return nil, err
+	}
+
+	return response.Meta, nil
+}
+
 func (g *GRPCClient) CommitCallback(_ *pb.IBTP) error {
 	return nil
 }
 
 func (g *GRPCClient) GetReceipt(ibtp *pb.IBTP) (*pb.IBTP, error) {
 	return g.client.GetReceipt(g.doneContext, ibtp)
+}
+
+func (g *GRPCClient) GetServices() []string {
+	response, err := g.client.GetServices(g.doneContext, &pb.Empty{})
+	if err != nil {
+		return nil
+	}
+
+	return response.GetService()
+}
+
+func (g *GRPCClient) GetChainID() (string, string) {
+	response, err := g.client.GetChainID(g.doneContext, &pb.Empty{})
+	if err != nil {
+		return "", ""
+	}
+
+	return response.BxhID, response.AppchainID
 }
 
 func (g *GRPCClient) Name() string {

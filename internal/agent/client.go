@@ -125,6 +125,14 @@ func (client *BxhClient) GetCallbackMeta() (map[string]uint64, error) {
 	return nil, nil
 }
 
+func (client *BxhClient) GetSrcRollbackMeta() (map[string]uint64, error) {
+	return nil, nil
+}
+
+func (client *BxhClient) GetDstRollbackMeta() (map[string]uint64, error) {
+	return nil, nil
+}
+
 // Initialize .
 func (client *BxhClient) Initialize(configPath string, pierID string, extra []byte) error {
 	return nil
@@ -170,6 +178,14 @@ func (client *BxhClient) RollbackIBTP(ibtp *pb.IBTP, isSrcChain bool) (*pb.Rollb
 
 func (client *BxhClient) IncreaseInMeta(ibtp *pb.IBTP) (*pb.IBTP, error) {
 	return nil, nil
+}
+
+func (client *BxhClient) GetServices() []string {
+	return nil
+}
+
+func (client *BxhClient) GetChainID() (string, string) {
+	return "", ""
 }
 
 // Name .

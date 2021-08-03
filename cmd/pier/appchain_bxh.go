@@ -22,6 +22,7 @@ var appchainBxhCMD = cli.Command{
 	Usage: "Command about appchain in bitxhub",
 	Subcommands: []cli.Command{
 		methodCommand,
+		serviceCommand,
 		didCommand,
 		{
 			Name:  "register",

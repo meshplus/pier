@@ -27,17 +27,16 @@ import (
 )
 
 type Exchanger struct {
-	mode                 string
-	appchainDID          string
-	store                storage.Storage
-	mnt                  monitor.Monitor
-	exec                 executor.Executor
-	syncer               syncer.Syncer
-	router               router.Router
-	interchainCounter    map[string]uint64
-	executorCounter      map[string]uint64
-	callbackCounter      map[string]uint64
-	sourceReceiptCounter map[string]uint64
+	mode         string
+	appchainDID  string
+	store        storage.Storage
+	mnt          monitor.Monitor
+	exec         executor.Executor
+	syncer       syncer.Syncer
+	router       router.Router
+	serviceMeta  map[string]*pb.Interchain
+	callbackMeta map[string]uint64
+	inMeta       map[string]uint64
 
 	apiServer       *api.Server
 	peerMgr         peermgr.PeerManager
@@ -47,35 +46,36 @@ type Exchanger struct {
 	ch              chan struct{} //control the concurrent count
 	ibtps           sync.Map
 	receipts        sync.Map
+	rollbackCh      chan *pb.IBTP
 
 	logger logrus.FieldLogger
 	ctx    context.Context
 	cancel context.CancelFunc
 }
 
-func New(typ, appchainDID string, meta *pb.Interchain, opts ...Option) (*Exchanger, error) {
+func New(typ, appchainDID string, serviceMeta map[string]*pb.Interchain, opts ...Option) (*Exchanger, error) {
 	config := GenerateConfig(opts...)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	return &Exchanger{
-		checker:              config.checker,
-		exec:                 config.exec,
-		apiServer:            config.apiServer,
-		mnt:                  config.mnt,
-		peerMgr:              config.peerMgr,
-		syncer:               config.syncer,
-		store:                config.store,
-		router:               config.router,
-		logger:               config.logger,
-		ch:                   make(chan struct{}, 100),
-		interchainCounter:    copyCounterMap(meta.InterchainCounter),
-		sourceReceiptCounter: copyCounterMap(meta.SourceReceiptCounter),
-		executorCounter:      copyCounterMap(config.exec.QueryInterchainMeta()),
-		callbackCounter:      copyCounterMap(config.exec.QueryCallbackMeta()),
-		mode:                 typ,
-		appchainDID:          appchainDID,
-		ctx:                  ctx,
-		cancel:               cancel,
+		checker:      config.checker,
+		exec:         config.exec,
+		apiServer:    config.apiServer,
+		mnt:          config.mnt,
+		peerMgr:      config.peerMgr,
+		syncer:       config.syncer,
+		store:        config.store,
+		router:       config.router,
+		logger:       config.logger,
+		ch:           make(chan struct{}, 100),
+		serviceMeta:  serviceMeta,
+		callbackMeta: config.exec.QueryCallbackMeta(),
+		inMeta:       config.exec.QueryInterchainMeta(),
+		rollbackCh:   make(chan *pb.IBTP, 1024),
+		mode:         typ,
+		appchainDID:  appchainDID,
+		ctx:          ctx,
+		cancel:       cancel,
 	}, nil
 }
 
@@ -149,6 +149,8 @@ func (ex *Exchanger) startWithRelayMode() error {
 	// recover exchanger before relay any interchain msgs
 	ex.recoverRelay()
 
+	go ex.sendRollbackedIBTP()
+
 	return nil
 }
 
@@ -183,6 +185,24 @@ func (ex *Exchanger) startWithUnionMode() error {
 	return nil
 }
 
+func (ex *Exchanger) sendRollbackedIBTP() {
+	for {
+		select {
+		case <-ex.ctx.Done():
+			return
+		case ibtp, ok := <-ex.rollbackCh:
+			if !ok {
+				ex.logger.Warn("Unexpected closed channel while listening on interchain ibtp")
+				return
+			}
+			ibtp.Type = pb.IBTP_ROLLBACK
+			if err := ex.sendIBTP(ibtp); err != nil {
+				ex.logger.Infof("Send rollbacked ibtp: %s", err.Error())
+			}
+		}
+	}
+}
+
 func (ex *Exchanger) listenAndSendIBTPFromMnt() {
 	ch := ex.mnt.ListenIBTP()
 	for {
@@ -195,16 +215,27 @@ func (ex *Exchanger) listenAndSendIBTPFromMnt() {
 				ex.logger.Warn("Unexpected closed channel while listening on interchain ibtp")
 				return
 			}
-			index := ex.interchainCounter[ibtp.To]
+			_, ok = ex.serviceMeta[ibtp.From]
+			if !ok {
+				ex.serviceMeta[ibtp.From] = &pb.Interchain{
+					ID:                      ibtp.From,
+					InterchainCounter:       make(map[string]uint64),
+					ReceiptCounter:          make(map[string]uint64),
+					SourceInterchainCounter: make(map[string]uint64),
+					SourceReceiptCounter:    make(map[string]uint64),
+				}
+			}
+			index := ex.serviceMeta[ibtp.From].InterchainCounter[ibtp.To]
 			if index >= ibtp.Index {
 				ex.logger.WithFields(logrus.Fields{"index": ibtp.Index, "to_counter": index, "ibtp_id": ibtp.ID()}).Info("Ignore ibtp")
-				continue
+				return
 			}
 
 			if index+1 < ibtp.Index {
 				ex.logger.WithFields(logrus.Fields{"index": ibtp.Index, "to": ibtp.To}).Info("Get missing ibtp")
 
-				if err := ex.handleMissingIBTPFromMnt(ibtp.To, index+1, ibtp.Index); err != nil {
+				servicePair := fmt.Sprintf("%s-%s", ibtp.From, ibtp.To)
+				if err := ex.handleMissingIBTPFromMnt(servicePair, index+1, ibtp.Index); err != nil {
 					ex.logger.WithFields(logrus.Fields{"index": ibtp.Index, "to": ibtp.To, "err": err.Error()}).Error("Handle missing ibtp")
 				}
 			}
@@ -230,6 +261,8 @@ func (ex *Exchanger) listenAndSendIBTPFromMnt() {
 			}, strategy.Backoff(backoff.Fibonacci(500*time.Millisecond))); err != nil {
 				ex.logger.Panic(err)
 			}
+
+			ex.serviceMeta[ibtp.From].InterchainCounter[ibtp.To] = ibtp.Index
 		}
 	}
 }
@@ -248,10 +281,11 @@ func (ex *Exchanger) listenAndSendIBTPFromSyncer() {
 			entry := ex.logger.WithFields(logrus.Fields{"type": wIbtp.Ibtp.Type, "id": wIbtp.Ibtp.ID()})
 			entry.Debugf("Exchanger receives ibtp from syncer")
 			switch wIbtp.Ibtp.Type {
-			case pb.IBTP_INTERCHAIN:
+			case pb.IBTP_INTERCHAIN, pb.IBTP_ROLLBACK:
 				ex.applyInterchain(wIbtp, entry)
-			case pb.IBTP_RECEIPT_SUCCESS, pb.IBTP_RECEIPT_FAILURE:
-				ex.applyReceipt(wIbtp, entry)
+			case pb.IBTP_RECEIPT_SUCCESS, pb.IBTP_RECEIPT_FAILURE, pb.IBTP_RECEIPT_ROLLBACK:
+				//ex.applyReceipt(wIbtp, entry)
+				ex.feedIBTPReceipt(wIbtp)
 			default:
 				entry.Errorf("wrong type of ibtp")
 			}
@@ -302,10 +336,11 @@ func (ex *Exchanger) sendIBTP(ibtp *pb.IBTP) error {
 		if err != nil {
 			entry.Errorf("Send ibtp to bitxhub: %s", err.Error())
 			if errors.Is(err, syncer.ErrMetaOutOfDate) {
-				ex.updateInterchainMeta()
+				ex.updateInterchainMeta(ibtp.From)
 				return nil
 			}
-			return fmt.Errorf("send ibtp to bitxhub: %s", err.Error())
+			ex.handleRollback(ibtp, "")
+			ex.rollbackCh <- ibtp
 		}
 	case repo.DirectMode:
 		// send ibtp to another pier
@@ -334,11 +369,10 @@ func (ex *Exchanger) sendIBTP(ibtp *pb.IBTP) error {
 		}
 	}
 	entry.Info("Send ibtp success from monitor")
-	ex.interchainCounter[ibtp.To] = ibtp.Index
 	return nil
 }
 
-func (ex *Exchanger) queryIBTP(id, target string) (*pb.IBTP, bool, error) {
+func (ex *Exchanger) queryIBTP(id, target string, isReq bool) (*pb.IBTP, bool, error) {
 	verifiedTx := &pb.VerifiedTx{}
 	v := ex.store.Get(model.IBTPKey(id))
 	if v != nil {
@@ -356,7 +390,7 @@ func (ex *Exchanger) queryIBTP(id, target string) (*pb.IBTP, bool, error) {
 	)
 	switch ex.mode {
 	case repo.RelayMode:
-		ibtp, isValid, err = ex.syncer.QueryIBTP(id)
+		ibtp, isValid, err = ex.syncer.QueryIBTP(id, isReq)
 		if err != nil {
 			if errors.Is(err, syncer.ErrIBTPNotFound) {
 				ex.logger.Panicf("query ibtp by id %s from bitxhub: %s", id, err.Error())

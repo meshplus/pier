@@ -14,4 +14,7 @@ type Monitor interface {
 	QueryIBTP(id string) (*pb.IBTP, error)
 	// QueryLatestMeta queries latest index map of ibtps threw on appchain
 	QueryOuterMeta() map[string]uint64
+
+	// QuerySrcRollbackMeta queries latest index map of ibtps rollbacked as src appchain
+	QuerySrcRollbackMeta() map[string]uint64
 }
