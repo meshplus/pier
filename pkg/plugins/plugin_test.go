@@ -261,6 +261,18 @@ type mockAppchainPluginClient struct {
 	count uint64
 }
 
+func (*mockAppchainPluginClient) GetLockEvent(ctx context.Context, in *pb.Empty, opts ...grpc.CallOption) (pb.AppchainPlugin_GetLockEventClient, error) {
+	panic("implement me")
+}
+
+func (*mockAppchainPluginClient) GetUpdateMeta(ctx context.Context, in *pb.Empty, opts ...grpc.CallOption) (pb.AppchainPlugin_GetUpdateMetaClient, error) {
+	panic("implement me")
+}
+
+func (*mockAppchainPluginClient) UnEscrow(ctx context.Context, in *pb.UnLock, opts ...grpc.CallOption) (*pb.Empty, error) {
+	panic("implement me")
+}
+
 func (mc *mockAppchainPluginClient) Initialize(ctx context.Context, in *pb.InitializeRequest, opts ...grpc.CallOption) (*pb.Empty, error) {
 	if in.PierId == to {
 		return nil, fmt.Errorf("initialize error")

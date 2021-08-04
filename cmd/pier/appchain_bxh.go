@@ -268,7 +268,11 @@ func freezeAppchain(ctx *cli.Context) error {
 	}
 
 	proposalId := gjson.Get(string(receipt.Ret), "proposal_id").String()
-	fmt.Printf("the freeze request was submitted successfully, proposal id is %s\n", proposalId)
+	if proposalId != "" {
+		fmt.Printf("the freeze request was submitted successfully, proposal id is %s\n", proposalId)
+	} else {
+		fmt.Printf("the freeze request was submitted successfully\n")
+	}
 
 	return nil
 }
@@ -295,7 +299,11 @@ func activateAppchain(ctx *cli.Context) error {
 	}
 
 	proposalId := gjson.Get(string(receipt.Ret), "proposal_id").String()
-	fmt.Printf("the activate request was submitted successfully, proposal id is %s\n", proposalId)
+	if proposalId != "" {
+		fmt.Printf("the activate request was submitted successfully, proposal id is %s\n", proposalId)
+	} else {
+		fmt.Printf("the activate request was submitted successfully\n")
+	}
 
 	return nil
 }
