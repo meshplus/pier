@@ -14,6 +14,18 @@ type GRPCServer struct {
 	Impl Client
 }
 
+func (s *GRPCServer) GetLockEvent(empty *pb.Empty, server pb.AppchainPlugin_GetLockEventServer) error {
+	panic("implement me")
+}
+
+func (s *GRPCServer) GetUpdateMeta(empty *pb.Empty, server pb.AppchainPlugin_GetUpdateMetaServer) error {
+	panic("implement me")
+}
+
+func (s *GRPCServer) UnEscrow(ctx context.Context, lock *pb.UnLock) (*pb.Empty, error) {
+	panic("implement me")
+}
+
 func (s *GRPCServer) Initialize(_ context.Context, req *pb.InitializeRequest) (*pb.Empty, error) {
 	err := s.Impl.Initialize(req.ConfigPath, req.PierId, req.Extra)
 	return &pb.Empty{}, err
