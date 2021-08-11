@@ -96,7 +96,8 @@ func (ex *Exchanger) applyInterchain(wIbtp *model.WrappedIBTP, entry logrus.Fiel
 
 	if index+1 < ibtp.Index {
 		entry.Info("Get missing ibtp")
-		if err := ex.handleMissingIBTPFromSyncer(ibtp.From, index+1, ibtp.Index); err != nil {
+		servicePair := fmt.Sprintf("%s-%s", ibtp.From, ibtp.To)
+		if err := ex.handleMissingIBTPFromSyncer(servicePair, index+1, ibtp.Index); err != nil {
 			entry.WithField("err", err).Error("Handle missing ibtp")
 			return
 		}

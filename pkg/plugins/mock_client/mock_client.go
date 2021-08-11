@@ -63,6 +63,36 @@ func (mr *MockClientMockRecorder) GetCallbackMeta() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetCallbackMeta", reflect.TypeOf((*MockClient)(nil).GetCallbackMeta))
 }
 
+// GetChainID mocks base method.
+func (m *MockClient) GetChainID() (string, string) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetChainID")
+	ret0, _ := ret[0].(string)
+	ret1, _ := ret[1].(string)
+	return ret0, ret1
+}
+
+// GetChainID indicates an expected call of GetChainID.
+func (mr *MockClientMockRecorder) GetChainID() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetChainID", reflect.TypeOf((*MockClient)(nil).GetChainID))
+}
+
+// GetDstRollbackMeta mocks base method.
+func (m *MockClient) GetDstRollbackMeta() (map[string]uint64, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetDstRollbackMeta")
+	ret0, _ := ret[0].(map[string]uint64)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetDstRollbackMeta indicates an expected call of GetDstRollbackMeta.
+func (mr *MockClientMockRecorder) GetDstRollbackMeta() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetDstRollbackMeta", reflect.TypeOf((*MockClient)(nil).GetDstRollbackMeta))
+}
+
 // GetIBTP mocks base method.
 func (m *MockClient) GetIBTP() chan *pb.IBTP {
 	m.ctrl.T.Helper()
@@ -78,18 +108,18 @@ func (mr *MockClientMockRecorder) GetIBTP() *gomock.Call {
 }
 
 // GetInMessage mocks base method.
-func (m *MockClient) GetInMessage(from string, idx uint64) ([][]byte, error) {
+func (m *MockClient) GetInMessage(servicePair string, idx uint64) ([][]byte, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetInMessage", from, idx)
+	ret := m.ctrl.Call(m, "GetInMessage", servicePair, idx)
 	ret0, _ := ret[0].([][]byte)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // GetInMessage indicates an expected call of GetInMessage.
-func (mr *MockClientMockRecorder) GetInMessage(from, idx interface{}) *gomock.Call {
+func (mr *MockClientMockRecorder) GetInMessage(servicePair, idx interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetInMessage", reflect.TypeOf((*MockClient)(nil).GetInMessage), from, idx)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetInMessage", reflect.TypeOf((*MockClient)(nil).GetInMessage), servicePair, idx)
 }
 
 // GetInMeta mocks base method.
@@ -108,18 +138,18 @@ func (mr *MockClientMockRecorder) GetInMeta() *gomock.Call {
 }
 
 // GetOutMessage mocks base method.
-func (m *MockClient) GetOutMessage(to string, idx uint64) (*pb.IBTP, error) {
+func (m *MockClient) GetOutMessage(servicePair string, idx uint64) (*pb.IBTP, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetOutMessage", to, idx)
+	ret := m.ctrl.Call(m, "GetOutMessage", servicePair, idx)
 	ret0, _ := ret[0].(*pb.IBTP)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // GetOutMessage indicates an expected call of GetOutMessage.
-func (mr *MockClientMockRecorder) GetOutMessage(to, idx interface{}) *gomock.Call {
+func (mr *MockClientMockRecorder) GetOutMessage(servicePair, idx interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetOutMessage", reflect.TypeOf((*MockClient)(nil).GetOutMessage), to, idx)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetOutMessage", reflect.TypeOf((*MockClient)(nil).GetOutMessage), servicePair, idx)
 }
 
 // GetOutMeta mocks base method.
@@ -150,6 +180,35 @@ func (m *MockClient) GetReceipt(ibtp *pb.IBTP) (*pb.IBTP, error) {
 func (mr *MockClientMockRecorder) GetReceipt(ibtp interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetReceipt", reflect.TypeOf((*MockClient)(nil).GetReceipt), ibtp)
+}
+
+// GetServices mocks base method.
+func (m *MockClient) GetServices() []string {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetServices")
+	ret0, _ := ret[0].([]string)
+	return ret0
+}
+
+// GetServices indicates an expected call of GetServices.
+func (mr *MockClientMockRecorder) GetServices() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetServices", reflect.TypeOf((*MockClient)(nil).GetServices))
+}
+
+// GetSrcRollbackMeta mocks base method.
+func (m *MockClient) GetSrcRollbackMeta() (map[string]uint64, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetSrcRollbackMeta")
+	ret0, _ := ret[0].(map[string]uint64)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetSrcRollbackMeta indicates an expected call of GetSrcRollbackMeta.
+func (mr *MockClientMockRecorder) GetSrcRollbackMeta() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetSrcRollbackMeta", reflect.TypeOf((*MockClient)(nil).GetSrcRollbackMeta))
 }
 
 // IncreaseInMeta mocks base method.

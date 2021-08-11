@@ -168,7 +168,7 @@ func (syncer *WrapperSyncer) SendIBTP(ibtp *pb.IBTP) error {
 
 	var receipt *pb.Receipt
 	strategies := []strategy.Strategy{strategy.Wait(2 * time.Second)}
-	if ibtp.Type == pb.IBTP_ROLLBACK {
+	if ibtp.Type != pb.IBTP_ROLLBACK {
 		strategies = append(strategies, strategy.Limit(5))
 	}
 

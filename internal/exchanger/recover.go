@@ -40,6 +40,14 @@ func (ex *Exchanger) handleUnsentIBTP() {
 		ic, ok := ex.serviceMeta[srcServiceID]
 		if ok {
 			beginIndex = ic.InterchainCounter[dstServiceID]
+		} else {
+			ic = &pb.Interchain{
+				ID:                      dstServiceID,
+				InterchainCounter:       make(map[string]uint64),
+				ReceiptCounter:          make(map[string]uint64),
+				SourceInterchainCounter: make(map[string]uint64),
+				SourceReceiptCounter:    make(map[string]uint64),
+			}
 		}
 
 		rollbackIndex = callbackMeta[servicePair]

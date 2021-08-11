@@ -95,8 +95,6 @@ func TestExecute(t *testing.T) {
 	require.Nil(t, err)
 	require.Nil(t, receipt)
 
-	// test for retry of execRollback
-	cli.EXPECT().SubmitIBTP(ibtp1Receipt).Return(nil, fmt.Errorf("submit ibtp receipt error"))
 	cli.EXPECT().SubmitIBTP(ibtp1Receipt).Return(ret1, nil)
 	receipt, err = exec.ExecuteIBTP(&model.WrappedIBTP{Ibtp: ibtp1Receipt, IsValid: true})
 	require.Nil(t, err)
@@ -133,10 +131,6 @@ func TestExecute(t *testing.T) {
 	badFormatIBTPReceipt := getIBTPReceipt(t, uint64(1), pb.IBTP_RECEIPT_SUCCESS, false)
 	badFormatIBTPReceipt.Payload = []byte("bad format of payload")
 	receipt, err = exec.ExecuteIBTP(&model.WrappedIBTP{Ibtp: badFormatIBTPReceipt, IsValid: true})
-	require.NotNil(t, err)
-
-	badFormatIBTPReceipt1 := getBadFormatIBTPReceipt(t, uint64(1), pb.IBTP_RECEIPT_SUCCESS, false)
-	receipt, err = exec.ExecuteIBTP(&model.WrappedIBTP{Ibtp: badFormatIBTPReceipt1, IsValid: true})
 	require.NotNil(t, err)
 
 	// test QueryInterchainMeta
@@ -205,11 +199,9 @@ func prepare(t *testing.T) (*ChannelExecutor, *mock_client.MockClient) {
 	}
 
 	ct := &pb.Content{
-		SrcContractId: fromContract,
-		DstContractId: toContract,
-		Func:          "interchainCharge",
-		Args:          [][]byte{[]byte("Alice")},
-		Callback:      "interchainConfirm",
+		Func:     "interchainCharge",
+		Args:     [][]byte{[]byte("Alice")},
+		Callback: "interchainConfirm",
 	}
 	c, err := ct.Marshal()
 
@@ -238,7 +230,7 @@ func getReceipt() *pb.Receipt {
 
 func getIBTPReceipt(t *testing.T, index uint64, typ pb.IBTP_Type, encrypted bool) *pb.IBTP {
 	receipt := getIBTP(t, index, typ, encrypted)
-	receipt.From, receipt.To = receipt.To, receipt.From
+	//receipt.From, receipt.To = receipt.To, receipt.From
 	return receipt
 }
 
@@ -251,22 +243,19 @@ func getBadFormatIBTPReceipt(t *testing.T, index uint64, typ pb.IBTP_Type, encry
 	require.Nil(t, err)
 
 	return &pb.IBTP{
-		From:      from,
-		To:        to,
-		Payload:   ibtppd,
-		Index:     index,
-		Type:      typ,
-		Timestamp: time.Now().UnixNano(),
+		From:    from,
+		To:      to,
+		Payload: ibtppd,
+		Index:   index,
+		Type:    typ,
 	}
 }
 
 func getIBTP(t *testing.T, index uint64, typ pb.IBTP_Type, encrypted bool) *pb.IBTP {
 	ct := &pb.Content{
-		SrcContractId: fromContract,
-		DstContractId: toContract,
-		Func:          "set",
-		Args:          [][]byte{[]byte("Alice")},
-		Callback:      "interchainConfirm",
+		Func:     "set",
+		Args:     [][]byte{[]byte("Alice")},
+		Callback: "interchainConfirm",
 	}
 	c, err := ct.Marshal()
 	require.Nil(t, err)
@@ -279,11 +268,10 @@ func getIBTP(t *testing.T, index uint64, typ pb.IBTP_Type, encrypted bool) *pb.I
 	require.Nil(t, err)
 
 	return &pb.IBTP{
-		From:      from,
-		To:        to,
-		Payload:   ibtppd,
-		Index:     index,
-		Type:      typ,
-		Timestamp: time.Now().UnixNano(),
+		From:    from,
+		To:      to,
+		Payload: ibtppd,
+		Index:   index,
+		Type:    typ,
 	}
 }

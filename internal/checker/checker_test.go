@@ -2,9 +2,9 @@ package checker
 
 import (
 	"encoding/json"
+	"github.com/meshplus/bitxhub-core/governance"
 	"io/ioutil"
 	"testing"
-	"time"
 
 	"github.com/golang/mock/gomock"
 	appchainmgr "github.com/meshplus/bitxhub-core/appchain-mgr"
@@ -122,11 +122,9 @@ func getAppchain(id, chainType string) (*appchainmgr.Appchain, error) {
 
 func getIBTP(t *testing.T, index uint64, typ pb.IBTP_Type, fid, tid, proofPath string) *pb.IBTP {
 	ct := &pb.Content{
-		SrcContractId: "mychannel&transfer",
-		DstContractId: "mychannel&transfer",
-		Func:          "get",
-		Args:          [][]byte{[]byte("Alice"), []byte("Alice"), []byte("1")},
-		Callback:      "interchainConfirm",
+		Func:     "interchainCharge",
+		Args:     [][]byte{[]byte("Alice"), []byte("Alice"), []byte("1")},
+		Callback: "interchainConfirm",
 	}
 	c, err := ct.Marshal()
 	require.Nil(t, err)
@@ -142,13 +140,12 @@ func getIBTP(t *testing.T, index uint64, typ pb.IBTP_Type, fid, tid, proofPath s
 	require.Nil(t, err)
 
 	return &pb.IBTP{
-		From:      fid,
-		To:        tid,
-		Payload:   ibtppd,
-		Index:     index,
-		Type:      typ,
-		Timestamp: time.Now().UnixNano(),
-		Proof:     proof,
+		From:    fid,
+		To:      tid,
+		Payload: ibtppd,
+		Index:   index,
+		Type:    typ,
+		Proof:   proof,
 	}
 }
 
@@ -156,8 +153,12 @@ func getIBTP(t *testing.T, index uint64, typ pb.IBTP_Type, fid, tid, proofPath s
 type MockAppchainMgr struct {
 }
 
-func (m MockAppchainMgr) ChangeStatus(id, trigger string, extra []byte) (bool, []byte) {
-	return true, nil
+func (m MockAppchainMgr) ChangeStatus(id, trigger, lastStatus string, extra []byte) (bool, []byte) {
+	panic("implement me")
+}
+
+func (m MockAppchainMgr) GovernancePre(id string, event governance.EventType, extra []byte) (bool, []byte) {
+	panic("implement me")
 }
 
 func (m MockAppchainMgr) CountAvailable(extra []byte) (bool, []byte) {

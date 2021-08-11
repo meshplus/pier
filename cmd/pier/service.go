@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
 	"github.com/meshplus/bitxhub-model/constant"
 	rpcx "github.com/meshplus/go-bitxhub-client"
@@ -102,10 +101,6 @@ func registerService(ctx *cli.Context) error {
 	if !receipt.IsSuccess() {
 		return fmt.Errorf("register service info faild: %s", string(receipt.Ret))
 	}
-	ret := &GovernanceResult{}
-	if err := json.Unmarshal(receipt.Ret, ret); err != nil {
-		return err
-	}
-	fmt.Printf("Register appchain service info for %s successfully, wait for proposal %s to finish.\n", string(ret.Extra), ret.ProposalID)
+	fmt.Printf("Register appchain service info for %s successfully.\n", serviceID)
 	return nil
 }

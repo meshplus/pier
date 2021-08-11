@@ -2,11 +2,6 @@ package router
 
 import (
 	"encoding/json"
-	"io/ioutil"
-	"path/filepath"
-	"testing"
-	"time"
-
 	"github.com/golang/mock/gomock"
 	appchainmgr "github.com/meshplus/bitxhub-core/appchain-mgr"
 	"github.com/meshplus/bitxhub-kit/log"
@@ -17,6 +12,9 @@ import (
 	peerproto "github.com/meshplus/pier/internal/peermgr/proto"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"io/ioutil"
+	"path/filepath"
+	"testing"
 )
 
 const (
@@ -89,9 +87,7 @@ func TestUnionRouter_AddAppchains(t *testing.T) {
 
 func mockIBTP(t *testing.T, index uint64, typ pb.IBTP_Type) *pb.IBTP {
 	content := pb.Content{
-		SrcContractId: from,
-		DstContractId: from,
-		Func:          "set",
+		Func: "set",
 	}
 
 	bytes, err := content.Marshal()
@@ -104,11 +100,10 @@ func mockIBTP(t *testing.T, index uint64, typ pb.IBTP_Type) *pb.IBTP {
 	assert.Nil(t, err)
 
 	return &pb.IBTP{
-		From:      from,
-		To:        to,
-		Payload:   ibtppd,
-		Index:     index,
-		Type:      typ,
-		Timestamp: time.Now().UnixNano(),
+		From:    from,
+		To:      to,
+		Payload: ibtppd,
+		Index:   index,
+		Type:    typ,
 	}
 }

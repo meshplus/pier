@@ -131,6 +131,7 @@ func DefaultConfig() *Config {
 					"0xb18c8575e3284e79b92100025a31378feb8100d6",
 					"0x856E2B9A5FA82FD1B031D1FF6863864DBAC7995D",
 				},
+				BitXHubID: "1356",
 			},
 			Direct: Direct{
 				Peers: []string{},

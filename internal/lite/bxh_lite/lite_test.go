@@ -241,10 +241,8 @@ func getTx(t *testing.T) *pb.BxhTransaction {
 
 func getIBTP(t *testing.T, index uint64, typ pb.IBTP_Type) *pb.IBTP {
 	ct := &pb.Content{
-		SrcContractId: from,
-		DstContractId: from,
-		Func:          "set",
-		Args:          [][]byte{[]byte("Alice")},
+		Func: "set",
+		Args: [][]byte{[]byte("Alice")},
 	}
 	c, err := ct.Marshal()
 	require.Nil(t, err)
@@ -257,11 +255,10 @@ func getIBTP(t *testing.T, index uint64, typ pb.IBTP_Type) *pb.IBTP {
 	require.Nil(t, err)
 
 	return &pb.IBTP{
-		From:      from,
-		To:        from,
-		Payload:   ibtppd,
-		Index:     index,
-		Type:      typ,
-		Timestamp: time.Now().UnixNano(),
+		From:    from,
+		To:      from,
+		Payload: ibtppd,
+		Index:   index,
+		Type:    typ,
 	}
 }

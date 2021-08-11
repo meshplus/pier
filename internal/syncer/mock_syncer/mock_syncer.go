@@ -96,6 +96,21 @@ func (mr *MockSyncerMockRecorder) GetInterchainById(from interface{}) *gomock.Ca
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetInterchainById", reflect.TypeOf((*MockSyncer)(nil).GetInterchainById), from)
 }
 
+// GetTxStatus mocks base method.
+func (m *MockSyncer) GetTxStatus(id string) (pb.TransactionStatus, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetTxStatus", id)
+	ret0, _ := ret[0].(pb.TransactionStatus)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetTxStatus indicates an expected call of GetTxStatus.
+func (mr *MockSyncerMockRecorder) GetTxStatus(id interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetTxStatus", reflect.TypeOf((*MockSyncer)(nil).GetTxStatus), id)
+}
+
 // ListenIBTP mocks base method.
 func (m *MockSyncer) ListenIBTP() <-chan *model.WrappedIBTP {
 	m.ctrl.T.Helper()
@@ -111,9 +126,9 @@ func (mr *MockSyncerMockRecorder) ListenIBTP() *gomock.Call {
 }
 
 // QueryIBTP mocks base method.
-func (m *MockSyncer) QueryIBTP(ibtpID string) (*pb.IBTP, bool, error) {
+func (m *MockSyncer) QueryIBTP(ibtpID string, isReq bool) (*pb.IBTP, bool, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "QueryIBTP", ibtpID)
+	ret := m.ctrl.Call(m, "QueryIBTP", ibtpID, isReq)
 	ret0, _ := ret[0].(*pb.IBTP)
 	ret1, _ := ret[1].(bool)
 	ret2, _ := ret[2].(error)
@@ -121,23 +136,23 @@ func (m *MockSyncer) QueryIBTP(ibtpID string) (*pb.IBTP, bool, error) {
 }
 
 // QueryIBTP indicates an expected call of QueryIBTP.
-func (mr *MockSyncerMockRecorder) QueryIBTP(ibtpID interface{}) *gomock.Call {
+func (mr *MockSyncerMockRecorder) QueryIBTP(ibtpID, isReq interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "QueryIBTP", reflect.TypeOf((*MockSyncer)(nil).QueryIBTP), ibtpID)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "QueryIBTP", reflect.TypeOf((*MockSyncer)(nil).QueryIBTP), ibtpID, isReq)
 }
 
 // QueryInterchainMeta mocks base method.
-func (m *MockSyncer) QueryInterchainMeta() *pb.Interchain {
+func (m *MockSyncer) QueryInterchainMeta(servicePair string) *pb.Interchain {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "QueryInterchainMeta")
+	ret := m.ctrl.Call(m, "QueryInterchainMeta", servicePair)
 	ret0, _ := ret[0].(*pb.Interchain)
 	return ret0
 }
 
 // QueryInterchainMeta indicates an expected call of QueryInterchainMeta.
-func (mr *MockSyncerMockRecorder) QueryInterchainMeta() *gomock.Call {
+func (mr *MockSyncerMockRecorder) QueryInterchainMeta(servicePair interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "QueryInterchainMeta", reflect.TypeOf((*MockSyncer)(nil).QueryInterchainMeta))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "QueryInterchainMeta", reflect.TypeOf((*MockSyncer)(nil).QueryInterchainMeta), servicePair)
 }
 
 // RegisterAppchainHandler mocks base method.
