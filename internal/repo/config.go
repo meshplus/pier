@@ -59,6 +59,7 @@ type Relay struct {
 	TimeoutLimit time.Duration `mapstructure:"timeout_limit" json:"timeout_limit"`
 	Quorum       uint64        `toml:"quorum" json:"quorum"`
 	Validators   []string      `toml:"validators" json:"validators"`
+	BitXHubID    string        `mapstructure:"bitxhub_id" json:"bitxhub_id"`
 }
 
 type Direct struct {
@@ -105,7 +106,7 @@ type LogModule struct {
 
 // Appchain are configs about appchain
 type Appchain struct {
-	DID    string `toml:"did" json:"did"`
+	ID     string `toml:"id" json:"id"`
 	Config string `toml:"config" json:"config"`
 	Plugin string `toml:"plugin" json:"plugin"`
 }
@@ -130,6 +131,7 @@ func DefaultConfig() *Config {
 					"0xb18c8575e3284e79b92100025a31378feb8100d6",
 					"0x856E2B9A5FA82FD1B031D1FF6863864DBAC7995D",
 				},
+				BitXHubID: "1356",
 			},
 			Direct: Direct{
 				Peers: []string{},
@@ -168,7 +170,7 @@ func DefaultConfig() *Config {
 			Mode: "single",
 		},
 		Appchain: Appchain{
-			DID:    "did:bitxhub:appchain:.",
+			ID:     "appchain",
 			Plugin: "appchain_plugin",
 			Config: "fabric",
 		},

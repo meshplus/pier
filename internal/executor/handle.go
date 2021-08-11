@@ -26,14 +26,13 @@ func (e *ChannelExecutor) ExecuteIBTP(wIbtp *model.WrappedIBTP) (*pb.IBTP, error
 		"index": ibtp.Index,
 		"type":  ibtp.Type,
 		"from":  ibtp.From,
-		"id":    ibtp.ID(),
+		"to":    ibtp.To,
 	}).Info("Apply tx")
 
 	switch ibtp.Type {
-	case pb.IBTP_INTERCHAIN, pb.IBTP_ASSET_EXCHANGE_INIT,
-		pb.IBTP_ASSET_EXCHANGE_REDEEM, pb.IBTP_ASSET_EXCHANGE_REFUND:
+	case pb.IBTP_INTERCHAIN, pb.IBTP_ROLLBACK:
 		return e.applyInterchainIBTP(wIbtp)
-	case pb.IBTP_RECEIPT_SUCCESS, pb.IBTP_RECEIPT_FAILURE, pb.IBTP_ASSET_EXCHANGE_RECEIPT:
+	case pb.IBTP_RECEIPT_SUCCESS, pb.IBTP_RECEIPT_FAILURE:
 		err := e.applyReceiptIBTP(wIbtp)
 		return nil, err
 	default:
@@ -49,6 +48,7 @@ func (e *ChannelExecutor) applyInterchainIBTP(wIbtp *model.WrappedIBTP) (*pb.IBT
 	ibtp := wIbtp.Ibtp
 	entry := e.logger.WithFields(logrus.Fields{
 		"from":  ibtp.From,
+		"to":    ibtp.To,
 		"type":  ibtp.Type,
 		"index": ibtp.Index,
 	})
@@ -84,93 +84,65 @@ func (e *ChannelExecutor) applyInterchainIBTP(wIbtp *model.WrappedIBTP) (*pb.IBT
 }
 
 func (e *ChannelExecutor) applyReceiptIBTP(wIbtp *model.WrappedIBTP) error {
+	// if this ibtp receipt fail, no need to rollback
+	if !wIbtp.IsValid {
+		return nil
+	}
+
 	ibtp := wIbtp.Ibtp
 	pd := &pb.Payload{}
 	if err := pd.Unmarshal(ibtp.Payload); err != nil {
 		return fmt.Errorf("unmarshal receipt type ibtp payload: %w", err)
 	}
 
-	ct := &pb.Content{}
-	contentByte := pd.Content
-
-	var err error
 	if pd.Encrypted {
-		contentByte, err = e.cryptor.Decrypt(contentByte, ibtp.To)
+		contentByte, err := e.cryptor.Decrypt(pd.Content, ibtp.To)
 		if err != nil {
 			return fmt.Errorf("decrypt ibtp payload content: %w", err)
 		}
-	}
 
-	if err := ct.Unmarshal(contentByte); err != nil {
-		return fmt.Errorf("unmarshal payload content: %w", err)
-	}
-
-	// if this ibtp receipt fail, no need to rollback
-	if !wIbtp.IsValid {
-		return nil
-	}
-	// if this is a callback ibtp, retry it until it worked
-	// because it might be rollback in asset
-	if err := retry.Retry(func(attempt uint) error {
-		if err := e.execCallback(ibtp); err != nil {
-			e.logger.Errorf("Execute callback tx: %s, retry sending tx", err.Error())
-			return fmt.Errorf("execute callback tx: %w", err)
+		pd.Content = contentByte
+		pd.Encrypted = false
+		payload, err := pd.Marshal()
+		if err != nil {
+			return err
 		}
-		return nil
-	}, strategy.Wait(1*time.Second)); err != nil {
-		e.logger.Errorf("Execution of callback function failed: %s", err.Error())
-	}
-	return nil
-}
 
-// execCallback is the handler for callback function of one interchain tx
-func (e *ChannelExecutor) execCallback(ibtp *pb.IBTP) error {
-	ibtp.From, ibtp.To = ibtp.To, ibtp.From
-
-	// no need to send receipt for callback
-	resp, err := e.client.SubmitIBTP(ibtp)
-	if err != nil {
-		return fmt.Errorf("handle ibtp of callback %w", err)
+		ibtp.Payload = payload
 	}
 
-	// executor should not change the content of ibtp
-	ibtp.From, ibtp.To = ibtp.To, ibtp.From
-	e.logger.WithFields(logrus.Fields{
-		"index":  ibtp.Index,
-		"type":   ibtp.Type,
-		"status": resp.Status,
-		"msg":    resp.Message,
-	}).Info("Execute callback")
+	if _, err := e.client.SubmitIBTP(ibtp); err != nil {
+		e.logger.Errorf("Execute callback tx: %s", err.Error())
+		return fmt.Errorf("execute callback tx: %w", err)
+	}
 
 	return nil
 }
 
 func (e *ChannelExecutor) Rollback(ibtp *pb.IBTP, isSrcChain bool) {
 	if err := retry.Retry(func(attempt uint) error {
-		err := e.execRollback(ibtp, isSrcChain)
+		resp, err := e.client.RollbackIBTP(ibtp, isSrcChain)
 		if err != nil {
-			e.logger.Errorf("Execute callback tx: %s, retry sending tx", err.Error())
-			return fmt.Errorf("execute callback tx: %w", err)
+			e.logger.Errorf("Execute rollback ibtp %v failed: %s, retry sending tx", ibtp, err.Error())
+			return fmt.Errorf("execute rollback tx: %w", err)
 		}
+
+		if !resp.Status {
+			e.logger.Errorf("Execute rollback ibtp %v got failed response: %s, retry sending tx", ibtp, resp.Message)
+			return fmt.Errorf("execute rollback tx: %w", err)
+		}
+
+		e.logger.WithFields(logrus.Fields{
+			"from":   ibtp.From,
+			"to":     ibtp.To,
+			"index":  ibtp.Index,
+			"type":   ibtp.Type,
+			"status": resp.Status,
+			"msg":    resp.Message,
+		}).Info("Executed rollback")
+
 		return nil
 	}, strategy.Wait(1*time.Second)); err != nil {
 		e.logger.Errorf("Execution of callback function failed: %s", err.Error())
 	}
-}
-
-// execRollback is the handler for rollback function of one interchain tx
-func (e *ChannelExecutor) execRollback(ibtp *pb.IBTP, isSrcChain bool) error {
-	// no need to send receipt for callback
-	resp, err := e.client.RollbackIBTP(ibtp, isSrcChain)
-	if err != nil {
-		return fmt.Errorf("rollback ibtp on source appchain %w", err)
-	}
-
-	e.logger.WithFields(logrus.Fields{
-		"index":  ibtp.Index,
-		"type":   ibtp.Type,
-		"status": resp.Status,
-		"msg":    resp.Message,
-	}).Info("Executed rollbcak")
-	return nil
 }

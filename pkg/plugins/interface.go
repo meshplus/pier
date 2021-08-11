@@ -29,10 +29,10 @@ type Client interface {
 	IncreaseInMeta(ibtp *pb.IBTP) (*pb.IBTP, error)
 
 	// GetOutMessage gets interchain ibtp by index and target chain_id from broker contract
-	GetOutMessage(to string, idx uint64) (*pb.IBTP, error)
+	GetOutMessage(servicePair string, idx uint64) (*pb.IBTP, error)
 
 	// GetInMessage gets receipt by index and source chain_id
-	GetInMessage(from string, idx uint64) ([][]byte, error)
+	GetInMessage(servicePair string, idx uint64) ([][]byte, error)
 
 	// GetOutMeta gets an index map, which implicates the greatest index of
 	// ingoing interchain txs for each source chain
@@ -46,11 +46,25 @@ type Client interface {
 	// executed callback txs for each receiving chain
 	GetCallbackMeta() (map[string]uint64, error)
 
+	// GetSrcRollbackMeta gets an index map, which implicates the greatest index of
+	// executed rollback txs to each receiving chain
+	GetSrcRollbackMeta() (map[string]uint64, error)
+
+	// GetDstRollbackMeta gets an index map, which implicates the greatest index of
+	// executed rollback txs from each source chain
+	GetDstRollbackMeta() (map[string]uint64, error)
+
 	// CommitCallback is a callback function when get receipt from bitxhub success
 	CommitCallback(ibtp *pb.IBTP) error
 
 	// GetReceipt gets receipt of an executed IBTP
 	GetReceipt(ibtp *pb.IBTP) (*pb.IBTP, error)
+
+	// GetServices gets all service IDs the pier cares
+	GetServices() []string
+
+	// GetChainID gets BitXHub and appchain ID
+	GetChainID() (string, string)
 
 	// Name gets name of blockchain from plugin
 	Name() string

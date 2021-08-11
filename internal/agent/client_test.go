@@ -3,7 +3,6 @@ package agent
 import (
 	"encoding/json"
 	"testing"
-	"time"
 
 	"github.com/golang/mock/gomock"
 	"github.com/meshplus/bitxhub-kit/types"
@@ -26,13 +25,12 @@ func TestClient_SubmitIBTP(t *testing.T) {
 		Status: 0,
 	}
 	mockClient.EXPECT().InvokeContract(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(),
-		gomock.Any(), gomock.Any(), gomock.Any()).Return(r, nil).AnyTimes()
+		gomock.Any(), gomock.Any()).Return(r, nil).AnyTimes()
 
 	ibtp := &pb.IBTP{
-		From:      from,
-		To:        to,
-		Index:     1,
-		Timestamp: time.Now().UnixNano(),
+		From:  from,
+		To:    to,
+		Index: 1,
 	}
 	_, err := agClient.SubmitIBTP(ibtp)
 	require.Nil(t, err)
@@ -54,14 +52,12 @@ func TestClient_SubmitIBTPWithCallback(t *testing.T) {
 	}
 
 	mockClient.EXPECT().InvokeContract(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(),
-		gomock.Any(), gomock.Any(), gomock.Any()).Return(r, nil).AnyTimes()
+		gomock.Any(), gomock.Any()).Return(r, nil).AnyTimes()
 	mockClient.EXPECT().GetMultiSigns(gomock.Any(), gomock.Any()).Return(sr, nil).AnyTimes()
 
 	content := &pb.Content{
-		SrcContractId: from,
-		DstContractId: to,
-		Func:          "get",
-		Callback:      "set",
+		Func:     "get",
+		Callback: "set",
 	}
 
 	c, err := content.Marshal()
@@ -76,11 +72,10 @@ func TestClient_SubmitIBTPWithCallback(t *testing.T) {
 	require.Nil(t, err)
 
 	ibtp := &pb.IBTP{
-		From:      from,
-		To:        to,
-		Index:     1,
-		Timestamp: time.Now().UnixNano(),
-		Payload:   p,
+		From:    from,
+		To:      to,
+		Index:   1,
+		Payload: p,
 	}
 
 	_, err = agClient.SubmitIBTP(ibtp)

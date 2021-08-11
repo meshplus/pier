@@ -37,7 +37,7 @@ func TestHandleIBTP(t *testing.T) {
 	originalMeta := map[string]uint64{to: 2}
 
 	mockClient.EXPECT().CommitCallback(gomock.Any()).Return(nil).AnyTimes()
-	mockClient.EXPECT().GetOutMessage(normalIbtp.To, normalIbtp.Index).Return(normalIbtp, nil).MaxTimes(2)
+	mockClient.EXPECT().GetOutMessage(fmt.Sprintf("%s-%s", normalIbtp.From, normalIbtp.To), normalIbtp.Index).Return(normalIbtp, nil).MaxTimes(2)
 	mockClient.EXPECT().GetOutMeta().Return(originalMeta, nil)
 	//mockClient.EXPECT().GetOutMessage(to, uint64(6)).Return(nil, errWrongIBTP).AnyTimes()
 	mockClient.EXPECT().Start().Return(nil).AnyTimes()
@@ -81,8 +81,8 @@ func TestHandleIBTP(t *testing.T) {
 
 	// test query ibtp with error
 	mockCryptor.EXPECT().Encrypt(gomock.Any(), gomock.Any()).Return(encryptedContent, nil).AnyTimes()
-	badCall := mockClient.EXPECT().GetOutMessage(badEncryptedIbtp.To, badEncryptedIbtp.Index).Return(nil, fmt.Errorf("worong call to get ibtp"))
-	badCall1 := mockClient.EXPECT().GetOutMessage(badEncryptedIbtp.To, badEncryptedIbtp.Index).Return(badEncryptedIbtp, nil)
+	badCall := mockClient.EXPECT().GetOutMessage(fmt.Sprintf("%s-%s", badEncryptedIbtp.From, badEncryptedIbtp.To), badEncryptedIbtp.Index).Return(nil, fmt.Errorf("worong call to get ibtp"))
+	badCall1 := mockClient.EXPECT().GetOutMessage(fmt.Sprintf("%s-%s", badEncryptedIbtp.From, badEncryptedIbtp.To), badEncryptedIbtp.Index).Return(badEncryptedIbtp, nil)
 	gomock.InOrder(badCall, badCall1)
 	recvd, err = mnt.QueryIBTP(badEncryptedIbtp.ID())
 	require.Nil(t, err)
@@ -107,11 +107,9 @@ func prepare(t *testing.T) (*mock_client.MockClient, *mock_txcrypto.MockCryptor,
 
 func createIBTP(idx uint64, typ pb.IBTP_Type, funct string, args string, callback string, encrypted bool) (*pb.IBTP, error) {
 	ct := pb.Content{
-		SrcContractId: fid,
-		DstContractId: tid,
-		Func:          funct,
-		Args:          [][]byte{[]byte(args)},
-		Callback:      callback,
+		Func:     funct,
+		Args:     [][]byte{[]byte(args)},
+		Callback: callback,
 	}
 	c, err := ct.Marshal()
 	if err != nil {
@@ -127,13 +125,12 @@ func createIBTP(idx uint64, typ pb.IBTP_Type, funct string, args string, callbac
 	}
 
 	return &pb.IBTP{
-		From:      from,
-		To:        to,
-		Index:     idx,
-		Type:      typ,
-		Timestamp: time.Now().UnixNano(),
-		Payload:   b,
-		Version:   "0.4.1",
+		From:    from,
+		To:      to,
+		Index:   idx,
+		Type:    typ,
+		Payload: b,
+		Version: "0.4.1",
 	}, nil
 }
 
@@ -148,12 +145,11 @@ func createBadEncryptedIBTP(idx uint64, typ pb.IBTP_Type) (*pb.IBTP, error) {
 	}
 
 	return &pb.IBTP{
-		From:      from,
-		To:        to,
-		Index:     idx,
-		Type:      typ,
-		Timestamp: time.Now().UnixNano(),
-		Payload:   b,
-		Version:   "0.4.1",
+		From:    from,
+		To:      to,
+		Index:   idx,
+		Type:    typ,
+		Payload: b,
+		Version: "0.4.1",
 	}, nil
 }

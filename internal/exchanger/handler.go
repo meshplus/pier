@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/Rican7/retry"
@@ -27,16 +28,6 @@ func (ex *Exchanger) handleIBTP(wIbtp *model.WrappedIBTP, entry logrus.FieldLogg
 		return
 	}
 	entry.Debugf("IBTP pass check")
-	if pb.IBTP_ASSET_EXCHANGE_REDEEM == ibtp.Type || pb.IBTP_ASSET_EXCHANGE_REFUND == ibtp.Type {
-		if err := retry.Retry(func(attempt uint) error {
-			if err := ex.fetchSignsToIBTP(ibtp); err != nil {
-				return err
-			}
-			return nil
-		}, strategy.Wait(1*time.Second)); err != nil {
-			ex.logger.Panic(err)
-		}
-	}
 
 	receipt, err := ex.exec.ExecuteIBTP(wIbtp)
 	if err != nil {
@@ -53,7 +44,11 @@ sendReceiptLoop:
 		if err != nil {
 			ex.logger.Errorf("send ibtp error: %s", err.Error())
 			if errors.Is(err, syncer.ErrMetaOutOfDate) {
-				ex.updateSourceReceiptMeta()
+				ex.updateSourceReceiptMeta(ibtp.To)
+				return
+			}
+			if strings.Contains(err.Error(), "rollback") {
+				ex.exec.Rollback(ibtp, false)
 				return
 			}
 			// if sending receipt failed, try to get new receipt from appchain and retry
@@ -76,7 +71,7 @@ sendReceiptLoop:
 
 func (ex *Exchanger) applyReceipt(wIbtp *model.WrappedIBTP, entry logrus.FieldLogger) {
 	ibtp := wIbtp.Ibtp
-	index := ex.callbackCounter[ibtp.To]
+	index := ex.serviceMeta[ibtp.From].ReceiptCounter[ibtp.To]
 	if index >= ibtp.Index {
 		entry.Infof("Ignore ibtp callback, expected index %d", index+1)
 		return
@@ -88,12 +83,12 @@ func (ex *Exchanger) applyReceipt(wIbtp *model.WrappedIBTP, entry logrus.FieldLo
 		return
 	}
 	ex.handleIBTP(wIbtp, entry)
-	ex.callbackCounter[ibtp.To] = ibtp.Index
+	ex.serviceMeta[ibtp.From].ReceiptCounter[ibtp.To] = ibtp.Index
 }
 
 func (ex *Exchanger) applyInterchain(wIbtp *model.WrappedIBTP, entry logrus.FieldLogger) {
 	ibtp := wIbtp.Ibtp
-	index := ex.executorCounter[ibtp.From]
+	index := ex.serviceMeta[ibtp.To].SourceInterchainCounter[ibtp.From]
 	if index >= ibtp.Index {
 		entry.Infof("Ignore ibtp, expected %d", index+1)
 		return
@@ -101,16 +96,30 @@ func (ex *Exchanger) applyInterchain(wIbtp *model.WrappedIBTP, entry logrus.Fiel
 
 	if index+1 < ibtp.Index {
 		entry.Info("Get missing ibtp")
-		if err := ex.handleMissingIBTPFromSyncer(ibtp.From, index+1, ibtp.Index); err != nil {
+		servicePair := fmt.Sprintf("%s-%s", ibtp.From, ibtp.To)
+		if err := ex.handleMissingIBTPFromSyncer(servicePair, index+1, ibtp.Index); err != nil {
 			entry.WithField("err", err).Error("Handle missing ibtp")
 			return
 		}
 	}
 	ex.handleIBTP(wIbtp, entry)
-	ex.executorCounter[ibtp.From] = ibtp.Index
+	ex.serviceMeta[ibtp.To].SourceInterchainCounter[ibtp.From] = ibtp.Index
 }
 
-func (ex *Exchanger) handleRollback(ibtp *pb.IBTP) {
+func (ex *Exchanger) handleRollback(ibtp *pb.IBTP, ibtpId string) {
+	var err error
+	if ibtp == nil {
+		if err := retry.Retry(func(attempt uint) error {
+			ibtp, err = ex.mnt.QueryIBTP(ibtpId)
+			if err != nil {
+				ex.logger.Warnf("query ibtp %s: %v", err)
+				return err
+			}
+			return nil
+		}, strategy.Wait(time.Second*1)); err != nil {
+			ex.logger.Panic(err)
+		}
+	}
 	if ibtp.Category() == pb.IBTP_RESPONSE {
 		// if this is receipt type of ibtp, no need to rollback
 		return

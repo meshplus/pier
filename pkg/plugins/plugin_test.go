@@ -3,9 +3,6 @@ package plugins
 import (
 	"context"
 	"fmt"
-	"testing"
-	"time"
-
 	"github.com/golang/mock/gomock"
 	"github.com/meshplus/bitxhub-model/pb"
 	"github.com/meshplus/pier/internal/repo"
@@ -13,6 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
+	"testing"
 )
 
 const (
@@ -261,6 +259,50 @@ type mockAppchainPluginClient struct {
 	count uint64
 }
 
+func (mc *mockAppchainPluginClient) GetLockEvent(ctx context.Context, in *pb.Empty, opts ...grpc.CallOption) (pb.AppchainPlugin_GetLockEventClient, error) {
+	panic("implement me")
+}
+
+func (mc *mockAppchainPluginClient) GetUpdateMeta(ctx context.Context, in *pb.Empty, opts ...grpc.CallOption) (pb.AppchainPlugin_GetUpdateMetaClient, error) {
+	panic("implement me")
+}
+
+func (mc *mockAppchainPluginClient) UnEscrow(ctx context.Context, in *pb.UnLock, opts ...grpc.CallOption) (*pb.Empty, error) {
+	panic("implement me")
+}
+
+func (mc *mockAppchainPluginClient) GetServices(ctx context.Context, in *pb.Empty, opts ...grpc.CallOption) (*pb.ServicesResponse, error) {
+	panic("implement me")
+}
+
+func (mc *mockAppchainPluginClient) GetChainID(ctx context.Context, in *pb.Empty, opts ...grpc.CallOption) (*pb.ChainIDResponse, error) {
+	panic("implement me")
+}
+
+func (mc *mockAppchainPluginClient) QueryFilterLockStart(ctx context.Context, in *pb.QueryFilterLockStartRequest, opts ...grpc.CallOption) (*pb.QueryFilterLockStartResponse, error) {
+	panic("implement me")
+}
+
+func (mc *mockAppchainPluginClient) QueryLockEventByIndex(ctx context.Context, in *pb.QueryLockEventByIndexRequest, opts ...grpc.CallOption) (*pb.LockEvent, error) {
+	panic("implement me")
+}
+
+func (mc *mockAppchainPluginClient) QueryAppchainIndex(ctx context.Context, in *pb.Empty, opts ...grpc.CallOption) (*pb.QueryAppchainIndexResponse, error) {
+	panic("implement me")
+}
+
+func (mc *mockAppchainPluginClient) QueryRelayIndex(ctx context.Context, in *pb.Empty, opts ...grpc.CallOption) (*pb.QueryRelayIndexResponse, error) {
+	panic("implement me")
+}
+
+func (mc *mockAppchainPluginClient) GetSrcRollbackMeta(ctx context.Context, in *pb.Empty, opts ...grpc.CallOption) (*pb.GetMetaResponse, error) {
+	panic("implement me")
+}
+
+func (mc *mockAppchainPluginClient) GetDstRollbackMeta(ctx context.Context, in *pb.Empty, opts ...grpc.CallOption) (*pb.GetMetaResponse, error) {
+	panic("implement me")
+}
+
 func (mc *mockAppchainPluginClient) Initialize(ctx context.Context, in *pb.InitializeRequest, opts ...grpc.CallOption) (*pb.Empty, error) {
 	if in.PierId == to {
 		return nil, fmt.Errorf("initialize error")
@@ -300,9 +342,8 @@ func (mc *mockAppchainPluginClient) SubmitIBTP(ctx context.Context, in *pb.IBTP,
 
 func (mc *mockAppchainPluginClient) GetOutMessage(ctx context.Context, in *pb.GetOutMessageRequest, opts ...grpc.CallOption) (*pb.IBTP, error) {
 	return &pb.IBTP{
-		To:        in.To,
-		Index:     in.Idx,
-		Timestamp: time.Now().UnixNano(),
+		To:    in.To,
+		Index: in.Idx,
 	}, nil
 }
 
@@ -367,11 +408,10 @@ func (mc *mockAppchainPluginClient) IncreaseInMeta(ctx context.Context, in *pb.I
 func (mc *mockAppchainPluginClient) GetReceipt(ctx context.Context, in *pb.IBTP, opts ...grpc.CallOption) (*pb.IBTP, error) {
 	if ctx == context.Background() {
 		return &pb.IBTP{
-			From:      in.From,
-			To:        in.To,
-			Index:     in.Index,
-			Timestamp: time.Now().UnixNano(),
-			Type:      pb.IBTP_RECEIPT_SUCCESS,
+			From:  in.From,
+			To:    in.To,
+			Index: in.Index,
+			Type:  pb.IBTP_RECEIPT_SUCCESS,
 		}, nil
 	}
 	return nil, fmt.Errorf("mockAppchainPluginClient get receipt error")

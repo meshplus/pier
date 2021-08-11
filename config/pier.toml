@@ -10,17 +10,17 @@ dir = "logs"
 filename = "pier.log"
 report_caller = false
 [log.module]
-  api_server   = "info"
-  appchain_mgr = "info"
-  bxh_lite     = "info"
-  executor     = "info"
-  exchanger    = "info"
-  monitor      = "info"
-  peer_mgr     = "info"
-  router       = "info"
-  rule_mgr     = "info"
-  swarm        = "info"
-  syncer       = "info"
+api_server = "info"
+appchain_mgr = "info"
+bxh_lite = "info"
+executor = "info"
+exchanger = "info"
+monitor = "info"
+peer_mgr = "info"
+router = "info"
+rule_mgr = "info"
+swarm = "info"
+syncer = "info"
 
 [mode]
 type = "relay" # relay, direct or union
@@ -34,6 +34,7 @@ validators = [
     "0xb18c8575e3284e79b92100025a31378feb8100d6",
     "0x856E2B9A5FA82FD1B031D1FF6863864DBAC7995D",
 ]
+bitxhub_id = "1356"
 [mode.direct]
 peers = []
 
@@ -51,6 +52,6 @@ common_name = "localhost"
 mode = "single"
 
 [appchain]
-did = "did:bitxhub:fabappchain:."
+id = "fabappchain"
 plugin = "appchain_plugin"
 config = "fabric"

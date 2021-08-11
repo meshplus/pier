@@ -98,17 +98,15 @@ func registerMethod(ctx *cli.Context) error {
 	if err != nil {
 		return fmt.Errorf("get public key: %w", err)
 	}
-	client, address, err := initClientWithKeyPath(ctx, chainAdminKeyPath)
+	client, _, err := initClientWithKeyPath(ctx, chainAdminKeyPath)
 	if err != nil {
 		return err
 	}
-	appchainAdminDID := fmt.Sprintf("%s:%s:%s", bitxhubRootPrefix, method, address.String())
-	appchainMethod := fmt.Sprintf("%s:%s:.", bitxhubRootPrefix, method)
 	// init method registry with this admin key
 	receipt, err := client.InvokeBVMContract(
 		constant.AppchainMgrContractAddr.Address(),
 		"Register", nil,
-		rpcx.String(appchainAdminDID), rpcx.String(appchainMethod),
+		rpcx.String(method),
 		rpcx.String(didDocAddr), rpcx.String(didDocHash),
 		rpcx.String(string(validatorData)), rpcx.String(consensus), rpcx.String(typ),
 		rpcx.String(name), rpcx.String(desc), rpcx.String(version),

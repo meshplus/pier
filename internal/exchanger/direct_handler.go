@@ -11,14 +11,16 @@ import (
 )
 
 type Pool struct {
-	ibtps *sync.Map
-	ch    chan *model.WrappedIBTP
+	ibtps    *sync.Map
+	ch       chan *model.WrappedIBTP
+	beginIdx uint64
 }
 
-func NewPool() *Pool {
+func NewPool(beginIdx uint64) *Pool {
 	return &Pool{
-		ibtps: &sync.Map{},
-		ch:    make(chan *model.WrappedIBTP, 40960),
+		ibtps:    &sync.Map{},
+		ch:       make(chan *model.WrappedIBTP, 40960),
+		beginIdx: beginIdx,
 	}
 }
 
@@ -32,6 +34,9 @@ func (pool *Pool) put(ibtp *model.WrappedIBTP) {
 
 func (pool *Pool) delete(idx uint64) {
 	pool.ibtps.Delete(idx)
+	if idx == pool.beginIdx {
+		pool.beginIdx++
+	}
 }
 
 func (pool *Pool) get(index uint64) *model.WrappedIBTP {
@@ -48,7 +53,7 @@ func (ex *Exchanger) feedIBTP(wIbtp *model.WrappedIBTP) {
 	ibtp := wIbtp.Ibtp
 	act, loaded := ex.ibtps.Load(ibtp.From)
 	if !loaded {
-		pool = NewPool()
+		pool = NewPool(ex.inMeta[ibtp.ServicePair()] + 1)
 		ex.ibtps.Store(ibtp.From, pool)
 	} else {
 		pool = act.(*Pool)
@@ -62,16 +67,14 @@ func (ex *Exchanger) feedIBTP(wIbtp *model.WrappedIBTP) {
 					ex.logger.Error(fmt.Errorf("%v", e))
 				}
 			}()
-			inMeta := ex.exec.QueryInterchainMeta()
 			for wIbtp := range pool.ch {
 				ibtp := wIbtp.Ibtp
-				idx := inMeta[ibtp.From]
-				if ibtp.Index <= idx {
+				if ibtp.Index < pool.beginIdx {
 					pool.delete(ibtp.Index)
 					ex.logger.Warnf("ignore ibtp with invalid index: %d", ibtp.Index)
 					continue
 				}
-				if idx+1 == ibtp.Index {
+				if pool.beginIdx == ibtp.Index {
 					ex.processIBTP(wIbtp)
 					pool.delete(ibtp.Index)
 					index := ibtp.Index + 1
@@ -104,7 +107,7 @@ func (ex *Exchanger) feedReceipt(receipt *pb.IBTP) {
 	var pool *Pool
 	act, loaded := ex.ibtps.Load(receipt.To)
 	if !loaded {
-		pool = NewPool()
+		pool = NewPool(ex.callbackMeta[receipt.ServicePair()] + 1)
 		ex.ibtps.Store(receipt.To, pool)
 	} else {
 		pool = act.(*Pool)
@@ -118,15 +121,14 @@ func (ex *Exchanger) feedReceipt(receipt *pb.IBTP) {
 					ex.logger.Error(fmt.Errorf("%v", e))
 				}
 			}()
-			callbackMeta := ex.exec.QueryCallbackMeta()
 			for wIbtp := range pool.ch {
 				ibtp := wIbtp.Ibtp
-				if ibtp.Index <= callbackMeta[ibtp.To] {
+				if ibtp.Index < pool.beginIdx {
 					pool.delete(ibtp.Index)
 					ex.logger.Warn("ignore ibtp with invalid index")
 					continue
 				}
-				if callbackMeta[ibtp.To]+1 == ibtp.Index {
+				if pool.beginIdx == ibtp.Index {
 					ex.processIBTP(wIbtp)
 					pool.delete(ibtp.Index)
 					index := ibtp.Index + 1
