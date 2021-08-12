@@ -387,12 +387,14 @@ func loadClient(keyPath string, grpcAddrs []string, ctx *cli.Context) (rpcx.Clie
 		rpcx.WithPrivateKey(privateKey),
 	}
 	nodesInfo := make([]*rpcx.NodeInfo, 0, len(grpcAddrs))
-	for _, addr := range grpcAddrs {
+	for index, addr := range grpcAddrs {
 		nodeInfo := &rpcx.NodeInfo{Addr: addr}
 		if config.Security.EnableTLS {
-			nodeInfo.CertPath = filepath.Join(repoRoot, "certs/ca.pem")
+			nodeInfo.CertPath = filepath.Join(repoRoot, config.Security.Tlsca)
 			nodeInfo.EnableTLS = config.Security.EnableTLS
 			nodeInfo.CommonName = config.Security.CommonName
+			nodeInfo.AccessCert = filepath.Join(config.RepoRoot, config.Security.AccessCert[index])
+			nodeInfo.AccessKey = filepath.Join(config.RepoRoot, config.Security.AccessKey)
 		}
 		nodesInfo = append(nodesInfo, nodeInfo)
 	}

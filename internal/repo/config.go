@@ -25,9 +25,11 @@ type Config struct {
 
 // Security are certs used to setup connection with tls
 type Security struct {
-	EnableTLS  bool   `mapstructure:"enable_tls"`
-	Tlsca      string `toml:"tlsca" json:"tlsca"`
-	CommonName string `mapstructure:"common_name" json:"common_name"`
+	EnableTLS  bool     `mapstructure:"enable_tls"`
+	AccessCert []string `mapstructure:"access_cert"`
+	AccessKey  string   `mapstructure:"access_key"`
+	Tlsca      string   `toml:"tlsca" json:"tlsca"`
+	CommonName string   `mapstructure:"common_name" json:"common_name"`
 }
 
 // Port are ports providing http and pprof service
@@ -163,7 +165,9 @@ func DefaultConfig() *Config {
 		},
 		Security: Security{
 			EnableTLS:  false,
-			Tlsca:      "certs/ca.pem",
+			Tlsca:      "certs/agency.cert",
+			AccessCert: []string{"node1.cert", "node2.cert", "node3.cert", "node4.cert"},
+			AccessKey:  "node.priv",
 			CommonName: "localhost",
 		},
 		HA: HA{
