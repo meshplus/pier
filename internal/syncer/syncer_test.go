@@ -516,7 +516,7 @@ func TestSendIBTP(t *testing.T) {
 		Status: pb.Receipt_FAILED,
 	}
 	client.EXPECT().GetReceipt(hash).Return(failReceipt, nil).AnyTimes()
-	require.Nil(t, syncer.SendIBTP(&pb.IBTP{}))
+	require.NotNil(t, syncer.SendIBTP(&pb.IBTP{}))
 
 	//failReceipt.Ret = []byte(errMsg2)
 	//require.Nil(t, syncer.SendIBTP(&pb.IBTP{}))
