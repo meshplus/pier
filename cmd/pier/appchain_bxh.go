@@ -81,6 +81,7 @@ var appchainBxhCMD = cli.Command{
 					Usage:    "Specify appchain consensus type",
 					Required: false,
 				},
+				governanceReasonFlag,
 			},
 			Action: updateAppchain,
 		},
@@ -94,6 +95,7 @@ var appchainBxhCMD = cli.Command{
 					Usage:    "Specify appchain id(did)",
 					Required: true,
 				},
+				governanceReasonFlag,
 			},
 			Action: freezeAppchain,
 		},
@@ -107,6 +109,7 @@ var appchainBxhCMD = cli.Command{
 					Usage:    "Specify appchain id(did)",
 					Required: true,
 				},
+				governanceReasonFlag,
 			},
 			Action: activateAppchain,
 		},
@@ -120,6 +123,7 @@ var appchainBxhCMD = cli.Command{
 					Usage:    "Specify appchain id(did)",
 					Required: true,
 				},
+				governanceReasonFlag,
 			},
 			Action: logoutAppchain,
 		},
@@ -155,6 +159,7 @@ func updateAppchain(ctx *cli.Context) error {
 	version := ctx.String("version")
 	validatorsPath := ctx.String("validators")
 	consensusType := ctx.String("consensus-type")
+	reason := ctx.String("reason")
 
 	client, _, err := initClientWithKeyPath(ctx, chainAdminKeyPath)
 	if err != nil {
@@ -227,6 +232,7 @@ func updateAppchain(ctx *cli.Context) error {
 		rpcx.String(desc),
 		rpcx.String(version),
 		rpcx.String(string(pubKey)),
+		rpcx.String(reason),
 	)
 	if err != nil {
 		return fmt.Errorf("invoke bvm contract: %w", err)
@@ -249,6 +255,7 @@ func updateAppchain(ctx *cli.Context) error {
 func freezeAppchain(ctx *cli.Context) error {
 	chainAdminKeyPath := ctx.String("admin-key")
 	id := ctx.String("id")
+	reason := ctx.String("reason")
 
 	client, _, err := initClientWithKeyPath(ctx, chainAdminKeyPath)
 	if err != nil {
@@ -257,7 +264,7 @@ func freezeAppchain(ctx *cli.Context) error {
 
 	receipt, err := client.InvokeBVMContract(
 		constant.AppchainMgrContractAddr.Address(),
-		"FreezeAppchain", nil, rpcx.String(id),
+		"FreezeAppchain", nil, rpcx.String(id), rpcx.String(reason),
 	)
 	if err != nil {
 		return fmt.Errorf("invoke bvm contract: %w", err)
@@ -268,14 +275,18 @@ func freezeAppchain(ctx *cli.Context) error {
 	}
 
 	proposalId := gjson.Get(string(receipt.Ret), "proposal_id").String()
-	fmt.Printf("the freeze request was submitted successfully, proposal id is %s\n", proposalId)
-
+	if proposalId != "" {
+		fmt.Printf("the freeze request was submitted successfully, proposal id is %s\n", proposalId)
+	} else {
+		fmt.Printf("the freeze request was submitted successfully\n")
+	}
 	return nil
 }
 
 func activateAppchain(ctx *cli.Context) error {
 	chainAdminKeyPath := ctx.String("admin-key")
 	id := ctx.String("id")
+	reason := ctx.String("reason")
 
 	client, _, err := initClientWithKeyPath(ctx, chainAdminKeyPath)
 	if err != nil {
@@ -284,7 +295,7 @@ func activateAppchain(ctx *cli.Context) error {
 
 	receipt, err := client.InvokeBVMContract(
 		constant.AppchainMgrContractAddr.Address(),
-		"ActivateAppchain", nil, rpcx.String(id),
+		"ActivateAppchain", nil, rpcx.String(id), rpcx.String(reason),
 	)
 	if err != nil {
 		return fmt.Errorf("invoke bvm contract: %w", err)
@@ -295,7 +306,11 @@ func activateAppchain(ctx *cli.Context) error {
 	}
 
 	proposalId := gjson.Get(string(receipt.Ret), "proposal_id").String()
-	fmt.Printf("the activate request was submitted successfully, proposal id is %s\n", proposalId)
+	if proposalId != "" {
+		fmt.Printf("the activate request was submitted successfully, proposal id is %s\n", proposalId)
+	} else {
+		fmt.Printf("the activate request was submitted successfully\n")
+	}
 
 	return nil
 }
@@ -303,6 +318,7 @@ func activateAppchain(ctx *cli.Context) error {
 func logoutAppchain(ctx *cli.Context) error {
 	chainAdminKeyPath := ctx.String("admin-key")
 	id := ctx.String("id")
+	reason := ctx.String("reason")
 
 	client, _, err := initClientWithKeyPath(ctx, chainAdminKeyPath)
 	if err != nil {
@@ -311,7 +327,7 @@ func logoutAppchain(ctx *cli.Context) error {
 
 	receipt, err := client.InvokeBVMContract(
 		constant.AppchainMgrContractAddr.Address(),
-		"LogoutAppchain", nil, rpcx.String(id),
+		"LogoutAppchain", nil, rpcx.String(id), rpcx.String(reason),
 	)
 	if err != nil {
 		return fmt.Errorf("invoke bvm contract: %w", err)

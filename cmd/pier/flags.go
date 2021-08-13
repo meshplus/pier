@@ -72,4 +72,9 @@ var (
 		Usage:    "Specific appchain consensus type",
 		Required: true,
 	}
+	governanceReasonFlag = cli.StringFlag{
+		Name:     "reason",
+		Usage:    "Specify governance reason",
+		Required: false,
+	}
 )

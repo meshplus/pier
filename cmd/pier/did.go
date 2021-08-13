@@ -45,6 +45,7 @@ var methodCommand = cli.Command{
 				appchainVersionFlag,
 				appchainValidatorFlag,
 				appchainConsensusFlag,
+				governanceReasonFlag,
 			},
 			Action: registerMethod,
 		},
@@ -88,6 +89,7 @@ func registerMethod(ctx *cli.Context) error {
 	version := ctx.String("version")
 	validatorsPath := ctx.String("validators")
 	consensus := ctx.String("consensus")
+	reason := ctx.String("reason")
 	validatorData, err := ioutil.ReadFile(validatorsPath)
 	if err != nil {
 		return fmt.Errorf("read validators file: %w", err)
@@ -112,6 +114,7 @@ func registerMethod(ctx *cli.Context) error {
 		rpcx.String(string(validatorData)), rpcx.String(consensus), rpcx.String(typ),
 		rpcx.String(name), rpcx.String(desc), rpcx.String(version),
 		rpcx.String(pubKey),
+		rpcx.String(reason),
 	)
 	if err != nil {
 		return fmt.Errorf("invoke bvm contract: %w", err)
