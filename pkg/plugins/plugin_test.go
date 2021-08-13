@@ -3,6 +3,8 @@ package plugins
 import (
 	"context"
 	"fmt"
+	"testing"
+
 	"github.com/golang/mock/gomock"
 	"github.com/meshplus/bitxhub-model/pb"
 	"github.com/meshplus/pier/internal/repo"
@@ -10,7 +12,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
-	"testing"
 )
 
 const (

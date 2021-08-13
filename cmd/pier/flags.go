@@ -42,6 +42,12 @@ var (
 	}
 
 	// appchain info related flags
+	appchainIdFlag = cli.StringFlag{
+		Name:     "appchain-id",
+		Usage:    "Specify appchain id",
+		Required: true,
+	}
+
 	appchainNameFlag = cli.StringFlag{
 		Name:     "name",
 		Usage:    "Specific appchain name",
@@ -71,5 +77,10 @@ var (
 		Name:     "consensus",
 		Usage:    "Specific appchain consensus type",
 		Required: true,
+	}
+	governanceReasonFlag = cli.StringFlag{
+		Name:     "reason",
+		Usage:    "Specify governance reason",
+		Required: false,
 	}
 )

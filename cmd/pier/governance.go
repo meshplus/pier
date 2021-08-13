@@ -22,6 +22,7 @@ var governanceCMD = cli.Command{
 					Usage:    "proposal id",
 					Required: true,
 				},
+				governanceReasonFlag,
 			},
 			Action: withdraw,
 		},
@@ -31,6 +32,7 @@ var governanceCMD = cli.Command{
 func withdraw(ctx *cli.Context) error {
 	chainAdminKeyPath := ctx.String("admin-key")
 	id := ctx.String("id")
+	reason := ctx.String("reason")
 
 	client, _, err := initClientWithKeyPath(ctx, chainAdminKeyPath)
 	if err != nil {
@@ -39,7 +41,7 @@ func withdraw(ctx *cli.Context) error {
 
 	receipt, err := client.InvokeBVMContract(
 		constant.GovernanceContractAddr.Address(),
-		"WithdrawProposal", nil, rpcx.String(id),
+		"WithdrawProposal", nil, rpcx.String(id), rpcx.String(reason),
 	)
 	if err != nil {
 		return fmt.Errorf("invoke bvm contract: %w", err)
