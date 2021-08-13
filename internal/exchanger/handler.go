@@ -201,19 +201,22 @@ func (ex *Exchanger) timeCost() func() {
 func (ex *Exchanger) handleSendIBTPMessage(stream network.Stream, msg *peerMsg.Message) {
 	ex.ch <- struct{}{}
 	go func(msg *peerMsg.Message) {
-		wIbtp := &model.WrappedIBTP{}
-		if err := json.Unmarshal(msg.Payload.Data, wIbtp); err != nil {
+		ibtp := &pb.IBTP{}
+		if err := json.Unmarshal(msg.Payload.Data, ibtp); err != nil {
 			ex.logger.Errorf("Unmarshal ibtp: %s", err.Error())
 			return
 		}
 		defer ex.timeCost()()
-		err := ex.checker.Check(wIbtp.Ibtp)
+		err := ex.checker.Check(ibtp)
 		if err != nil {
 			ex.logger.Error("check ibtp: %w", err)
 			return
 		}
 
-		ex.feedIBTP(wIbtp)
+		ex.feedIBTP(&model.WrappedIBTP{
+			Ibtp:    ibtp,
+			IsValid: true,
+		})
 		<-ex.ch
 	}(msg)
 }
