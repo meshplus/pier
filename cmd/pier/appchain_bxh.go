@@ -86,20 +86,6 @@ var appchainBxhCMD = cli.Command{
 			Action: updateAppchain,
 		},
 		{
-			Name:  "freeze",
-			Usage: "freeze appchain in bitxhub",
-			Flags: []cli.Flag{
-				adminKeyPathFlag,
-				cli.StringFlag{
-					Name:     "id",
-					Usage:    "Specify appchain id(did)",
-					Required: true,
-				},
-				governanceReasonFlag,
-			},
-			Action: freezeAppchain,
-		},
-		{
 			Name:  "activate",
 			Usage: "activate appchain in bitxhub",
 			Flags: []cli.Flag{
@@ -249,37 +235,6 @@ func updateAppchain(ctx *cli.Context) error {
 		fmt.Printf("the update request was submitted successfully\n")
 	}
 
-	return nil
-}
-
-func freezeAppchain(ctx *cli.Context) error {
-	chainAdminKeyPath := ctx.String("admin-key")
-	id := ctx.String("id")
-	reason := ctx.String("reason")
-
-	client, _, err := initClientWithKeyPath(ctx, chainAdminKeyPath)
-	if err != nil {
-		return fmt.Errorf("load client: %w", err)
-	}
-
-	receipt, err := client.InvokeBVMContract(
-		constant.AppchainMgrContractAddr.Address(),
-		"FreezeAppchain", nil, rpcx.String(id), rpcx.String(reason),
-	)
-	if err != nil {
-		return fmt.Errorf("invoke bvm contract: %w", err)
-	}
-
-	if !receipt.IsSuccess() {
-		return fmt.Errorf("invoke freeze: %s", receipt.Ret)
-	}
-
-	proposalId := gjson.Get(string(receipt.Ret), "proposal_id").String()
-	if proposalId != "" {
-		fmt.Printf("the freeze request was submitted successfully, proposal id is %s\n", proposalId)
-	} else {
-		fmt.Printf("the freeze request was submitted successfully\n")
-	}
 	return nil
 }
 

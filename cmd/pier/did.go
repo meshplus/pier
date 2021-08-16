@@ -104,12 +104,11 @@ func registerMethod(ctx *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	appchainMethod := fmt.Sprintf("%s:%s:.", bitxhubRootPrefix, method)
 	// init method registry with this admin key
 	receipt, err := client.InvokeBVMContract(
 		constant.AppchainMgrContractAddr.Address(),
 		"Register", nil,
-		rpcx.String(appchainMethod),
+		rpcx.String(method),
 		rpcx.String(didDocAddr), rpcx.String(didDocHash),
 		rpcx.String(string(validatorData)), rpcx.String(consensus), rpcx.String(typ),
 		rpcx.String(name), rpcx.String(desc), rpcx.String(version),
