@@ -22,12 +22,15 @@ import (
 )
 
 const (
-	srcchainNotAvailable = "current appchain not available"
-	dstchainNotAvailable = "target appchain not available"
-	invalidIBTP          = "invalid ibtp"
-	ibtpIndexExist       = "index already exists"
-	ibtpIndexWrong       = "wrong index"
-	noBindRule           = "appchain didn't register rule"
+	srcchainNotAvailable      = "current appchain not available"
+	dstchainNotAvailable      = "target appchain not available"
+	invalidIBTP               = "invalid ibtp"
+	ibtpIndexExist            = "index already exists"
+	ibtpIndexWrong            = "wrong index"
+	noBindRule                = "appchain didn't register rule"
+	InvalidSourceService      = "invalid source service"
+	InvalidTargetService      = "invalid target service"
+	TargetServiceNotAvailable = "target service not available"
 )
 
 var (
@@ -166,18 +169,21 @@ func (syncer *WrapperSyncer) SendIBTP(ibtp *pb.IBTP) error {
 	tx, _ := syncer.client.GenerateIBTPTx(ibtp)
 	tx.Extra = proof
 
-	var receipt *pb.Receipt
-	strategies := []strategy.Strategy{strategy.Wait(2 * time.Second)}
-	if ibtp.Type != pb.IBTP_ROLLBACK {
-		strategies = append(strategies, strategy.Limit(5))
-	}
-
-	var retErr error
+	var (
+		receipt *pb.Receipt
+		retErr  error
+		count   = uint64(0)
+	)
 	if err := retry.Retry(func(attempt uint) error {
 		hash, err := syncer.client.SendTransaction(tx, nil)
 		if err != nil {
 			syncer.logger.Errorf("Send ibtp error: %s", err.Error())
 			if errors.Is(err, rpcx.ErrRecoverable) {
+				count++
+				if count == 5 && ibtp.Type == pb.IBTP_INTERCHAIN {
+					retErr = fmt.Errorf("rollback ibtp %s: %v", ibtp.ID(), err)
+					return nil
+				}
 				return err
 			}
 			if errors.Is(err, rpcx.ErrReconstruct) {
@@ -200,10 +206,17 @@ func (syncer *WrapperSyncer) SendIBTP(ibtp *pb.IBTP) error {
 			if strings.Contains(errMsg, noBindRule) || strings.Contains(errMsg, srcchainNotAvailable) {
 				return fmt.Errorf("appchain not valid: %s", errMsg)
 			}
+
 			// if target chain is not available, this ibtp should be rollback
-			if strings.Contains(errMsg, dstchainNotAvailable) {
-				syncer.logger.Errorf("Destination appchain is not available, try to rollback in source appchain...")
+			if strings.Contains(errMsg, InvalidTargetService) {
+				syncer.logger.Errorf("%s, try to rollback in source appchain...", errMsg)
 				syncer.rollbackHandler(ibtp, "")
+				return nil
+			}
+
+			// if target chain is not available, this ibtp should be rollback
+			if strings.Contains(errMsg, dstchainNotAvailable) || strings.Contains(errMsg, TargetServiceNotAvailable) {
+				retErr = fmt.Errorf("rollback ibtp %s: %s", ibtp.ID(), errMsg)
 				return nil
 			}
 			if strings.Contains(errMsg, ibtpIndexExist) {
@@ -229,7 +242,7 @@ func (syncer *WrapperSyncer) SendIBTP(ibtp *pb.IBTP) error {
 		}
 
 		return nil
-	}, strategies...); err != nil {
+	}, strategy.Wait(2*time.Second)); err != nil {
 		return err
 	}
 	return retErr
