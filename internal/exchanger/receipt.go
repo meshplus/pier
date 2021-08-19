@@ -8,16 +8,7 @@ import (
 )
 
 func (ex *Exchanger) feedIBTPReceipt(receipt *model.WrappedIBTP) {
-	var pool *Pool
-	servicePair := fmt.Sprintf("%s-%s", receipt.Ibtp.From, receipt.Ibtp.To)
-	act, loaded := ex.receipts.Load(servicePair)
-	if !loaded {
-		ex.logger.Infof("new pool for service pair %s at begin index %d", servicePair, ex.serviceMeta[receipt.Ibtp.From].ReceiptCounter[receipt.Ibtp.To]+1)
-		pool = NewPool(ex.serviceMeta[receipt.Ibtp.From].ReceiptCounter[receipt.Ibtp.To] + 1)
-		ex.receipts.Store(servicePair, pool)
-	} else {
-		pool = act.(*Pool)
-	}
+	pool, loaded := ex.loadPool(receipt.Ibtp.From, receipt.Ibtp.To)
 	pool.feed(receipt)
 
 	if !loaded {
@@ -69,4 +60,18 @@ func (ex *Exchanger) feedIBTPReceipt(receipt *model.WrappedIBTP) {
 			}
 		}(pool)
 	}
+}
+
+func (ex *Exchanger) loadPool(from, to string) (*Pool, bool) {
+	servicePair := fmt.Sprintf("%s-%s", from, to)
+	beginIndex := ex.serviceMeta[from].ReceiptCounter[to] + 1
+	if ex.callbackMeta[servicePair]+1 > beginIndex {
+		beginIndex = ex.callbackMeta[servicePair] + 1
+	}
+
+	ex.logger.Infof("new pool for service pair %s at begin index %d", servicePair, beginIndex)
+	pool := NewPool(beginIndex)
+	act, loaded := ex.receipts.LoadOrStore(servicePair, pool)
+
+	return act.(*Pool), loaded
 }
