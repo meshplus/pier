@@ -88,6 +88,16 @@ func (ex *Exchanger) applyReceipt(wIbtp *model.WrappedIBTP, entry logrus.FieldLo
 
 func (ex *Exchanger) applyInterchain(wIbtp *model.WrappedIBTP, entry logrus.FieldLogger) {
 	ibtp := wIbtp.Ibtp
+	_, ok := ex.serviceMeta[ibtp.To]
+	if !ok {
+		ex.serviceMeta[ibtp.To] = &pb.Interchain{
+			ID:                      ibtp.To,
+			InterchainCounter:       make(map[string]uint64),
+			ReceiptCounter:          make(map[string]uint64),
+			SourceInterchainCounter: make(map[string]uint64),
+			SourceReceiptCounter:    make(map[string]uint64),
+		}
+	}
 	index := ex.serviceMeta[ibtp.To].SourceInterchainCounter[ibtp.From]
 	if index >= ibtp.Index {
 		entry.Infof("Ignore ibtp, expected %d", index+1)
