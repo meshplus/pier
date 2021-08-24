@@ -200,6 +200,7 @@ func (syncer *WrapperSyncer) SendIBTP(ibtp *pb.IBTP) error {
 			}
 			if errors.Is(err, rpcx.ErrReconstruct) {
 				tx, _ = syncer.client.GenerateIBTPTx(ibtp)
+				tx.Extra = proof
 				return err
 			}
 		}

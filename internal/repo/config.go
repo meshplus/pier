@@ -201,5 +201,17 @@ func UnmarshalConfig(repoRoot string) (*Config, error) {
 
 	config.RepoRoot = repoRoot
 
+	privateKey, err := LoadPrivateKey(repoRoot)
+	if err != nil {
+		return nil, fmt.Errorf("repo load key: %w", err)
+	}
+
+	addr, err := privateKey.PublicKey().Address()
+	if err != nil {
+		return nil, fmt.Errorf("get address from private key %w", err)
+	}
+
+	config.Appchain.DID = fmt.Sprintf("did:bitxhub:appchain%s:.", addr)
+
 	return config, nil
 }
