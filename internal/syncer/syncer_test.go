@@ -296,7 +296,7 @@ func TestQueryIBTP(t *testing.T) {
 		Status: pb.Receipt_FAILED,
 	}
 	normalResponse := &pb.GetTransactionResponse{
-		Tx: normalTx,
+		Txs: &pb.Transactions{Transactions: []pb.Transaction{normalTx}},
 	}
 	//badResponse := &pb.GetTransactionResponse{
 	//	Tx: tx,
