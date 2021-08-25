@@ -261,6 +261,22 @@ type mockAppchainPluginClient struct {
 	count uint64
 }
 
+func (mc *mockAppchainPluginClient) QueryFilterLockStart(ctx context.Context, in *pb.QueryFilterLockStartRequest, opts ...grpc.CallOption) (*pb.QueryFilterLockStartResponse, error) {
+	panic("implement me")
+}
+
+func (mc *mockAppchainPluginClient) QueryLockEventByIndex(ctx context.Context, in *pb.QueryLockEventByIndexRequest, opts ...grpc.CallOption) (*pb.LockEvent, error) {
+	panic("implement me")
+}
+
+func (mc *mockAppchainPluginClient) QueryAppchainIndex(ctx context.Context, in *pb.Empty, opts ...grpc.CallOption) (*pb.QueryAppchainIndexResponse, error) {
+	panic("implement me")
+}
+
+func (mc *mockAppchainPluginClient) QueryRelayIndex(ctx context.Context, in *pb.Empty, opts ...grpc.CallOption) (*pb.QueryRelayIndexResponse, error) {
+	panic("implement me")
+}
+
 func (*mockAppchainPluginClient) GetLockEvent(ctx context.Context, in *pb.Empty, opts ...grpc.CallOption) (pb.AppchainPlugin_GetLockEventClient, error) {
 	panic("implement me")
 }

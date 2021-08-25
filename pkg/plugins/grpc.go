@@ -14,6 +14,22 @@ type GRPCServer struct {
 	Impl Client
 }
 
+func (s *GRPCServer) QueryFilterLockStart(ctx context.Context, request *pb.QueryFilterLockStartRequest) (*pb.QueryFilterLockStartResponse, error) {
+	panic("implement me")
+}
+
+func (s *GRPCServer) QueryLockEventByIndex(ctx context.Context, request *pb.QueryLockEventByIndexRequest) (*pb.LockEvent, error) {
+	panic("implement me")
+}
+
+func (s *GRPCServer) QueryAppchainIndex(ctx context.Context, empty *pb.Empty) (*pb.QueryAppchainIndexResponse, error) {
+	panic("implement me")
+}
+
+func (s *GRPCServer) QueryRelayIndex(ctx context.Context, empty *pb.Empty) (*pb.QueryRelayIndexResponse, error) {
+	panic("implement me")
+}
+
 func (s *GRPCServer) GetLockEvent(empty *pb.Empty, server pb.AppchainPlugin_GetLockEventServer) error {
 	panic("implement me")
 }
