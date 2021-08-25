@@ -30,12 +30,11 @@ var appchainBxhCMD = cli.Command{
 			Flags: []cli.Flag{
 				adminKeyPathFlag,
 				appchainIdFlag,
-				appchainNameFlag,
-				appchainTypeFlag,
+				appchainTrustRootFlag,
+				appchainBrokerFlag,
 				appchainDescFlag,
 				appchainVersionFlag,
-				appchainValidatorFlag,
-				appchainConsensusFlag,
+				appchainBindFlag,
 				governanceReasonFlag,
 			},
 			Action: registerPier,
@@ -45,21 +44,7 @@ var appchainBxhCMD = cli.Command{
 			Usage: "update appchain in bitxhub",
 			Flags: []cli.Flag{
 				adminKeyPathFlag,
-				cli.StringFlag{
-					Name:     "id",
-					Usage:    "Specify appchain id",
-					Required: true,
-				},
-				cli.StringFlag{
-					Name:     "name",
-					Usage:    "Specify appchain name",
-					Required: false,
-				},
-				cli.StringFlag{
-					Name:     "type",
-					Usage:    "Specify appchain type",
-					Required: false,
-				},
+				appchainIdFlag,
 				cli.StringFlag{
 					Name:     "desc",
 					Usage:    "Specify appchain description",
@@ -70,43 +55,16 @@ var appchainBxhCMD = cli.Command{
 					Usage:    "Specify appchain version",
 					Required: false,
 				},
-				cli.StringFlag{
-					Name:     "validators",
-					Usage:    "Specify appchain validators path",
-					Required: false,
-				},
-				cli.StringFlag{
-					Name:     "consensus-type",
-					Usage:    "Specify appchain consensus type",
-					Required: false,
-				},
-				governanceReasonFlag,
 			},
 			Action: updateAppchain,
-		},
-		{
-			Name:  "freeze",
-			Usage: "freeze appchain in bitxhub",
-			Flags: []cli.Flag{
-				adminKeyPathFlag,
-				cli.StringFlag{
-					Name:     "id",
-					Usage:    "Specify appchain id",
-					Required: true,
-				},
-			},
-			Action: freezeAppchain,
 		},
 		{
 			Name:  "activate",
 			Usage: "activate appchain in bitxhub",
 			Flags: []cli.Flag{
 				adminKeyPathFlag,
-				cli.StringFlag{
-					Name:     "id",
-					Usage:    "Specify appchain id",
-					Required: true,
-				},
+				appchainIdFlag,
+				governanceReasonFlag,
 			},
 			Action: activateAppchain,
 		},
@@ -115,11 +73,7 @@ var appchainBxhCMD = cli.Command{
 			Usage: "logout appchain in bitxhub",
 			Flags: []cli.Flag{
 				adminKeyPathFlag,
-				cli.StringFlag{
-					Name:     "id",
-					Usage:    "Specify appchain id",
-					Required: true,
-				},
+				appchainIdFlag,
 				governanceReasonFlag,
 			},
 			Action: logoutAppchain,
@@ -129,11 +83,7 @@ var appchainBxhCMD = cli.Command{
 			Usage: "Get appchain info",
 			Flags: []cli.Flag{
 				adminKeyPathFlag,
-				cli.StringFlag{
-					Name:     "id",
-					Usage:    "Specify appchain id",
-					Required: true,
-				},
+				appchainIdFlag,
 			},
 			Action: getAppchain,
 		},
@@ -141,25 +91,19 @@ var appchainBxhCMD = cli.Command{
 }
 
 func registerPier(ctx *cli.Context) error {
-	id := ctx.String("appchain-id")
 	chainAdminKeyPath := ctx.String("admin-key")
-	name := ctx.String("name")
-	typ := ctx.String("type")
+	id := ctx.String("appchain-id")
+	trustrootPath := ctx.String("trustroot")
+	broker := ctx.String("broker")
 	desc := ctx.String("desc")
 	version := ctx.String("version")
-	validatorsPath := ctx.String("validators")
-	consensus := ctx.String("consensus")
+	bind := ctx.String("bind")
 	reason := ctx.String("reason")
-	validatorData, err := ioutil.ReadFile(validatorsPath)
+	trustrootData, err := ioutil.ReadFile(trustrootPath)
 	if err != nil {
 		return fmt.Errorf("read validators file: %w", err)
 	}
 
-	// get repo public key
-	pubKey, err := getPubKey(chainAdminKeyPath)
-	if err != nil {
-		return fmt.Errorf("get public key: %w", err)
-	}
 	client, _, err := initClientWithKeyPath(ctx, chainAdminKeyPath)
 	if err != nil {
 		return err
@@ -167,19 +111,20 @@ func registerPier(ctx *cli.Context) error {
 
 	receipt, err := client.InvokeBVMContract(
 		constant.AppchainMgrContractAddr.Address(),
-		"Register", nil,
+		"RegisterAppchain", nil,
 		rpcx.String(id),
-		rpcx.String(""), rpcx.String(""),
-		rpcx.String(string(validatorData)), rpcx.String(consensus), rpcx.String(typ),
-		rpcx.String(name), rpcx.String(desc), rpcx.String(version),
-		rpcx.String(pubKey),
+		rpcx.Bytes(trustrootData),
+		rpcx.String(broker),
+		rpcx.String(desc),
+		rpcx.String(version),
 		rpcx.String(reason),
+		rpcx.String(bind),
 	)
 	if err != nil {
 		return fmt.Errorf("invoke bvm contract: %w", err)
 	}
 	if !receipt.IsSuccess() {
-		return fmt.Errorf("register method info faild: %s", string(receipt.Ret))
+		return fmt.Errorf("register appchain faild: %s", string(receipt.Ret))
 	}
 	ret := &GovernanceResult{}
 	if err := json.Unmarshal(receipt.Ret, ret); err != nil {
@@ -191,14 +136,9 @@ func registerPier(ctx *cli.Context) error {
 
 func updateAppchain(ctx *cli.Context) error {
 	chainAdminKeyPath := ctx.String("admin-key")
-	id := ctx.String("id")
-	name := ctx.String("name")
-	typ := ctx.String("type")
+	id := ctx.String("appchain-id")
 	desc := ctx.String("desc")
 	version := ctx.String("version")
-	validatorsPath := ctx.String("validators")
-	consensusType := ctx.String("consensus-type")
-	reason := ctx.String("reason")
 
 	client, _, err := initClientWithKeyPath(ctx, chainAdminKeyPath)
 	if err != nil {
@@ -221,51 +161,19 @@ func updateAppchain(ctx *cli.Context) error {
 	if err = json.Unmarshal(receipt.Ret, &appchainInfo); err != nil {
 		return err
 	}
-	if name == "" {
-		name = appchainInfo.Name
-	}
-	if typ == "" {
-		typ = appchainInfo.ChainType
-	}
 	if desc == "" {
 		desc = appchainInfo.Desc
 	}
 	if version == "" {
 		version = appchainInfo.Version
 	}
-	validators := ""
-	if validatorsPath == "" {
-		validators = appchainInfo.Validators
-	} else {
-		data, err := ioutil.ReadFile(validatorsPath)
-		if err != nil {
-			return fmt.Errorf("read validators file: %w", err)
-		}
-		validators = string(data)
-	}
-	if consensusType == "" {
-		consensusType = appchainInfo.ConsensusType
-	}
-
-	pubKey, err := getPubKey(chainAdminKeyPath)
-	if err != nil {
-		return fmt.Errorf("get public key: %w", err)
-	}
 
 	receipt, err = client.InvokeBVMContract(
 		constant.AppchainMgrContractAddr.Address(),
 		"UpdateAppchain", nil,
 		rpcx.String(id),
-		rpcx.String(""),
-		rpcx.String(""),
-		rpcx.String(validators),
-		rpcx.String(consensusType),
-		rpcx.String(typ),
-		rpcx.String(name),
 		rpcx.String(desc),
 		rpcx.String(version),
-		rpcx.String(string(pubKey)),
-		rpcx.String(reason),
 	)
 	if err != nil {
 		return fmt.Errorf("invoke bvm contract: %w", err)
@@ -285,40 +193,10 @@ func updateAppchain(ctx *cli.Context) error {
 	return nil
 }
 
-func freezeAppchain(ctx *cli.Context) error {
-	chainAdminKeyPath := ctx.String("admin-key")
-	id := ctx.String("id")
-
-	client, _, err := initClientWithKeyPath(ctx, chainAdminKeyPath)
-	if err != nil {
-		return fmt.Errorf("load client: %w", err)
-	}
-
-	receipt, err := client.InvokeBVMContract(
-		constant.AppchainMgrContractAddr.Address(),
-		"FreezeAppchain", nil, rpcx.String(id), rpcx.String(""),
-	)
-	if err != nil {
-		return fmt.Errorf("invoke bvm contract: %w", err)
-	}
-
-	if !receipt.IsSuccess() {
-		return fmt.Errorf("invoke freeze: %s", receipt.Ret)
-	}
-
-	proposalId := gjson.Get(string(receipt.Ret), "proposal_id").String()
-	if proposalId != "" {
-		fmt.Printf("the freeze request was submitted successfully, proposal id is %s\n", proposalId)
-	} else {
-		fmt.Printf("the freeze request was submitted successfully\n")
-	}
-
-	return nil
-}
-
 func activateAppchain(ctx *cli.Context) error {
 	chainAdminKeyPath := ctx.String("admin-key")
-	id := ctx.String("id")
+	id := ctx.String("appchain-id")
+	reason := ctx.String("reason")
 
 	client, _, err := initClientWithKeyPath(ctx, chainAdminKeyPath)
 	if err != nil {
@@ -327,7 +205,7 @@ func activateAppchain(ctx *cli.Context) error {
 
 	receipt, err := client.InvokeBVMContract(
 		constant.AppchainMgrContractAddr.Address(),
-		"ActivateAppchain", nil, rpcx.String(id), rpcx.String(""),
+		"ActivateAppchain", nil, rpcx.String(id), rpcx.String(reason),
 	)
 	if err != nil {
 		return fmt.Errorf("invoke bvm contract: %w", err)
@@ -349,7 +227,7 @@ func activateAppchain(ctx *cli.Context) error {
 
 func logoutAppchain(ctx *cli.Context) error {
 	chainAdminKeyPath := ctx.String("admin-key")
-	id := ctx.String("id")
+	id := ctx.String("appchain-id")
 	reason := ctx.String("reason")
 
 	client, _, err := initClientWithKeyPath(ctx, chainAdminKeyPath)
@@ -377,7 +255,7 @@ func logoutAppchain(ctx *cli.Context) error {
 
 func getAppchain(ctx *cli.Context) error {
 	chainAdminKeyPath := ctx.String("admin-key")
-	id := ctx.String("id")
+	id := ctx.String("appchain-id")
 
 	client, _, err := initClientWithKeyPath(ctx, chainAdminKeyPath)
 	if err != nil {

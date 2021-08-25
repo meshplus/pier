@@ -50,27 +50,42 @@ var (
 
 	appchainNameFlag = cli.StringFlag{
 		Name:     "name",
-		Usage:    "Specific appchain name",
+		Usage:    "Specify appchain name",
 		Required: true,
 	}
 	appchainTypeFlag = cli.StringFlag{
 		Name:     "type",
-		Usage:    "Specific appchain type",
+		Usage:    "Specify appchain type",
 		Required: true,
 	}
 	appchainDescFlag = cli.StringFlag{
 		Name:     "desc",
-		Usage:    "Specific appchain description",
+		Usage:    "Specify appchain description",
 		Required: true,
 	}
 	appchainVersionFlag = cli.StringFlag{
 		Name:     "version",
-		Usage:    "Specific appchain version",
+		Usage:    "Specify appchain version",
 		Required: true,
 	}
 	appchainValidatorFlag = cli.StringFlag{
 		Name:     "validators",
 		Usage:    "Specific appchain validators path",
+		Required: true,
+	}
+	appchainTrustRootFlag = cli.StringFlag{
+		Name:     "trustroot",
+		Usage:    "Specify appchain trustroot path",
+		Required: true,
+	}
+	appchainBrokerFlag = cli.StringFlag{
+		Name:     "broker",
+		Usage:    "Specify appchain broker contract address",
+		Required: true,
+	}
+	appchainBindFlag = cli.StringSliceFlag{
+		Name:     "bind",
+		Usage:    "Specify if bind default rule(for fabric 1.4 appchain, true or false)",
 		Required: true,
 	}
 	appchainConsensusFlag = cli.StringFlag{

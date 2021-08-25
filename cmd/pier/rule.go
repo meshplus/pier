@@ -37,7 +37,7 @@ var ruleCMD = cli.Command{
 			Flags: []cli.Flag{
 				cli.StringFlag{
 					Name:     "addr",
-					Usage:    "Specific rule addr",
+					Usage:    "Specify rule addr",
 					Required: true,
 				},
 				appchainIdFlag,
@@ -52,7 +52,7 @@ var ruleCMD = cli.Command{
 			Flags: []cli.Flag{
 				cli.StringFlag{
 					Name:     "addr",
-					Usage:    "Specific rule addr",
+					Usage:    "Specify rule addr",
 					Required: true,
 				},
 				appchainIdFlag,
