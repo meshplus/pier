@@ -2,6 +2,8 @@ package peermgr
 
 import (
 	"fmt"
+	"io/ioutil"
+	"os"
 	"testing"
 	"time"
 
@@ -19,41 +21,38 @@ import (
 
 func TestNew(t *testing.T) {
 	logger := log.NewWithModule("swarm")
-	// test wrong nodePrivKey
-	nodeKeys, privKeys, config, _ := genKeysAndConfig(t, 2, repo.DirectMode)
+	repoRoot, err := ioutil.TempDir("", "node")
+	require.Nil(t, err)
+	defer os.RemoveAll(repoRoot)
 
-	_, err := New(config, nil, privKeys[0], 0, logger)
+	// test wrong nodePrivKey
+	nodeKeys, privKeys, repoConfig, _ := genKeysAndConfig(t, repoRoot, 2)
+
+	_, err = New(repoConfig.Config, nil, privKeys[0], 0, logger)
 	require.NotNil(t, err)
 
 	// test new swarm in direct mode
-	nodeKeys, privKeys, config, _ = genKeysAndConfig(t, 2, repo.DirectMode)
+	nodeKeys, privKeys, repoConfig, _ = genKeysAndConfig(t, repoRoot, 2)
 
-	_, err = New(config, nodeKeys[0], privKeys[0], 0, logger)
+	_, err = New(repoConfig.Config, nodeKeys[0], privKeys[0], 0, logger)
 	require.Nil(t, err)
 
-	// test new swarm in union mode
-	nodeKeys, privKeys, config, _ = genKeysAndConfig(t, 2, repo.UnionMode)
-
-	_, err = New(config, nodeKeys[0], privKeys[0], 0, logger)
-	require.Nil(t, err)
-
-	// test new swarm in unsupport mode
-	nodeKeys, privKeys, config, _ = genKeysAndConfig(t, 2, "")
-
-	_, err = New(config, nodeKeys[0], privKeys[0], 0, logger)
-	require.NotNil(t, err)
 }
 
 func TestSwarm_Start(t *testing.T) {
 	logger := log.NewWithModule("swarm")
-	nodeKeys, privKeys, config, _ := genKeysAndConfig(t, 2, repo.DirectMode)
+	repoRoot, err := ioutil.TempDir("", "node")
+	require.Nil(t, err)
+	defer os.RemoveAll(repoRoot)
 
-	swarm1, err := New(config, nodeKeys[0], privKeys[0], 0, logger)
+	nodeKeys, privKeys, repoConfig, _ := genKeysAndConfig(t, repoRoot, 2)
+
+	swarm1, err := New(repoConfig.Config, nodeKeys[0], privKeys[0], 0, logger)
 	require.Nil(t, err)
 
 	go swarm1.Start()
 
-	swarm2, err := New(config, nodeKeys[1], privKeys[1], 0, logger)
+	swarm2, err := New(repoConfig.Config, nodeKeys[1], privKeys[1], 0, logger)
 	require.Nil(t, err)
 
 	go swarm2.Start()
@@ -246,9 +245,14 @@ func TestSwarm_ConnectedPeerIDs(t *testing.T) {
 }
 
 func prepare(t *testing.T) (*Swarm, []string, *Swarm, *pb.Message, string, string) {
-	nodeKeys, privKeys, config, ids := genKeysAndConfig(t, 2, repo.DirectMode)
 
-	swarm, err := New(config, nodeKeys[0], privKeys[0], 0, log.NewWithModule("swarm"))
+	repoRoot, err := ioutil.TempDir("", "node")
+	require.Nil(t, err)
+	defer os.RemoveAll(repoRoot)
+
+	nodeKeys, privKeys, repoConfig, ids := genKeysAndConfig(t, repoRoot, 2)
+
+	swarm, err := New(repoConfig.Config, nodeKeys[0], privKeys[0], 0, log.NewWithModule("swarm"))
 	require.Nil(t, err)
 
 	mockMsg := &pb.Message{Type: pb.Message_APPCHAIN_REGISTER}
@@ -262,14 +266,15 @@ func prepare(t *testing.T) (*Swarm, []string, *Swarm, *pb.Message, string, strin
 
 	return swarm, ids, mockSwarm, mockMsg, mockMultiAddr, mockId
 }
-func genKeysAndConfig(t *testing.T, peerCnt int, mode string) ([]crypto.PrivateKey, []crypto.PrivateKey, *repo.Config, []string) {
+func genKeysAndConfig(t *testing.T, repoRoot string, peerCnt int) ([]crypto.PrivateKey, []crypto.PrivateKey, *repo.Repo, []string) {
 	var nodeKeys []crypto.PrivateKey
 	var privKeys []crypto.PrivateKey
-	var peers []string
+	var piers []*repo.NetworkPiers
 	port := 5001
 	var ids []string
 
 	for i := 0; i < peerCnt; i++ {
+		var host []string
 		key, err := asym.GenerateKeyPair(crypto.ECDSA_P256)
 		require.Nil(t, err)
 		nodeKeys = append(nodeKeys, key)
@@ -281,8 +286,14 @@ func genKeysAndConfig(t *testing.T, peerCnt int, mode string) ([]crypto.PrivateK
 		require.Nil(t, err)
 		ids = append(ids, id.String())
 
-		peer := fmt.Sprintf("/ip4/127.0.0.1/tcp/%d/p2p/%s", port, id)
-		peers = append(peers, peer)
+		peer := fmt.Sprintf("/ip4/127.0.0.1/tcp/%d/p2p/", port)
+		host = append(host, peer)
+
+		networkPier := &repo.NetworkPiers{
+			Pid:   id.String(),
+			Hosts: host,
+		}
+		piers = append(piers, networkPier)
 
 		privKey, err := asym.GenerateKeyPair(crypto.Secp256k1)
 		require.Nil(t, err)
@@ -292,15 +303,23 @@ func genKeysAndConfig(t *testing.T, peerCnt int, mode string) ([]crypto.PrivateK
 		port++
 	}
 
-	config := &repo.Config{}
-	config.Mode.Type = mode
-	if config.Mode.Type == repo.DirectMode {
-		config.Mode.Direct.Peers = peers
-	} else if config.Mode.Type == repo.UnionMode {
-		config.Mode.Union.Connectors = peers
+	config := &repo.Config{
+		RepoRoot: repoRoot,
+	}
+	networkConfig := &repo.NetworkConfig{
+		Piers: piers,
 	}
 
-	return nodeKeys, privKeys, config, ids
+	repoConfig := &repo.Repo{
+		Config:        config,
+		NetworkConfig: networkConfig,
+	}
+
+	originRoot := "../repo/testdata"
+	err := repo.WriteNetworkConfig(originRoot, repoRoot, repoConfig.NetworkConfig)
+	require.Nil(t, err)
+
+	return nodeKeys, privKeys, repoConfig, ids
 }
 
 //=======================================================================

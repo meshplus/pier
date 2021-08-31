@@ -2,7 +2,7 @@ package peermgr
 
 import (
 	"github.com/libp2p/go-libp2p-core/peer"
-	peermgr "github.com/meshplus/bitxhub-core/peer-mgr"
+	basicMgr "github.com/meshplus/bitxhub-core/peer-mgr"
 	"github.com/meshplus/bitxhub-model/pb"
 	network "github.com/meshplus/go-lightp2p"
 )
@@ -12,7 +12,7 @@ type ConnectHandler func(string)
 
 //go:generate mockgen -destination mock_peermgr/mock_peermgr.go -package mock_peermgr -source peermgr.go
 type PeerManager interface {
-	peermgr.BasicPeerManager
+	basicMgr.BasicPeerManager
 
 	DHTManager
 

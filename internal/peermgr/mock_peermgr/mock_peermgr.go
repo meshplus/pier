@@ -9,6 +9,7 @@ import (
 
 	gomock "github.com/golang/mock/gomock"
 	peer "github.com/libp2p/go-libp2p-core/peer"
+	peer_mgr "github.com/meshplus/bitxhub-core/peer-mgr"
 	pb "github.com/meshplus/bitxhub-model/pb"
 	network "github.com/meshplus/go-lightp2p"
 	peermgr "github.com/meshplus/pier/internal/peermgr"
@@ -38,7 +39,7 @@ func (m *MockPeerManager) EXPECT() *MockPeerManagerMockRecorder {
 }
 
 // AsyncSend mocks base method.
-func (m *MockPeerManager) AsyncSend(arg0 string, arg1 *pb.Message) error {
+func (m *MockPeerManager) AsyncSend(arg0 peer_mgr.KeyType, arg1 *pb.Message) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "AsyncSend", arg0, arg1)
 	ret0, _ := ret[0].(error)
@@ -166,7 +167,7 @@ func (mr *MockPeerManagerMockRecorder) RegisterMultiMsgHandler(arg0, arg1 interf
 }
 
 // Send mocks base method.
-func (m *MockPeerManager) Send(arg0 string, arg1 *pb.Message) (*pb.Message, error) {
+func (m *MockPeerManager) Send(arg0 peer_mgr.KeyType, arg1 *pb.Message) (*pb.Message, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Send", arg0, arg1)
 	ret0, _ := ret[0].(*pb.Message)

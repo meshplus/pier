@@ -12,6 +12,7 @@ import (
 	"github.com/ipfs/go-cid"
 	crypto2 "github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/libp2p/go-libp2p-core/peer"
+	basicMgr "github.com/meshplus/bitxhub-core/peer-mgr"
 	"github.com/meshplus/bitxhub-kit/crypto"
 	"github.com/meshplus/bitxhub-kit/crypto/asym/ecdsa"
 	"github.com/meshplus/bitxhub-model/pb"
@@ -46,29 +47,28 @@ type Swarm struct {
 func New(config *repo.Config, nodePrivKey crypto.PrivateKey, privKey crypto.PrivateKey, providers uint64, logger logrus.FieldLogger) (*Swarm, error) {
 	libp2pPrivKey, err := convertToLibp2pPrivKey(nodePrivKey)
 	if err != nil {
-		return nil, fmt.Errorf("convert private key: %w", err)
+		return nil, fmt.Errorf("convert node private key: %w", err)
 	}
-	var local string
-	var remotes map[string]*peer.AddrInfo
-	switch config.Mode.Type {
-	case repo.UnionMode:
-		local, remotes, err = loadPeers(config.Mode.Union.Connectors, libp2pPrivKey)
-		if err != nil {
-			return nil, fmt.Errorf("load peers: %w", err)
+
+	networkConfiig, err := repo.LoadNetworkConfig(config.RepoRoot, libp2pPrivKey)
+	if err != nil {
+		return nil, fmt.Errorf("load peers: %w", err)
+	}
+
+	remotes := make(map[string]*peer.AddrInfo)
+	id, err := peer.IDFromPrivateKey(libp2pPrivKey)
+	p2pPeers, _ := repo.GetNetworkPeers(networkConfiig)
+	for pid, addrInfo := range p2pPeers {
+		if strings.Compare(pid, id.String()) == 0 {
+			continue
 		}
-	case repo.DirectMode:
-		local, remotes, err = loadPeers(config.Mode.Direct.Peers, libp2pPrivKey)
-		if err != nil {
-			return nil, fmt.Errorf("load peers: %w", err)
-		}
-	default:
-		return nil, fmt.Errorf("unsupport mode type")
+		remotes[pid] = addrInfo
 	}
 
 	var protocolIDs = []string{protocolID}
 
 	p2p, err := network.New(
-		network.WithLocalAddr(local),
+		network.WithLocalAddr(networkConfiig.LocalAddr),
 		network.WithPrivateKey(libp2pPrivKey),
 		network.WithProtocolIDs(protocolIDs),
 		network.WithLogger(logger),
@@ -170,8 +170,8 @@ func (swarm *Swarm) Stop() error {
 	return nil
 }
 
-func (swarm *Swarm) AsyncSend(id string, msg *pb.Message) error {
-	addrInfo, err := swarm.getAddrInfo(id)
+func (swarm *Swarm) AsyncSend(id basicMgr.KeyType, msg *pb.Message) error {
+	addrInfo, err := swarm.getAddrInfo(id.(string))
 	if err != nil {
 		return err
 	}
@@ -226,8 +226,8 @@ func (swarm *Swarm) AsyncSendWithStream(s network.Stream, msg *pb.Message) error
 	return s.AsyncSend(data)
 }
 
-func (swarm *Swarm) Send(id string, msg *pb.Message) (*pb.Message, error) {
-	addrInfo, err := swarm.getAddrInfo(id)
+func (swarm *Swarm) Send(id basicMgr.KeyType, msg *pb.Message) (*pb.Message, error) {
+	addrInfo, err := swarm.getAddrInfo(id.(string))
 	if err != nil {
 		return nil, err
 	}
@@ -316,39 +316,6 @@ func convertToLibp2pPrivKey(privateKey crypto.PrivateKey) (crypto2.PrivKey, erro
 	}
 
 	return libp2pPrivKey, nil
-}
-
-func loadPeers(peers []string, privateKey crypto2.PrivKey) (string, map[string]*peer.AddrInfo, error) {
-	var local string
-	remotes := make(map[string]*peer.AddrInfo)
-
-	id, err := peer.IDFromPrivateKey(privateKey)
-	if err != nil {
-		return "", nil, err
-	}
-
-	for _, p := range peers {
-		if strings.HasSuffix(p, id.String()) {
-			idx := strings.LastIndex(p, "/p2p/")
-			if idx == -1 {
-				return "", nil, fmt.Errorf("pid is not existed in bootstrap")
-			}
-
-			local = p[:idx]
-		} else {
-			addr, err := AddrToPeerInfo(p)
-			if err != nil {
-				return "", nil, fmt.Errorf("wrong network addr: %w", err)
-			}
-			remotes[addr.ID.String()] = addr
-		}
-	}
-
-	if local == "" {
-		return "", nil, fmt.Errorf("get local addr: no local addr is configured")
-	}
-
-	return local, remotes, nil
 }
 
 // AddrToPeerInfo transfer addr to PeerInfo
