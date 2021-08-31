@@ -98,4 +98,14 @@ var (
 		Usage:    "Specify governance reason",
 		Required: false,
 	}
+	appchainRuleFlag = cli.StringFlag{
+		Name:     "rule",
+		Usage:    "Specify appchain rule",
+		Required: false,
+	}
+	appchainRuleUrlFlag = cli.StringFlag{
+		Name:     "rule-url",
+		Usage:    "Specify appchain rule url",
+		Required: false,
+	}
 )
