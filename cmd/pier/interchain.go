@@ -16,7 +16,7 @@ var interchainCMD = cli.Command{
 	Flags: []cli.Flag{
 		cli.StringFlag{
 			Name:     "key",
-			Usage:    "Specific key.json path",
+			Usage:    "Specify key.json path",
 			Required: true,
 		},
 	},
