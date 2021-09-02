@@ -184,7 +184,17 @@ func initClientWithKeyPath(ctx *cli.Context, chainAdminKeyPath string) (rpcx.Cli
 		return nil, nil, err
 	}
 
-	client, err := loadClient(chainAdminKeyPath, config.Mode.Relay.Addrs, ctx)
+	addrs := []string{}
+	switch config.Mode.Type {
+	case repo.RelayMode:
+		addrs = config.Mode.Relay.Addrs
+	case repo.DirectMode:
+		addrs = config.Mode.Direct.Peers
+	case repo.UnionMode:
+		addrs = config.Mode.Union.Addrs
+	}
+
+	client, err := loadClient(chainAdminKeyPath, addrs, ctx)
 	if err != nil {
 		return nil, nil, fmt.Errorf("load client: %w", err)
 	}
