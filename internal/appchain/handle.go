@@ -15,16 +15,17 @@ func (mgr *Manager) handleMessage(s network.Stream, msg *peerproto.Message) {
 	var ok bool
 	switch msg.Type {
 	case peerproto.Message_APPCHAIN_REGISTER:
-		ok, res = mgr.Mgr.Register(msg.Payload.Data)
+		// todo check err
+		//ok, res = mgr.Mgr.Register(msg.Payload.Data)
 	case peerproto.Message_APPCHAIN_UPDATE:
-		ok, res = mgr.Mgr.Update(msg.Payload.Data)
+		//ok, res = mgr.Mgr.Update(msg.Payload.Data)
 	case peerproto.Message_APPCHAIN_GET:
 		app := &appchainmgr.Appchain{}
 		if err := json.Unmarshal(msg.Payload.Data, app); err != nil {
 			mgr.logger.Error(err)
 			return
 		}
-		ok, res = mgr.Mgr.QueryById(app.ID, nil)
+		//res, _ = mgr.Mgr.QueryById(app.ID, nil)
 	default:
 		m := "wrong appchain message type"
 		res = []byte(m)
@@ -43,12 +44,13 @@ func (mgr *Manager) handleMessage(s network.Stream, msg *peerproto.Message) {
 		return
 	}
 
+	// todo check err
 	mgr.logger.WithFields(logrus.Fields{
-		"type":           msg.Type,
-		"from_id":        appchainRes.ID,
-		"name":           appchainRes.Name,
-		"desc":           appchainRes.Desc,
-		"chain_type":     appchainRes.ChainType,
-		"consensus_type": appchainRes.ConsensusType,
+		"type":    msg.Type,
+		"from_id": appchainRes.ID,
+		//"name":           appchainRes.Name,
+		"desc": appchainRes.Desc,
+		//"chain_type":     appchainRes.ChainType,
+		//"consensus_type": appchainRes.ConsensusType,
 	}).Info("Handle appchain message")
 }

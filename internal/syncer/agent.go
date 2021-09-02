@@ -5,10 +5,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/sirupsen/logrus"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/sirupsen/logrus"
 
 	"github.com/Rican7/retry"
 	"github.com/Rican7/retry/strategy"
@@ -100,7 +101,8 @@ func (syncer *WrapperSyncer) GetAppchains() ([]*appchainmgr.Appchain, error) {
 	}
 	appchains := make([]*appchainmgr.Appchain, 0)
 	for _, appchain := range ret {
-		if appchain.ChainType != repo.BitxhubType {
+		// todo :ChainType has been del
+		if appchain.ID != repo.BitxhubType {
 			appchains = append(appchains, appchain)
 		}
 	}
