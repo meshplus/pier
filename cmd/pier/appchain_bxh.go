@@ -27,7 +27,6 @@ var appchainBxhCMD = cli.Command{
 			Name:  "register",
 			Usage: "Register appchain to bitxhub",
 			Flags: []cli.Flag{
-				adminKeyPathFlag,
 				appchainIdFlag,
 				appchainTrustRootFlag,
 				appchainBrokerFlag,
@@ -41,7 +40,6 @@ var appchainBxhCMD = cli.Command{
 			Name:  "update",
 			Usage: "update appchain in bitxhub",
 			Flags: []cli.Flag{
-				adminKeyPathFlag,
 				appchainIdFlag,
 				cli.StringFlag{
 					Name:     "desc",
@@ -55,7 +53,6 @@ var appchainBxhCMD = cli.Command{
 			Name:  "activate",
 			Usage: "activate appchain in bitxhub",
 			Flags: []cli.Flag{
-				adminKeyPathFlag,
 				appchainIdFlag,
 				governanceReasonFlag,
 			},
@@ -65,7 +62,6 @@ var appchainBxhCMD = cli.Command{
 			Name:  "logout",
 			Usage: "logout appchain in bitxhub",
 			Flags: []cli.Flag{
-				adminKeyPathFlag,
 				appchainIdFlag,
 				governanceReasonFlag,
 			},
@@ -75,7 +71,6 @@ var appchainBxhCMD = cli.Command{
 			Name:  "get",
 			Usage: "Get appchain info",
 			Flags: []cli.Flag{
-				adminKeyPathFlag,
 				appchainIdFlag,
 			},
 			Action: getAppchain,
@@ -84,7 +79,6 @@ var appchainBxhCMD = cli.Command{
 }
 
 func registerPier(ctx *cli.Context) error {
-	chainAdminKeyPath := ctx.String("admin-key")
 	id := ctx.String("appchain-id")
 	trustrootPath := ctx.String("trustroot")
 	broker := ctx.String("broker")
@@ -96,7 +90,12 @@ func registerPier(ctx *cli.Context) error {
 		return fmt.Errorf("read validators file: %w", err)
 	}
 
-	client, _, err := initClientWithKeyPath(ctx, chainAdminKeyPath)
+	repoRoot, err := repo.PathRootWithDefault(ctx.GlobalString("repo"))
+	if err != nil {
+		return err
+	}
+	keyPath := filepath.Join(repoRoot, "key.json")
+	client, _, err := initClientWithKeyPath(ctx, keyPath)
 	if err != nil {
 		return err
 	}
@@ -126,11 +125,15 @@ func registerPier(ctx *cli.Context) error {
 }
 
 func updateAppchain(ctx *cli.Context) error {
-	chainAdminKeyPath := ctx.String("admin-key")
+	repoRoot, err := repo.PathRootWithDefault(ctx.GlobalString("repo"))
+	if err != nil {
+		return err
+	}
 	id := ctx.String("appchain-id")
 	desc := ctx.String("desc")
 
-	client, _, err := initClientWithKeyPath(ctx, chainAdminKeyPath)
+	keyPath := filepath.Join(repoRoot, "key.json")
+	client, _, err := initClientWithKeyPath(ctx, keyPath)
 	if err != nil {
 		return fmt.Errorf("init client: %w", err)
 	}
@@ -179,11 +182,15 @@ func updateAppchain(ctx *cli.Context) error {
 }
 
 func activateAppchain(ctx *cli.Context) error {
-	chainAdminKeyPath := ctx.String("admin-key")
+	repoRoot, err := repo.PathRootWithDefault(ctx.GlobalString("repo"))
+	if err != nil {
+		return err
+	}
 	id := ctx.String("appchain-id")
 	reason := ctx.String("reason")
 
-	client, _, err := initClientWithKeyPath(ctx, chainAdminKeyPath)
+	keyPath := filepath.Join(repoRoot, "key.json")
+	client, _, err := initClientWithKeyPath(ctx, keyPath)
 	if err != nil {
 		return fmt.Errorf("load client: %w", err)
 	}
@@ -211,11 +218,15 @@ func activateAppchain(ctx *cli.Context) error {
 }
 
 func logoutAppchain(ctx *cli.Context) error {
-	chainAdminKeyPath := ctx.String("admin-key")
+	repoRoot, err := repo.PathRootWithDefault(ctx.GlobalString("repo"))
+	if err != nil {
+		return err
+	}
 	id := ctx.String("appchain-id")
 	reason := ctx.String("reason")
 
-	client, _, err := initClientWithKeyPath(ctx, chainAdminKeyPath)
+	keyPath := filepath.Join(repoRoot, "key.json")
+	client, _, err := initClientWithKeyPath(ctx, keyPath)
 	if err != nil {
 		return fmt.Errorf("load client: %w", err)
 	}
@@ -239,10 +250,14 @@ func logoutAppchain(ctx *cli.Context) error {
 }
 
 func getAppchain(ctx *cli.Context) error {
-	chainAdminKeyPath := ctx.String("admin-key")
+	repoRoot, err := repo.PathRootWithDefault(ctx.GlobalString("repo"))
+	if err != nil {
+		return err
+	}
 	id := ctx.String("appchain-id")
 
-	client, _, err := initClientWithKeyPath(ctx, chainAdminKeyPath)
+	keyPath := filepath.Join(repoRoot, "key.json")
+	client, _, err := initClientWithKeyPath(ctx, keyPath)
 	if err != nil {
 		return fmt.Errorf("load client: %w", err)
 	}

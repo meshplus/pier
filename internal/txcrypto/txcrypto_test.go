@@ -103,9 +103,9 @@ func TestDirectCryptor(t *testing.T) {
 		keyMap:  keyMap2,
 	}
 
-	mockAppchainMgr.EXPECT().GetPubKeyByChainID(addr1).Return(true, pubBytes2).AnyTimes()
-	mockAppchainMgr.EXPECT().GetPubKeyByChainID(addr2).Return(true, pubBytes2).AnyTimes()
-	mockAppchainMgr.EXPECT().GetPubKeyByChainID("").Return(false, nil).AnyTimes()
+	//mockAppchainMgr.EXPECT().GetPubKeyByChainID(addr1).Return(true, pubBytes2).AnyTimes()
+	//mockAppchainMgr.EXPECT().GetPubKeyByChainID(addr2).Return(true, pubBytes2).AnyTimes()
+	//mockAppchainMgr.EXPECT().GetPubKeyByChainID("").Return(false, nil).AnyTimes()
 
 	content := []byte("bitxhub cryptor test")
 	encryptBytes, err := rc1.Encrypt(content, addr2)

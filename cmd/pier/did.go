@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"path/filepath"
 
 	"github.com/meshplus/bitxhub-kit/crypto/asym"
 	"github.com/meshplus/bitxhub-kit/types"
@@ -35,7 +36,6 @@ var methodCommand = cli.Command{
 			Name:  "register",
 			Usage: "Register appchain did method and info to bitxhub",
 			Flags: []cli.Flag{
-				adminKeyPathFlag,
 				methodFlag,
 				didDocAddrFlag,
 				didDocHashFlag,
@@ -59,7 +59,6 @@ var didCommand = cli.Command{
 			Name:  "register",
 			Usage: "Register appchain did in bitxhub",
 			Flags: []cli.Flag{
-				adminKeyPathFlag,
 				didFlag,
 			},
 			Action: registerDID,
@@ -68,7 +67,6 @@ var didCommand = cli.Command{
 			Name:  "audit",
 			Usage: "Audit registered appchain did info in bitxhub",
 			Flags: []cli.Flag{
-				adminKeyPathFlag,
 				didFlag,
 				statusFlag,
 			},
@@ -78,8 +76,11 @@ var didCommand = cli.Command{
 }
 
 func registerMethod(ctx *cli.Context) error {
+	repoRoot, err := repo.PathRootWithDefault(ctx.GlobalString("repo"))
+	if err != nil {
+		return err
+	}
 	method := ctx.String("method")
-	chainAdminKeyPath := ctx.String("admin-key")
 	didDocAddr := ctx.String("doc-addr")
 	didDocHash := ctx.String("doc-hash")
 	name := ctx.String("name")
@@ -94,11 +95,12 @@ func registerMethod(ctx *cli.Context) error {
 	}
 
 	// get repo public key
-	pubKey, err := getPubKey(chainAdminKeyPath)
+	keyPath := filepath.Join(repoRoot, "key.json")
+	pubKey, err := getPubKey(keyPath)
 	if err != nil {
 		return fmt.Errorf("get public key: %w", err)
 	}
-	client, _, err := initClientWithKeyPath(ctx, chainAdminKeyPath)
+	client, _, err := initClientWithKeyPath(ctx, keyPath)
 	if err != nil {
 		return err
 	}
@@ -128,9 +130,13 @@ func registerMethod(ctx *cli.Context) error {
 
 func registerDID(ctx *cli.Context) error {
 	did := ctx.String("did")
-	chainAdminKeyPath := ctx.String("admin-key")
+	repoRoot, err := repo.PathRootWithDefault(ctx.GlobalString("repo"))
+	if err != nil {
+		return err
+	}
 
-	client, address, err := initClientWithKeyPath(ctx, chainAdminKeyPath)
+	keyPath := filepath.Join(repoRoot, "key.json")
+	client, address, err := initClientWithKeyPath(ctx, keyPath)
 	if err != nil {
 		return err
 	}

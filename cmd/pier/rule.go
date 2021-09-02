@@ -3,10 +3,12 @@ package main
 import (
 	"fmt"
 	"io/ioutil"
+	"path/filepath"
 
 	"github.com/fatih/color"
 	"github.com/meshplus/bitxhub-model/constant"
 	rpcx "github.com/meshplus/go-bitxhub-client"
+	"github.com/meshplus/pier/internal/repo"
 	"github.com/tidwall/gjson"
 	"github.com/urfave/cli"
 )
@@ -26,7 +28,6 @@ var ruleCMD = cli.Command{
 				},
 
 				appchainIdFlag,
-				adminKeyPathFlag,
 				appchainRuleUrlFlag,
 			},
 			Action: deployRule,
@@ -41,7 +42,6 @@ var ruleCMD = cli.Command{
 					Required: true,
 				},
 				appchainIdFlag,
-				adminKeyPathFlag,
 				governanceReasonFlag,
 			},
 			Action: updateMasterRule,
@@ -56,7 +56,6 @@ var ruleCMD = cli.Command{
 					Required: true,
 				},
 				appchainIdFlag,
-				adminKeyPathFlag,
 			},
 			Action: logoutRule,
 		},
@@ -64,12 +63,16 @@ var ruleCMD = cli.Command{
 }
 
 func deployRule(ctx *cli.Context) error {
+	repoRoot, err := repo.PathRootWithDefault(ctx.GlobalString("repo"))
+	if err != nil {
+		return err
+	}
 	rulePath := ctx.String("path")
 	appchainID := ctx.String("appchain-id")
-	chainAdminKeyPath := ctx.String("admin-key")
 	rule_url := ctx.String("rule-url")
 
-	client, _, err := initClientWithKeyPath(ctx, chainAdminKeyPath)
+	keyPath := filepath.Join(repoRoot, "key.json")
+	client, _, err := initClientWithKeyPath(ctx, keyPath)
 	if err != nil {
 		return fmt.Errorf("Load client: %w", err)
 	}
@@ -107,12 +110,16 @@ func deployRule(ctx *cli.Context) error {
 }
 
 func updateMasterRule(ctx *cli.Context) error {
+	repoRoot, err := repo.PathRootWithDefault(ctx.GlobalString("repo"))
+	if err != nil {
+		return err
+	}
 	ruleAddr := ctx.String("addr")
 	appchainID := ctx.String("appchain-id")
-	chainAdminKeyPath := ctx.String("admin-key")
 	reason := ctx.String("reason")
 
-	client, _, err := initClientWithKeyPath(ctx, chainAdminKeyPath)
+	keyPath := filepath.Join(repoRoot, "key.json")
+	client, _, err := initClientWithKeyPath(ctx, keyPath)
 	if err != nil {
 		return fmt.Errorf("Load client: %w", err)
 	}
@@ -136,11 +143,15 @@ func updateMasterRule(ctx *cli.Context) error {
 }
 
 func bindRule(ctx *cli.Context) error {
+	repoRoot, err := repo.PathRootWithDefault(ctx.GlobalString("repo"))
+	if err != nil {
+		return err
+	}
 	ruleAddr := ctx.String("addr")
 	method := ctx.String("method")
-	chainAdminKeyPath := ctx.String("admin-key")
 
-	client, _, err := initClientWithKeyPath(ctx, chainAdminKeyPath)
+	keyPath := filepath.Join(repoRoot, "key.json")
+	client, _, err := initClientWithKeyPath(ctx, keyPath)
 	if err != nil {
 		return fmt.Errorf("Load client: %w", err)
 	}
@@ -167,9 +178,13 @@ func bindRule(ctx *cli.Context) error {
 func unbindRule(ctx *cli.Context) error {
 	ruleAddr := ctx.String("addr")
 	method := ctx.String("method")
-	chainAdminKeyPath := ctx.String("admin-key")
+	repoRoot, err := repo.PathRootWithDefault(ctx.GlobalString("repo"))
+	if err != nil {
+		return err
+	}
 
-	client, _, err := initClientWithKeyPath(ctx, chainAdminKeyPath)
+	keyPath := filepath.Join(repoRoot, "key.json")
+	client, _, err := initClientWithKeyPath(ctx, keyPath)
 	if err != nil {
 		return fmt.Errorf("Load client: %w", err)
 	}
@@ -196,9 +211,13 @@ func unbindRule(ctx *cli.Context) error {
 func freezeRule(ctx *cli.Context) error {
 	ruleAddr := ctx.String("addr")
 	method := ctx.String("method")
-	chainAdminKeyPath := ctx.String("admin-key")
+	repoRoot, err := repo.PathRootWithDefault(ctx.GlobalString("repo"))
+	if err != nil {
+		return err
+	}
 
-	client, _, err := initClientWithKeyPath(ctx, chainAdminKeyPath)
+	keyPath := filepath.Join(repoRoot, "key.json")
+	client, _, err := initClientWithKeyPath(ctx, keyPath)
 	if err != nil {
 		return fmt.Errorf("Load client: %w", err)
 	}
@@ -225,9 +244,13 @@ func freezeRule(ctx *cli.Context) error {
 func activateRule(ctx *cli.Context) error {
 	ruleAddr := ctx.String("addr")
 	method := ctx.String("method")
-	chainAdminKeyPath := ctx.String("admin-key")
+	repoRoot, err := repo.PathRootWithDefault(ctx.GlobalString("repo"))
+	if err != nil {
+		return err
+	}
 
-	client, _, err := initClientWithKeyPath(ctx, chainAdminKeyPath)
+	keyPath := filepath.Join(repoRoot, "key.json")
+	client, _, err := initClientWithKeyPath(ctx, keyPath)
 	if err != nil {
 		return fmt.Errorf("Load client: %w", err)
 	}
@@ -254,9 +277,13 @@ func activateRule(ctx *cli.Context) error {
 func logoutRule(ctx *cli.Context) error {
 	ruleAddr := ctx.String("addr")
 	appchainID := ctx.String("appchain-id")
-	chainAdminKeyPath := ctx.String("admin-key")
+	repoRoot, err := repo.PathRootWithDefault(ctx.GlobalString("repo"))
+	if err != nil {
+		return err
+	}
 
-	client, _, err := initClientWithKeyPath(ctx, chainAdminKeyPath)
+	keyPath := filepath.Join(repoRoot, "key.json")
+	client, _, err := initClientWithKeyPath(ctx, keyPath)
 	if err != nil {
 		return fmt.Errorf("Load client: %w", err)
 	}
