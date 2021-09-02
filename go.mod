@@ -18,9 +18,9 @@ require (
 	github.com/ipfs/go-cid v0.0.7
 	github.com/lestrrat-go/strftime v1.0.3 // indirect
 	github.com/libp2p/go-libp2p-core v0.6.1
+	github.com/meshplus/bitxhub-core v1.3.1-0.20210901134750-eb8755d3e50a
 	github.com/meshplus/bitxhub-kit v1.2.1-0.20210830031953-cf5f83f2e1dd
-	github.com/meshplus/bitxhub-core v1.3.1-0.20210831005631-1f32aa1c9196
-	github.com/meshplus/bitxhub-model v1.2.1-0.20210811073359-62d4143881d5
+	github.com/meshplus/bitxhub-model v1.2.1-0.20210902030154-b203e4a4b3de
 	github.com/meshplus/bitxid v0.0.0-20210412025850-e0eaf0f9063a
 	github.com/meshplus/go-bitxhub-client v1.3.1-0.20210809030405-bb8b2ae25e54
 	github.com/meshplus/go-lightp2p v0.0.0-20200817105923-6b3aee40fa54

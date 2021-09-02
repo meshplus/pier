@@ -27,7 +27,7 @@ var ruleCMD = cli.Command{
 
 				appchainIdFlag,
 				adminKeyPathFlag,
-				governanceReasonFlag,
+				appchainRuleUrlFlag,
 			},
 			Action: deployRule,
 		},
@@ -67,7 +67,7 @@ func deployRule(ctx *cli.Context) error {
 	rulePath := ctx.String("path")
 	appchainID := ctx.String("appchain-id")
 	chainAdminKeyPath := ctx.String("admin-key")
-	reason := ctx.String("reason")
+	rule_url := ctx.String("rule-url")
 
 	client, _, err := initClientWithKeyPath(ctx, chainAdminKeyPath)
 	if err != nil {
@@ -92,7 +92,7 @@ func deployRule(ctx *cli.Context) error {
 	receipt, err := client.InvokeBVMContract(
 		constant.RuleManagerContractAddr.Address(),
 		"RegisterRule", nil,
-		rpcx.String(appchainID), rpcx.String(contractAddr.String()), rpcx.String(reason))
+		rpcx.String(appchainID), rpcx.String(contractAddr.String()), rpcx.String(rule_url))
 	if err != nil {
 		return fmt.Errorf("Register rule: %w", err)
 	}
@@ -100,13 +100,7 @@ func deployRule(ctx *cli.Context) error {
 	if !receipt.IsSuccess() {
 		color.Red(fmt.Sprintf("Register rule to bitxhub for appchain %s error: %s", appchainID, string(receipt.Ret)))
 	} else {
-		proposalId := gjson.Get(string(receipt.Ret), "proposal_id").String()
-		if proposalId != "" {
-			color.Green(fmt.Sprintf("Register rule to bitxhub for appchain %s successfully, the bind request was submitted successfully, wait for proposal %s to finish.", appchainID, proposalId))
-		} else {
-			color.Green(fmt.Sprintf("Register rule to bitxhub for appchain %s successfully.", appchainID))
-		}
-
+		color.Green(fmt.Sprintf("Register rule to bitxhub for appchain %s successfully.", appchainID))
 	}
 
 	return nil

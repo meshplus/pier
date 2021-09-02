@@ -695,15 +695,26 @@ func testUnionMode(pierID string, t *testing.T) {
 		SourceReceiptCounter: map[string]uint64{pierID: 1},
 	}
 	signs := []byte("signs for ibtp in bitxhub")
+	//appchains := []*appchainmgr.Appchain{
+	//	{
+	//		ID:         pierID,
+	//		Name:       "hpc",
+	//		Validators: "validator for hpc",
+	//		Status:     governance.GovernanceAvailable,
+	//		ChainType:  "hyperchain",
+	//		Desc:       "appchain for test",
+	//		PublicKey:  "",
+	//	},
+	//}
+
 	appchains := []*appchainmgr.Appchain{
 		{
-			ID:         pierID,
-			Name:       "hpc",
-			Validators: "validator for hpc",
-			Status:     governance.GovernanceAvailable,
-			ChainType:  "hyperchain",
-			Desc:       "appchain for test",
-			PublicKey:  "",
+			ID:        pierID,
+			TrustRoot: []byte("validator for hpc"),
+			Status:    governance.GovernanceAvailable,
+			Broker:    "",
+			Desc:      "appchain for test",
+			Version:   0,
 		},
 	}
 

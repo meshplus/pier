@@ -9,7 +9,6 @@ import (
 
 	appchainmgr "github.com/meshplus/bitxhub-core/appchain-mgr"
 	"github.com/meshplus/bitxhub-kit/crypto/asym"
-	"github.com/meshplus/bitxhub-kit/hexutil"
 	"github.com/meshplus/bitxhub-model/constant"
 	rpcx "github.com/meshplus/go-bitxhub-client"
 	"github.com/meshplus/pier/internal/repo"
@@ -33,8 +32,7 @@ var appchainBxhCMD = cli.Command{
 				appchainTrustRootFlag,
 				appchainBrokerFlag,
 				appchainDescFlag,
-				appchainVersionFlag,
-				appchainBindFlag,
+				appchainMasterRuleFlag,
 				governanceReasonFlag,
 			},
 			Action: registerPier,
@@ -48,11 +46,6 @@ var appchainBxhCMD = cli.Command{
 				cli.StringFlag{
 					Name:     "desc",
 					Usage:    "Specify appchain description",
-					Required: false,
-				},
-				cli.StringFlag{
-					Name:     "version",
-					Usage:    "Specify appchain version",
 					Required: false,
 				},
 			},
@@ -96,8 +89,7 @@ func registerPier(ctx *cli.Context) error {
 	trustrootPath := ctx.String("trustroot")
 	broker := ctx.String("broker")
 	desc := ctx.String("desc")
-	version := ctx.String("version")
-	bind := ctx.String("bind")
+	masterRule := ctx.String("master-rule")
 	reason := ctx.String("reason")
 	trustrootData, err := ioutil.ReadFile(trustrootPath)
 	if err != nil {
@@ -116,9 +108,8 @@ func registerPier(ctx *cli.Context) error {
 		rpcx.Bytes(trustrootData),
 		rpcx.String(broker),
 		rpcx.String(desc),
-		rpcx.String(version),
+		rpcx.String(masterRule),
 		rpcx.String(reason),
-		rpcx.String(bind),
 	)
 	if err != nil {
 		return fmt.Errorf("invoke bvm contract: %w", err)
@@ -138,7 +129,6 @@ func updateAppchain(ctx *cli.Context) error {
 	chainAdminKeyPath := ctx.String("admin-key")
 	id := ctx.String("appchain-id")
 	desc := ctx.String("desc")
-	version := ctx.String("version")
 
 	client, _, err := initClientWithKeyPath(ctx, chainAdminKeyPath)
 	if err != nil {
@@ -164,16 +154,11 @@ func updateAppchain(ctx *cli.Context) error {
 	if desc == "" {
 		desc = appchainInfo.Desc
 	}
-	if version == "" {
-		version = appchainInfo.Version
-	}
-
 	receipt, err = client.InvokeBVMContract(
 		constant.AppchainMgrContractAddr.Address(),
 		"UpdateAppchain", nil,
 		rpcx.String(id),
 		rpcx.String(desc),
-		rpcx.String(version),
 	)
 	if err != nil {
 		return fmt.Errorf("invoke bvm contract: %w", err)
@@ -279,7 +264,6 @@ func getAppchain(ctx *cli.Context) error {
 	if err = json.Unmarshal(receipt.Ret, &appchainInfo); err != nil {
 		return err
 	}
-	appchainInfo.PublicKey = hexutil.Encode([]byte(appchainInfo.PublicKey))
 
 	appchainData, err := json.Marshal(appchainInfo)
 	if err != nil {

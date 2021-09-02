@@ -1,8 +1,6 @@
 package txcrypto
 
 import (
-	"fmt"
-
 	"github.com/btcsuite/btcd/btcec"
 	"github.com/meshplus/bitxhub-kit/crypto"
 	"github.com/meshplus/bitxhub-kit/crypto/ecdh"
@@ -45,12 +43,13 @@ func (d *DirectCryptor) Decrypt(content []byte, address string) ([]byte, error) 
 func (d *DirectCryptor) getDesKey(address string) (crypto.SymmetricKey, error) {
 	pubKey, ok := d.keyMap[address]
 	if !ok {
-		get, ret := d.appchainMgr.Mgr.GetPubKeyByChainID(address)
-		if !get {
-			return nil, fmt.Errorf("cannot find the public key")
-		}
-		d.keyMap[address] = ret
-		pubKey = ret
+		// todo check err
+		//get, ret := d.appchainMgr.Mgr.GetPubKeyByChainID(address)
+		//if !get {
+		//	return nil, fmt.Errorf("cannot find the public key")
+		//}
+		//d.keyMap[address] = ret
+		//pubKey = ret
 	}
 	ke, err := ecdh.NewEllipticECDH(btcec.S256())
 	if err != nil {

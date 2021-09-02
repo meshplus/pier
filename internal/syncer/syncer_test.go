@@ -7,11 +7,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/meshplus/pier/internal/loggers"
 	"io/ioutil"
 	"strconv"
 	"testing"
 	"time"
+
+	"github.com/meshplus/pier/internal/loggers"
 
 	"github.com/cbergoon/merkletree"
 	"github.com/golang/mock/gomock"
@@ -414,13 +415,23 @@ func TestGetAppchains(t *testing.T) {
 
 	// set up return metaReceipt
 	chainInfo := &appchainmgr.Appchain{
-		ID:            from,
-		Name:          "fabric",
-		Validators:    "fabric",
-		ConsensusType: "rbft",
-		Status:        governance.GovernanceAvailable,
-		ChainType:     "fabric",
+		Status:    governance.GovernanceAvailable,
+		ID:        from,
+		TrustRoot: nil,
+		Broker:    "",
+		Desc:      "",
+		Version:   0,
 	}
+
+	//	&appchainmgr.Appchain{
+	//	ID:            from,
+	//	Name:          "fabric",
+	//	Validators:    "fabric",
+	//	ConsensusType: "rbft",
+	//	Status:        governance.GovernanceAvailable,
+	//	ChainType:     "fabric",
+	//}
+
 	originalChainsInfo := []*appchainmgr.Appchain{chainInfo, chainInfo}
 	info, err := json.Marshal(originalChainsInfo)
 	require.Nil(t, err)

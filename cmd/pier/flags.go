@@ -88,6 +88,11 @@ var (
 		Usage:    "Specify if bind default rule(for fabric 1.4 appchain, true or false)",
 		Required: true,
 	}
+	appchainMasterRuleFlag = cli.StringFlag{
+		Name:     "master-rule",
+		Usage:    "Specify appchain master-rule",
+		Required: true,
+	}
 	appchainConsensusFlag = cli.StringFlag{
 		Name:     "consensus",
 		Usage:    "Specific appchain consensus type",

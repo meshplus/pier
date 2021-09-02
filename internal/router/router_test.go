@@ -2,6 +2,10 @@ package router
 
 import (
 	"encoding/json"
+	"io/ioutil"
+	"path/filepath"
+	"testing"
+
 	"github.com/golang/mock/gomock"
 	appchainmgr "github.com/meshplus/bitxhub-core/appchain-mgr"
 	"github.com/meshplus/bitxhub-kit/log"
@@ -12,9 +16,6 @@ import (
 	peerproto "github.com/meshplus/pier/internal/peermgr/proto"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"io/ioutil"
-	"path/filepath"
-	"testing"
 )
 
 const (
@@ -67,12 +68,12 @@ func TestUnionRouter_AddAppchains(t *testing.T) {
 	router := New(mockPeerManager, storage, log.NewWithModule("router"), []string{""})
 	appchains := make([]*appchainmgr.Appchain, 0)
 	app := &appchainmgr.Appchain{
-		ID:   from,
-		Name: "app",
+		ID: from,
+		//Name: "app",
 	}
 	bxh := &appchainmgr.Appchain{
-		ID:   to,
-		Name: "bxh",
+		ID: to,
+		//Name: "bxh",
 	}
 	appchains = append(appchains, app, bxh)
 	err = router.AddAppchains(appchains)
