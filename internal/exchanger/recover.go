@@ -2,12 +2,12 @@ package exchanger
 
 import (
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/Rican7/retry"
 	"github.com/Rican7/retry/strategy"
 	"github.com/meshplus/bitxhub-model/pb"
+	"github.com/meshplus/pier/internal/utils"
 	"github.com/meshplus/pier/pkg/model"
 	"github.com/sirupsen/logrus"
 )
@@ -33,7 +33,7 @@ func (ex *Exchanger) handleUnsentIBTP() {
 			rollbackIndex = uint64(0)
 		)
 
-		srcServiceID, dstServiceID, err := parseServicePair(servicePair)
+		srcServiceID, dstServiceID, err := utils.ParseServicePair(servicePair)
 		if err != nil {
 			ex.logger.Panicf("parse service pair when sending out IBTP: %v", err)
 		}
@@ -82,7 +82,7 @@ func (ex *Exchanger) handleUnsentIBTPReceipt() {
 	inMeta := ex.exec.QueryInterchainMeta()
 
 	for serviceID, meta := range ex.serviceMeta {
-		for srcServiceID, _ := range meta.SourceInterchainCounter {
+		for srcServiceID := range meta.SourceInterchainCounter {
 			servicePair := fmt.Sprintf("%s-%s", srcServiceID, serviceID)
 
 			beginIndex := meta.SourceReceiptCounter[srcServiceID]
@@ -116,7 +116,7 @@ func (ex *Exchanger) handleUnsentIBTPReceipt() {
 					dstRollbackMeta := ex.exec.QueryDstRollbackMeta()
 					if dstRollbackMeta[servicePair] < beginIndex {
 						var ibtp *pb.IBTP
-						_, srcAppchainID, _, err := parseFullServiceID(srcServiceID)
+						_, srcAppchainID, _, err := utils.ParseFullServiceID(srcServiceID)
 						if err != nil {
 							ex.logger.Panic(err)
 						}
@@ -253,11 +253,11 @@ func (ex *Exchanger) handleMissingCallback(servicePair string, begin, end uint64
 			"index":        begin,
 		}).Info("Get missing callbacks from bitxhub")
 
-		_, dstServiceID, err := parseServicePair(servicePair)
+		_, dstServiceID, err := utils.ParseServicePair(servicePair)
 		if err != nil {
 			return err
 		}
-		_, dstAppchainID, _, err := parseFullServiceID(dstServiceID)
+		_, dstAppchainID, _, err := utils.ParseFullServiceID(dstServiceID)
 		if err != nil {
 			return err
 		}
@@ -368,11 +368,11 @@ func (ex *Exchanger) handleMissingReceipt(servicePair string, begin uint64, end 
 		})
 		entry.Info("Send missing receipt to bitxhub")
 
-		srcServiceID, _, err := parseServicePair(servicePair)
+		srcServiceID, _, err := utils.ParseServicePair(servicePair)
 		if err != nil {
 			return err
 		}
-		_, srcAppchainID, _, err := parseFullServiceID(srcServiceID)
+		_, srcAppchainID, _, err := utils.ParseFullServiceID(srcServiceID)
 		if err != nil {
 			return err
 		}
@@ -399,6 +399,83 @@ func (ex *Exchanger) handleMissingReceipt(servicePair string, begin uint64, end 
 	return nil
 }
 
+func (ex *Exchanger) recoverUnion() error {
+	ex.bxhID = fmt.Sprintf("%d", ex.getBitXHubChainID())
+	go func() {
+		for {
+			err := ex.router.Broadcast(ex.bxhID)
+			if err != nil {
+				ex.logger.Warnf("broadcast BitXHub ID %s: %w", ex.bxhID, err)
+			}
+
+			time.Sleep(time.Second)
+		}
+	}()
+
+	outBxhServiceM := make(map[string][]string)
+	bitxhubIDs, err := ex.syncer.GetBitXHubIDs()
+	if err != nil {
+		return err
+	}
+	ex.logger.Warnf("get bitxhub IDs %s", bitxhubIDs)
+	for _, bitxhubID := range bitxhubIDs {
+		outBxhServiceM[bitxhubID] = []string{}
+	}
+
+	serviceIDs, err := ex.syncer.GetServiceIDs()
+	if err != nil {
+		return err
+	}
+
+	for _, serviceID := range serviceIDs {
+		interchain0 := ex.syncer.QueryInterchainMeta(serviceID)
+		ex.logger.Infof("get service %s interchain from current bitxhub: %v", serviceID, interchain0)
+		outServiceM, err := ex.getOutServices(interchain0)
+		if err != nil {
+			return err
+		}
+
+		for bxhID, outServices := range outServiceM {
+			interchain1, err := ex.router.QueryInterchain(bxhID, serviceID)
+			if err != nil {
+				continue
+			}
+
+			for _, outService := range outServices {
+				if interchain0.InterchainCounter[outService] > interchain1.InterchainCounter[outService] {
+					ex.sendMissingIBTPToUnionPier(serviceID, outService, interchain1.InterchainCounter[outService]+1, interchain0.InterchainCounter[outService], true)
+				}
+				if interchain0.ReceiptCounter[outService] < interchain1.ReceiptCounter[outService] {
+					ex.askMissingIBTPFromUnionPier(serviceID, outService, interchain0.ReceiptCounter[outService]+1, interchain1.ReceiptCounter[outService], false)
+				}
+			}
+		}
+
+		inServiceM, err := ex.getInServices(interchain0)
+		if err != nil {
+			return err
+		}
+
+		for bxhID, inServices := range inServiceM {
+			interchain1, err := ex.router.QueryInterchain(bxhID, serviceID)
+			if err != nil {
+				continue
+			}
+
+			for _, inService := range inServices {
+				if interchain0.SourceInterchainCounter[inService] < interchain1.SourceInterchainCounter[inService] {
+					ex.askMissingIBTPFromUnionPier(inService, serviceID, interchain0.SourceInterchainCounter[inService]+1, interchain1.SourceInterchainCounter[inService], true)
+				}
+				if interchain0.SourceReceiptCounter[inService] > interchain1.SourceReceiptCounter[inService] {
+					ex.sendMissingIBTPToUnionPier(inService, serviceID, interchain1.SourceReceiptCounter[inService]+1, interchain0.SourceReceiptCounter[inService], false)
+				}
+			}
+		}
+	}
+
+	return nil
+}
+
 func (ex *Exchanger) updateInterchainMeta(serviceID string) {
 	updatedMeta := ex.syncer.QueryInterchainMeta(serviceID)
 	ex.serviceMeta[serviceID].InterchainCounter = updatedMeta.InterchainCounter
@@ -411,21 +488,90 @@ func (ex *Exchanger) updateSourceReceiptMeta(serviceID string) {
 	ex.logger.Info("Update sourceReceiptCounter meta from bitxhub")
 }
 
-func parseServicePair(servicePair string) (string, string, error) {
-	splits := strings.Split(servicePair, "-")
-	if len(splits) != 2 {
-		return "", "", fmt.Errorf("invalid service pair ID: %s", servicePair)
+func (ex *Exchanger) getOutServices(interchain *pb.Interchain) (map[string][]string, error) {
+	outServiceM := make(map[string][]string)
+	for toService := range interchain.InterchainCounter {
+		bxhID, _, _, err := utils.ParseFullServiceID(toService)
+		if err != nil {
+			return nil, err
+		}
+		if bxhID != ex.bxhID {
+			outServiceM[bxhID] = append(outServiceM[bxhID], toService)
+		}
 	}
 
-	return splits[0], splits[1], nil
+	return outServiceM, nil
 }
 
-func parseFullServiceID(serviceID string) (string, string, string, error) {
-	splits := strings.Split(serviceID, ":")
-	if len(splits) != 3 {
-		return "", "", "", fmt.Errorf("invalid service ID: %s", serviceID)
+func (ex *Exchanger) getInServices(interchain *pb.Interchain) (map[string][]string, error) {
+	inServiceM := make(map[string][]string)
+	for inService := range interchain.SourceInterchainCounter {
+		bxhID, _, _, err := utils.ParseFullServiceID(inService)
+		if err != nil {
+			return nil, err
+		}
+		if bxhID != ex.bxhID {
+			inServiceM[bxhID] = append(inServiceM[bxhID], inService)
+		}
 	}
 
-	return splits[0], splits[1], splits[2], nil
+	return inServiceM, nil
+}
 
+func (ex *Exchanger) sendMissingIBTPToUnionPier(from, to string, beginIdx, endIdx uint64, isReq bool) {
+	for i := beginIdx; i <= endIdx; i++ {
+		ibtpID := fmt.Sprintf("%s-%s-%d", from, to, i)
+		ex.logger.Infof("send missing IBTP %s req %v to union pier", ibtpID, isReq)
+		ibtp := ex.queryIBTPFromBitXHub(ibtpID, isReq)
+		if err := ex.router.Route(ibtp); err != nil {
+			ex.logger.Warnf("route ibtp %s type %s: %w", ibtpID, ibtp.Type.String(), err)
+			return
+		}
+	}
+}
+
+func (ex *Exchanger) askMissingIBTPFromUnionPier(from, to string, beginIdx, endIdx uint64, isReq bool) {
+	for i := beginIdx; i <= endIdx; i++ {
+		ibtpID := fmt.Sprintf("%s-%s-%d", from, to, i)
+		ex.logger.Infof("ask missing IBTP %s req %v from union pier", ibtpID, isReq)
+		ibtp, err := ex.router.QueryIBTP(ibtpID, isReq)
+		if err != nil {
+			ex.logger.Warnf("query ibtp %s isReq %v: %w", ibtpID, isReq, err)
+			return
+		}
+		if err := ex.syncer.SendIBTP(ibtp); err != nil {
+			ex.logger.Warnf("send ibtp %s type %s: %w", ibtpID, ibtp.Type.String(), err)
+			return
+		}
+	}
+}
+
+func (ex *Exchanger) queryIBTPFromBitXHub(id string, isReq bool) *pb.IBTP {
+	var (
+		ibtp  *pb.IBTP
+		err   error
+		signs []byte
+	)
+
+	if err := retry.Retry(func(attempt uint) error {
+		ibtp, _, err = ex.syncer.QueryIBTP(id, isReq)
+		return err
+	}, strategy.Wait(time.Second*3)); err != nil {
+		ex.logger.Panicf("query ibtp %s from bitxhub: %w", id, err)
+	}
+
+	if err := retry.Retry(func(attempt uint) error {
+		var err error
+		signs, err = ex.syncer.GetIBTPSigns(ibtp)
+		if err != nil {
+			return err
+		}
+		return nil
+	}, strategy.Wait(1*time.Second)); err != nil {
+		ex.logger.Panicf("get ibtp %s sign from bitxhub: %w", id, err)
+	}
+
+	ibtp.Proof = signs
+
+	return ibtp
 }

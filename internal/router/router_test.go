@@ -7,7 +7,6 @@ import (
 	"testing"
 
 	"github.com/golang/mock/gomock"
-	appchainmgr "github.com/meshplus/bitxhub-core/appchain-mgr"
 	"github.com/meshplus/bitxhub-kit/log"
 	"github.com/meshplus/bitxhub-kit/storage/leveldb"
 	"github.com/meshplus/bitxhub-model/pb"
@@ -19,9 +18,9 @@ import (
 )
 
 const (
-	from  = "0x3f9d18f7c3a6e5e4c0b877fe3e688ab08840b991"
-	to    = "0x3f9d18f7c3a6e5e4c0b877fe3e688ab08840b992"
-	other = "0x3f9d18f7c3a6e5e4c0b877fe3e688ab08840b993"
+	from  = "1356:chain0:0x3f9d18f7c3a6e5e4c0b877fe3e688ab08840b991"
+	to    = "1357:chain1:0x3f9d18f7c3a6e5e4c0b877fe3e688ab08840b992"
+	other = "1358:chain2:0x3f9d18f7c3a6e5e4c0b877fe3e688ab08840b993"
 )
 
 func TestUnionRouter_Route(t *testing.T) {
@@ -54,36 +53,6 @@ func TestUnionRouter_Route(t *testing.T) {
 
 	router.Stop()
 
-}
-
-func TestUnionRouter_AddAppchains(t *testing.T) {
-	mockCtl := gomock.NewController(t)
-	mockPeerManager := mock_peermgr.NewMockPeerManager(mockCtl)
-	mockPeerManager.EXPECT().Provider(gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
-
-	repoRoot, err := ioutil.TempDir("", "router_commit")
-	assert.Nil(t, err)
-	storage, err := leveldb.New(filepath.Join(repoRoot, "storage"))
-
-	router := New(mockPeerManager, storage, log.NewWithModule("router"), []string{""})
-	appchains := make([]*appchainmgr.Appchain, 0)
-	app := &appchainmgr.Appchain{
-		ID: from,
-		//Name: "app",
-	}
-	bxh := &appchainmgr.Appchain{
-		ID: to,
-		//Name: "bxh",
-	}
-	appchains = append(appchains, app, bxh)
-	err = router.AddAppchains(appchains)
-	require.Nil(t, err)
-
-	ok := router.ExistAppchain(app.ID)
-	require.True(t, ok)
-
-	ok = router.ExistAppchain(bxh.ID)
-	require.True(t, ok)
 }
 
 func mockIBTP(t *testing.T, index uint64, typ pb.IBTP_Type) *pb.IBTP {

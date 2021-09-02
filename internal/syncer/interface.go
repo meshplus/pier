@@ -1,7 +1,6 @@
 package syncer
 
 import (
-	appchainmgr "github.com/meshplus/bitxhub-core/appchain-mgr"
 	"github.com/meshplus/bitxhub-model/pb"
 	rpcx "github.com/meshplus/go-bitxhub-client"
 	"github.com/meshplus/pier/pkg/model"
@@ -24,7 +23,7 @@ type Syncer interface {
 	Stop() error
 
 	// QueryInterchainMeta queries meta including interchain and receipt related meta from bitxhub
-	QueryInterchainMeta(servicePair string) *pb.Interchain
+	QueryInterchainMeta(serviceID string) *pb.Interchain
 
 	// QueryIBTP query ibtp from bitxhub by its id.
 	// if error occurs, it means this ibtp is not existed on bitxhub
@@ -37,22 +36,20 @@ type Syncer interface {
 	// if error occurs, user need to reconstruct this ibtp cause it means ibtp is invalid on bitxhub
 	SendIBTP(ibtp *pb.IBTP) error
 
+	SendIBTPWithRetry(ibtp *pb.IBTP)
+
 	GetAssetExchangeSigns(id string) ([]byte, error)
 
 	//getIBTPSigns gets ibtp signs from bitxhub cluster
 	GetIBTPSigns(ibtp *pb.IBTP) ([]byte, error)
 
 	//GetAppchains gets appchains from bitxhub node
-	GetAppchains() ([]*appchainmgr.Appchain, error)
+	GetBitXHubIDs() ([]string, error)
 
-	//GetInterchainById gets interchain meta by appchain id
-	GetInterchainById(from string) *pb.Interchain
+	//GetInterchainById gets interchain meta by service id
+	GetServiceIDs() ([]string, error)
 
-	// RegisterRecoverHandler registers handler that recover ibtps from bitxhub
-	RegisterRecoverHandler(RecoverUnionHandler) error
-
-	// RegisterAppchainHandler registers handler that fetch appchains information
-	RegisterAppchainHandler(handler AppchainHandler) error
+	GetChainID() (uint64, error)
 
 	RegisterRollbackHandler(handler RollbackHandler) error
 

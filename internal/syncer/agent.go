@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/sirupsen/logrus"
+	service_mgr "github.com/meshplus/bitxhub-core/service-mgr"
 
 	"github.com/Rican7/retry"
 	"github.com/Rican7/retry/strategy"
@@ -20,6 +20,7 @@ import (
 	rpcx "github.com/meshplus/go-bitxhub-client"
 	"github.com/meshplus/pier/internal/repo"
 	"github.com/meshplus/pier/pkg/model"
+	"github.com/sirupsen/logrus"
 )
 
 const (
@@ -250,6 +251,49 @@ func (syncer *WrapperSyncer) SendIBTP(ibtp *pb.IBTP) error {
 	return retErr
 }
 
+func (syncer *WrapperSyncer) SendIBTPWithRetry(ibtp *pb.IBTP) {
+	proof := ibtp.GetProof()
+	proofHash := sha256.Sum256(proof)
+	ibtp.Proof = proofHash[:]
+
+	tx, _ := syncer.client.GenerateIBTPTx(ibtp)
+	tx.Extra = proof
+
+	var receipt *pb.Receipt
+
+	if err := retry.Retry(func(attempt uint) error {
+		hash, err := syncer.client.SendTransaction(tx, nil)
+		if err != nil {
+			syncer.logger.Errorf("Send ibtp error: %s", err.Error())
+			return err
+		}
+
+		if err := retry.Retry(func(attempt uint) error {
+			receipt, err = syncer.client.GetReceipt(hash)
+			if err != nil {
+				return fmt.Errorf("get tx receipt by hash %s: %w", hash, err)
+			}
+			return err
+		}, strategy.Wait(time.Second*2)); err != nil {
+			return err
+		}
+
+		if !receipt.IsSuccess() {
+			syncer.logger.WithFields(logrus.Fields{
+				"ibtp_id":   ibtp.ID(),
+				"ibtp_type": ibtp.Type,
+				"msg":       string(receipt.Ret),
+			}).Error("Receipt result for ibtp")
+
+			return fmt.Errorf("error on submit ibtp: %s", string(receipt.Ret))
+		}
+
+		return nil
+	}, strategy.Wait(2*time.Second)); err != nil {
+		syncer.logger.Panicf("send IBTP with retry: %v", err)
+	}
+}
+
 func (syncer *WrapperSyncer) retryFunc(handle func(uint) error) error {
 	return retry.Retry(func(attempt uint) error {
 		if err := handle(attempt); err != nil {
@@ -276,4 +320,52 @@ func (syncer *WrapperSyncer) GetTxStatus(id string) (pb.TransactionStatus, error
 	}
 
 	return pb.TransactionStatus(status), nil
+}
+
+func (syncer *WrapperSyncer) GetBitXHubIDs() ([]string, error) {
+	tx, err := syncer.client.GenerateContractTx(pb.TransactionData_BVM, constant.AppchainMgrContractAddr.Address(),
+		"GetBitXHubChainIDs")
+	if err != nil {
+		panic(err)
+	}
+
+	ret := getTxView(syncer.client, tx)
+
+	ids := make([]string, 0)
+	if err := json.Unmarshal(ret, &ids); err != nil {
+		panic(err)
+	}
+
+	return ids, nil
+}
+
+func (syncer *WrapperSyncer) GetServiceIDs() ([]string, error) {
+	tx, err := syncer.client.GenerateContractTx(pb.TransactionData_BVM, constant.ServiceMgrContractAddr.Address(),
+		"GetAllServices")
+	if err != nil {
+		panic(err)
+	}
+
+	ret := getTxView(syncer.client, tx)
+
+	services := make([]*service_mgr.Service, 0)
+	if err := json.Unmarshal(ret, &services); err != nil {
+		panic(err)
+	}
+
+	ids := make([]string, 0)
+
+	bxhID, err := syncer.GetBitXHubIDs()
+	if err != nil {
+		return nil, err
+	}
+	for _, service := range services {
+		ids = append(ids, fmt.Sprintf("%s:%s:%s", bxhID, service.ChainID, service.ServiceID))
+	}
+
+	return ids, nil
+}
+
+func (syncer *WrapperSyncer) GetChainID() (uint64, error) {
+	return syncer.client.GetChainID()
 }

@@ -3,6 +3,7 @@ package syncer
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/Rican7/retry"
@@ -46,6 +47,15 @@ func GetInterchainByServiceID(client rpcx.Client, fullServiceID string) *pb.Inte
 	}
 
 	ret := getTxView(client, tx)
+	if len(ret) == 0 {
+		return &pb.Interchain{
+			ID:                      fullServiceID,
+			InterchainCounter:       make(map[string]uint64),
+			ReceiptCounter:          make(map[string]uint64),
+			SourceInterchainCounter: make(map[string]uint64),
+			SourceReceiptCounter:    make(map[string]uint64),
+		}
+	}
 
 	interchain := &pb.Interchain{}
 	if err := interchain.Unmarshal(ret); err != nil {
@@ -57,8 +67,9 @@ func GetInterchainByServiceID(client rpcx.Client, fullServiceID string) *pb.Inte
 
 func getTxView(client rpcx.Client, tx *pb.BxhTransaction) []byte {
 	var (
-		receipt *pb.Receipt
-		err     error
+		receipt     *pb.Receipt
+		err         error
+		emptyResult bool
 	)
 	tx.Nonce = 1
 	logger := loggers.Logger(loggers.App)
@@ -69,7 +80,11 @@ func getTxView(client rpcx.Client, tx *pb.BxhTransaction) []byte {
 			return err
 		} else {
 			if !receipt.IsSuccess() {
-				logger.Errorf("get tx view receipt: %s ... retry later", string(receipt.Ret))
+				logger.Errorf("get tx view receipt: %s", string(receipt.Ret))
+				if strings.Contains(string(receipt.Ret), "this service does not exist") {
+					emptyResult = true
+					return nil
+				}
 				return fmt.Errorf("get tx view receipt: %s", string(receipt.Ret))
 			}
 
@@ -77,6 +92,10 @@ func getTxView(client rpcx.Client, tx *pb.BxhTransaction) []byte {
 		}
 	}, strategy.Wait(time.Second*5)); err != nil {
 		logger.Panicf("get tx view retry error: %v", err)
+	}
+
+	if emptyResult {
+		return nil
 	}
 
 	return receipt.GetRet()

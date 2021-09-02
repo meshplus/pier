@@ -12,6 +12,7 @@ import (
 	"github.com/meshplus/pier/internal/peermgr"
 	peerproto "github.com/meshplus/pier/internal/peermgr/proto"
 	"github.com/meshplus/pier/internal/syncer"
+	"github.com/meshplus/pier/internal/utils"
 	"github.com/sirupsen/logrus"
 )
 
@@ -59,11 +60,6 @@ func (u *UnionRouter) Stop() error {
 
 //Route sends ibtp to the union pier in target relay chain
 func (u *UnionRouter) Route(ibtp *pb.IBTP) error {
-	if ok := u.store.Has(RouteIBTPKey(ibtp.ID())); ok {
-		u.logger.WithField("ibtp", ibtp.ID()).Info("IBTP has routed by this pier")
-		return nil
-	}
-
 	data, err := ibtp.Marshal()
 	if err != nil {
 		return err
@@ -71,8 +67,13 @@ func (u *UnionRouter) Route(ibtp *pb.IBTP) error {
 
 	message := peermgr.Message(peerproto.Message_ROUTER_IBTP_SEND, true, data)
 
+	_, target, err := utils.GetSrcDstBitXHubID(ibtp.ID(), ibtp.Category() == pb.IBTP_REQUEST)
+	if err != nil {
+		return err
+	}
+
 	handle := func() error {
-		pierId, err := u.peermgr.FindProviders(ibtp.To)
+		pierId, err := u.peermgr.FindProviders(target)
 		if err != nil {
 			return err
 		}
@@ -81,14 +82,14 @@ func (u *UnionRouter) Route(ibtp *pb.IBTP) error {
 			u.logger.Errorf("send ibtp error:%v", err)
 			return err
 		}
-		u.pbTable.Store(ibtp.To, pierId)
-		u.store.Put([]byte(ibtp.ID()), []byte(""))
+		u.pbTable.Store(target, pierId)
+		u.store.Put(RouteIBTPKey(ibtp.ID()), []byte(""))
 		u.logger.WithField("ibtp", ibtp.ID()).Infof("send ibtp successfully from %s to %s", ibtp.From, ibtp.To)
 		return nil
 	}
 
 	//find target union pier by local cache
-	if unionPierId, ok := u.pbTable.Load(ibtp.To); ok {
+	if unionPierId, ok := u.pbTable.Load(target); ok {
 		res, err := u.peermgr.Send(unionPierId.(string), message)
 		if err == nil && res.Type == peerproto.Message_ACK && res.Payload.Ok {
 			u.store.Put(RouteIBTPKey(ibtp.ID()), []byte(""))
@@ -98,8 +99,8 @@ func (u *UnionRouter) Route(ibtp *pb.IBTP) error {
 	}
 
 	if err := handle(); err != nil {
-		u.pbTable.Delete(ibtp.To)
-		u.logger.Errorf("send ibtp error:%v", err)
+		u.pbTable.Delete(target)
+		u.logger.Errorf("send ibtp %s with category %s error: %v", ibtp.ID(), ibtp.Category().String(), err)
 		return err
 	}
 	u.store.Put(RouteIBTPKey(ibtp.ID()), []byte(""))
@@ -107,58 +108,131 @@ func (u *UnionRouter) Route(ibtp *pb.IBTP) error {
 	return nil
 }
 
-//Broadcast broadcasts the registered appchain ids to the union network
-func (u *UnionRouter) Broadcast(appchainIds []string) error {
-	for _, id := range appchainIds {
-		// Construct v0 cid
-		format := cid.V0Builder{}
-		idCid, err := format.Sum([]byte(id))
-		if err != nil {
-			return err
-		}
-
-		if err := u.peermgr.Provider(idCid.String(), true); err != nil {
-			return fmt.Errorf("broadcast %s error:%w", id, err)
-		}
-		u.logger.WithFields(logrus.Fields{
-			"id":  id,
-			"cid": idCid.String(),
-		}).Info("provide cid to network")
+//Broadcast broadcasts current BitXHub Chain ID to the union network
+func (u *UnionRouter) Broadcast(bxhID string) error {
+	// Construct v0 cid
+	format := cid.V0Builder{}
+	idCid, err := format.Sum([]byte(bxhID))
+	if err != nil {
+		return err
 	}
+
+	if err := u.peermgr.Provider(idCid.String(), true); err != nil {
+		return fmt.Errorf("broadcast %s error:%w", bxhID, err)
+	}
+	u.logger.WithFields(logrus.Fields{
+		"bxhID": bxhID,
+		"cid":   idCid.String(),
+	}).Info("provide cid to network")
+
 	return nil
 }
 
-//AddAppchains adds appchains to route map and broadcast them to union network
-func (u *UnionRouter) AddAppchains(appchains []*appchainmgr.Appchain) error {
-	if len(appchains) == 0 {
-		u.logger.Debugf("no appchains to add, no chains")
+func (u *UnionRouter) QueryInterchain(bxhID, serviceID string) (*pb.Interchain, error) {
+	message := peermgr.Message(peerproto.Message_ROUTER_INTERCHAIN_GET, true, []byte(serviceID))
+
+	interchain := &pb.Interchain{}
+
+	//find target union pier by local cache
+	if unionPierId, ok := u.pbTable.Load(bxhID); ok {
+		res, err := u.peermgr.Send(unionPierId.(string), message)
+		if err == nil && res.Type == peerproto.Message_ACK && res.Payload.Ok {
+			if err := interchain.Unmarshal(res.Payload.Data); err == nil {
+				u.logger.WithFields(logrus.Fields{
+					"bxhID":     bxhID,
+					"serviceID": serviceID,
+				}).Info("Get interchain successfully")
+				return interchain, nil
+			}
+		} else {
+			u.pbTable.Delete(bxhID)
+		}
+	}
+
+	handle := func() error {
+		pierId, err := u.peermgr.FindProviders(bxhID)
+		if err != nil {
+			return err
+		}
+		res, err := u.peermgr.Send(pierId, message)
+		if err != nil || res.Type != peerproto.Message_ACK || !res.Payload.Ok {
+			u.logger.Errorf("get interchain error:%v", err)
+			return err
+		}
+		if err := interchain.Unmarshal(res.Payload.Data); err != nil {
+			return err
+		}
+		u.pbTable.Store(bxhID, pierId)
+		u.logger.WithFields(logrus.Fields{
+			"bxhID":     bxhID,
+			"serviceID": serviceID,
+		}).Info("Get interchain successfully")
 		return nil
 	}
 
-	ids := make([]string, 0)
-	for _, appchain := range appchains {
-		for _, connectedPierId := range u.connectedPierIDs {
-			if appchain.ID == connectedPierId {
-				continue
-			}
-		}
-		if _, ok := u.appchains[appchain.ID]; ok {
-			continue
-		}
-		ids = append(ids, appchain.ID)
-		u.appchains[appchain.ID] = appchain
+	if err := handle(); err != nil {
+		return nil, err
 	}
-	if len(ids) == 0 {
-		u.logger.Debugf("no appchains to add, only self")
-		return nil
-	}
-	return u.Broadcast(ids)
+
+	return interchain, nil
 }
 
-//ExistAppchain returns if appchain id exit in route map
-func (u *UnionRouter) ExistAppchain(id string) bool {
-	_, ok := u.appchains[id]
-	return ok
+func (u *UnionRouter) QueryIBTP(id string, isReq bool) (*pb.IBTP, error) {
+	target, _, err := utils.GetSrcDstBitXHubID(id, isReq)
+	if err != nil {
+		return nil, err
+	}
+
+	message := peermgr.Message(peerproto.Message_ROUTER_IBTP_GET, true, []byte(id))
+	if !isReq {
+		message = peermgr.Message(peerproto.Message_ROUTER_IBTP_RECEIPT_GET, true, []byte(id))
+	}
+
+	ibtp := &pb.IBTP{}
+
+	//find target union pier by local cache
+	if unionPierId, ok := u.pbTable.Load(target); ok {
+		res, err := u.peermgr.Send(unionPierId.(string), message)
+		if err == nil && res.Type == peerproto.Message_ACK && res.Payload.Ok {
+			if err := ibtp.Unmarshal(res.Payload.Data); err == nil {
+				u.logger.WithFields(logrus.Fields{
+					"ibtp":  ibtp.ID(),
+					"isReq": isReq,
+				}).Info("Get ibtp successfully")
+				return ibtp, nil
+			}
+		} else {
+			u.pbTable.Delete(target)
+		}
+	}
+
+	handle := func() error {
+		u.logger.Infof("target is %s for ibtp %s, isReq: %v", target, id, isReq)
+		pierId, err := u.peermgr.FindProviders(target)
+		if err != nil {
+			return err
+		}
+		res, err := u.peermgr.Send(pierId, message)
+		if err != nil || res.Type != peerproto.Message_ACK || !res.Payload.Ok {
+			u.logger.Errorf("get ibtp error:%v", err)
+			return err
+		}
+		if err := ibtp.Unmarshal(res.Payload.Data); err != nil {
+			return err
+		}
+		u.pbTable.Store(target, pierId)
+		u.logger.WithFields(logrus.Fields{
+			"ibtp":  ibtp.ID(),
+			"isReq": isReq,
+		}).Info("Get ibtp successfully")
+		return nil
+	}
+
+	if err := handle(); err != nil {
+		return nil, err
+	}
+
+	return ibtp, nil
 }
 
 func RouteIBTPKey(id string) []byte {
