@@ -1,1 +1,4 @@
-        github.com/bitxhub/pier-ha v0.0.0-20210125070843-56ccae0d88a4
+    github.com/bitxhub/pier-ha v0.0.0-20210125070843-56ccae0d88a4
+    github.com/bitxhub/crypto-gm v0.0.0-20210825015341-e035b646648d
+
+replace github.com/ultramesh/crypto-gm => git.hyperchain.cn/dmlab/crypto-gm v0.2.14

@@ -30,6 +30,8 @@ GREEN=\033[0;32m
 BLUE=\033[0;34m
 NC=\033[0m
 
+MODS = $(shell cat goent.diff | grep '^[^replace]' | tr '\n' '@')
+
 .PHONY: test
 
 help: Makefile
@@ -69,7 +71,9 @@ build: packr
 installent: packr
 	cp imports/imports.go.template imports/imports.go
 	@sed "s?)?$(MODS)@)?" go.mod  | tr '@' '\n' > goent.mod
-	$(GO) install -tags ent -ldflags '${GOLDFLAGS}' -modfile goent.mod ./cmd/${APP_NAME}
+	@cat goent.diff | grep '^replace' >> goent.mod
+	#$(GO) install -tags ent -ldflags '${GOLDFLAGS}' -modfile goent.mod ./cmd/${APP_NAME}
+	@printf "${GREEN}Install pier ent successfully!${NC}\n"
 
 buildent: packr
 	@mkdir -p bin

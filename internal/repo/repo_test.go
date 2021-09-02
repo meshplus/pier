@@ -15,7 +15,7 @@ func TestInit(t *testing.T) {
 	require.Nil(t, err)
 	defer os.RemoveAll(root)
 
-	err = Initialize(root)
+	err = Initialize(root, "Secp256k1")
 	require.Nil(t, err)
 
 	_, err = LoadPrivateKey(root)
