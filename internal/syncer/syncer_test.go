@@ -164,9 +164,7 @@ func TestSyncUnoinHeader(t *testing.T) {
 	syncer.mode = repo.UnionMode
 	icm := make(map[string]*rpcx.Interchain)
 	// recover for error and normal situation
-	syncer.RegisterRecoverHandler(recoverFail)
 	syncer.handleInterchainWrapperAndPersist(w1, icm)
-	syncer.RegisterRecoverHandler(recoverHandler)
 	syncer.handleInterchainWrapperAndPersist(w1, icm)
 	syncer.height = 1
 	syncer.handleInterchainWrapperAndPersist(w2, icm)
@@ -644,8 +642,6 @@ func prepare(t *testing.T, height uint64) (*WrapperSyncer, *mock_client.MockClie
 	if height != 0 {
 		syncer.storage.Put(syncHeightKey(), []byte(strconv.FormatUint(height, 10)))
 	}
-	// register handler for syncer
-	require.Nil(t, syncer.RegisterAppchainHandler(func() error { return nil }))
 	return syncer, client, lite
 }
 

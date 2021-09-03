@@ -37,6 +37,7 @@ type Exchanger struct {
 	serviceMeta  map[string]*pb.Interchain
 	callbackMeta map[string]uint64
 	inMeta       map[string]uint64
+	bxhID        string
 
 	apiServer       *api.Server
 	peerMgr         peermgr.PeerManager
@@ -57,26 +58,31 @@ func New(typ, appchainDID string, serviceMeta map[string]*pb.Interchain, opts ..
 	config := GenerateConfig(opts...)
 
 	ctx, cancel := context.WithCancel(context.Background())
-	return &Exchanger{
-		checker:      config.checker,
-		exec:         config.exec,
-		apiServer:    config.apiServer,
-		mnt:          config.mnt,
-		peerMgr:      config.peerMgr,
-		syncer:       config.syncer,
-		store:        config.store,
-		router:       config.router,
-		logger:       config.logger,
-		ch:           make(chan struct{}, 100),
-		serviceMeta:  serviceMeta,
-		callbackMeta: config.exec.QueryCallbackMeta(),
-		inMeta:       config.exec.QueryInterchainMeta(),
-		rollbackCh:   make(chan *pb.IBTP, 1024),
-		mode:         typ,
-		appchainDID:  appchainDID,
-		ctx:          ctx,
-		cancel:       cancel,
-	}, nil
+	exchanger := &Exchanger{
+		checker:     config.checker,
+		apiServer:   config.apiServer,
+		mnt:         config.mnt,
+		peerMgr:     config.peerMgr,
+		syncer:      config.syncer,
+		store:       config.store,
+		router:      config.router,
+		logger:      config.logger,
+		ch:          make(chan struct{}, 100),
+		serviceMeta: serviceMeta,
+		rollbackCh:  make(chan *pb.IBTP, 1024),
+		mode:        typ,
+		appchainDID: appchainDID,
+		ctx:         ctx,
+		cancel:      cancel,
+	}
+
+	if typ != repo.UnionMode {
+		exchanger.exec = config.exec
+		exchanger.callbackMeta = config.exec.QueryCallbackMeta()
+		exchanger.inMeta = config.exec.QueryInterchainMeta()
+	}
+
+	return exchanger, nil
 }
 
 func (ex *Exchanger) Start() error {
@@ -160,19 +166,23 @@ func (ex *Exchanger) startWithUnionMode() error {
 	}
 
 	if err := ex.peerMgr.RegisterMsgHandler(peerMsg.Message_ROUTER_IBTP_SEND, ex.handleRouterSendIBTPMessage); err != nil {
-		return fmt.Errorf("register router ibtp handler: %w", err)
+		return fmt.Errorf("register router ibtp send handler: %w", err)
 	}
 
-	if err := ex.peerMgr.RegisterMsgHandler(peerMsg.Message_ROUTER_INTERCHAIN_SEND, ex.handleRouterInterchain); err != nil {
+	if err := ex.peerMgr.RegisterMsgHandler(peerMsg.Message_ROUTER_IBTP_GET, ex.handleRouterGetIBTPMessage); err != nil {
+		return fmt.Errorf("register router ibtp get handler: %w", err)
+	}
+
+	if err := ex.peerMgr.RegisterMsgHandler(peerMsg.Message_ROUTER_IBTP_RECEIPT_GET, ex.handleRouterGetIBTPMessage); err != nil {
+		return fmt.Errorf("register router ibtp get handler: %w", err)
+	}
+
+	if err := ex.peerMgr.RegisterMsgHandler(peerMsg.Message_ROUTER_INTERCHAIN_GET, ex.handleRouterInterchain); err != nil {
 		return fmt.Errorf("register router interchain handler: %w", err)
 	}
 
-	if err := ex.syncer.RegisterAppchainHandler(ex.handleProviderAppchains); err != nil {
-		return fmt.Errorf("register router handler: %w", err)
-	}
-
-	if err := ex.syncer.RegisterRecoverHandler(ex.handleRecover); err != nil {
-		return fmt.Errorf("register recover handler: %w", err)
+	if err := ex.recoverUnion(); err != nil {
+		return fmt.Errorf("recover union: %w", err)
 	}
 
 	if err := ex.router.Start(); err != nil {
@@ -280,14 +290,18 @@ func (ex *Exchanger) listenAndSendIBTPFromSyncer() {
 			}
 			entry := ex.logger.WithFields(logrus.Fields{"type": wIbtp.Ibtp.Type, "id": wIbtp.Ibtp.ID()})
 			entry.Debugf("Exchanger receives ibtp from syncer")
-			switch wIbtp.Ibtp.Type {
-			case pb.IBTP_INTERCHAIN, pb.IBTP_ROLLBACK:
-				ex.applyInterchain(wIbtp, entry)
-			case pb.IBTP_RECEIPT_SUCCESS, pb.IBTP_RECEIPT_FAILURE, pb.IBTP_RECEIPT_ROLLBACK:
-				//ex.applyReceipt(wIbtp, entry)
-				ex.feedIBTPReceipt(wIbtp)
-			default:
-				entry.Errorf("wrong type of ibtp")
+			if ex.mode == repo.UnionMode {
+				ex.handleUnionIBTPFromBitXHub(wIbtp)
+			} else {
+				switch wIbtp.Ibtp.Type {
+				case pb.IBTP_INTERCHAIN, pb.IBTP_ROLLBACK:
+					ex.applyInterchain(wIbtp, entry)
+				case pb.IBTP_RECEIPT_SUCCESS, pb.IBTP_RECEIPT_FAILURE, pb.IBTP_RECEIPT_ROLLBACK:
+					//ex.applyReceipt(wIbtp, entry)
+					ex.feedIBTPReceipt(wIbtp)
+				default:
+					entry.Errorf("wrong type of ibtp")
+				}
 			}
 		}
 	}
@@ -330,7 +344,7 @@ func (ex *Exchanger) sendIBTP(ibtp *pb.IBTP) error {
 
 	switch ex.mode {
 	case repo.UnionMode:
-		fallthrough
+		ex.syncer.SendIBTPWithRetry(ibtp)
 	case repo.RelayMode:
 		err := ex.syncer.SendIBTP(ibtp)
 		if err != nil {

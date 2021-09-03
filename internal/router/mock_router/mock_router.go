@@ -8,7 +8,6 @@ import (
 	reflect "reflect"
 
 	gomock "github.com/golang/mock/gomock"
-	appchain_mgr "github.com/meshplus/bitxhub-core/appchain-mgr"
 	pb "github.com/meshplus/bitxhub-model/pb"
 )
 
@@ -35,46 +34,48 @@ func (m *MockRouter) EXPECT() *MockRouterMockRecorder {
 	return m.recorder
 }
 
-// AddAppchains mocks base method.
-func (m *MockRouter) AddAppchains(appchains []*appchain_mgr.Appchain) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "AddAppchains", appchains)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// AddAppchains indicates an expected call of AddAppchains.
-func (mr *MockRouterMockRecorder) AddAppchains(appchains interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddAppchains", reflect.TypeOf((*MockRouter)(nil).AddAppchains), appchains)
-}
-
 // Broadcast mocks base method.
-func (m *MockRouter) Broadcast(ids []string) error {
+func (m *MockRouter) Broadcast(id string) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Broadcast", ids)
+	ret := m.ctrl.Call(m, "Broadcast", id)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // Broadcast indicates an expected call of Broadcast.
-func (mr *MockRouterMockRecorder) Broadcast(ids interface{}) *gomock.Call {
+func (mr *MockRouterMockRecorder) Broadcast(id interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Broadcast", reflect.TypeOf((*MockRouter)(nil).Broadcast), ids)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Broadcast", reflect.TypeOf((*MockRouter)(nil).Broadcast), id)
 }
 
-// ExistAppchain mocks base method.
-func (m *MockRouter) ExistAppchain(id string) bool {
+// QueryIBTP mocks base method.
+func (m *MockRouter) QueryIBTP(id string, isReq bool) (*pb.IBTP, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ExistAppchain", id)
-	ret0, _ := ret[0].(bool)
-	return ret0
+	ret := m.ctrl.Call(m, "QueryIBTP", id, isReq)
+	ret0, _ := ret[0].(*pb.IBTP)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
 }
 
-// ExistAppchain indicates an expected call of ExistAppchain.
-func (mr *MockRouterMockRecorder) ExistAppchain(id interface{}) *gomock.Call {
+// QueryIBTP indicates an expected call of QueryIBTP.
+func (mr *MockRouterMockRecorder) QueryIBTP(id, isReq interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ExistAppchain", reflect.TypeOf((*MockRouter)(nil).ExistAppchain), id)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "QueryIBTP", reflect.TypeOf((*MockRouter)(nil).QueryIBTP), id, isReq)
+}
+
+// QueryInterchain mocks base method.
+func (m *MockRouter) QueryInterchain(bxhID, serviceID string) (*pb.Interchain, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "QueryInterchain", bxhID, serviceID)
+	ret0, _ := ret[0].(*pb.Interchain)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// QueryInterchain indicates an expected call of QueryInterchain.
+func (mr *MockRouterMockRecorder) QueryInterchain(bxhID, serviceID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "QueryInterchain", reflect.TypeOf((*MockRouter)(nil).QueryInterchain), bxhID, serviceID)
 }
 
 // Route mocks base method.

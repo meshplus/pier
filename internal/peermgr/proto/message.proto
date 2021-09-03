@@ -13,10 +13,11 @@ message Message {
         IBTP_SEND = 6;
         IBTP_RECEIPT_SEND = 7;
         ROUTER_IBTP_SEND = 8;
-        ROUTER_IBTP_RECEIPT_SEND = 9;
-        ADDRESS_GET = 10;
-        ROUTER_INTERCHAIN_SEND = 11;
-        ACK = 12;
+        ROUTER_IBTP_GET = 9;
+        ROUTER_IBTP_RECEIPT_GET = 10;
+        ROUTER_INTERCHAIN_GET = 11;
+        ADDRESS_GET = 12;
+        ACK = 13;
     }
     Type type = 1;
     Payload payload = 2;

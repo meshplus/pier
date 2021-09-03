@@ -1,7 +1,6 @@
 package router
 
 import (
-	appchainmgr "github.com/meshplus/bitxhub-core/appchain-mgr"
 	"github.com/meshplus/bitxhub-model/pb"
 )
 
@@ -14,14 +13,12 @@ type Router interface {
 	Stop() error
 
 	//Broadcast broadcasts the registered appchain ids to the union network
-	Broadcast(ids []string) error
+	Broadcast(id string) error
 
 	//Route sends ibtp to the union pier in target relay chain
 	Route(ibtp *pb.IBTP) error
 
-	//ExistAppchain returns if appchain id exist in route map
-	ExistAppchain(id string) bool
+	QueryInterchain(bxhID, serviceID string) (*pb.Interchain, error)
 
-	//AddAppchains adds appchains to route map and broadcast them to union network
-	AddAppchains(appchains []*appchainmgr.Appchain) error
+	QueryIBTP(id string, isReq bool) (*pb.IBTP, error)
 }
