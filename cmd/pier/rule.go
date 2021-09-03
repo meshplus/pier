@@ -26,6 +26,7 @@ var ruleCMD = cli.Command{
 				},
 				methodFlag,
 				adminKeyPathFlag,
+				appchainRuleUrlFlag,
 			},
 			Action: deployRule,
 		},
@@ -40,64 +41,9 @@ var ruleCMD = cli.Command{
 				},
 				methodFlag,
 				adminKeyPathFlag,
+				governanceReasonFlag,
 			},
 			Action: updateMasterRule,
-		},
-		{
-			Name:  "bind",
-			Usage: "bind validation rule",
-			Flags: []cli.Flag{
-				cli.StringFlag{
-					Name:     "addr",
-					Usage:    "Specific rule addr",
-					Required: true,
-				},
-				methodFlag,
-				adminKeyPathFlag,
-			},
-			Action: bindRule,
-		},
-		{
-			Name:  "unbind",
-			Usage: "unbind validation rule",
-			Flags: []cli.Flag{
-				cli.StringFlag{
-					Name:     "addr",
-					Usage:    "Specific rule addr",
-					Required: true,
-				},
-				methodFlag,
-				adminKeyPathFlag,
-			},
-			Action: unbindRule,
-		},
-		{
-			Name:  "freeze",
-			Usage: "freeze validation rule",
-			Flags: []cli.Flag{
-				cli.StringFlag{
-					Name:     "addr",
-					Usage:    "Specific rule addr",
-					Required: true,
-				},
-				methodFlag,
-				adminKeyPathFlag,
-			},
-			Action: freezeRule,
-		},
-		{
-			Name:  "activate",
-			Usage: "activate validation rule",
-			Flags: []cli.Flag{
-				cli.StringFlag{
-					Name:     "addr",
-					Usage:    "Specific rule addr",
-					Required: true,
-				},
-				methodFlag,
-				adminKeyPathFlag,
-			},
-			Action: activateRule,
 		},
 		{
 			Name:  "logout",
@@ -120,6 +66,7 @@ func deployRule(ctx *cli.Context) error {
 	rulePath := ctx.String("path")
 	method := ctx.String("method")
 	chainAdminKeyPath := ctx.String("admin-key")
+	rule_url := ctx.String("rule-url")
 
 	client, _, err := initClientWithKeyPath(ctx, chainAdminKeyPath)
 	if err != nil {
@@ -144,8 +91,8 @@ func deployRule(ctx *cli.Context) error {
 	appchainMethod := fmt.Sprintf("%s:%s:.", bitxhubRootPrefix, method)
 	receipt, err := client.InvokeBVMContract(
 		constant.RuleManagerContractAddr.Address(),
-		"RegisterRule", nil,
-		rpcx.String(appchainMethod), rpcx.String(contractAddr.String()))
+		"RegisterRuleV2", nil,
+		rpcx.String(appchainMethod), rpcx.String(contractAddr.String()), rpcx.String(rule_url))
 	if err != nil {
 		return fmt.Errorf("Register rule: %w", err)
 	}
@@ -153,13 +100,7 @@ func deployRule(ctx *cli.Context) error {
 	if !receipt.IsSuccess() {
 		color.Red(fmt.Sprintf("Register rule to bitxhub for appchain %s error: %s", appchainMethod, string(receipt.Ret)))
 	} else {
-		proposalId := gjson.Get(string(receipt.Ret), "proposal_id").String()
-		if proposalId != "" {
-			color.Green(fmt.Sprintf("Register rule to bitxhub for appchain %s successfully, the bind request was submitted successfully, wait for proposal %s to finish.", appchainMethod, proposalId))
-		} else {
-			color.Green(fmt.Sprintf("Register rule to bitxhub for appchain %s successfully.", appchainMethod))
-		}
-
+		color.Green(fmt.Sprintf("Register rule to bitxhub for appchain %s successfully.", appchainMethod))
 	}
 
 	return nil
@@ -169,6 +110,7 @@ func updateMasterRule(ctx *cli.Context) error {
 	ruleAddr := ctx.String("addr")
 	method := ctx.String("method")
 	chainAdminKeyPath := ctx.String("admin-key")
+	reason := ctx.String("reason")
 
 	client, _, err := initClientWithKeyPath(ctx, chainAdminKeyPath)
 	if err != nil {
@@ -179,7 +121,7 @@ func updateMasterRule(ctx *cli.Context) error {
 	receipt, err := client.InvokeBVMContract(
 		constant.RuleManagerContractAddr.Address(),
 		"UpdateMasterRule", nil,
-		rpcx.String(appchainMethod), rpcx.String(ruleAddr))
+		rpcx.String(appchainMethod), rpcx.String(ruleAddr), rpcx.String(reason))
 	if err != nil {
 		return fmt.Errorf("Update master rule: %w", err)
 	}
@@ -332,8 +274,7 @@ func logoutRule(ctx *cli.Context) error {
 	if !receipt.IsSuccess() {
 		color.Red(fmt.Sprintf("Logout rule to bitxhub for appchain %s error: %s", appchainMethod, string(receipt.Ret)))
 	} else {
-		proposalId := gjson.Get(string(receipt.Ret), "proposal_id").String()
-		color.Green(fmt.Sprintf("Logout rule to bitxhub for appchain %s successfully, wait for proposal %s to finish.", appchainMethod, proposalId))
+		color.Green("The logout request was submitted successfully\n")
 	}
 
 	return nil

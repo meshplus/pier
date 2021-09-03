@@ -45,6 +45,9 @@ var methodCommand = cli.Command{
 				appchainVersionFlag,
 				appchainValidatorFlag,
 				appchainConsensusFlag,
+				appchainRuleFlag,
+				appchainRuleUrlFlag,
+				governanceReasonFlag,
 			},
 			Action: registerMethod,
 		},
@@ -88,17 +91,16 @@ func registerMethod(ctx *cli.Context) error {
 	version := ctx.String("version")
 	validatorsPath := ctx.String("validators")
 	consensus := ctx.String("consensus")
+	rule := ctx.String("rule")
+	rule_url := ctx.String("rule-url")
+	reason := ctx.String("reason")
 	validatorData, err := ioutil.ReadFile(validatorsPath)
 	if err != nil {
 		return fmt.Errorf("read validators file: %w", err)
 	}
 
 	// get repo public key
-	repoRoot, err := repo.PathRootWithDefault(ctx.GlobalString("repo"))
-	if err != nil {
-		return err
-	}
-	pubKey, err := getPubKey(repo.KeyPath(repoRoot))
+	pubKey, err := getPubKey(chainAdminKeyPath)
 	if err != nil {
 		return fmt.Errorf("get public key: %w", err)
 	}
@@ -106,17 +108,16 @@ func registerMethod(ctx *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	//appchainAdminDID := fmt.Sprintf("%s:%s:%s", bitxhubRootPrefix, method, address.String())
-	appchainMethod := method
 	// init method registry with this admin key
 	receipt, err := client.InvokeBVMContract(
 		constant.AppchainMgrContractAddr.Address(),
-		"Register", nil,
-		rpcx.String(appchainMethod),
+		"RegisterV2", nil,
+		rpcx.String(method),
 		rpcx.String(didDocAddr), rpcx.String(didDocHash),
 		rpcx.String(string(validatorData)), rpcx.String(consensus), rpcx.String(typ),
 		rpcx.String(name), rpcx.String(desc), rpcx.String(version),
 		rpcx.String(pubKey),
+		rpcx.String(reason), rpcx.String(rule), rpcx.String(rule_url),
 	)
 	if err != nil {
 		return fmt.Errorf("invoke bvm contract: %w", err)
