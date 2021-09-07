@@ -267,7 +267,7 @@ func updateService(ctx *cli.Context) error {
 	intro := ctx.String("intro")
 	ordered := ctx.Bool("ordered")
 	permit := ctx.String("permit")
-	details := ctx.String("items")
+	details := ctx.String("details")
 	reason := ctx.String("reason")
 
 	repoRoot, err := repo.PathRoot()
@@ -309,11 +309,11 @@ func registerService(ctx *cli.Context) error {
 	chainID := ctx.String("appchain-id")
 	serviceID := ctx.String("service-id")
 	name := ctx.String("name")
-	intro := ctx.String("intro")
 	typ := ctx.String("type")
+	intro := ctx.String("intro")
 	ordered := ctx.Bool("ordered")
 	permit := ctx.String("permit")
-	details := ctx.String("items")
+	details := ctx.String("details")
 	reason := ctx.String("reason")
 
 	repoRoot, err := repo.PathRoot()
@@ -332,8 +332,8 @@ func registerService(ctx *cli.Context) error {
 		rpcx.String(chainID),
 		rpcx.String(serviceID),
 		rpcx.String(name),
-		rpcx.String(intro),
 		rpcx.String(typ),
+		rpcx.String(intro),
 		rpcx.Bool(ordered),
 		rpcx.String(permit),
 		rpcx.String(details),
