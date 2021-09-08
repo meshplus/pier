@@ -4,24 +4,24 @@ import (
 	"encoding/json"
 
 	appchainmgr "github.com/meshplus/bitxhub-core/appchain-mgr"
+	pb "github.com/meshplus/bitxhub-model/pb"
 	network "github.com/meshplus/go-lightp2p"
 	"github.com/meshplus/pier/internal/peermgr"
-	peerproto "github.com/meshplus/pier/internal/peermgr/proto"
 	"github.com/sirupsen/logrus"
 )
 
-func (mgr *Manager) handleMessage(s network.Stream, msg *peerproto.Message) {
+func (mgr *Manager) handleMessage(s network.Stream, msg *pb.Message) {
 	var res []byte
 	var ok bool
 	switch msg.Type {
-	case peerproto.Message_APPCHAIN_REGISTER:
+	case pb.Message_APPCHAIN_REGISTER:
 		// todo check err
 		//ok, res = mgr.Mgr.Register(msg.Payload.Data)
-	case peerproto.Message_APPCHAIN_UPDATE:
+	case pb.Message_APPCHAIN_UPDATE:
 		//ok, res = mgr.Mgr.Update(msg.Payload.Data)
-	case peerproto.Message_APPCHAIN_GET:
+	case pb.Message_APPCHAIN_GET:
 		app := &appchainmgr.Appchain{}
-		if err := json.Unmarshal(msg.Payload.Data, app); err != nil {
+		if err := json.Unmarshal(peermgr.DataToPayload(msg).Data, app); err != nil {
 			mgr.logger.Error(err)
 			return
 		}

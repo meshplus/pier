@@ -26,7 +26,6 @@ import (
 	"github.com/meshplus/pier/internal/monitor/mock_monitor"
 	"github.com/meshplus/pier/internal/peermgr"
 	"github.com/meshplus/pier/internal/peermgr/mock_peermgr"
-	peerMsg "github.com/meshplus/pier/internal/peermgr/proto"
 	"github.com/meshplus/pier/internal/repo"
 	"github.com/meshplus/pier/internal/router/mock_router"
 	"github.com/meshplus/pier/internal/syncer"
@@ -462,7 +461,7 @@ func testErrorDirect(t *testing.T) {
 
 	var stream network.Stream
 	// test wrong marshaled ibtp bytes
-	badIbtpMsg := peermgr.Message(peerMsg.Message_IBTP_SEND, true, []byte("bad ibtp msg bytes"))
+	badIbtpMsg := peermgr.Message(pb.Message_IBTP_SEND, true, []byte("bad ibtp msg bytes"))
 	mockExchanger.handleSendIBTPMessage(stream, badIbtpMsg)
 
 	// test for wrong index ibtp
@@ -473,7 +472,7 @@ func testErrorDirect(t *testing.T) {
 	ibtpBytes, err := json.Marshal(ignoredIBTP)
 	require.Nil(t, err)
 
-	ignoredIBTPMsg := peermgr.Message(peerMsg.Message_IBTP_SEND, true, ibtpBytes)
+	ignoredIBTPMsg := peermgr.Message(pb.Message_IBTP_SEND, true, ibtpBytes)
 	mockExchanger.handleSendIBTPMessage(stream, ignoredIBTPMsg)
 	time.Sleep(100 * time.Millisecond)
 
@@ -484,7 +483,7 @@ func testErrorDirect(t *testing.T) {
 	}
 	ibtpBytes, err = json.Marshal(ibtp3)
 	require.Nil(t, err)
-	outIBTPMsg := peermgr.Message(peerMsg.Message_IBTP_SEND, true, ibtpBytes)
+	outIBTPMsg := peermgr.Message(pb.Message_IBTP_SEND, true, ibtpBytes)
 	mockExecutor.EXPECT().ExecuteIBTP(ibtp3).Return(receiptIBTP3, nil)
 	mockPeerMgr.EXPECT().AsyncSend(from, gomock.Any()).Return(fmt.Errorf("async send ibtp fail"))
 	mockExchanger.handleSendIBTPMessage(stream, outIBTPMsg)
@@ -497,7 +496,7 @@ func testErrorDirect(t *testing.T) {
 	}
 	ibtpBytes, err = json.Marshal(ibtp2)
 	require.Nil(t, err)
-	outIBTPMsg = peermgr.Message(peerMsg.Message_IBTP_SEND, true, ibtpBytes)
+	outIBTPMsg = peermgr.Message(pb.Message_IBTP_SEND, true, ibtpBytes)
 	mockExecutor.EXPECT().ExecuteIBTP(ibtp2).Return(nil, nil)
 	mockExchanger.handleSendIBTPMessage(stream, outIBTPMsg)
 	mockPeerMgr.EXPECT().AsyncSend(from, gomock.Any()).Return(fmt.Errorf("async send ibtp fail"))
@@ -529,10 +528,10 @@ func testNormalDirect(t *testing.T) {
 	metaBytes, err := json.Marshal(indices)
 	require.Nil(t, err)
 
-	metaMsg := peermgr.Message(peerMsg.Message_INTERCHAIN_META_GET, true, []byte(from))
-	retMetaMsg := peermgr.Message(peerMsg.Message_INTERCHAIN_META_GET, true, metaBytes)
-	retMsg := peermgr.Message(peerMsg.Message_ACK, true, receiptBytes)
-	ret1Msg := peermgr.Message(peerMsg.Message_ACK, true, receipt1Bytes)
+	metaMsg := peermgr.Message(pb.Message_INTERCHAIN_META_GET, true, []byte(from))
+	retMetaMsg := peermgr.Message(pb.Message_INTERCHAIN_META_GET, true, metaBytes)
+	retMsg := peermgr.Message(pb.Message_ACK, true, receiptBytes)
+	ret1Msg := peermgr.Message(pb.Message_ACK, true, receipt1Bytes)
 
 	outMeta := make(map[string]uint64)
 	outMeta[to] = 1
@@ -571,16 +570,16 @@ func testNormalDirect(t *testing.T) {
 	var stream network.Stream
 	ibtpBytes, err := happyPathOutIBTP.Marshal()
 	require.Nil(t, err)
-	ibtpMsg := peermgr.Message(peerMsg.Message_IBTP_SEND, true, ibtpBytes)
+	ibtpMsg := peermgr.Message(pb.Message_IBTP_SEND, true, ibtpBytes)
 	mockExchanger.handleSendIBTPMessage(stream, ibtpMsg)
 
-	ibtpGetMsg := peermgr.Message(peerMsg.Message_IBTP_GET, true, []byte(happyPathMissedOutIBTP.ID()))
+	ibtpGetMsg := peermgr.Message(pb.Message_IBTP_GET, true, []byte(happyPathMissedOutIBTP.ID()))
 	mockExchanger.handleGetIBTPMessage(stream, ibtpGetMsg)
 
 	mockExchanger.handleSendIBTPReceiptMessage(stream, ret1Msg)
 	mockExchanger.handleSendIBTPReceiptMessage(stream, retMsg)
 
-	getInterchainMsg := peermgr.Message(peerMsg.Message_INTERCHAIN_META_GET, true, []byte(to))
+	getInterchainMsg := peermgr.Message(pb.Message_INTERCHAIN_META_GET, true, []byte(to))
 	mockExchanger.handleGetInterchainMessage(stream, getInterchainMsg)
 
 	time.Sleep(1 * time.Second)
@@ -591,7 +590,7 @@ func testNormalDirect(t *testing.T) {
 	outCh <- unhappyPathOutIBTP
 
 	mockMonitor.EXPECT().QueryIBTP(unhappyPathMissedOutIBTPID).Return(nil, fmt.Errorf("test error for query missing ibtp")).AnyTimes()
-	ibtpGetMsg = peermgr.Message(peerMsg.Message_IBTP_GET, true, []byte(unhappyPathMissedOutIBTPID))
+	ibtpGetMsg = peermgr.Message(pb.Message_IBTP_GET, true, []byte(unhappyPathMissedOutIBTPID))
 	mockExchanger.handleGetIBTPMessage(stream, ibtpGetMsg)
 
 	close(outCh)
@@ -631,30 +630,30 @@ func testErrorStartStopDirect(t *testing.T) {
 	mockExchanger.apiServer = mockServer
 
 	mockPeerMgr.EXPECT().RegisterConnectHandler(gomock.Any()).Return(nil).AnyTimes()
-	//mockPeerMgr.EXPECT().RegisterMsgHandler(peerMsg.Message_INTERCHAIN_META_GET, gomock.Any()).Return(startError)
+	//mockPeerMgr.EXPECT().RegisterMsgHandler(pb.Message_INTERCHAIN_META_GET, gomock.Any()).Return(startError)
 	//require.Equal(t, true, errors.Is(mockExchanger.startWithDirectMode(), startError))
 	//mockExchanger.apiServer.Stop()
 	//mockServer, err = api.NewServer(&appchain.Manager{}, mockPeerMgr, &repo.Config{}, log.NewWithModule("api"))
 	//require.Nil(t, err)
 	//mockExchanger.apiServer = mockServer
 	//
-	//mockPeerMgr.EXPECT().RegisterMsgHandler(peerMsg.Message_INTERCHAIN_META_GET, gomock.Any()).Return(nil).MaxTimes(5)
-	//mockPeerMgr.EXPECT().RegisterMsgHandler(peerMsg.Message_IBTP_SEND, gomock.Any()).Return(startError)
+	//mockPeerMgr.EXPECT().RegisterMsgHandler(pb.Message_INTERCHAIN_META_GET, gomock.Any()).Return(nil).MaxTimes(5)
+	//mockPeerMgr.EXPECT().RegisterMsgHandler(pb.Message_IBTP_SEND, gomock.Any()).Return(startError)
 	//require.Equal(t, true, errors.Is(mockExchanger.startWithDirectMode(), startError))
 	//mockExchanger.apiServer.Stop()
 	//mockServer, err = api.NewServer(&appchain.Manager{}, mockPeerMgr, &repo.Config{}, log.NewWithModule("api"))
 	//require.Nil(t, err)
 	//mockExchanger.apiServer = mockServer
 	//
-	//mockPeerMgr.EXPECT().RegisterMsgHandler(peerMsg.Message_IBTP_SEND, gomock.Any()).Return(nil).MaxTimes(5)
-	//mockPeerMgr.EXPECT().RegisterMsgHandler(peerMsg.Message_IBTP_RECEIPT_SEND, gomock.Any()).Return(startError)
+	//mockPeerMgr.EXPECT().RegisterMsgHandler(pb.Message_IBTP_SEND, gomock.Any()).Return(nil).MaxTimes(5)
+	//mockPeerMgr.EXPECT().RegisterMsgHandler(pb.Message_IBTP_RECEIPT_SEND, gomock.Any()).Return(startError)
 	//require.Equal(t, true, errors.Is(mockExchanger.startWithDirectMode(), startError))
 	//mockExchanger.apiServer.Stop()
 	//mockServer, err = api.NewServer(&appchain.Manager{}, mockPeerMgr, &repo.Config{}, log.NewWithModule("api"))
 	//require.Nil(t, err)
 	//mockExchanger.apiServer = mockServer
 
-	//mockPeerMgr.EXPECT().RegisterMsgHandler(peerMsg.Message_IBTP_RECEIPT_SEND, gomock.Any()).Return(nil).MaxTimes(5)
+	//mockPeerMgr.EXPECT().RegisterMsgHandler(pb.Message_IBTP_RECEIPT_SEND, gomock.Any()).Return(nil).MaxTimes(5)
 	mockPeerMgr.EXPECT().RegisterMsgHandler(gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
 	mockPeerMgr.EXPECT().Start().Return(startError)
 	require.Equal(t, true, errors.Is(mockExchanger.startWithDirectMode(), startError))
@@ -689,9 +688,9 @@ func testUnionMode(pierID string, t *testing.T) {
 	}
 	ibtpBytes, err := json.Marshal(ibtp)
 	require.Nil(t, err)
-	ibtpMsg := peermgr.Message(peerMsg.Message_ROUTER_IBTP_SEND, true, ibtpBytes)
+	ibtpMsg := peermgr.Message(pb.Message_ROUTER_IBTP_SEND, true, ibtpBytes)
 	// mock getInterchainMsg for Message_ROUTER_INTERCHAIN_SEND
-	interchainInfoMsg := peermgr.Message(peerMsg.Message_ROUTER_INTERCHAIN_GET, true, []byte(pierID))
+	interchainInfoMsg := peermgr.Message(pb.Message_ROUTER_INTERCHAIN_GET, true, []byte(pierID))
 	interchainCounter := &pb.Interchain{
 		InterchainCounter:    map[string]uint64{pierID: 1},
 		ReceiptCounter:       map[string]uint64{pierID: 1},
@@ -723,7 +722,7 @@ func testUnionMode(pierID string, t *testing.T) {
 
 	icBytes, err := interchainCounter.Marshal()
 	require.Nil(t, err)
-	recoverACKMsg := peermgr.Message(peerMsg.Message_ACK, true, icBytes)
+	recoverACKMsg := peermgr.Message(pb.Message_ACK, true, icBytes)
 
 	inCh := make(chan *model.WrappedIBTP)
 
@@ -790,14 +789,14 @@ func testUnionStartAndStop(t *testing.T) {
 	require.Equal(t, true, errors.Is(mockExchanger.startWithUnionMode(), startError))
 
 	mockPeerMgr.EXPECT().Start().Return(nil).AnyTimes()
-	mockPeerMgr.EXPECT().RegisterMsgHandler(peerMsg.Message_ROUTER_IBTP_SEND, gomock.Any()).Return(startError)
+	mockPeerMgr.EXPECT().RegisterMsgHandler(pb.Message_ROUTER_IBTP_SEND, gomock.Any()).Return(startError)
 	require.Equal(t, true, errors.Is(mockExchanger.startWithUnionMode(), startError))
 
-	mockPeerMgr.EXPECT().RegisterMsgHandler(peerMsg.Message_ROUTER_IBTP_SEND, gomock.Any()).Return(nil).AnyTimes()
-	mockPeerMgr.EXPECT().RegisterMsgHandler(peerMsg.Message_ROUTER_INTERCHAIN_GET, gomock.Any()).Return(startError)
+	mockPeerMgr.EXPECT().RegisterMsgHandler(pb.Message_ROUTER_IBTP_SEND, gomock.Any()).Return(nil).AnyTimes()
+	mockPeerMgr.EXPECT().RegisterMsgHandler(pb.Message_ROUTER_INTERCHAIN_GET, gomock.Any()).Return(startError)
 	require.Equal(t, true, errors.Is(mockExchanger.startWithUnionMode(), startError))
 
-	mockPeerMgr.EXPECT().RegisterMsgHandler(peerMsg.Message_ROUTER_INTERCHAIN_GET, gomock.Any()).Return(nil).AnyTimes()
+	mockPeerMgr.EXPECT().RegisterMsgHandler(pb.Message_ROUTER_INTERCHAIN_GET, gomock.Any()).Return(nil).AnyTimes()
 	require.Equal(t, true, errors.Is(mockExchanger.startWithUnionMode(), startError))
 
 	mockRouter.EXPECT().Start().Return(startError)

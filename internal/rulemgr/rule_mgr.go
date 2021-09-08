@@ -1,12 +1,12 @@
 package rulemgr
 
 import (
+	"github.com/meshplus/bitxhub-model/pb"
 	"sync"
 
 	"github.com/meshplus/bitxhub-core/validator"
 	"github.com/meshplus/bitxhub-kit/storage"
 	"github.com/meshplus/pier/internal/peermgr"
-	peerproto "github.com/meshplus/pier/internal/peermgr/proto"
 	"github.com/sirupsen/logrus"
 )
 
@@ -39,7 +39,7 @@ func New(storage storage.Storage, pm peermgr.PeerManager, logger logrus.FieldLog
 		Ve:          ve,
 		logger:      logger,
 	}
-	if err := pm.RegisterMsgHandler(peerproto.Message_RULE_DEPLOY, rm.handleRule); err != nil {
+	if err := pm.RegisterMsgHandler(pb.Message_RULE_DEPLOY, rm.handleRule); err != nil {
 		return nil, err
 	}
 	return rm, nil

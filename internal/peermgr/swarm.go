@@ -14,8 +14,8 @@ import (
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/meshplus/bitxhub-kit/crypto"
 	"github.com/meshplus/bitxhub-kit/crypto/asym/ecdsa"
+	"github.com/meshplus/bitxhub-model/pb"
 	network "github.com/meshplus/go-lightp2p"
-	peermgr "github.com/meshplus/pier/internal/peermgr/proto"
 	"github.com/meshplus/pier/internal/repo"
 	ma "github.com/multiformats/go-multiaddr"
 	"github.com/sirupsen/logrus"
@@ -97,7 +97,7 @@ func New(config *repo.Config, nodePrivKey crypto.PrivateKey, privKey crypto.Priv
 func (swarm *Swarm) Start() error {
 	swarm.p2p.SetMessageHandler(swarm.handleMessage)
 
-	if err := swarm.RegisterMsgHandler(peermgr.Message_ADDRESS_GET, swarm.handleGetAddressMessage); err != nil {
+	if err := swarm.RegisterMsgHandler(pb.Message_ADDRESS_GET, swarm.handleGetAddressMessage); err != nil {
 		return fmt.Errorf("register get address msg handler: %w", err)
 	}
 
@@ -170,7 +170,7 @@ func (swarm *Swarm) Stop() error {
 	return nil
 }
 
-func (swarm *Swarm) AsyncSend(id string, msg *peermgr.Message) error {
+func (swarm *Swarm) AsyncSend(id string, msg *pb.Message) error {
 	addrInfo, err := swarm.getAddrInfo(id)
 	if err != nil {
 		return err
@@ -183,7 +183,7 @@ func (swarm *Swarm) AsyncSend(id string, msg *peermgr.Message) error {
 	return swarm.p2p.AsyncSend(addrInfo.ID.String(), data)
 }
 
-func (swarm *Swarm) SendWithStream(s network.Stream, msg *peermgr.Message) (*peermgr.Message, error) {
+func (swarm *Swarm) SendWithStream(s network.Stream, msg *pb.Message) (*pb.Message, error) {
 	data, err := msg.Marshal()
 	if err != nil {
 		return nil, err
@@ -193,7 +193,7 @@ func (swarm *Swarm) SendWithStream(s network.Stream, msg *peermgr.Message) (*pee
 	if err != nil {
 		return nil, err
 	}
-	recvMsg := &peermgr.Message{}
+	recvMsg := &pb.Message{}
 	if err := recvMsg.Unmarshal(recvData); err != nil {
 		return nil, err
 	}
@@ -217,7 +217,7 @@ func (swarm *Swarm) Connect(addrInfo *peer.AddrInfo) (string, error) {
 	return pierId, nil
 }
 
-func (swarm *Swarm) AsyncSendWithStream(s network.Stream, msg *peermgr.Message) error {
+func (swarm *Swarm) AsyncSendWithStream(s network.Stream, msg *pb.Message) error {
 	data, err := msg.Marshal()
 	if err != nil {
 		return err
@@ -226,7 +226,7 @@ func (swarm *Swarm) AsyncSendWithStream(s network.Stream, msg *peermgr.Message) 
 	return s.AsyncSend(data)
 }
 
-func (swarm *Swarm) Send(id string, msg *peermgr.Message) (*peermgr.Message, error) {
+func (swarm *Swarm) Send(id string, msg *pb.Message) (*pb.Message, error) {
 	addrInfo, err := swarm.getAddrInfo(id)
 	if err != nil {
 		return nil, err
@@ -242,7 +242,7 @@ func (swarm *Swarm) Send(id string, msg *peermgr.Message) (*peermgr.Message, err
 		return nil, fmt.Errorf("sync send: %w", err)
 	}
 
-	m := &peermgr.Message{}
+	m := &pb.Message{}
 	if err := m.Unmarshal(ret); err != nil {
 		return nil, err
 	}
@@ -261,21 +261,21 @@ func (swarm *Swarm) ConnectedPeerIDs() []string {
 	return peerIDs
 }
 
-func (swarm *Swarm) Peers() map[string]*peer.AddrInfo {
-	m := make(map[string]*peer.AddrInfo)
-	for id, addr := range swarm.peers {
-		m[id] = addr
-	}
-
-	return m
+func (swarm *Swarm) CountConnectedPeers() uint64 {
+	var counter uint64
+	swarm.connectedPeers.Range(func(k, v interface{}) bool {
+		counter++
+		return true
+	})
+	return counter
 }
 
-func (swarm *Swarm) RegisterMsgHandler(messageType peermgr.Message_Type, handler MessageHandler) error {
+func (swarm *Swarm) RegisterMsgHandler(messageType pb.Message_Type, handler MessageHandler) error {
 	if handler == nil {
 		return fmt.Errorf("register msg handler: empty handler")
 	}
 
-	for msgType := range peermgr.Message_Type_name {
+	for msgType := range pb.Message_Type_name {
 		if msgType == int32(messageType) {
 			swarm.msgHandlers.Store(messageType, handler)
 			return nil
@@ -285,7 +285,7 @@ func (swarm *Swarm) RegisterMsgHandler(messageType peermgr.Message_Type, handler
 	return fmt.Errorf("register msg handler: invalid message type")
 }
 
-func (swarm *Swarm) RegisterMultiMsgHandler(messageTypes []peermgr.Message_Type, handler MessageHandler) error {
+func (swarm *Swarm) RegisterMultiMsgHandler(messageTypes []pb.Message_Type, handler MessageHandler) error {
 	for _, typ := range messageTypes {
 		if err := swarm.RegisterMsgHandler(typ, handler); err != nil {
 			return err
@@ -363,7 +363,7 @@ func AddrToPeerInfo(multiAddr string) (*peer.AddrInfo, error) {
 }
 
 func (swarm *Swarm) handleMessage(s network.Stream, data []byte) {
-	m := &peermgr.Message{}
+	m := &pb.Message{}
 	if err := m.Unmarshal(data); err != nil {
 		swarm.logger.Error(err)
 		return
@@ -391,7 +391,7 @@ func (swarm *Swarm) handleMessage(s network.Stream, data []byte) {
 }
 
 func (swarm *Swarm) getRemoteAddress(id peer.ID) (string, error) {
-	msg := Message(peermgr.Message_ADDRESS_GET, true, nil)
+	msg := Message(pb.Message_ADDRESS_GET, true, nil)
 	reqData, err := msg.Marshal()
 	if err != nil {
 		return "", err
@@ -400,12 +400,12 @@ func (swarm *Swarm) getRemoteAddress(id peer.ID) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("sync send: %w", err)
 	}
-	ret := &peermgr.Message{}
+	ret := &pb.Message{}
 	if err := ret.Unmarshal(retData); err != nil {
 		return "", err
 	}
 
-	return string(ret.Payload.Data), nil
+	return string(DataToPayload(ret).Data), nil
 }
 
 func (swarm *Swarm) RegisterConnectHandler(handler ConnectHandler) error {
@@ -458,14 +458,14 @@ func (swarm *Swarm) Provider(key string, passed bool) error {
 	return swarm.p2p.Provider(key, passed)
 }
 
-func (swarm *Swarm) handleGetAddressMessage(stream network.Stream, message *peermgr.Message) {
+func (swarm *Swarm) handleGetAddressMessage(stream network.Stream, message *pb.Message) {
 	addr, err := swarm.privKey.PublicKey().Address()
 	if err != nil {
 		swarm.logger.Error(err)
 		return
 	}
 
-	retMsg := Message(peermgr.Message_ACK, true, []byte(addr.String()))
+	retMsg := Message(pb.Message_ACK, true, []byte(addr.String()))
 
 	err = swarm.AsyncSendWithStream(stream, retMsg)
 	if err != nil {

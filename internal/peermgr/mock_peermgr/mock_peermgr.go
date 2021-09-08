@@ -9,9 +9,9 @@ import (
 
 	gomock "github.com/golang/mock/gomock"
 	peer "github.com/libp2p/go-libp2p-core/peer"
+	pb "github.com/meshplus/bitxhub-model/pb"
 	network "github.com/meshplus/go-lightp2p"
 	peermgr "github.com/meshplus/pier/internal/peermgr"
-	peermgr0 "github.com/meshplus/pier/internal/peermgr/proto"
 )
 
 // MockPeerManager is a mock of PeerManager interface.
@@ -38,7 +38,7 @@ func (m *MockPeerManager) EXPECT() *MockPeerManagerMockRecorder {
 }
 
 // AsyncSend mocks base method.
-func (m *MockPeerManager) AsyncSend(arg0 string, arg1 *peermgr0.Message) error {
+func (m *MockPeerManager) AsyncSend(arg0 string, arg1 *pb.Message) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "AsyncSend", arg0, arg1)
 	ret0, _ := ret[0].(error)
@@ -52,7 +52,7 @@ func (mr *MockPeerManagerMockRecorder) AsyncSend(arg0, arg1 interface{}) *gomock
 }
 
 // AsyncSendWithStream mocks base method.
-func (m *MockPeerManager) AsyncSendWithStream(arg0 network.Stream, arg1 *peermgr0.Message) error {
+func (m *MockPeerManager) AsyncSendWithStream(arg0 network.Stream, arg1 *pb.Message) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "AsyncSendWithStream", arg0, arg1)
 	ret0, _ := ret[0].(error)
@@ -80,6 +80,20 @@ func (mr *MockPeerManagerMockRecorder) Connect(info interface{}) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Connect", reflect.TypeOf((*MockPeerManager)(nil).Connect), info)
 }
 
+// CountConnectedPeers mocks base method.
+func (m *MockPeerManager) CountConnectedPeers() uint64 {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "CountConnectedPeers")
+	ret0, _ := ret[0].(uint64)
+	return ret0
+}
+
+// CountConnectedPeers indicates an expected call of CountConnectedPeers.
+func (mr *MockPeerManagerMockRecorder) CountConnectedPeers() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CountConnectedPeers", reflect.TypeOf((*MockPeerManager)(nil).CountConnectedPeers))
+}
+
 // FindProviders mocks base method.
 func (m *MockPeerManager) FindProviders(id string) (string, error) {
 	m.ctrl.T.Helper()
@@ -93,20 +107,6 @@ func (m *MockPeerManager) FindProviders(id string) (string, error) {
 func (mr *MockPeerManagerMockRecorder) FindProviders(id interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindProviders", reflect.TypeOf((*MockPeerManager)(nil).FindProviders), id)
-}
-
-// Peers mocks base method.
-func (m *MockPeerManager) Peers() map[string]*peer.AddrInfo {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Peers")
-	ret0, _ := ret[0].(map[string]*peer.AddrInfo)
-	return ret0
-}
-
-// Peers indicates an expected call of Peers.
-func (mr *MockPeerManagerMockRecorder) Peers() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Peers", reflect.TypeOf((*MockPeerManager)(nil).Peers))
 }
 
 // Provider mocks base method.
@@ -138,7 +138,7 @@ func (mr *MockPeerManagerMockRecorder) RegisterConnectHandler(arg0 interface{}) 
 }
 
 // RegisterMsgHandler mocks base method.
-func (m *MockPeerManager) RegisterMsgHandler(arg0 peermgr0.Message_Type, arg1 peermgr.MessageHandler) error {
+func (m *MockPeerManager) RegisterMsgHandler(arg0 pb.Message_Type, arg1 peermgr.MessageHandler) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "RegisterMsgHandler", arg0, arg1)
 	ret0, _ := ret[0].(error)
@@ -152,7 +152,7 @@ func (mr *MockPeerManagerMockRecorder) RegisterMsgHandler(arg0, arg1 interface{}
 }
 
 // RegisterMultiMsgHandler mocks base method.
-func (m *MockPeerManager) RegisterMultiMsgHandler(arg0 []peermgr0.Message_Type, arg1 peermgr.MessageHandler) error {
+func (m *MockPeerManager) RegisterMultiMsgHandler(arg0 []pb.Message_Type, arg1 peermgr.MessageHandler) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "RegisterMultiMsgHandler", arg0, arg1)
 	ret0, _ := ret[0].(error)
@@ -166,10 +166,10 @@ func (mr *MockPeerManagerMockRecorder) RegisterMultiMsgHandler(arg0, arg1 interf
 }
 
 // Send mocks base method.
-func (m *MockPeerManager) Send(arg0 string, arg1 *peermgr0.Message) (*peermgr0.Message, error) {
+func (m *MockPeerManager) Send(arg0 string, arg1 *pb.Message) (*pb.Message, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Send", arg0, arg1)
-	ret0, _ := ret[0].(*peermgr0.Message)
+	ret0, _ := ret[0].(*pb.Message)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -178,21 +178,6 @@ func (m *MockPeerManager) Send(arg0 string, arg1 *peermgr0.Message) (*peermgr0.M
 func (mr *MockPeerManagerMockRecorder) Send(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Send", reflect.TypeOf((*MockPeerManager)(nil).Send), arg0, arg1)
-}
-
-// SendWithStream mocks base method.
-func (m *MockPeerManager) SendWithStream(arg0 network.Stream, arg1 *peermgr0.Message) (*peermgr0.Message, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "SendWithStream", arg0, arg1)
-	ret0, _ := ret[0].(*peermgr0.Message)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// SendWithStream indicates an expected call of SendWithStream.
-func (mr *MockPeerManagerMockRecorder) SendWithStream(arg0, arg1 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SendWithStream", reflect.TypeOf((*MockPeerManager)(nil).SendWithStream), arg0, arg1)
 }
 
 // Start mocks base method.
