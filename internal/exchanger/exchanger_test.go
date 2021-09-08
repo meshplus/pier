@@ -262,6 +262,9 @@ func testRecoverErrorStartRelay(t *testing.T) {
 	mockMonitor, mockExecutor, mockSyncer, mockChecker, store := prepareRelay(t)
 	meta := &pb.Interchain{}
 
+	outCh := make(chan *pb.IBTP)
+	inCh := make(chan *model.WrappedIBTP)
+
 	outMeta := make(map[string]uint64)
 	outMeta[to] = 1
 	inMeta := make(map[string]uint64)
@@ -271,6 +274,8 @@ func testRecoverErrorStartRelay(t *testing.T) {
 	mockMonitor.EXPECT().QueryOuterMeta().Return(outMeta).AnyTimes()
 	mockExecutor.EXPECT().QueryInterchainMeta().Return(inMeta).AnyTimes()
 	mockExecutor.EXPECT().QueryCallbackMeta().Return(callbackMeta).AnyTimes()
+	mockSyncer.EXPECT().ListenIBTP().Return(inCh).AnyTimes()
+	mockMonitor.EXPECT().ListenIBTP().Return(outCh).AnyTimes()
 
 	mockExchanger, err := New(mode, from, meta,
 		WithMonitor(mockMonitor), WithExecutor(mockExecutor),
@@ -310,10 +315,10 @@ func testRecoverErrorStartRelay(t *testing.T) {
 	mockSyncer.EXPECT().SendIBTP(gomock.Any()).Return(fmt.Errorf("send ibtp receipt error"))
 	mockSyncer.EXPECT().SendIBTP(gomock.Any()).Return(nil)
 
-	outCh := make(chan *pb.IBTP)
-	inCh := make(chan *model.WrappedIBTP)
-	mockMonitor.EXPECT().ListenIBTP().Return(outCh)
-	mockSyncer.EXPECT().ListenIBTP().Return(inCh)
+	//outCh := make(chan *pb.IBTP)
+	//inCh := make(chan *model.WrappedIBTP)
+	//mockMonitor.EXPECT().ListenIBTP().Return(outCh)
+	//mockSyncer.EXPECT().ListenIBTP().Return(inCh)
 	require.Nil(t, mockExchanger.Start())
 	time.Sleep(100 * time.Millisecond)
 }
