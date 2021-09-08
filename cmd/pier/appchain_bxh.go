@@ -33,6 +33,7 @@ var appchainBxhCMD = cli.Command{
 				appchainDescFlag,
 				appchainMasterRuleFlag,
 				governanceReasonFlag,
+				bxhAddrFlag,
 			},
 			Action: registerPier,
 		},
@@ -85,6 +86,8 @@ func registerPier(ctx *cli.Context) error {
 	desc := ctx.String("desc")
 	masterRule := ctx.String("master-rule")
 	reason := ctx.String("reason")
+	addrs := ctx.StringSlice("addr")
+
 	trustrootData, err := ioutil.ReadFile(trustrootPath)
 	if err != nil {
 		return fmt.Errorf("read validators file: %w", err)
@@ -95,9 +98,18 @@ func registerPier(ctx *cli.Context) error {
 		return err
 	}
 	keyPath := filepath.Join(repoRoot, "key.json")
-	client, _, err := initClientWithKeyPath(ctx, keyPath)
-	if err != nil {
-		return err
+
+	var client rpcx.Client
+	if len(addrs) != 0 {
+		client, err = loadClient(keyPath, addrs, ctx)
+		if err != nil {
+			return fmt.Errorf("load client: %w", err)
+		}
+	} else {
+		client, _, err = initClientWithKeyPath(ctx, keyPath)
+		if err != nil {
+			return err
+		}
 	}
 
 	receipt, err := client.InvokeBVMContract(

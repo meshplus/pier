@@ -6,6 +6,8 @@ import (
 	"strings"
 	"time"
 
+	service_mgr "github.com/meshplus/bitxhub-core/service-mgr"
+
 	"github.com/Rican7/retry"
 	"github.com/Rican7/retry/strategy"
 	"github.com/meshplus/bitxhub-model/constant"
@@ -16,7 +18,7 @@ import (
 
 func GetServiceInterchainMeta(client rpcx.Client, bxhID, appchainID string) (map[string]*pb.Interchain, error) {
 	var (
-		services           []string
+		services           []*service_mgr.Service
 		serviceInterchains = make(map[string]*pb.Interchain)
 	)
 	tx, err := client.GenerateContractTx(pb.TransactionData_BVM, constant.ServiceMgrContractAddr.Address(),
@@ -32,7 +34,7 @@ func GetServiceInterchainMeta(client rpcx.Client, bxhID, appchainID string) (map
 	}
 
 	for _, service := range services {
-		fullServiceID := fmt.Sprintf("%s:%s:%s", bxhID, appchainID, service)
+		fullServiceID := fmt.Sprintf("%s:%s:%s", bxhID, appchainID, service.ServiceID)
 		serviceInterchains[fullServiceID] = GetInterchainByServiceID(client, fullServiceID)
 	}
 
