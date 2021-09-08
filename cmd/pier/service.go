@@ -161,7 +161,7 @@ var serviceCommand = cli.Command{
 
 func ListService(ctx *cli.Context) error {
 	chainId := ctx.String("appchain-id")
-	repoRoot, err := repo.PathRoot()
+	repoRoot, err := repo.PathRootWithDefault(ctx.GlobalString("repo"))
 	if err != nil {
 		return err
 	}
@@ -197,7 +197,7 @@ func LogoutService(ctx *cli.Context) error {
 	serviceID := ctx.String("service-id")
 	reason := ctx.String("reason")
 
-	repoRoot, err := repo.PathRoot()
+	repoRoot, err := repo.PathRootWithDefault(ctx.GlobalString("repo"))
 	if err != nil {
 		return err
 	}
@@ -231,7 +231,7 @@ func ActivateService(ctx *cli.Context) error {
 	serviceID := ctx.String("service-id")
 	reason := ctx.String("reason")
 
-	repoRoot, err := repo.PathRoot()
+	repoRoot, err := repo.PathRootWithDefault(ctx.GlobalString("repo"))
 	if err != nil {
 		return err
 	}
@@ -270,7 +270,7 @@ func updateService(ctx *cli.Context) error {
 	details := ctx.String("details")
 	reason := ctx.String("reason")
 
-	repoRoot, err := repo.PathRoot()
+	repoRoot, err := repo.PathRootWithDefault(ctx.GlobalString("repo"))
 	if err != nil {
 		return err
 	}
@@ -316,7 +316,7 @@ func registerService(ctx *cli.Context) error {
 	details := ctx.String("details")
 	reason := ctx.String("reason")
 
-	repoRoot, err := repo.PathRoot()
+	repoRoot, err := repo.PathRootWithDefault(ctx.GlobalString("repo"))
 	if err != nil {
 		return err
 	}
