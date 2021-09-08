@@ -27,12 +27,12 @@ type RuleMgr struct {
 	logger      logrus.FieldLogger
 }
 
-func New(storage storage.Storage, pm peermgr.PeerManager, logger logrus.FieldLogger) (*RuleMgr, error) {
+func New(storage storage.Storage, pm peermgr.PeerManager, logger logrus.FieldLogger, gasLimit uint64) (*RuleMgr, error) {
 	ledger := &CodeLedger{
 		storage: storage,
 	}
 	instances := &sync.Map{}
-	ve := validator.NewValidationEngine(ledger, instances, logger)
+	ve := validator.NewValidationEngine(ledger, instances, logger, gasLimit)
 	rm := &RuleMgr{
 		Ledger:      ledger,
 		PeerManager: pm,
@@ -46,5 +46,6 @@ func New(storage storage.Storage, pm peermgr.PeerManager, logger logrus.FieldLog
 }
 
 func (rm *RuleMgr) Validate(address, from string, proof, payload []byte, validators string) (bool, error) {
-	return rm.Ve.Validate(address, from, proof, payload, validators)
+	ok, _, err := rm.Ve.Validate(address, from, proof, payload, validators)
+	return ok, err
 }

@@ -90,7 +90,7 @@ func New(t *testing.T) Checker {
 	pm.EXPECT().RegisterMsgHandler(gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
 	pm.EXPECT().RegisterMultiMsgHandler(gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
 
-	rm, err := rulemgr.New(storage, pm, log.NewWithModule("api"))
+	rm, err := rulemgr.New(storage, pm, log.NewWithModule("api"), 0x5f5e100)
 	require.Nil(t, err)
 
 	am, err := appchain.NewManager(from, storage, pm, log.NewWithModule("api"))
