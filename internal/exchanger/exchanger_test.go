@@ -333,6 +333,9 @@ func testRecoverErrorStartRelay(t *testing.T) {
 	mockMonitor, mockExecutor, mockSyncer, mockChecker, store := prepareRelay(t)
 	meta := &pb.Interchain{}
 
+	outCh := make(chan *pb.IBTP)
+	inCh := make(chan *model.WrappedIBTP)
+
 	outMeta := make(map[string]uint64)
 	outMeta[to] = 1
 	inMeta := make(map[string]uint64)
@@ -343,6 +346,8 @@ func testRecoverErrorStartRelay(t *testing.T) {
 	mockMonitor.EXPECT().QueryOuterMeta().Return(outMeta).AnyTimes()
 	mockExecutor.EXPECT().QueryInterchainMeta().Return(inMeta).AnyTimes()
 	mockExecutor.EXPECT().QueryCallbackMeta().Return(callbackMeta).AnyTimes()
+	mockSyncer.EXPECT().ListenIBTP().Return(inCh).AnyTimes()
+	mockMonitor.EXPECT().ListenIBTP().Return(outCh).AnyTimes()
 
 	serviceMeta := make(map[string]*pb.Interchain)
 	serviceMeta[from] = meta
