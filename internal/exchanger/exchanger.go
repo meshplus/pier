@@ -81,6 +81,13 @@ func New(typ, pierID string, meta *pb.Interchain, opts ...Option) (*Exchanger, e
 }
 
 func (ex *Exchanger) Start() error {
+	if ex.mode != repo.UnionMode {
+		go ex.listenAndSendIBTPFromMnt()
+	}
+	if ex.mode != repo.DirectMode {
+		go ex.listenAndSendIBTPFromSyncer()
+	}
+
 	var err error
 	switch ex.mode {
 	case repo.DirectMode:
@@ -93,12 +100,6 @@ func (ex *Exchanger) Start() error {
 
 	if err != nil {
 		return err
-	}
-	if ex.mode != repo.UnionMode {
-		go ex.listenAndSendIBTPFromMnt()
-	}
-	if ex.mode != repo.DirectMode {
-		go ex.listenAndSendIBTPFromSyncer()
 	}
 
 	ex.logger.Info("Exchanger started")
