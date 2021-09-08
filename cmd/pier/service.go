@@ -183,13 +183,15 @@ func ListService(ctx *cli.Context) error {
 		return fmt.Errorf("list service info faild: %s", string(receipt.Ret))
 	}
 	var ret []*service_mgr.Service
-	if err := json.Unmarshal(receipt.Ret, ret); err != nil {
+	if err := json.Unmarshal(receipt.Ret, &ret); err != nil {
 		return err
 	}
 	fmt.Printf("List appchain service by self successfully.\n %s", ret)
 	for _, v := range ret {
 		fmt.Printf("%+v", v)
 	}
+	fmt.Println()
+
 	return nil
 }
 
