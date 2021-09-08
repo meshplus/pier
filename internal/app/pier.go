@@ -104,7 +104,7 @@ func NewPier(repoRoot string, config *repo.Config) (*Pier, error) {
 			return nil, fmt.Errorf("peerMgr create: %w", err)
 		}
 
-		ruleMgr, err := rulemgr.New(store, peerManager, loggers.Logger(loggers.RuleMgr))
+		ruleMgr, err := rulemgr.New(store, peerManager, loggers.Logger(loggers.RuleMgr), config.Mode.Direct.GasLimit)
 		if err != nil {
 			return nil, fmt.Errorf("ruleMgr create: %w", err)
 		}

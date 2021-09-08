@@ -37,6 +37,7 @@ validators = [
 bitxhub_id = "1356"
 [mode.direct]
 peers = []
+gas_limit = 0x5f5e100
 
 [mode.union]
 addrs = ["localhost:60011", "localhost:60012", "localhost:60013", "localhost:60014"]
