@@ -18,7 +18,7 @@ require (
 	github.com/ipfs/go-cid v0.0.7
 	github.com/lestrrat-go/strftime v1.0.3 // indirect
 	github.com/libp2p/go-libp2p-core v0.6.1
-	github.com/meshplus/bitxhub-core v1.3.1-0.20210901134750-eb8755d3e50a
+	github.com/meshplus/bitxhub-core v1.3.1-0.20210906033128-dada2778063e
 	github.com/meshplus/bitxhub-kit v1.2.1-0.20210902085548-07f4fa85bfc9
 	github.com/meshplus/bitxhub-model v1.2.1-0.20210902030154-b203e4a4b3de
 	github.com/meshplus/bitxid v0.0.0-20210412025850-e0eaf0f9063a
@@ -27,13 +27,15 @@ require (
 	github.com/mitchellh/go-homedir v1.1.0
 	github.com/multiformats/go-multiaddr v0.3.0
 	github.com/sirupsen/logrus v1.8.1
-	github.com/spf13/viper v1.7.0
+	github.com/spf13/viper v1.7.1
 	github.com/stretchr/testify v1.7.0
 	github.com/tidwall/gjson v1.6.8
 	github.com/urfave/cli v1.22.1
 	github.com/wonderivan/logger v1.0.0
-	go.uber.org/atomic v1.6.0
-	google.golang.org/grpc v1.33.1
+	go.uber.org/atomic v1.7.0
+	google.golang.org/grpc v1.33.2
 )
 
 replace github.com/libp2p/go-libp2p-core => github.com/libp2p/go-libp2p-core v0.5.6
+
+replace github.com/hyperledger/fabric => github.com/hyperledger/fabric v2.0.1+incompatible
