@@ -3,10 +3,9 @@ package main
 import "github.com/urfave/cli"
 
 var (
-	bxhAddrFlag = cli.StringFlag{
+	bxhAddrFlag = cli.StringSliceFlag{
 		Name:     "addr",
 		Usage:    "Specific bitxhub node address",
-		Value:    "localhost:60011",
 		Required: false,
 	}
 	adminKeyPathFlag = cli.StringFlag{
