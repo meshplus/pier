@@ -65,7 +65,8 @@ type Relay struct {
 }
 
 type Direct struct {
-	Peers []string `toml:"peers" json:"peers"`
+	Peers    []string `toml:"peers" json:"peers"`
+	GasLimit uint64   `toml:"gas_limit" json:"gas_limit"`
 }
 
 type Union struct {
@@ -136,7 +137,8 @@ func DefaultConfig() *Config {
 				BitXHubID: "1356",
 			},
 			Direct: Direct{
-				Peers: []string{},
+				Peers:    []string{},
+				GasLimit: 0x5f5e100,
 			},
 			Union: Union{
 				Addrs:      []string{"localhost:60011"},
