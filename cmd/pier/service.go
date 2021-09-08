@@ -46,9 +46,8 @@ var serviceCommand = cli.Command{
 					Required: true,
 				},
 				cli.BoolFlag{
-					Name:     "ordered",
-					Usage:    "Specify if the service should be ordered",
-					Required: true,
+					Name:  "ordered",
+					Usage: "Specify if the service should be ordered",
 				},
 				cli.StringFlag{
 					Name:     "permit",
@@ -87,11 +86,6 @@ var serviceCommand = cli.Command{
 					Usage:    "Specify service description",
 					Required: true,
 				},
-				cli.BoolFlag{
-					Name:     "ordered",
-					Usage:    "Specify if the service should be ordered",
-					Required: true,
-				},
 				cli.StringFlag{
 					Name:     "permit",
 					Usage:    "Specify service permission",
@@ -106,6 +100,10 @@ var serviceCommand = cli.Command{
 					Name:     "reason",
 					Usage:    "Specify service register reason",
 					Required: true,
+				},
+				cli.BoolFlag{
+					Name:  "ordered",
+					Usage: "Specify if the service should be ordered",
 				},
 			},
 			Action: updateService,
