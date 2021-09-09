@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"path"
 
+	"github.com/meshplus/bitxhub-core/governance"
 	service_mgr "github.com/meshplus/bitxhub-core/service-mgr"
 	"github.com/meshplus/bitxhub-model/constant"
 	rpcx "github.com/meshplus/go-bitxhub-client"
@@ -215,7 +216,7 @@ func LogoutService(ctx *cli.Context) error {
 	if !receipt.IsSuccess() {
 		return fmt.Errorf("logout service info faild: %s", string(receipt.Ret))
 	}
-	ret := &GovernanceResult{}
+	ret := &governance.GovernanceResult{}
 	if err := json.Unmarshal(receipt.Ret, ret); err != nil {
 		return err
 	}
@@ -250,7 +251,7 @@ func ActivateService(ctx *cli.Context) error {
 	if !receipt.IsSuccess() {
 		return fmt.Errorf("activate service info faild: %s", string(receipt.Ret))
 	}
-	ret := &GovernanceResult{}
+	ret := &governance.GovernanceResult{}
 	if err := json.Unmarshal(receipt.Ret, ret); err != nil {
 		return err
 	}
@@ -295,7 +296,7 @@ func updateService(ctx *cli.Context) error {
 	if !receipt.IsSuccess() {
 		return fmt.Errorf("update service info faild: %s", string(receipt.Ret))
 	}
-	ret := &GovernanceResult{}
+	ret := &governance.GovernanceResult{}
 	if err := json.Unmarshal(receipt.Ret, ret); err != nil {
 		return err
 	}
@@ -347,7 +348,7 @@ func registerService(ctx *cli.Context) error {
 	if !receipt.IsSuccess() {
 		return fmt.Errorf("register service info faild: %s", string(receipt.Ret))
 	}
-	ret := &GovernanceResult{}
+	ret := &governance.GovernanceResult{}
 	if err := json.Unmarshal(receipt.Ret, ret); err != nil {
 		return err
 	}

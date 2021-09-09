@@ -6,7 +6,10 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/meshplus/bitxhub-kit/crypto/asym"
 	"github.com/meshplus/bitxhub-kit/fileutil"
+	"github.com/meshplus/bitxhub-kit/types"
+	rpcx "github.com/meshplus/go-bitxhub-client"
 	"github.com/meshplus/pier/internal/repo"
 	"github.com/urfave/cli"
 )
@@ -43,4 +46,41 @@ var initCMD = cli.Command{
 
 		return repo.Initialize(repoRoot, algo)
 	},
+}
+
+func initClientWithKeyPath(ctx *cli.Context, chainAdminKeyPath string) (rpcx.Client, *types.Address, error) {
+	repoRoot, err := repo.PathRootWithDefault(ctx.GlobalString("repo"))
+	if err != nil {
+		return nil, nil, err
+	}
+
+	config, err := repo.UnmarshalConfig(repoRoot)
+	if err != nil {
+		return nil, nil, fmt.Errorf("init config error: %s", err)
+	}
+
+	adminPriv, err := asym.RestorePrivateKey(chainAdminKeyPath, "bitxhub")
+	if err != nil {
+		return nil, nil, err
+	}
+	address, err := adminPriv.PublicKey().Address()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	addrs := []string{}
+	switch config.Mode.Type {
+	case repo.RelayMode:
+		addrs = config.Mode.Relay.Addrs
+	case repo.DirectMode:
+		addrs = config.Mode.Direct.Peers
+	case repo.UnionMode:
+		addrs = config.Mode.Union.Addrs
+	}
+
+	client, err := loadClient(chainAdminKeyPath, addrs, ctx)
+	if err != nil {
+		return nil, nil, fmt.Errorf("load client: %w", err)
+	}
+	return client, address, nil
 }
