@@ -27,7 +27,7 @@ var serviceCommand = cli.Command{
 				},
 				cli.StringFlag{
 					Name:     "service-id",
-					Usage:    "Specify service ID",
+					Usage:    "Specify service ID（address of Service Contract）",
 					Required: true,
 				},
 				cli.StringFlag{
@@ -42,8 +42,9 @@ var serviceCommand = cli.Command{
 				},
 				cli.StringFlag{
 					Name:     "type",
-					Usage:    "Specify service type",
-					Required: true,
+					Usage:    "Specify service type, one of \"CallContract\", \"DepositCertificate\", \"DataMigration\", current only support CallContract",
+					Value:    "CallContract",
+					Required: false,
 				},
 				cli.BoolFlag{
 					Name:  "ordered",
@@ -51,19 +52,15 @@ var serviceCommand = cli.Command{
 				},
 				cli.StringFlag{
 					Name:     "permit",
-					Usage:    "Specify service permission",
-					Required: true,
+					Usage:    "Specify contracts which are not allowed to invoke the service. If there are multiple contract addresses, separate them with ','",
+					Required: false,
 				},
 				cli.StringFlag{
 					Name:     "details",
 					Usage:    "Specify service details",
 					Required: true,
 				},
-				cli.StringFlag{
-					Name:     "reason",
-					Usage:    "Specify service register reason",
-					Required: true,
-				},
+				governanceReasonFlag,
 			},
 			Action: registerService,
 		},
@@ -72,6 +69,11 @@ var serviceCommand = cli.Command{
 			Usage: "Update appchain service info to bitxhub",
 			Flags: []cli.Flag{
 				cli.StringFlag{
+					Name:     "appchain-id",
+					Usage:    "Specify appchain ID",
+					Required: true,
+				},
+				cli.StringFlag{
 					Name:     "service-id",
 					Usage:    "Specify service ID",
 					Required: true,
@@ -79,28 +81,24 @@ var serviceCommand = cli.Command{
 				cli.StringFlag{
 					Name:     "name",
 					Usage:    "Specify service name",
-					Required: true,
+					Required: false,
 				},
 				cli.StringFlag{
 					Name:     "intro",
 					Usage:    "Specify service description",
-					Required: true,
+					Required: false,
 				},
 				cli.StringFlag{
 					Name:     "permit",
-					Usage:    "Specify service permission",
-					Required: true,
+					Usage:    "Specify contracts which are not allowed to invoke the service. If there are multiple contract addresses, separate them with ','",
+					Required: false,
 				},
 				cli.StringFlag{
 					Name:     "details",
 					Usage:    "Specify service details",
-					Required: true,
+					Required: false,
 				},
-				cli.StringFlag{
-					Name:     "reason",
-					Usage:    "Specify service register reason",
-					Required: true,
-				},
+				governanceReasonFlag,
 				cli.BoolFlag{
 					Name:  "ordered",
 					Usage: "Specify if the service should be ordered",
@@ -113,15 +111,16 @@ var serviceCommand = cli.Command{
 			Usage: "Activate appchain service to bitxhub",
 			Flags: []cli.Flag{
 				cli.StringFlag{
+					Name:     "appchain-id",
+					Usage:    "Specify appchain ID",
+					Required: true,
+				},
+				cli.StringFlag{
 					Name:     "service-id",
 					Usage:    "Specify service ID",
 					Required: true,
 				},
-				cli.StringFlag{
-					Name:     "reason",
-					Usage:    "Specify service register reason",
-					Required: true,
-				},
+				governanceReasonFlag,
 			},
 			Action: ActivateService,
 		},
@@ -130,15 +129,16 @@ var serviceCommand = cli.Command{
 			Usage: "Logout appchain service to bitxhub",
 			Flags: []cli.Flag{
 				cli.StringFlag{
+					Name:     "appchain-id",
+					Usage:    "Specify appchain ID",
+					Required: true,
+				},
+				cli.StringFlag{
 					Name:     "service-id",
 					Usage:    "Specify service ID",
 					Required: true,
 				},
-				cli.StringFlag{
-					Name:     "reason",
-					Usage:    "Specify service register reason",
-					Required: true,
-				},
+				governanceReasonFlag,
 			},
 			Action: LogoutService,
 		},
@@ -184,16 +184,12 @@ func ListService(ctx *cli.Context) error {
 	if err := json.Unmarshal(receipt.Ret, &ret); err != nil {
 		return err
 	}
-	fmt.Printf("List appchain service by self successfully.\n %s", ret)
-	for _, v := range ret {
-		fmt.Printf("%+v", v)
-	}
-	fmt.Println()
-
+	fmt.Printf("List appchain service by self successfully.\n %s", string(receipt.Ret))
 	return nil
 }
 
 func LogoutService(ctx *cli.Context) error {
+	chainID := ctx.String("appchain-id")
 	serviceID := ctx.String("service-id")
 	reason := ctx.String("reason")
 
@@ -210,7 +206,7 @@ func LogoutService(ctx *cli.Context) error {
 	receipt, err := client.InvokeBVMContract(
 		constant.ServiceMgrContractAddr.Address(),
 		"LogoutService", nil,
-		rpcx.String(serviceID),
+		rpcx.String(fmt.Sprintf("%s:%s", chainID, serviceID)),
 		rpcx.String(reason),
 	)
 	if err != nil {
@@ -228,6 +224,7 @@ func LogoutService(ctx *cli.Context) error {
 }
 
 func ActivateService(ctx *cli.Context) error {
+	chainID := ctx.String("appchain-id")
 	serviceID := ctx.String("service-id")
 	reason := ctx.String("reason")
 
@@ -244,7 +241,7 @@ func ActivateService(ctx *cli.Context) error {
 	receipt, err := client.InvokeBVMContract(
 		constant.ServiceMgrContractAddr.Address(),
 		"ActivateService", nil,
-		rpcx.String(serviceID),
+		rpcx.String(fmt.Sprintf("%s:%s", chainID, serviceID)),
 		rpcx.String(reason),
 	)
 	if err != nil {
@@ -262,6 +259,7 @@ func ActivateService(ctx *cli.Context) error {
 }
 
 func updateService(ctx *cli.Context) error {
+	chainID := ctx.String("appchain-id")
 	serviceID := ctx.String("service-id")
 	name := ctx.String("name")
 	intro := ctx.String("intro")
@@ -283,7 +281,7 @@ func updateService(ctx *cli.Context) error {
 	receipt, err := client.InvokeBVMContract(
 		constant.ServiceMgrContractAddr.Address(),
 		"UpdateService", nil,
-		rpcx.String(serviceID),
+		rpcx.String(fmt.Sprintf("%s:%s", chainID, serviceID)),
 		rpcx.String(name),
 		rpcx.String(intro),
 		rpcx.Bool(ordered),
@@ -301,7 +299,11 @@ func updateService(ctx *cli.Context) error {
 	if err := json.Unmarshal(receipt.Ret, ret); err != nil {
 		return err
 	}
-	fmt.Printf("Update appchain service for %s successfully, wait for proposal %s to finish.\n", serviceID, ret.ProposalID)
+	if len(ret.ProposalID) == 0 {
+		fmt.Printf("Update appchain service for %s successfully.\n", fmt.Sprintf("%s:%s", chainID, serviceID))
+		return nil
+	}
+	fmt.Printf("Update appchain service for %s successfully, wait for proposal %s to finish.\n", fmt.Sprintf("%s:%s", chainID, serviceID), ret.ProposalID)
 	return nil
 }
 
