@@ -13,32 +13,32 @@ var (
 		Usage:    "Specific admin key path",
 		Required: true,
 	}
-	methodFlag = cli.StringFlag{
-		Name:     "method",
-		Usage:    "Specific did sub method name(like appchain)",
-		Required: true,
-	}
-	didFlag = cli.StringFlag{
-		Name:     "did",
-		Usage:    "Specific full did name(like did:bitxhub:appchain1:0xc7F999b83Af6DF9e67d0a37Ee7e900bF38b3D013)",
-		Required: true,
-	}
+	//methodFlag = cli.StringFlag{
+	//	Name:     "method",
+	//	Usage:    "Specific did sub method name(like appchain)",
+	//	Required: true,
+	//}
+	//didFlag = cli.StringFlag{
+	//	Name:     "did",
+	//	Usage:    "Specific full did name(like did:bitxhub:appchain1:0xc7F999b83Af6DF9e67d0a37Ee7e900bF38b3D013)",
+	//	Required: true,
+	//}
 	statusFlag = cli.IntFlag{
 		Name:     "status",
 		Usage:    "Specify the status you want to set(1 is pass, 0 is reject, default is 1)",
 		Required: false,
 		Value:    1,
 	}
-	didDocAddrFlag = cli.StringFlag{
-		Name:     "doc-addr",
-		Usage:    "Specify the addr of did document",
-		Required: true,
-	}
-	didDocHashFlag = cli.StringFlag{
-		Name:     "doc-hash",
-		Usage:    "Specify the hash of did document",
-		Required: true,
-	}
+	//didDocAddrFlag = cli.StringFlag{
+	//	Name:     "doc-addr",
+	//	Usage:    "Specify the addr of did document",
+	//	Required: true,
+	//}
+	//didDocHashFlag = cli.StringFlag{
+	//	Name:     "doc-hash",
+	//	Usage:    "Specify the hash of did document",
+	//	Required: true,
+	//}
 
 	// appchain info related flags
 	appchainIdFlag = cli.StringFlag{

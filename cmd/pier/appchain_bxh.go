@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 
 	appchainmgr "github.com/meshplus/bitxhub-core/appchain-mgr"
+	"github.com/meshplus/bitxhub-core/governance"
 	"github.com/meshplus/bitxhub-kit/crypto/asym"
 	"github.com/meshplus/bitxhub-model/constant"
 	rpcx "github.com/meshplus/go-bitxhub-client"
@@ -20,9 +21,7 @@ var appchainBxhCMD = cli.Command{
 	Name:  "appchain",
 	Usage: "Command about appchain in bitxhub",
 	Subcommands: []cli.Command{
-		//methodCommand,
 		serviceCommand,
-		didCommand,
 		{
 			Name:  "register",
 			Usage: "Register appchain to bitxhub",
@@ -128,7 +127,7 @@ func registerPier(ctx *cli.Context) error {
 	if !receipt.IsSuccess() {
 		return fmt.Errorf("register appchain faild: %s", string(receipt.Ret))
 	}
-	ret := &GovernanceResult{}
+	ret := &governance.GovernanceResult{}
 	if err := json.Unmarshal(receipt.Ret, ret); err != nil {
 		return err
 	}
