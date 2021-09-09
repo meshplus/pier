@@ -35,6 +35,7 @@ func main() {
 		client.LoadClientCMD(),
 		idCMD,
 		initCMD,
+		configCMD,
 		interchainCMD,
 		p2pCMD,
 		ruleCMD,

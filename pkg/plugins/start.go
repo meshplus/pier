@@ -28,7 +28,7 @@ func CreateClient(pierID string, appchainConfig repo.Appchain, extra []byte) (Cl
 	client := plugin.NewClient(&plugin.ClientConfig{
 		HandshakeConfig: Handshake,
 		Plugins:         PluginMap,
-		Cmd:             exec.Command("sh", "-c", pluginPath),
+		Cmd:             exec.Command("sh", "-c", fmt.Sprintf("%s start", pluginPath)),
 		Logger:          logger,
 		AllowedProtocols: []plugin.Protocol{
 			plugin.ProtocolGRPC},
