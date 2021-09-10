@@ -24,15 +24,18 @@ import (
 )
 
 const (
-	srcchainNotAvailable      = "current appchain not available"
-	dstchainNotAvailable      = "target appchain not available"
-	invalidIBTP               = "invalid ibtp"
-	ibtpIndexExist            = "index already exists"
-	ibtpIndexWrong            = "wrong index"
-	noBindRule                = "appchain didn't register rule"
-	InvalidSourceService      = "invalid source service"
-	InvalidTargetService      = "invalid target service"
-	TargetServiceNotAvailable = "target service not available"
+	CurAppchainNotAvailable    = "current appchain not available"
+	TargetAppchainNotAvailable = "target appchain not available"
+	SrcBitXHubNotAvailable     = "source bitxhub not available"
+	TargetBitXHubNotAvailable  = "target bitxhub not available"
+	CurServiceNotAvailable     = "current service not available"
+	TargetServiceNotAvailable  = "target service not available"
+
+	invalidIBTP          = "invalid ibtp"
+	ibtpIndexExist       = "index already exists"
+	ibtpIndexWrong       = "wrong index"
+	noBindRule           = "appchain didn't register rule"
+	InvalidTargetService = "invalid target service"
 )
 
 var (
@@ -206,8 +209,10 @@ func (syncer *WrapperSyncer) SendIBTP(ibtp *pb.IBTP) error {
 			}).Error("Receipt result for ibtp")
 			// if no rule bind for this appchain or appchain not available, exit pier
 			errMsg := string(receipt.Ret)
-			if strings.Contains(errMsg, noBindRule) || strings.Contains(errMsg, srcchainNotAvailable) {
-				return fmt.Errorf("appchain not valid: %s", errMsg)
+			if strings.Contains(errMsg, noBindRule) ||
+				strings.Contains(errMsg, CurAppchainNotAvailable) ||
+				strings.Contains(errMsg, CurServiceNotAvailable) {
+				return fmt.Errorf("retry sending IBTP: %s", errMsg)
 			}
 
 			// if target chain is not available, this ibtp should be rollback
@@ -218,7 +223,9 @@ func (syncer *WrapperSyncer) SendIBTP(ibtp *pb.IBTP) error {
 			}
 
 			// if target chain is not available, this ibtp should be rollback
-			if strings.Contains(errMsg, dstchainNotAvailable) || strings.Contains(errMsg, TargetServiceNotAvailable) {
+			if strings.Contains(errMsg, TargetAppchainNotAvailable) ||
+				strings.Contains(errMsg, TargetServiceNotAvailable) ||
+				strings.Contains(errMsg, TargetBitXHubNotAvailable) {
 				retErr = fmt.Errorf("rollback ibtp %s: %s", ibtp.ID(), errMsg)
 				return nil
 			}
