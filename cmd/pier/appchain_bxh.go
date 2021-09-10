@@ -148,7 +148,10 @@ func updateAppchain(ctx *cli.Context) error {
 	if err != nil {
 		return fmt.Errorf("init client: %w", err)
 	}
-
+	if desc == "" {
+		fmt.Printf("Please specify at least one arg for %s.\n", fmt.Sprintf("%s", id))
+		return nil
+	}
 	receipt, err := client.InvokeBVMContract(
 		constant.AppchainMgrContractAddr.Address(),
 		"GetAppchain", nil, rpcx.String(id),
@@ -165,9 +168,7 @@ func updateAppchain(ctx *cli.Context) error {
 	if err = json.Unmarshal(receipt.Ret, &appchainInfo); err != nil {
 		return err
 	}
-	if desc == "" {
-		desc = appchainInfo.Desc
-	}
+
 	receipt, err = client.InvokeBVMContract(
 		constant.AppchainMgrContractAddr.Address(),
 		"UpdateAppchain", nil,
