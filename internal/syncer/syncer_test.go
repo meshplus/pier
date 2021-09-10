@@ -516,7 +516,7 @@ func TestSendIBTP(t *testing.T) {
 	// test for receipt failed situation
 	client.EXPECT().SendTransaction(gomock.Any(), gomock.Any()).Return(hash, nil).AnyTimes()
 	//errMsg1 := fmt.Sprintf("%s", ibtpIndexExist)
-	errMsg2 := fmt.Sprintf("%s: appchain not registerd", dstchainNotAvailable)
+	errMsg2 := fmt.Sprintf("%s: appchain not registerd", TargetAppchainNotAvailable)
 	//errMsg3 := fmt.Sprintf("%s: ibtp verify error", invalidIBTP)
 	errMsg4 := fmt.Sprintf("%s: ibtp already on chain", ibtpIndexExist)
 	errMsg5 := fmt.Sprintf("%s: ibtp index is too high", ibtpIndexWrong)
