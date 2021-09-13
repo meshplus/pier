@@ -703,8 +703,8 @@ github.com/mattn/go-runewidth v0.0.9/go.mod h1:H031xJmbD/WCDINGzjvQ9THkh0rPKHF+m
 github.com/mattn/go-sqlite3 v1.11.0/go.mod h1:FPy6KqzDD04eiIsT53CuJW3U88zkxoIYsOqkbpncsNc=
 github.com/mattn/go-tty v0.0.0-20180907095812-13ff1204f104/go.mod h1:XPvLUNfbS4fJH25nqRHfWLMa1ONC8Amw+mIA639KxkE=
 github.com/matttproud/golang_protobuf_extensions v1.0.1/go.mod h1:D8He9yQNgCq6Z5Ld7szi9bcBfOoFv/3dc6xSMkL2PC0=
-github.com/meshplus/bitxhub-core v1.3.1-0.20210913041530-0ef58a6b01c9 h1:AtXV9f7wBEyZjZtYElYvyW4kBuWMP4qWXOUCmmvkbbM=
-github.com/meshplus/bitxhub-core v1.3.1-0.20210913041530-0ef58a6b01c9/go.mod h1:cxseK5qUIN2wSnJLVhTY6BeDnx1O/YQAf7IEEDMtkHA=
+github.com/meshplus/bitxhub-core v1.3.1-0.20210913133133-f6ac2b1f863a h1:1QiRk1mGJAOO52lX4J2YmRzVxu82BuYvXXwAPua8iCI=
+github.com/meshplus/bitxhub-core v1.3.1-0.20210913133133-f6ac2b1f863a/go.mod h1:cxseK5qUIN2wSnJLVhTY6BeDnx1O/YQAf7IEEDMtkHA=
 github.com/meshplus/bitxhub-kit v1.0.0-rc1/go.mod h1:ra/AhOkPvpElI+wXrB9G6DjdcrdxFU3vMwA5MYKr9D0=
 github.com/meshplus/bitxhub-kit v1.0.0/go.mod h1:7cWyhXWZfrQ3+EaxkRoXfuiG3Y5R9DXYJomeZKkETW8=
 github.com/meshplus/bitxhub-kit v1.2.1-0.20210830031953-cf5f83f2e1dd/go.mod h1:wrEdhHp1tktzdwcWb4bOxYsVc+KkcrYL18IYWYeumPQ=

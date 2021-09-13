@@ -162,6 +162,17 @@ func TestSwarm_AsyncSendWithStream(t *testing.T) {
 	require.Nil(t, err)
 }
 
+func TestSwarm_Peers(t *testing.T) {
+	swarm, ids, _, _, _, _ := prepare(t)
+	addrinfoMap := swarm.Peers()
+
+	id, ok := swarm.peersId.Load(ids[1])
+	require.Equal(t, ok, true)
+
+	require.Equal(t, 1, len(addrinfoMap))
+	require.Equal(t, swarm.peers[ids[1]], addrinfoMap[id.(uint64)])
+}
+
 func TestSwarm_RegisterMsgHandler(t *testing.T) {
 	swarm, _, _, _, _, _ := prepare(t)
 	msgCount := 0

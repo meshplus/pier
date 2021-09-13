@@ -34,6 +34,7 @@ type Swarm struct {
 	logger          logrus.FieldLogger
 	peers           map[string]*peer.AddrInfo
 	connectedPeers  sync.Map
+	peersId         sync.Map
 	msgHandlers     sync.Map
 	providers       uint64
 	connectHandlers []ConnectHandler
@@ -259,6 +260,18 @@ func (swarm *Swarm) ConnectedPeerIDs() []string {
 		return true
 	})
 	return peerIDs
+}
+
+func (swarm *Swarm) Peers() map[uint64]*peer.AddrInfo {
+	var id uint64
+	m := make(map[uint64]*peer.AddrInfo)
+	for pid, addr := range swarm.peers {
+		m[id] = addr
+		swarm.peersId.Store(pid, id)
+		id++
+	}
+
+	return m
 }
 
 func (swarm *Swarm) CountConnectedPeers() uint64 {
