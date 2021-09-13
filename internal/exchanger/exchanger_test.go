@@ -315,10 +315,10 @@ func testRecoverErrorStartRelay(t *testing.T) {
 	mockSyncer.EXPECT().SendIBTP(gomock.Any()).Return(fmt.Errorf("send ibtp receipt error"))
 	mockSyncer.EXPECT().SendIBTP(gomock.Any()).Return(nil)
 
-	outCh := make(chan *pb.IBTP)
-	inCh := make(chan *model.WrappedIBTP)
-	mockMonitor.EXPECT().ListenIBTP().Return(outCh)
-	mockSyncer.EXPECT().ListenIBTP().Return(inCh)
+	//outCh := make(chan *pb.IBTP)
+	//inCh := make(chan *model.WrappedIBTP)
+	//mockMonitor.EXPECT().ListenIBTP().Return(outCh)
+	//mockSyncer.EXPECT().ListenIBTP().Return(inCh)
 	require.Nil(t, mockExchanger.Start())
 	time.Sleep(100 * time.Millisecond)
 }

@@ -4,6 +4,10 @@ import (
 	"context"
 	"fmt"
 	"sync"
+	"time"
+
+	"github.com/Rican7/retry"
+	"github.com/Rican7/retry/strategy"
 
 	"github.com/ipfs/go-cid"
 	"github.com/meshplus/bitxhub-kit/storage"
@@ -117,13 +121,20 @@ func (u *UnionRouter) Broadcast(appchainIds []string) error {
 			return err
 		}
 
-		if err := u.peermgr.Provider(idCid.String(), true); err != nil {
-			return fmt.Errorf("broadcast %s error:%w", id, err)
+		if err := retry.Retry(func(attempt uint) error {
+			if err := u.peermgr.Provider(idCid.String(), true); err != nil {
+				return fmt.Errorf("broadcast %s error:%w", id, err)
+			}
+			u.logger.WithFields(logrus.Fields{
+				"id":  id,
+				"cid": idCid.String(),
+			}).Info("provide cid to network")
+			return nil
+		},
+			strategy.Wait(3*time.Second),
+		); err != nil {
+			u.logger.Error(err)
 		}
-		u.logger.WithFields(logrus.Fields{
-			"id":  id,
-			"cid": idCid.String(),
-		}).Info("provide cid to network")
 	}
 	return nil
 }
