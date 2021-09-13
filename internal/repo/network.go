@@ -35,8 +35,6 @@ func LoadNetworkConfig(repoRoot string, privateKey crypto2.PrivKey) (*NetworkCon
 	if err != nil {
 		return nil, err
 	}
-	id2str := id.String()
-	fmt.Println(id2str)
 
 	if err := ReadConfig(v, filepath.Join(repoRoot, "network.toml"), "toml", networkConfig); err != nil {
 		return nil, err

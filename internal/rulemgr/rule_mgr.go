@@ -1,11 +1,11 @@
 package rulemgr
 
 import (
-	"github.com/meshplus/bitxhub-model/pb"
 	"sync"
 
 	"github.com/meshplus/bitxhub-core/validator"
 	"github.com/meshplus/bitxhub-kit/storage"
+	"github.com/meshplus/bitxhub-model/pb"
 	"github.com/meshplus/pier/internal/peermgr"
 	"github.com/sirupsen/logrus"
 )

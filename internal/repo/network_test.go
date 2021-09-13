@@ -2,11 +2,12 @@ package repo
 
 import (
 	"fmt"
+	"testing"
+
 	crypto2 "github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/meshplus/bitxhub-kit/crypto"
 	"github.com/meshplus/bitxhub-kit/crypto/asym/ecdsa"
 	"github.com/stretchr/testify/require"
-	"testing"
 )
 
 func Test_loadNetworkConfig(t *testing.T) {
