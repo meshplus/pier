@@ -11,7 +11,6 @@ import (
 	rpcx "github.com/meshplus/go-bitxhub-client"
 	network "github.com/meshplus/go-lightp2p"
 	"github.com/meshplus/pier/internal/peermgr"
-	peerMsg "github.com/meshplus/pier/internal/peermgr/proto"
 	"github.com/meshplus/pier/pkg/model"
 	"github.com/sirupsen/logrus"
 )
@@ -21,13 +20,13 @@ func (ex *Exchanger) handleRecover(ibtp *pb.IBTP) (*rpcx.Interchain, error) {
 	if err != nil {
 		return nil, err
 	}
-	msg := peermgr.Message(peerMsg.Message_ROUTER_INTERCHAIN_GET, true, []byte(ibtp.From))
+	msg := peermgr.Message(pb.Message_ROUTER_INTERCHAIN_GET, true, []byte(ibtp.From))
 	res, err := ex.peerMgr.Send(pierId, msg)
 	if err != nil {
 		return nil, fmt.Errorf("router interchain:%v", err)
 	}
 	interchain := &pb.Interchain{}
-	err = json.Unmarshal(res.Payload.Data, interchain)
+	err = json.Unmarshal(peermgr.DataToPayload(res).Data, interchain)
 	if err != nil {
 		return nil, err
 	}
@@ -40,13 +39,13 @@ func (ex *Exchanger) handleRecover(ibtp *pb.IBTP) (*rpcx.Interchain, error) {
 	return ic, nil
 }
 
-func (ex *Exchanger) handleRouterInterchain(s network.Stream, msg *peerMsg.Message) {
-	ic := ex.syncer.QueryInterchainMeta(string(msg.Payload.Data))
+func (ex *Exchanger) handleRouterInterchain(s network.Stream, msg *pb.Message) {
+	ic := ex.syncer.QueryInterchainMeta(string(peermgr.DataToPayload(msg).Data))
 	data, err := ic.Marshal()
 	if err != nil {
 		panic(err)
 	}
-	retMsg := peermgr.Message(peerMsg.Message_ACK, true, data)
+	retMsg := peermgr.Message(pb.Message_ACK, true, data)
 	err = ex.peerMgr.AsyncSendWithStream(s, retMsg)
 	if err != nil {
 		ex.logger.Error(err)
@@ -114,10 +113,10 @@ func (ex *Exchanger) handleUnionIBTPFromBitXHub(wIbtp *model.WrappedIBTP) {
 }
 
 //handleRouterSendIBTPMessage handles IBTP from union interchain network
-func (ex *Exchanger) handleRouterSendIBTPMessage(stream network.Stream, msg *peerMsg.Message) {
+func (ex *Exchanger) handleRouterSendIBTPMessage(stream network.Stream, msg *pb.Message) {
 	handle := func() error {
 		ibtp := &pb.IBTP{}
-		if err := ibtp.Unmarshal(msg.Payload.Data); err != nil {
+		if err := ibtp.Unmarshal(peermgr.DataToPayload(msg).Data); err != nil {
 			return fmt.Errorf("unmarshal ibtp: %w", err)
 		}
 
@@ -126,7 +125,7 @@ func (ex *Exchanger) handleRouterSendIBTPMessage(stream network.Stream, msg *pee
 			"id":   ibtp.ID(),
 		})
 
-		retMsg := peermgr.Message(peerMsg.Message_ACK, true, nil)
+		retMsg := peermgr.Message(pb.Message_ACK, true, nil)
 
 		err := ex.peerMgr.AsyncSendWithStream(stream, retMsg)
 		if err != nil {
@@ -144,15 +143,15 @@ func (ex *Exchanger) handleRouterSendIBTPMessage(stream network.Stream, msg *pee
 }
 
 //handleRouterSendIBTPMessage handles get IBTP request from union interchain network
-func (ex *Exchanger) handleRouterGetIBTPMessage(stream network.Stream, msg *peerMsg.Message) {
-	if err := ex.queryIBTPFromBitXHubAndSend(stream, string(msg.Payload.Data), false); err != nil {
+func (ex *Exchanger) handleRouterGetIBTPMessage(stream network.Stream, msg *pb.Message) {
+	if err := ex.queryIBTPFromBitXHubAndSend(stream, string(peermgr.DataToPayload(msg).Data), false); err != nil {
 		ex.logger.Error(err)
 	}
 }
 
 //handleRouterGetIBTPReceiptMessage handles get IBTP receipt request from union interchain network
-func (ex *Exchanger) handleRouterGetIBTPReceiptMessage(stream network.Stream, msg *peerMsg.Message) {
-	if err := ex.queryIBTPFromBitXHubAndSend(stream, string(msg.Payload.Data), true); err != nil {
+func (ex *Exchanger) handleRouterGetIBTPReceiptMessage(stream network.Stream, msg *pb.Message) {
+	if err := ex.queryIBTPFromBitXHubAndSend(stream, string(peermgr.DataToPayload(msg).Data), true); err != nil {
 		ex.logger.Error(err)
 	}
 }
@@ -169,7 +168,7 @@ func (ex *Exchanger) queryIBTPFromBitXHubAndSend(stream network.Stream, id strin
 		"id":   ibtp.ID(),
 	}).Info("Sending IBTP")
 
-	retMsg := peermgr.Message(peerMsg.Message_ACK, true, data)
+	retMsg := peermgr.Message(pb.Message_ACK, true, data)
 	err = ex.peerMgr.AsyncSendWithStream(stream, retMsg)
 	if err != nil {
 		return fmt.Errorf("send ibtp %s: %w", ibtp.ID(), err)

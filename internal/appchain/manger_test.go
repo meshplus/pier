@@ -10,10 +10,10 @@ import (
 	"github.com/meshplus/bitxhub-core/governance"
 	"github.com/meshplus/bitxhub-kit/log"
 	"github.com/meshplus/bitxhub-kit/storage/leveldb"
+	"github.com/meshplus/bitxhub-model/pb"
 	network "github.com/meshplus/go-lightp2p"
 	"github.com/meshplus/pier/internal/peermgr"
 	"github.com/meshplus/pier/internal/peermgr/mock_peermgr"
-	peerproto "github.com/meshplus/pier/internal/peermgr/proto"
 	"github.com/stretchr/testify/require"
 )
 
@@ -29,7 +29,7 @@ func TestRegisterAppchain(t *testing.T) {
 	data, err := json.Marshal(appchain)
 	require.Nil(t, err)
 
-	msg := peermgr.Message(peerproto.Message_APPCHAIN_REGISTER, true, data)
+	msg := peermgr.Message(pb.Message_APPCHAIN_REGISTER, true, data)
 	manager.handleMessage(s, msg)
 	require.Nil(t, err)
 
@@ -46,7 +46,7 @@ func TestUpdateAppchain(t *testing.T) {
 	require.Nil(t, err)
 
 	var s network.Stream
-	msg := peermgr.Message(peerproto.Message_APPCHAIN_REGISTER, true, data)
+	msg := peermgr.Message(pb.Message_APPCHAIN_REGISTER, true, data)
 	manager.handleMessage(s, msg)
 	require.Nil(t, err)
 
@@ -56,7 +56,7 @@ func TestUpdateAppchain(t *testing.T) {
 
 	manager.Mgr.Audit(appchainId, 1, "")
 
-	msg1 := peermgr.Message(peerproto.Message_APPCHAIN_UPDATE, true, data1)
+	msg1 := peermgr.Message(pb.Message_APPCHAIN_UPDATE, true, data1)
 	manager.handleMessage(s, msg1)
 
 	res, err := manager.Mgr.QueryById(appchainId, nil)

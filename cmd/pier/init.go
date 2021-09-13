@@ -73,7 +73,8 @@ func initClientWithKeyPath(ctx *cli.Context, chainAdminKeyPath string) (rpcx.Cli
 	case repo.RelayMode:
 		addrs = config.Mode.Relay.Addrs
 	case repo.DirectMode:
-		addrs = config.Mode.Direct.Peers
+		//TODO: Direct model doesn't need this function, Not sure the process is correct.
+		break
 	case repo.UnionMode:
 		addrs = config.Mode.Union.Addrs
 	}

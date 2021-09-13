@@ -6,8 +6,8 @@ import (
 	appchainmgr "github.com/meshplus/bitxhub-core/appchain-mgr"
 	"github.com/meshplus/bitxhub-core/governance"
 	"github.com/meshplus/bitxhub-kit/storage"
+	"github.com/meshplus/bitxhub-model/pb"
 	"github.com/meshplus/pier/internal/peermgr"
-	peerproto "github.com/meshplus/pier/internal/peermgr/proto"
 	"github.com/sirupsen/logrus"
 )
 
@@ -89,10 +89,10 @@ func NewManager(addr string, storage storage.Storage, pm peermgr.PeerManager, lo
 		logger:      logger,
 	}
 
-	err := pm.RegisterMultiMsgHandler([]peerproto.Message_Type{
-		peerproto.Message_APPCHAIN_REGISTER,
-		peerproto.Message_APPCHAIN_UPDATE,
-		peerproto.Message_APPCHAIN_GET,
+	err := pm.RegisterMultiMsgHandler([]pb.Message_Type{
+		pb.Message_APPCHAIN_REGISTER,
+		pb.Message_APPCHAIN_UPDATE,
+		pb.Message_APPCHAIN_GET,
 	}, am.handleMessage)
 	if err != nil {
 		return nil, err

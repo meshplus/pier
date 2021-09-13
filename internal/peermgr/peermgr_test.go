@@ -2,6 +2,8 @@ package peermgr
 
 import (
 	"fmt"
+	"io/ioutil"
+	"os"
 	"testing"
 	"time"
 
@@ -10,9 +12,8 @@ import (
 	"github.com/meshplus/bitxhub-kit/crypto"
 	"github.com/meshplus/bitxhub-kit/crypto/asym"
 	"github.com/meshplus/bitxhub-kit/log"
+	"github.com/meshplus/bitxhub-model/pb"
 	network "github.com/meshplus/go-lightp2p"
-	peermgr "github.com/meshplus/pier/internal/peermgr/proto"
-	peerproto "github.com/meshplus/pier/internal/peermgr/proto"
 	"github.com/meshplus/pier/internal/repo"
 	ma "github.com/multiformats/go-multiaddr"
 	"github.com/stretchr/testify/require"
@@ -20,41 +21,38 @@ import (
 
 func TestNew(t *testing.T) {
 	logger := log.NewWithModule("swarm")
-	// test wrong nodePrivKey
-	nodeKeys, privKeys, config, _ := genKeysAndConfig(t, 2, repo.DirectMode)
+	repoRoot, err := ioutil.TempDir("", "node")
+	require.Nil(t, err)
+	defer os.RemoveAll(repoRoot)
 
-	_, err := New(config, nil, privKeys[0], 0, logger)
+	// test wrong nodePrivKey
+	nodeKeys, privKeys, repoConfig, _ := genKeysAndConfig(t, repoRoot, 2)
+
+	_, err = New(repoConfig.Config, nil, privKeys[0], 0, logger)
 	require.NotNil(t, err)
 
 	// test new swarm in direct mode
-	nodeKeys, privKeys, config, _ = genKeysAndConfig(t, 2, repo.DirectMode)
+	nodeKeys, privKeys, repoConfig, _ = genKeysAndConfig(t, repoRoot, 2)
 
-	_, err = New(config, nodeKeys[0], privKeys[0], 0, logger)
+	_, err = New(repoConfig.Config, nodeKeys[0], privKeys[0], 0, logger)
 	require.Nil(t, err)
 
-	// test new swarm in union mode
-	nodeKeys, privKeys, config, _ = genKeysAndConfig(t, 2, repo.UnionMode)
-
-	_, err = New(config, nodeKeys[0], privKeys[0], 0, logger)
-	require.Nil(t, err)
-
-	// test new swarm in unsupport mode
-	nodeKeys, privKeys, config, _ = genKeysAndConfig(t, 2, "")
-
-	_, err = New(config, nodeKeys[0], privKeys[0], 0, logger)
-	require.NotNil(t, err)
 }
 
 func TestSwarm_Start(t *testing.T) {
 	logger := log.NewWithModule("swarm")
-	nodeKeys, privKeys, config, _ := genKeysAndConfig(t, 2, repo.DirectMode)
+	repoRoot, err := ioutil.TempDir("", "node")
+	require.Nil(t, err)
+	defer os.RemoveAll(repoRoot)
 
-	swarm1, err := New(config, nodeKeys[0], privKeys[0], 0, logger)
+	nodeKeys, privKeys, repoConfig, _ := genKeysAndConfig(t, repoRoot, 2)
+
+	swarm1, err := New(repoConfig.Config, nodeKeys[0], privKeys[0], 0, logger)
 	require.Nil(t, err)
 
 	go swarm1.Start()
 
-	swarm2, err := New(config, nodeKeys[1], privKeys[1], 0, logger)
+	swarm2, err := New(repoConfig.Config, nodeKeys[1], privKeys[1], 0, logger)
 	require.Nil(t, err)
 
 	go swarm2.Start()
@@ -141,7 +139,7 @@ func TestSwarm_SendWithStream(t *testing.T) {
 	mockStream := &MockStream{}
 
 	// test with wrong msg
-	msg2 := &peermgr.Message{Type: -1}
+	msg2 := &pb.Message{Type: -1}
 	_, err := swarm.SendWithStream(mockStream, msg2)
 	require.NotNil(t, err)
 
@@ -155,7 +153,7 @@ func TestSwarm_AsyncSendWithStream(t *testing.T) {
 	mockStream := &MockStream{}
 
 	// test with wrong msg
-	msg2 := &peermgr.Message{Type: -1}
+	msg2 := &pb.Message{Type: -1}
 	err := swarm.AsyncSendWithStream(mockStream, msg2)
 	require.NotNil(t, err)
 
@@ -164,27 +162,19 @@ func TestSwarm_AsyncSendWithStream(t *testing.T) {
 	require.Nil(t, err)
 }
 
-func TestSwarm_Peers(t *testing.T) {
-	swarm, ids, _, _, _, _ := prepare(t)
-
-	addrinfoMap := swarm.Peers()
-	require.Equal(t, 1, len(addrinfoMap))
-	require.Equal(t, swarm.peers[ids[1]], addrinfoMap[ids[1]])
-}
-
 func TestSwarm_RegisterMsgHandler(t *testing.T) {
 	swarm, _, _, _, _, _ := prepare(t)
 	msgCount := 0
 
 	// test with empty handler
-	err := swarm.RegisterMsgHandler(peermgr.Message_APPCHAIN_REGISTER, nil)
+	err := swarm.RegisterMsgHandler(pb.Message_APPCHAIN_REGISTER, nil)
 	require.NotNil(t, err)
 
 	// test with invalid message type
-	err = swarm.RegisterMsgHandler(-1, func(stream network.Stream, message *peermgr.Message) {
-		require.Equal(t, peermgr.Message_APPCHAIN_REGISTER, message.Type)
+	err = swarm.RegisterMsgHandler(-1, func(stream network.Stream, message *pb.Message) {
+		require.Equal(t, pb.Message_APPCHAIN_REGISTER, message.Type)
 
-		msg := &peermgr.Message{Type: peermgr.Message_ACK}
+		msg := &pb.Message{Type: pb.Message_ACK}
 		data, err := msg.Marshal()
 		require.Nil(t, err)
 		require.Nil(t, stream.AsyncSend(data))
@@ -193,10 +183,10 @@ func TestSwarm_RegisterMsgHandler(t *testing.T) {
 	require.NotNil(t, err)
 
 	// test with right handler
-	err = swarm.RegisterMsgHandler(peermgr.Message_APPCHAIN_REGISTER, func(stream network.Stream, message *peermgr.Message) {
-		require.Equal(t, peermgr.Message_APPCHAIN_REGISTER, message.Type)
+	err = swarm.RegisterMsgHandler(pb.Message_APPCHAIN_REGISTER, func(stream network.Stream, message *pb.Message) {
+		require.Equal(t, pb.Message_APPCHAIN_REGISTER, message.Type)
 
-		msg := &peermgr.Message{Type: peermgr.Message_ACK}
+		msg := &pb.Message{Type: pb.Message_ACK}
 		data, err := msg.Marshal()
 		require.Nil(t, err)
 		require.Nil(t, stream.AsyncSend(data))
@@ -210,14 +200,14 @@ func TestSwarm_RegisterMultiMsgHandler(t *testing.T) {
 	msgCount := 0
 
 	// test with empty handler
-	err := swarm.RegisterMultiMsgHandler([]peerproto.Message_Type{peerproto.Message_APPCHAIN_REGISTER}, nil)
+	err := swarm.RegisterMultiMsgHandler([]pb.Message_Type{pb.Message_APPCHAIN_REGISTER}, nil)
 	require.NotNil(t, err)
 
 	// test in right way
-	err = swarm.RegisterMultiMsgHandler([]peerproto.Message_Type{peerproto.Message_APPCHAIN_REGISTER}, func(stream network.Stream, message *peermgr.Message) {
-		require.Equal(t, peermgr.Message_APPCHAIN_REGISTER, message.Type)
+	err = swarm.RegisterMultiMsgHandler([]pb.Message_Type{pb.Message_APPCHAIN_REGISTER}, func(stream network.Stream, message *pb.Message) {
+		require.Equal(t, pb.Message_APPCHAIN_REGISTER, message.Type)
 
-		msg := &peermgr.Message{Type: peermgr.Message_ACK}
+		msg := &pb.Message{Type: pb.Message_ACK}
 		data, err := msg.Marshal()
 		require.Nil(t, err)
 		require.Nil(t, stream.AsyncSend(data))
@@ -254,13 +244,18 @@ func TestSwarm_ConnectedPeerIDs(t *testing.T) {
 	require.NotNil(t, ids)
 }
 
-func prepare(t *testing.T) (*Swarm, []string, *Swarm, *peermgr.Message, string, string) {
-	nodeKeys, privKeys, config, ids := genKeysAndConfig(t, 2, repo.DirectMode)
+func prepare(t *testing.T) (*Swarm, []string, *Swarm, *pb.Message, string, string) {
 
-	swarm, err := New(config, nodeKeys[0], privKeys[0], 0, log.NewWithModule("swarm"))
+	repoRoot, err := ioutil.TempDir("", "node")
+	require.Nil(t, err)
+	defer os.RemoveAll(repoRoot)
+
+	nodeKeys, privKeys, repoConfig, ids := genKeysAndConfig(t, repoRoot, 2)
+
+	swarm, err := New(repoConfig.Config, nodeKeys[0], privKeys[0], 0, log.NewWithModule("swarm"))
 	require.Nil(t, err)
 
-	mockMsg := &peermgr.Message{Type: peermgr.Message_APPCHAIN_REGISTER}
+	mockMsg := &pb.Message{Type: pb.Message_APPCHAIN_REGISTER}
 
 	mockMultiAddr := "/ip4/104.236.76.40/tcp/4001/ipfs/QmSoLV4Bbm51jM9C4gDYZQ9Cy3U6aXMJDAbzgu2fzaDs64"
 
@@ -271,14 +266,15 @@ func prepare(t *testing.T) (*Swarm, []string, *Swarm, *peermgr.Message, string, 
 
 	return swarm, ids, mockSwarm, mockMsg, mockMultiAddr, mockId
 }
-func genKeysAndConfig(t *testing.T, peerCnt int, mode string) ([]crypto.PrivateKey, []crypto.PrivateKey, *repo.Config, []string) {
+func genKeysAndConfig(t *testing.T, repoRoot string, peerCnt int) ([]crypto.PrivateKey, []crypto.PrivateKey, *repo.Repo, []string) {
 	var nodeKeys []crypto.PrivateKey
 	var privKeys []crypto.PrivateKey
-	var peers []string
+	var piers []*repo.NetworkPiers
 	port := 5001
 	var ids []string
 
 	for i := 0; i < peerCnt; i++ {
+		var host []string
 		key, err := asym.GenerateKeyPair(crypto.ECDSA_P256)
 		require.Nil(t, err)
 		nodeKeys = append(nodeKeys, key)
@@ -290,8 +286,14 @@ func genKeysAndConfig(t *testing.T, peerCnt int, mode string) ([]crypto.PrivateK
 		require.Nil(t, err)
 		ids = append(ids, id.String())
 
-		peer := fmt.Sprintf("/ip4/127.0.0.1/tcp/%d/p2p/%s", port, id)
-		peers = append(peers, peer)
+		peer := fmt.Sprintf("/ip4/127.0.0.1/tcp/%d/p2p/", port)
+		host = append(host, peer)
+
+		networkPier := &repo.NetworkPiers{
+			Pid:   id.String(),
+			Hosts: host,
+		}
+		piers = append(piers, networkPier)
 
 		privKey, err := asym.GenerateKeyPair(crypto.Secp256k1)
 		require.Nil(t, err)
@@ -301,15 +303,23 @@ func genKeysAndConfig(t *testing.T, peerCnt int, mode string) ([]crypto.PrivateK
 		port++
 	}
 
-	config := &repo.Config{}
-	config.Mode.Type = mode
-	if config.Mode.Type == repo.DirectMode {
-		config.Mode.Direct.Peers = peers
-	} else if config.Mode.Type == repo.UnionMode {
-		config.Mode.Union.Connectors = peers
+	config := &repo.Config{
+		RepoRoot: repoRoot,
+	}
+	networkConfig := &repo.NetworkConfig{
+		Piers: piers,
 	}
 
-	return nodeKeys, privKeys, config, ids
+	repoConfig := &repo.Repo{
+		Config:        config,
+		NetworkConfig: networkConfig,
+	}
+
+	originRoot := "../repo/testdata"
+	err := repo.WriteNetworkConfig(originRoot, repoRoot, repoConfig.NetworkConfig)
+	require.Nil(t, err)
+
+	return nodeKeys, privKeys, repoConfig, ids
 }
 
 //=======================================================================
@@ -325,7 +335,7 @@ func (ms *MockStream) RemotePeerAddr() ma.Multiaddr {
 }
 
 func (ms *MockStream) AsyncSend(data []byte) error {
-	msg := &peermgr.Message{}
+	msg := &pb.Message{}
 	err := msg.Unmarshal(data)
 	if err != nil {
 		return fmt.Errorf("Unmarshal message: %w", err)
@@ -333,7 +343,7 @@ func (ms *MockStream) AsyncSend(data []byte) error {
 
 	t := msg.GetType()
 
-	for msgType := range peermgr.Message_Type_name {
+	for msgType := range pb.Message_Type_name {
 		if msgType == int32(t) {
 			return nil
 		}
@@ -342,7 +352,7 @@ func (ms *MockStream) AsyncSend(data []byte) error {
 }
 
 func (ms *MockStream) Send(data []byte) ([]byte, error) {
-	msg := &peermgr.Message{}
+	msg := &pb.Message{}
 	err := msg.Unmarshal(data)
 	if err != nil {
 		return nil, fmt.Errorf("Unmarshal message: %w", err)
@@ -350,7 +360,7 @@ func (ms *MockStream) Send(data []byte) ([]byte, error) {
 
 	t := msg.GetType()
 
-	for msgType := range peermgr.Message_Type_name {
+	for msgType := range pb.Message_Type_name {
 		if msgType == int32(t) {
 			return nil, nil
 		}
@@ -523,14 +533,14 @@ func (mn *MockNetwork) Send(id string, data []byte) ([]byte, error) {
 		return nil, fmt.Errorf("AsyncSend: wrong id %s", id)
 	}
 
-	msg := &peermgr.Message{}
+	msg := &pb.Message{}
 	if err := msg.Unmarshal(data); err != nil {
 		return nil, fmt.Errorf("Unmarshal message: %w", err)
 	}
 
-	for msgType := range peermgr.Message_Type_name {
+	for msgType := range pb.Message_Type_name {
 		if msgType == int32(msg.GetType()) {
-			retMsg := Message(peermgr.Message_ACK, true, []byte(id))
+			retMsg := Message(pb.Message_ACK, true, []byte(id))
 			retData, err := retMsg.Marshal()
 			if err != nil {
 				return nil, fmt.Errorf("Marshal message: %w", err)
