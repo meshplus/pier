@@ -121,11 +121,13 @@ func GetNetworkPeers(networkConfig *NetworkConfig) (map[string]*peer2.AddrInfo, 
 }
 
 func WriteNetworkConfig(originRoot string, repoRoot string, changeConfig *NetworkConfig) error {
-	fileData, err := ioutil.ReadFile(filepath.Join(originRoot, "network.toml"))
-	if err != nil {
-		fmt.Printf("err:  %s", err)
+	if originRoot != "" {
+		fileData, err := ioutil.ReadFile(filepath.Join(originRoot, "network.toml"))
+		if err != nil {
+			fmt.Printf("err:  %s", err)
+		}
+		err = ioutil.WriteFile(filepath.Join(repoRoot, "network.toml"), fileData, 0644)
 	}
-	err = ioutil.WriteFile(filepath.Join(repoRoot, "network.toml"), fileData, 0644)
 
 	networkConfig := &NetworkConfig{}
 	v := viper.New()

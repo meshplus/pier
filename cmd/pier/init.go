@@ -97,8 +97,8 @@ var initCMD = cli.Command{
 			Usage: "Initialize pier direct mode configuration",
 			Flags: []cli.Flag{
 				cli.StringSliceFlag{
-					Name:     "peers",
-					Usage:    "Specify counter party peers to connect",
+					Name:     "addPier",
+					Usage:    "Specify counter party piers to connect, input looks like: [ip]:[port]#[Pid]",
 					Required: true,
 				},
 			},
@@ -115,8 +115,8 @@ var initCMD = cli.Command{
 					Value:    &cli.StringSlice{"localhost:60011", "localhost:60012", "localhost:60013", "localhost:60014"},
 				},
 				cli.StringSliceFlag{
-					Name:     "connectors",
-					Usage:    "Specify the remote union peers to connect",
+					Name:     "addPier",
+					Usage:    "Specify the remote union piers to connect, input looks like: [ip]:[port]#[Pid]",
 					Required: true,
 				},
 			},
@@ -147,7 +147,7 @@ func initPier(ctx *cli.Context) error {
 		return err
 	}
 
-	algo := ctx.String("algo")
+	algo := ctx.GlobalString("algo")
 	if err := initRepo(repoRoot, algo); err != nil {
 		return err
 	}
@@ -168,15 +168,19 @@ func initPier(ctx *cli.Context) error {
 		vpr.Set("mode.relay.quorum", quorum)
 		vpr.Set("mode.relay.validators", validators)
 	case "direct":
-		peers := ctx.StringSlice("peers")
+		if err := updateNetworkAddrs(ctx, nil, repoRoot, mode); err != nil {
+			return err
+		}
 		vpr.Set("mode.type", "direct")
-		vpr.Set("mode.direct.peers", peers)
+
 	case "union":
 		addrs := ctx.StringSlice("addrs")
-		connectors := ctx.StringSlice("connectors")
+		if err := updateNetworkAddrs(ctx, nil, repoRoot, mode); err != nil {
+			return err
+		}
 		vpr.Set("mode.type", "union")
 		vpr.Set("mode.union.addrs", addrs)
-		vpr.Set("mode.union.connectors", connectors)
+
 	}
 
 	if err := updateInitOptions(ctx, vpr, repoRoot); err != nil {
