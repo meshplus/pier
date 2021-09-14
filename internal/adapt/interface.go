@@ -8,6 +8,8 @@ type Adapt interface {
 	Start() error
 	// Stop stops adapt
 	Stop() error
+	// Name get adapt name
+	Name() string
 
 	// MonitorIBTP listen on ibtp from dest chain
 	MonitorIBTP() chan *pb.IBTP
@@ -19,8 +21,8 @@ type Adapt interface {
 	SendIBTP(ibtp *pb.IBTP) error
 
 	// GetServiceIDList getServiceIDList from dest chain
-	GetServiceIDList() ([]string, error)
+	GetServiceIDList() []string
 
 	// QueryInterchain  queryInterchain from dest chain
-	QueryInterchain(serviceID string) (*pb.Interchain, error)
+	QueryInterchain(serviceID string) *pb.Interchain
 }

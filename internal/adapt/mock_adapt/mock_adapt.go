@@ -62,18 +62,32 @@ func (mr *MockAdaptMockRecorder) MonitorIBTP() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "MonitorIBTP", reflect.TypeOf((*MockAdapt)(nil).MonitorIBTP))
 }
 
-// QueryIBTP mocks base method.
-func (m *MockAdapt) QueryIBTP(id string, typ pb.IBTP_Type) *pb.IBTP {
+// Name mocks base method.
+func (m *MockAdapt) Name() string {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "QueryIBTP", id, typ)
+	ret := m.ctrl.Call(m, "Name")
+	ret0, _ := ret[0].(string)
+	return ret0
+}
+
+// Name indicates an expected call of Name.
+func (mr *MockAdaptMockRecorder) Name() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Name", reflect.TypeOf((*MockAdapt)(nil).Name))
+}
+
+// QueryIBTP mocks base method.
+func (m *MockAdapt) QueryIBTP(id string, isReq bool) *pb.IBTP {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "QueryIBTP", id, isReq)
 	ret0, _ := ret[0].(*pb.IBTP)
 	return ret0
 }
 
 // QueryIBTP indicates an expected call of QueryIBTP.
-func (mr *MockAdaptMockRecorder) QueryIBTP(id, typ interface{}) *gomock.Call {
+func (mr *MockAdaptMockRecorder) QueryIBTP(id, isReq interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "QueryIBTP", reflect.TypeOf((*MockAdapt)(nil).QueryIBTP), id, typ)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "QueryIBTP", reflect.TypeOf((*MockAdapt)(nil).QueryIBTP), id, isReq)
 }
 
 // QueryInterchain mocks base method.
