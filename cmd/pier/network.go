@@ -100,6 +100,9 @@ func configNetwork(ctx *cli.Context) error {
 			return err
 		}
 		pv.Set("mode.relay.addrs", adrrs)
+		if err := pv.WriteConfig(); err != nil {
+			return err
+		}
 	case "direct":
 		oldConfig := &repo.NetworkConfig{}
 		// fresh old networkConfig.
@@ -111,21 +114,27 @@ func configNetwork(ctx *cli.Context) error {
 			return err
 		}
 	case "union":
-		adrrs, err := updateBxhAddrs(ctx, pv, mode)
-		if err != nil {
-			return err
+		if len(ctx.StringSlice("addNodes")) != 0 || len(ctx.StringSlice("delNodes")) != 0 {
+			adrrs, err := updateBxhAddrs(ctx, pv, mode)
+			if err != nil {
+				return err
+			}
+			pv.Set("mode.union.addrs", adrrs)
+			if err := pv.WriteConfig(); err != nil {
+				return err
+			}
+		} else {
+			oldConfig := &repo.NetworkConfig{}
+			// fresh old networkConfig.
+			if err := repo.ReadConfig(nv, filepath.Join(repoRoot, "network.toml"), "toml", oldConfig); err != nil {
+				return err
+			}
+			err = updateNetworkAddrs(ctx, oldConfig, repoRoot, mode)
+			if err != nil {
+				return err
+			}
 		}
-		pv.Set("mode.union.addrs", adrrs)
 
-		oldConfig := &repo.NetworkConfig{}
-		// fresh old networkConfig.
-		if err := repo.ReadConfig(nv, filepath.Join(repoRoot, "network.toml"), "toml", oldConfig); err != nil {
-			return err
-		}
-		err = updateNetworkAddrs(ctx, oldConfig, repoRoot, mode)
-		if err != nil {
-			return err
-		}
 	}
 	return nil
 
@@ -153,14 +162,23 @@ func updateBxhAddrs(ctx *cli.Context, vpr *viper.Viper, mode string) ([]string, 
 		tmpAddrs[addr] = true
 	}
 
-	for _, newAdrr := range addBxhAddrs {
-		// if addr repeat, key is unique.
-		tmpAddrs[newAdrr] = true
+	for _, newAddrs := range addBxhAddrs {
+		for _, newAddr := range strings.Split(newAddrs, ",") {
+			// if addr repeat, key is unique.
+			tmpAddrs[newAddr] = true
+		}
+
 	}
 
-	for _, addr := range delBxhAddrs {
-		// if addr does not exit, do nothing.
-		delete(tmpAddrs, addr)
+	for _, delAddrs := range delBxhAddrs {
+		for _, delAddr := range strings.Split(delAddrs, ",") {
+			// if addr does not exit, return err.
+			if ok := tmpAddrs[delAddr]; !ok {
+				return nil, fmt.Errorf("not exit the addr")
+			}
+			delete(tmpAddrs, delAddr)
+		}
+
 	}
 
 	var newAddrs []string
