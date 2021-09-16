@@ -6,11 +6,16 @@ import (
 	"fmt"
 	"net/http"
 	"path/filepath"
+	"time"
 
+	"github.com/Rican7/retry"
+	"github.com/Rican7/retry/backoff"
+	"github.com/Rican7/retry/strategy"
 	"github.com/gin-gonic/gin"
 	appchainmgr "github.com/meshplus/bitxhub-core/appchain-mgr"
 	"github.com/meshplus/bitxhub-kit/crypto/asym"
 	"github.com/meshplus/bitxhub-model/pb"
+	rpcx "github.com/meshplus/go-bitxhub-client"
 	"github.com/meshplus/pier/cmd/pier/client"
 	"github.com/meshplus/pier/internal/appchain"
 	"github.com/meshplus/pier/internal/peermgr"
@@ -20,12 +25,15 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+type SendRelatedDIDTxFunc func(client rpcx.Client, relatedDID []byte) error
 type Server struct {
-	router      *gin.Engine
-	peerMgr     peermgr.PeerManager
-	appchainMgr *appchain.Manager
-	config      *repo.Config
-	logger      logrus.FieldLogger
+	router               *gin.Engine
+	peerMgr              peermgr.PeerManager
+	appchainMgr          *appchain.Manager
+	client               rpcx.Client
+	sendRelatedDIDTxFunc SendRelatedDIDTxFunc
+	config               *repo.Config
+	logger               logrus.FieldLogger
 
 	ctx    context.Context
 	cancel context.CancelFunc
@@ -35,18 +43,31 @@ type response struct {
 	Data []byte `json:"data"`
 }
 
-func NewServer(appchainMgr *appchain.Manager, peerMgr peermgr.PeerManager, config *repo.Config, logger logrus.FieldLogger) (*Server, error) {
+type DIDResponse struct {
+	Code string `json:"code"`
+	Msg  string `json:"msg"`
+}
+
+func (res *DIDResponse) withCodeAndMsg(code string, msg string) {
+	res.Msg = msg
+	res.Code = code
+}
+
+func NewServer(appchainMgr *appchain.Manager, peerMgr peermgr.PeerManager, client rpcx.Client,
+	sendRelatedDIDFunc SendRelatedDIDTxFunc, config *repo.Config, logger logrus.FieldLogger) (*Server, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	gin.SetMode(gin.ReleaseMode)
 	router := gin.New()
 	return &Server{
-		router:      router,
-		appchainMgr: appchainMgr,
-		peerMgr:     peerMgr,
-		config:      config,
-		logger:      logger,
-		ctx:         ctx,
-		cancel:      cancel,
+		router:               router,
+		appchainMgr:          appchainMgr,
+		peerMgr:              peerMgr,
+		sendRelatedDIDTxFunc: sendRelatedDIDFunc,
+		client:               client,
+		config:               config,
+		logger:               logger,
+		ctx:                  ctx,
+		cancel:               cancel,
 	}, nil
 }
 
@@ -54,22 +75,20 @@ func (g *Server) Start() error {
 	g.router.Use(gin.Recovery())
 	v1 := g.router.Group("/v1")
 	{
-		v1.POST(client.RegisterAppchainUrl, g.registerAppchain)
-		v1.POST(client.UpdateAppchainUrl, g.updateAppchain)
-		v1.POST(client.AuditAppchainUrl, g.auditAppchain)
-		v1.GET(client.GetAppchainUrl, g.getAppchain)
-
-		v1.POST(client.RegisterRuleUrl, g.registerRule)
+		//v1.POST(client.RegisterAppchainUrl, g.registerAppchain)
+		//v1.POST(client.UpdateAppchainUrl, g.updateAppchain)
+		//v1.POST(client.AuditAppchainUrl, g.auditAppchain)
+		//v1.GET(client.GetAppchainUrl, g.getAppchain)
+		//
+		//v1.POST(client.RegisterRuleUrl, g.registerRule)
+		v1.POST(client.RelateDIDUrl, g.relateDID)
 	}
 
 	go func() {
-		go func() {
-			err := g.router.Run(fmt.Sprintf(":%d", g.config.Port.Http))
-			if err != nil {
-				panic(err)
-			}
-		}()
-		<-g.ctx.Done()
+		err := g.router.Run(fmt.Sprintf(":%d", g.config.Port.Http))
+		if err != nil {
+			panic(err)
+		}
 	}()
 	return nil
 }
@@ -242,4 +261,43 @@ func (g *Server) getSelfPierID(ctx *gin.Context) (string, error) {
 	}
 
 	return address.String(), nil
+}
+
+type RelatedDID struct {
+	XDID DID   `json:"x_did"`
+	DIDs []DID `json:"dids"`
+}
+
+type DID struct {
+	DID     string  `json:"did"`
+	Account Account `json:"account"`
+}
+
+type Account struct {
+	Address   string `json:"address"`
+	PublicKey string `json:"publicKey"`
+	Version   string `json:"version"`
+	Algo      string `json:"algo"`
+}
+
+func (g *Server) relateDID(c *gin.Context) {
+	res := &DIDResponse{}
+	var rd *RelatedDID
+	if err := c.BindJSON(&rd); err != nil {
+		res.withCodeAndMsg("1", err.Error())
+		c.JSON(http.StatusBadRequest, res)
+		return
+	}
+	data, _ := json.Marshal(rd)
+	if err := retry.Retry(func(attempt uint) error {
+		err := g.sendRelatedDIDTxFunc(g.client, data)
+		if err != nil {
+			g.logger.Error(err)
+			return err
+		}
+		return nil
+	}, strategy.Backoff(backoff.Fibonacci(500*time.Millisecond))); err != nil {
+		g.logger.Panic(err)
+	}
+
 }

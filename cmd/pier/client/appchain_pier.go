@@ -200,7 +200,7 @@ func auditPierAppchain(ctx *cli.Context) error {
 		return err
 	}
 
-	_, err = httpPost(url, data)
+	_, err = HttpPost(url, data)
 	if err != nil {
 		return err
 	}
@@ -223,7 +223,7 @@ func savePierAppchain(ctx *cli.Context, path string) error {
 	if err != nil {
 		return err
 	}
-	res, err := httpGet(url)
+	res, err := HttpGet(url)
 	if err != nil {
 		return err
 	}
@@ -289,7 +289,7 @@ func savePierAppchain(ctx *cli.Context, path string) error {
 	if err != nil {
 		return err
 	}
-	resp, err := httpPost(url, data)
+	resp, err := HttpPost(url, data)
 	if err != nil {
 		return err
 	}
@@ -306,7 +306,7 @@ func getPierAppchain(ctx *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	res, err := httpGet(url)
+	res, err := HttpGet(url)
 	if err != nil {
 		return err
 	}
@@ -366,7 +366,7 @@ func registerAppchainRule(ctx *cli.Context) error {
 		return err
 	}
 
-	resp, err := httpPost(url, postData)
+	resp, err := HttpPost(url, postData)
 	if err != nil {
 		return err
 	}

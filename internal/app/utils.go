@@ -71,3 +71,19 @@ func getAppchainInfo(client rpcx.Client) (*rpcx.Appchain, error) {
 
 	return appchain, nil
 }
+
+func sendAddRelatedDID(client rpcx.Client, relatedDID []byte) error {
+	tx, err := client.GenerateContractTx(pb.TransactionData_BVM, constant.RelatedDIDContractAddr.Address(), "AddRelatedDIDs", pb.Bytes(relatedDID))
+	if err != nil {
+		return err
+	}
+	receipt, err := client.SendTransactionWithReceipt(tx, nil)
+	if err != nil {
+		return err
+	}
+	if !receipt.IsSuccess() {
+		return fmt.Errorf(string(receipt.Ret))
+	}
+
+	return nil
+}

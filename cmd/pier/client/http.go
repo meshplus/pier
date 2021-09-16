@@ -17,10 +17,12 @@ const (
 	AuditAppchainUrl    = "appchain/audit"
 	GetAppchainUrl      = "appchain/get"
 
+	RelateDIDUrl = "did/relate"
+
 	RegisterRuleUrl = "rule/register"
 )
 
-func httpGet(url string) ([]byte, error) {
+func HttpGet(url string) ([]byte, error) {
 	/* #nosec */
 	resp, err := http.Get(url)
 	if err != nil {
@@ -40,7 +42,7 @@ func httpGet(url string) ([]byte, error) {
 	return c, nil
 }
 
-func httpPost(url string, data []byte) ([]byte, error) {
+func HttpPost(url string, data []byte) ([]byte, error) {
 	buffer := bytes.NewBuffer(data)
 
 	/* #nosec */
