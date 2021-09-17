@@ -13,14 +13,14 @@ type Adapt interface {
 	MonitorIBTP() chan *pb.IBTP
 
 	// QueryIBTP query ibtp by id and type, contain mutilsign
-	QueryIBTP(id string, typ pb.IBTP_Type) *pb.IBTP
+	QueryIBTP(id string, isReq bool) (*pb.IBTP, error)
 
 	// SendIBTP check and send ibtp to dest chain
 	SendIBTP(ibtp *pb.IBTP) error
 
 	// GetServiceIDList getServiceIDList from dest chain
-	GetServiceIDList() []string
+	GetServiceIDList() ([]string, error)
 
 	// QueryInterchain  queryInterchain from dest chain
-	QueryInterchain(serviceID string) *pb.Interchain
+	QueryInterchain(serviceID string) (*pb.Interchain, error)
 }
