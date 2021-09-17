@@ -68,10 +68,6 @@ func (client *BxhClient) SubmitIBTP(ibtp *pb.IBTP) (*pb.SubmitIBTPResponse, erro
 	ret.Message = string(receipt.Ret)
 	ret.Result = &pb.IBTP{}
 
-	if content.Callback == "" {
-		return ret, nil
-	}
-
 	newArgs := make([][]byte, 0) // TODO modify by receipt.Ret
 	switch content.Func {
 	case "Synchronize":
@@ -118,6 +114,14 @@ func (client *BxhClient) GetInMeta() (map[string]uint64, error) {
 	return InCounterMap, nil
 }
 
+func (client *BxhClient) SubmitReceipt(ibtp *pb.IBTP) (*pb.SubmitIBTPResponse, error) {
+	return nil, nil
+}
+
+func (client *BxhClient) GetReceiptMessage(servicePair string, idx uint64) (*pb.IBTP, error) {
+	return nil, nil
+}
+
 // GetCallbackMeta gets an index map, which implicates the greatest index of
 // executed callback txs for each receiving chain
 // TODO
@@ -134,7 +138,7 @@ func (client *BxhClient) GetDstRollbackMeta() (map[string]uint64, error) {
 }
 
 // Initialize .
-func (client *BxhClient) Initialize(configPath string, pierID string, extra []byte) error {
+func (client *BxhClient) Initialize(configPath string, extra []byte) error {
 	return nil
 }
 
@@ -172,20 +176,16 @@ func (client *BxhClient) GetReceipt(ibtp *pb.IBTP) (*pb.IBTP, error) {
 	return nil, nil
 }
 
-func (client *BxhClient) RollbackIBTP(ibtp *pb.IBTP, isSrcChain bool) (*pb.RollbackIBTPResponse, error) {
-	return nil, nil
-}
-
 func (client *BxhClient) IncreaseInMeta(ibtp *pb.IBTP) (*pb.IBTP, error) {
 	return nil, nil
 }
 
-func (client *BxhClient) GetServices() []string {
-	return nil
+func (client *BxhClient) GetServices() ([]string, error) {
+	return nil, nil
 }
 
-func (client *BxhClient) GetChainID() (string, string) {
-	return "", ""
+func (client *BxhClient) GetChainID() (string, string, error) {
+	return "", "", nil
 }
 
 // Name .
@@ -216,7 +216,7 @@ func (client *BxhClient) getProof(ibtp *pb.IBTP) ([]byte, error) {
 
 func (client *BxhClient) getIBTPSigns(ibtp *pb.IBTP) ([]byte, error) {
 	hash := ibtp.Hash()
-	resp, err := client.agent.GetMultiSigns(hash.String(), pb.GetMultiSignsRequest_IBTP)
+	resp, err := client.agent.GetMultiSigns(hash.String(), pb.GetMultiSignsRequest_IBTP_REQUEST)
 	if err != nil {
 		return nil, err
 	}
@@ -246,9 +246,9 @@ func (client *BxhClient) generateCallback(original *pb.IBTP, args [][]byte, stat
 		return nil, fmt.Errorf("ibtp payload unmarshal: %w", err)
 	}
 
-	content := &pb.Content{
-		Func: originalContent.Callback,
-		Args: args,
+	content := &pb.Result{
+		//Func: originalContent.Callback,
+		Data: args,
 	}
 	b, err := content.Marshal()
 	if err != nil {

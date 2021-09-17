@@ -63,7 +63,7 @@ func (syncer *WrapperSyncer) GetAssetExchangeSigns(id string) ([]byte, error) {
 
 func (syncer *WrapperSyncer) GetIBTPSigns(ibtp *pb.IBTP) ([]byte, error) {
 	hash := ibtp.Hash()
-	resp, err := syncer.client.GetMultiSigns(hash.String(), pb.GetMultiSignsRequest_IBTP)
+	resp, err := syncer.client.GetMultiSigns(hash.String(), pb.GetMultiSignsRequest_IBTP_REQUEST)
 	if err != nil {
 		return nil, err
 	}

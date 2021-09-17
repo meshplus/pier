@@ -8,7 +8,7 @@ import (
 //go:generate mockgen -destination mock_client/mock_client.go -package mock_client -source interface.go
 type Client interface {
 	// Initialize initialize plugin client
-	Initialize(configPath string, pierID string, extra []byte) error
+	Initialize(configPath string, extra []byte) error
 
 	// Start starts to listen appchain event
 	Start() error
@@ -22,49 +22,36 @@ type Client interface {
 	// SubmitIBTP submits the interchain ibtp to appchain
 	SubmitIBTP(*pb.IBTP) (*pb.SubmitIBTPResponse, error)
 
-	// RollbackIBTP rollbacks the interchain ibtp to appchain
-	RollbackIBTP(ibtp *pb.IBTP, isSrcChain bool) (*pb.RollbackIBTPResponse, error)
+	// SubmitReceipt submit the receipt ibtp to appchain
+	SubmitReceipt(ibtp *pb.IBTP) (*pb.SubmitIBTPResponse, error)
 
-	// increase in meta without actually executing it
-	IncreaseInMeta(ibtp *pb.IBTP) (*pb.IBTP, error)
-
-	// GetOutMessage gets interchain ibtp by index and target chain_id from broker contract
+	// GetOutMessage gets interchain ibtp by service pair and index from broker contract
 	GetOutMessage(servicePair string, idx uint64) (*pb.IBTP, error)
 
-	// GetInMessage gets receipt by index and source chain_id
-	GetInMessage(servicePair string, idx uint64) ([][]byte, error)
+	// GetReceiptMessage gets receipt ibtp by service pair and index from broker contract
+	GetReceiptMessage(servicePair string, idx uint64) (*pb.IBTP, error)
 
-	// GetOutMeta gets an index map, which implicates the greatest index of
-	// ingoing interchain txs for each source chain
+	// GetInMeta gets an index map, which implicates the greatest index of
+	// ingoing interchain txs for each service pair
 	GetInMeta() (map[string]uint64, error)
 
 	// GetOutMeta gets an index map, which implicates the greatest index of
-	// outgoing interchain txs for each receiving chain
+	// outgoing interchain txs for each service pair
 	GetOutMeta() (map[string]uint64, error)
 
 	// GetReceiptMeta gets an index map, which implicates the greatest index of
-	// executed callback txs for each receiving chain
+	// executed callback txs for each service pair
 	GetCallbackMeta() (map[string]uint64, error)
 
-	// GetSrcRollbackMeta gets an index map, which implicates the greatest index of
-	// executed rollback txs to each receiving chain
-	GetSrcRollbackMeta() (map[string]uint64, error)
-
 	// GetDstRollbackMeta gets an index map, which implicates the greatest index of
-	// executed rollback txs from each source chain
+	// executed rollback txs from each service pair
 	GetDstRollbackMeta() (map[string]uint64, error)
 
-	// CommitCallback is a callback function when get receipt from bitxhub success
-	CommitCallback(ibtp *pb.IBTP) error
-
-	// GetReceipt gets receipt of an executed IBTP
-	GetReceipt(ibtp *pb.IBTP) (*pb.IBTP, error)
-
 	// GetServices gets all service IDs the pier cares
-	GetServices() []string
+	GetServices() ([]string, error)
 
 	// GetChainID gets BitXHub and appchain ID
-	GetChainID() (string, string)
+	GetChainID() (string, string, error)
 
 	// Name gets name of blockchain from plugin
 	Name() string

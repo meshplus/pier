@@ -179,7 +179,7 @@ func NewPier(repoRoot string, config *repo.Config) (*Pier, error) {
 	var cli plugins.Client
 	var grpcPlugin *plugin.Client
 	err = retry.Retry(func(attempt uint) error {
-		cli, grpcPlugin, err = plugins.CreateClient(config.Appchain.ID, config.Appchain, extra)
+		cli, grpcPlugin, err = plugins.CreateClient(&config.Appchain, extra)
 		if err != nil {
 			logger.Errorf("client plugin create:%s", err)
 		}
@@ -189,7 +189,12 @@ func NewPier(repoRoot string, config *repo.Config) (*Pier, error) {
 		logger.Panic(err)
 	}
 
-	serviceMeta = filterServiceMeta(serviceMeta, bxhID, config.Appchain.ID, cli.GetServices())
+	services, err := cli.GetServices()
+	if err != nil {
+		return nil, err
+	}
+
+	serviceMeta = filterServiceMeta(serviceMeta, bxhID, config.Appchain.ID, services)
 
 	mnt, err := monitor.New(cli, cryptor, loggers.Logger(loggers.Monitor))
 	if err != nil {
