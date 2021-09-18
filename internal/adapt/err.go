@@ -12,16 +12,16 @@ const (
 )
 
 type SendIbtpError struct {
-	err    string
-	status int
+	Err    string
+	Status int
 }
 
 func (e *SendIbtpError) Error() string {
-	return e.err
+	return e.Err
 }
 
 func (e *SendIbtpError) NeedRetry() bool {
-	switch e.status {
+	switch e.Status {
 	case SrcChain_Unavailable, SrcChainService_Unavailable, ValidationRules_Unregister, Proof_Invalid:
 		return true
 	case Index_Gt_Exp, Index_Lt_Exp:

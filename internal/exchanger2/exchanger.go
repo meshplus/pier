@@ -142,18 +142,15 @@ func (ex *Exchanger) listenIBTPFromDestAdapt() {
 
 			if err := retry.Retry(func(attempt uint) error {
 				if err := ex.srcAdapt.SendIBTP(ibtp); err != nil {
-					ex.logger.Errorf("Send ibtp: %s", err.Error())
 					// if err occurs, try to get new ibtp and resend
-					if err := retry.Retry(func(attempt uint) error {
-						if ibtp, err = ex.destAdapt.QueryIBTP(ibtp.ID(), !ex.isIBTPBelongSrc(ibtp)); err != nil {
-							ex.logger.Errorf("queryIBTP from destAdapt", "error", err.Error())
-							return err
+					if err, ok := err.(*adapt.SendIbtpError); ok {
+						if err.NeedRetry() {
+							ex.logger.Errorf("send IBTP to Adapt:%s", ex.srcAdapt.Name(), "error", err.Error())
+							// query to new ibtp
+							ibtp = ex.queryIBTP(ex.destAdapt, ibtp.ID(), !ex.isIBTPBelongSrc(ibtp))
+							return fmt.Errorf("retry sending ibtp")
 						}
-						return nil
-					}, strategy.Wait(3*time.Second)); err != nil {
-						return fmt.Errorf("retry error to get queryIBTP from destAdapt: %w", err)
 					}
-					return fmt.Errorf("retry sending ibtp")
 				}
 				return nil
 			}, strategy.Backoff(backoff.Fibonacci(500*time.Millisecond))); err != nil {
@@ -220,18 +217,15 @@ func (ex *Exchanger) listenIBTPFromSrcAdapt() {
 
 			if err := retry.Retry(func(attempt uint) error {
 				if err := ex.destAdapt.SendIBTP(ibtp); err != nil {
-					ex.logger.Errorf("Send ibtp: %s", err.Error())
 					// if err occurs, try to get new ibtp and resend
-					if err := retry.Retry(func(attempt uint) error {
-						if ibtp, err = ex.srcAdapt.QueryIBTP(ibtp.ID(), ex.isIBTPBelongSrc(ibtp)); err != nil {
-							ex.logger.Errorf("queryIBTP from srcAdapt", "error", err.Error())
-							return err
+					if err, ok := err.(*adapt.SendIbtpError); ok {
+						if err.NeedRetry() {
+							ex.logger.Errorf("send IBTP to Adapt:%s", ex.destAdapt.Name(), "error", err.Error())
+							// query to new ibtp
+							ibtp = ex.queryIBTP(ex.srcAdapt, ibtp.ID(), ex.isIBTPBelongSrc(ibtp))
+							return fmt.Errorf("retry sending ibtp")
 						}
-						return nil
-					}, strategy.Wait(3*time.Second)); err != nil {
-						return fmt.Errorf("retry error to get queryIBTP from srcAdapt: %w", err)
 					}
-					return fmt.Errorf("retry sending ibtp")
 				}
 				return nil
 			}, strategy.Backoff(backoff.Fibonacci(500*time.Millisecond))); err != nil {
@@ -264,6 +258,24 @@ func (ex *Exchanger) isIBTPBelongSrc(ibtp *pb.IBTP) bool {
 		}
 	}
 	return isIBTPBelongSrc
+}
+
+func (ex *Exchanger) queryIBTP(destAdapt adapt.Adapt, ibtpID string, isReq bool) *pb.IBTP {
+	var (
+		ibtp *pb.IBTP
+		err  error
+	)
+	if err := retry.Retry(func(attempt uint) error {
+		ibtp, err = destAdapt.QueryIBTP(ibtpID, isReq)
+		if err != nil {
+			ex.logger.Errorf("queryIBTP from Adapt:%s", destAdapt.Name(), "error", err.Error())
+			return err
+		}
+		return nil
+	}, strategy.Wait(3*time.Second)); err != nil {
+		ex.logger.Panic(err)
+	}
+	return ibtp
 }
 
 func (ex *Exchanger) Stop() error {

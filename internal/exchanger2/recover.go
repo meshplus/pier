@@ -7,6 +7,7 @@ import (
 	"github.com/Rican7/retry"
 	"github.com/Rican7/retry/backoff"
 	"github.com/Rican7/retry/strategy"
+	"github.com/meshplus/bitxhub-model/pb"
 	"github.com/meshplus/pier/internal/adapt"
 	"github.com/sirupsen/logrus"
 )
@@ -17,23 +18,24 @@ func (ex *Exchanger) handleMissingIBTPByServicePair(begin, end uint64, fromAdapt
 			"service pair": fmt.Sprintf("%s-%s", srcService, targetService),
 			"index":        begin,
 		}).Info("handle missing event from:" + fromAdapt.Name())
+		ibtp := ex.queryIBTP(fromAdapt, fmt.Sprintf("%s-%s-%d", srcService, targetService, begin), isReq)
+		sendIBTP(ex, toAdapt, ibtp)
+	}
+}
 
-		if err := retry.Retry(func(attempt uint) error {
-			ibtp, err := fromAdapt.QueryIBTP(fmt.Sprintf("%s-%s-%d", srcService, targetService, begin), isReq)
-			if err != nil {
-				ex.logger.Errorf("queryIBTP from Adapt:%s", fromAdapt.Name(), "error", err.Error())
-				return err
+func sendIBTP(ex *Exchanger, destAdapt adapt.Adapt, ibtp *pb.IBTP) {
+	if err := retry.Retry(func(attempt uint) error {
+		if err := destAdapt.SendIBTP(ibtp); err != nil {
+			if err, ok := err.(*adapt.SendIbtpError); ok {
+				if err.NeedRetry() {
+					ex.logger.Errorf("send IBTP to Adapt:%s", destAdapt.Name(), "error", err.Error())
+					return fmt.Errorf("retry sending ibtp")
+				}
 			}
-			err = toAdapt.SendIBTP(ibtp)
-			if err != nil {
-				ex.logger.Errorf("send IBTP to Adapt:%s", toAdapt.Name(), "error", err.Error())
-				return err
-			}
-			return nil
-		}, strategy.Backoff(backoff.Fibonacci(500*time.Millisecond))); err != nil {
-			ex.logger.Panic(err)
 		}
-
+		return nil
+	}, strategy.Backoff(backoff.Fibonacci(500*time.Millisecond))); err != nil {
+		ex.logger.Panic(err)
 	}
 }
 
