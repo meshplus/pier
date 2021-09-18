@@ -25,7 +25,7 @@ type AppchainAdapter struct {
 	bitxhubID    string
 }
 
-func newAppchainAdapter(config *repo.Config, logger logrus.FieldLogger) (Adapt, error) {
+func NewAppchainAdapter(config *repo.Config, logger logrus.FieldLogger) (Adapt, error) {
 	adapter := &AppchainAdapter{
 		config: &config.Appchain,
 		logger: logger,

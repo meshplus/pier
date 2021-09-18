@@ -10,6 +10,7 @@ const (
 	ApiServer   = "api_server"
 	App         = "app"
 	AppchainMgr = "appchain_mgr"
+	Appchain    = "appchain"
 	BxhLite     = "bxh_lite"
 	Executor    = "executor"
 	Exchanger   = "exchanger"
@@ -35,6 +36,8 @@ func InitializeLogger(config *repo.Config) {
 	m[App].Logger.SetLevel(log.ParseLevel(config.Log.Level))
 	m[AppchainMgr] = log.NewWithModule(AppchainMgr)
 	m[AppchainMgr].Logger.SetLevel(log.ParseLevel(config.Log.Module.AppchainMgr))
+	m[Appchain] = log.NewWithModule(Appchain)
+	m[Appchain].Logger.SetLevel(log.ParseLevel(config.Log.Module.Appchain))
 	m[BxhLite] = log.NewWithModule(BxhLite)
 	m[BxhLite].Logger.SetLevel(log.ParseLevel(config.Log.Module.BxhLite))
 	m[Exchanger] = log.NewWithModule(Exchanger)
