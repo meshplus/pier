@@ -134,25 +134,6 @@ func (m *AppchainMonitor) QueryOuterMeta() map[string]uint64 {
 	return meta
 }
 
-func (m *AppchainMonitor) QuerySrcRollbackMeta() map[string]uint64 {
-	var (
-		meta map[string]uint64
-		err  error
-	)
-	if err := retry.Retry(func(attempt uint) error {
-		meta, err = m.client.GetSrcRollbackMeta()
-		if err != nil {
-			m.logger.WithField("error", err).Error("Get src rollback meta from appchain")
-			return err
-		}
-		return nil
-	}, strategy.Wait(2*time.Second)); err != nil {
-		panic(err)
-	}
-
-	return meta
-}
-
 // handleIBTP handle the ibtp package captured by monitor.
 func (m *AppchainMonitor) handleIBTP(ibtp *pb.IBTP) {
 	if err := m.encryption(ibtp); err != nil {

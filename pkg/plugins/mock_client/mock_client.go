@@ -34,20 +34,6 @@ func (m *MockClient) EXPECT() *MockClientMockRecorder {
 	return m.recorder
 }
 
-// CommitCallback mocks base method.
-func (m *MockClient) CommitCallback(ibtp *pb.IBTP) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "CommitCallback", ibtp)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// CommitCallback indicates an expected call of CommitCallback.
-func (mr *MockClientMockRecorder) CommitCallback(ibtp interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CommitCallback", reflect.TypeOf((*MockClient)(nil).CommitCallback), ibtp)
-}
-
 // GetCallbackMeta mocks base method.
 func (m *MockClient) GetCallbackMeta() (map[string]uint64, error) {
 	m.ctrl.T.Helper()
@@ -107,21 +93,6 @@ func (mr *MockClientMockRecorder) GetIBTP() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetIBTP", reflect.TypeOf((*MockClient)(nil).GetIBTP))
 }
 
-// GetInMessage mocks base method.
-func (m *MockClient) GetInMessage(servicePair string, idx uint64) ([][]byte, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetInMessage", servicePair, idx)
-	ret0, _ := ret[0].([][]byte)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// GetInMessage indicates an expected call of GetInMessage.
-func (mr *MockClientMockRecorder) GetInMessage(servicePair, idx interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetInMessage", reflect.TypeOf((*MockClient)(nil).GetInMessage), servicePair, idx)
-}
-
 // GetInMeta mocks base method.
 func (m *MockClient) GetInMeta() (map[string]uint64, error) {
 	m.ctrl.T.Helper()
@@ -167,19 +138,19 @@ func (mr *MockClientMockRecorder) GetOutMeta() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetOutMeta", reflect.TypeOf((*MockClient)(nil).GetOutMeta))
 }
 
-// GetReceipt mocks base method.
-func (m *MockClient) GetReceipt(ibtp *pb.IBTP) (*pb.IBTP, error) {
+// GetReceiptMessage mocks base method.
+func (m *MockClient) GetReceiptMessage(servicePair string, idx uint64) (*pb.IBTP, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetReceipt", ibtp)
+	ret := m.ctrl.Call(m, "GetReceiptMessage", servicePair, idx)
 	ret0, _ := ret[0].(*pb.IBTP)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// GetReceipt indicates an expected call of GetReceipt.
-func (mr *MockClientMockRecorder) GetReceipt(ibtp interface{}) *gomock.Call {
+// GetReceiptMessage indicates an expected call of GetReceiptMessage.
+func (mr *MockClientMockRecorder) GetReceiptMessage(servicePair, idx interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetReceipt", reflect.TypeOf((*MockClient)(nil).GetReceipt), ibtp)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetReceiptMessage", reflect.TypeOf((*MockClient)(nil).GetReceiptMessage), servicePair, idx)
 }
 
 // GetServices mocks base method.
@@ -194,36 +165,6 @@ func (m *MockClient) GetServices() []string {
 func (mr *MockClientMockRecorder) GetServices() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetServices", reflect.TypeOf((*MockClient)(nil).GetServices))
-}
-
-// GetSrcRollbackMeta mocks base method.
-func (m *MockClient) GetSrcRollbackMeta() (map[string]uint64, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetSrcRollbackMeta")
-	ret0, _ := ret[0].(map[string]uint64)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// GetSrcRollbackMeta indicates an expected call of GetSrcRollbackMeta.
-func (mr *MockClientMockRecorder) GetSrcRollbackMeta() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetSrcRollbackMeta", reflect.TypeOf((*MockClient)(nil).GetSrcRollbackMeta))
-}
-
-// IncreaseInMeta mocks base method.
-func (m *MockClient) IncreaseInMeta(ibtp *pb.IBTP) (*pb.IBTP, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "IncreaseInMeta", ibtp)
-	ret0, _ := ret[0].(*pb.IBTP)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// IncreaseInMeta indicates an expected call of IncreaseInMeta.
-func (mr *MockClientMockRecorder) IncreaseInMeta(ibtp interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IncreaseInMeta", reflect.TypeOf((*MockClient)(nil).IncreaseInMeta), ibtp)
 }
 
 // Initialize mocks base method.
@@ -252,21 +193,6 @@ func (m *MockClient) Name() string {
 func (mr *MockClientMockRecorder) Name() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Name", reflect.TypeOf((*MockClient)(nil).Name))
-}
-
-// RollbackIBTP mocks base method.
-func (m *MockClient) RollbackIBTP(ibtp *pb.IBTP, isSrcChain bool) (*pb.RollbackIBTPResponse, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "RollbackIBTP", ibtp, isSrcChain)
-	ret0, _ := ret[0].(*pb.RollbackIBTPResponse)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// RollbackIBTP indicates an expected call of RollbackIBTP.
-func (mr *MockClientMockRecorder) RollbackIBTP(ibtp, isSrcChain interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RollbackIBTP", reflect.TypeOf((*MockClient)(nil).RollbackIBTP), ibtp, isSrcChain)
 }
 
 // Start mocks base method.
@@ -310,6 +236,21 @@ func (m *MockClient) SubmitIBTP(arg0 *pb.IBTP) (*pb.SubmitIBTPResponse, error) {
 func (mr *MockClientMockRecorder) SubmitIBTP(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SubmitIBTP", reflect.TypeOf((*MockClient)(nil).SubmitIBTP), arg0)
+}
+
+// SubmitReceipt mocks base method.
+func (m *MockClient) SubmitReceipt(ibtp *pb.IBTP) (*pb.SubmitIBTPResponse, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SubmitReceipt", ibtp)
+	ret0, _ := ret[0].(*pb.SubmitIBTPResponse)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// SubmitReceipt indicates an expected call of SubmitReceipt.
+func (mr *MockClientMockRecorder) SubmitReceipt(ibtp interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SubmitReceipt", reflect.TypeOf((*MockClient)(nil).SubmitReceipt), ibtp)
 }
 
 // Type mocks base method.
