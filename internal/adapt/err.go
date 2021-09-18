@@ -4,27 +4,28 @@ package adapt
 const (
 	Success = iota
 	SrcChain_Unavailable
+	TargetChain_Unavailable
 	SrcChainService_Unavailable
+	TargetChainService_Unavailable
 	ValidationRules_Unregister
 	Proof_Invalid
-	Index_Gt_Exp
-	Index_Lt_Exp
+	Index_Wrong
 )
 
 type SendIbtpError struct {
-	err    string
-	status int
+	Err    string
+	Status int
 }
 
 func (e *SendIbtpError) Error() string {
-	return e.err
+	return e.Err
 }
 
 func (e *SendIbtpError) NeedRetry() bool {
-	switch e.status {
+	switch e.Status {
 	case SrcChain_Unavailable, SrcChainService_Unavailable, ValidationRules_Unregister, Proof_Invalid:
 		return true
-	case Index_Gt_Exp, Index_Lt_Exp:
+	case TargetChain_Unavailable, TargetChainService_Unavailable, Index_Wrong:
 		return false
 	default:
 		return false
