@@ -21,8 +21,8 @@ type Adapt interface {
 	SendIBTP(ibtp *pb.IBTP) error
 
 	// GetServiceIDList getServiceIDList from dest chain
-	GetServiceIDList() []string
+	GetServiceIDList() ([]string, error)
 
 	// QueryInterchain  queryInterchain from dest chain
-	QueryInterchain(serviceID string) *pb.Interchain
+	QueryInterchain(serviceID string) (*pb.Interchain, error)
 }

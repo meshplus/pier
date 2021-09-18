@@ -60,6 +60,10 @@ func (a *AppchainAdapter) Stop() error {
 	return nil
 }
 
+func (a *AppchainAdapter) Name() string {
+	return a.appchainID
+}
+
 func (a *AppchainAdapter) MonitorIBTP() chan *pb.IBTP {
 	return a.client.GetIBTP()
 }
