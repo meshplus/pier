@@ -2,28 +2,45 @@ package exchanger
 
 import (
 	"fmt"
+	"time"
 
+	"github.com/Rican7/retry"
+	"github.com/Rican7/retry/backoff"
+	"github.com/Rican7/retry/strategy"
 	"github.com/meshplus/pier/internal/adapt"
 	"github.com/sirupsen/logrus"
 )
 
-func (ex *Exchanger) handleMissingIBTPByServicePair(begin, end uint64, srcAdapt, targetAdapt adapt.Adapt, srcService, targetService string, isReq bool) {
+func (ex *Exchanger) handleMissingIBTPByServicePair(begin, end uint64, fromAdapt, toAdapt adapt.Adapt, srcService, targetService string, isReq bool) {
 	for ; begin <= end; begin++ {
 		ex.logger.WithFields(logrus.Fields{
 			"service pair": fmt.Sprintf("%s-%s", srcService, targetService),
 			"index":        begin,
-		}).Info("handle missing event from:" + srcAdapt.Name())
+		}).Info("handle missing event from:" + fromAdapt.Name())
 
-		ibtp := srcAdapt.QueryIBTP(fmt.Sprintf("%s-%s-%d", srcService, targetService, begin), isReq)
-		// todo promise success
-		targetAdapt.SendIBTP(ibtp)
+		if err := retry.Retry(func(attempt uint) error {
+			ibtp, err := fromAdapt.QueryIBTP(fmt.Sprintf("%s-%s-%d", srcService, targetService, begin), isReq)
+			if err != nil {
+				ex.logger.Errorf("queryIBTP from Adapt:%s", fromAdapt.Name(), "error", err.Error())
+				return err
+			}
+			err = toAdapt.SendIBTP(ibtp)
+			if err != nil {
+				ex.logger.Errorf("send IBTP to Adapt:%s", toAdapt.Name(), "error", err.Error())
+				return err
+			}
+			return nil
+		}, strategy.Backoff(backoff.Fibonacci(500*time.Millisecond))); err != nil {
+			ex.logger.Panic(err)
+		}
+
 	}
 }
 
 func (ex *Exchanger) recover() {
 	// handle src -> dest
 	for _, interchain := range ex.srcServiceMeta {
-		// src作为来源链的请求，req
+
 		for k, count := range interchain.InterchainCounter {
 			destCount, ok := ex.destServiceMeta[interchain.ID].InterchainCounter[k]
 			if !ok {
@@ -35,7 +52,6 @@ func (ex *Exchanger) recover() {
 			// success then equal index
 			ex.destServiceMeta[interchain.ID].InterchainCounter[k] = count
 		}
-		// src作为目的链的回执，resp
 		for k, count := range interchain.SourceReceiptCounter {
 			destCount, ok := ex.destServiceMeta[interchain.ID].SourceReceiptCounter[k]
 			if !ok {
@@ -50,7 +66,6 @@ func (ex *Exchanger) recover() {
 
 	// handle dest -> src
 	for _, interchain := range ex.destServiceMeta {
-		// ①应用链作为目的链未收到的请求
 		for k, count := range interchain.SourceInterchainCounter {
 			destCount, ok := ex.srcServiceMeta[interchain.ID].SourceInterchainCounter[k]
 			if !ok {
@@ -63,8 +78,6 @@ func (ex *Exchanger) recover() {
 			ex.srcServiceMeta[interchain.ID].SourceInterchainCounter[k] = count
 		}
 
-		// ②应用链作为来源链未收到的回执；
-		// ③应用链作为来源链未收到的rollback
 		for k, count := range interchain.ReceiptCounter {
 			destCount, ok := ex.srcServiceMeta[interchain.ID].ReceiptCounter[k]
 			if !ok {
