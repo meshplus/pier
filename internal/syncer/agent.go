@@ -362,12 +362,12 @@ func (syncer *WrapperSyncer) GetServiceIDs() ([]string, error) {
 
 	ids := make([]string, 0)
 
-	bxhID, err := syncer.GetBitXHubIDs()
+	bxhID, err := syncer.GetChainID()
 	if err != nil {
 		return nil, err
 	}
 	for _, service := range services {
-		ids = append(ids, fmt.Sprintf("%s:%s:%s", bxhID, service.ChainID, service.ServiceID))
+		ids = append(ids, fmt.Sprintf("%d:%s:%s", bxhID, service.ChainID, service.ServiceID))
 	}
 
 	return ids, nil
