@@ -3,12 +3,12 @@ package exchanger
 import (
 	"github.com/meshplus/bitxhub-kit/storage"
 	"github.com/meshplus/pier/api"
-	"github.com/meshplus/pier/internal/adapt/bxh_adapter"
 	"github.com/meshplus/pier/internal/checker"
 	"github.com/meshplus/pier/internal/executor"
 	"github.com/meshplus/pier/internal/monitor"
 	"github.com/meshplus/pier/internal/peermgr"
 	"github.com/meshplus/pier/internal/router"
+	"github.com/meshplus/pier/internal/syncer"
 	"github.com/sirupsen/logrus"
 )
 
@@ -19,7 +19,7 @@ type Config struct {
 	router    router.Router
 	mnt       monitor.Monitor
 	exec      executor.Executor
-	syncer    bxh_adapter.BxhAdapter
+	syncer    syncer.Syncer
 	apiServer *api.Server
 	logger    logrus.FieldLogger
 }
@@ -56,7 +56,7 @@ func WithRouter(router router.Router) Option {
 	}
 }
 
-func WithSyncer(syncer bxh_adapter.BxhAdapter) Option {
+func WithSyncer(syncer syncer.Syncer) Option {
 	return func(config *Config) {
 		config.syncer = syncer
 	}
