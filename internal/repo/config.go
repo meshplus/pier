@@ -104,7 +104,7 @@ type LogModule struct {
 	Router      string `toml:"router" json:"router"`
 	RuleMgr     string `mapstructure:"rule_mgr" toml:"rule_mgr" json:"rule_mgr"`
 	Swarm       string `toml:"swarm" json:"swarm"`
-	Syncer      string `toml:"syncer" json:"syncer"`
+	Syncer      string `toml:"bxh_adapter" json:"bxh_adapter"`
 }
 
 // Appchain are configs about appchain
