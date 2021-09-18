@@ -35,11 +35,12 @@ func (m *MockAdapt) EXPECT() *MockAdaptMockRecorder {
 }
 
 // GetServiceIDList mocks base method.
-func (m *MockAdapt) GetServiceIDList() []string {
+func (m *MockAdapt) GetServiceIDList() ([]string, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetServiceIDList")
 	ret0, _ := ret[0].([]string)
-	return ret0
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
 }
 
 // GetServiceIDList indicates an expected call of GetServiceIDList.
@@ -77,11 +78,12 @@ func (mr *MockAdaptMockRecorder) Name() *gomock.Call {
 }
 
 // QueryIBTP mocks base method.
-func (m *MockAdapt) QueryIBTP(id string, isReq bool) *pb.IBTP {
+func (m *MockAdapt) QueryIBTP(id string, isReq bool) (*pb.IBTP, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "QueryIBTP", id, isReq)
 	ret0, _ := ret[0].(*pb.IBTP)
-	return ret0
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
 }
 
 // QueryIBTP indicates an expected call of QueryIBTP.
@@ -91,11 +93,12 @@ func (mr *MockAdaptMockRecorder) QueryIBTP(id, isReq interface{}) *gomock.Call {
 }
 
 // QueryInterchain mocks base method.
-func (m *MockAdapt) QueryInterchain(serviceID string) *pb.Interchain {
+func (m *MockAdapt) QueryInterchain(serviceID string) (*pb.Interchain, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "QueryInterchain", serviceID)
 	ret0, _ := ret[0].(*pb.Interchain)
-	return ret0
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
 }
 
 // QueryInterchain indicates an expected call of QueryInterchain.

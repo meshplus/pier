@@ -53,10 +53,28 @@ func New(typ, srcChainId, srcBxhId string, opts ...Option) (*Exchanger, error) {
 
 func (ex *Exchanger) Start() error {
 	// init meta info
-	list0 := ex.srcAdapt.GetServiceIDList()
-	for _, serviceId := range list0 {
-		ex.srcServiceMeta[serviceId] = ex.srcAdapt.QueryInterchain(serviceId)
-		ex.destServiceMeta[serviceId] = ex.destAdapt.QueryInterchain(serviceId)
+	var (
+		serviceList []string
+		err         error
+	)
+	if err := retry.Retry(func(attempt uint) error {
+		if serviceList, err = ex.srcAdapt.GetServiceIDList(); err != nil {
+			ex.logger.Errorf("get serviceIdList from srcAdapt", "error", err.Error())
+		}
+		return nil
+	}, strategy.Wait(3*time.Second)); err != nil {
+		return fmt.Errorf("retry error to get serviceIdList from srcAdapt: %w", err)
+	}
+
+	for _, serviceId := range serviceList {
+		ex.srcServiceMeta[serviceId], err = ex.srcAdapt.QueryInterchain(serviceId)
+		if err != nil {
+			panic(fmt.Sprintf("queryInterchain from srcAdapt: %s", err.Error()))
+		}
+		ex.destServiceMeta[serviceId], err = ex.destAdapt.QueryInterchain(serviceId)
+		if err != nil {
+			panic(fmt.Sprintf("queryInterchain from destAdapt: %s", err.Error()))
+		}
 	}
 
 	ex.recover()
@@ -73,7 +91,6 @@ func (ex *Exchanger) Start() error {
 	return nil
 }
 
-// 从中继链监听的ibtp：可以收到srcAdapt作为来源链的回执 和 作为目的链的请求 以及 （作为来源链的请求rollback）
 func (ex *Exchanger) listenIBTPFromDestAdapt() {
 	ch := ex.destAdapt.MonitorIBTP()
 	for {
@@ -126,7 +143,16 @@ func (ex *Exchanger) listenIBTPFromDestAdapt() {
 			if err := retry.Retry(func(attempt uint) error {
 				if err := ex.srcAdapt.SendIBTP(ibtp); err != nil {
 					ex.logger.Errorf("Send ibtp: %s", err.Error())
-					// todo: ??? if err occurs, try to get new ibtp and resend
+					// if err occurs, try to get new ibtp and resend
+					if err := retry.Retry(func(attempt uint) error {
+						if ibtp, err = ex.destAdapt.QueryIBTP(ibtp.ID(), !ex.isIBTPBelongSrc(ibtp)); err != nil {
+							ex.logger.Errorf("queryIBTP from destAdapt", "error", err.Error())
+							return err
+						}
+						return nil
+					}, strategy.Wait(3*time.Second)); err != nil {
+						return fmt.Errorf("retry error to get queryIBTP from destAdapt: %w", err)
+					}
 					return fmt.Errorf("retry sending ibtp")
 				}
 				return nil
@@ -143,7 +169,6 @@ func (ex *Exchanger) listenIBTPFromDestAdapt() {
 	}
 }
 
-// 可以收到srcAdapt作为来源链的请求 和 作为目的链的回执
 func (ex *Exchanger) listenIBTPFromSrcAdapt() {
 	ch := ex.srcAdapt.MonitorIBTP()
 	for {
@@ -196,7 +221,16 @@ func (ex *Exchanger) listenIBTPFromSrcAdapt() {
 			if err := retry.Retry(func(attempt uint) error {
 				if err := ex.destAdapt.SendIBTP(ibtp); err != nil {
 					ex.logger.Errorf("Send ibtp: %s", err.Error())
-					// todo: ??? if err occurs, try to get new ibtp and resend
+					// if err occurs, try to get new ibtp and resend
+					if err := retry.Retry(func(attempt uint) error {
+						if ibtp, err = ex.srcAdapt.QueryIBTP(ibtp.ID(), ex.isIBTPBelongSrc(ibtp)); err != nil {
+							ex.logger.Errorf("queryIBTP from srcAdapt", "error", err.Error())
+							return err
+						}
+						return nil
+					}, strategy.Wait(3*time.Second)); err != nil {
+						return fmt.Errorf("retry error to get queryIBTP from srcAdapt: %w", err)
+					}
 					return fmt.Errorf("retry sending ibtp")
 				}
 				return nil
