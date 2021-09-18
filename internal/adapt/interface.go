@@ -14,7 +14,7 @@ type Adapt interface {
 	// MonitorIBTP listen on ibtp from dest chain
 	MonitorIBTP() chan *pb.IBTP
 
-	// QueryIBTP query ibtp by id and type, contain mutilsign
+	// QueryIBTP query ibtp by id and type, contain multi_sign
 	QueryIBTP(id string, isReq bool) (*pb.IBTP, error)
 
 	// SendIBTP check and send ibtp to dest chain
