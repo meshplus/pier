@@ -1,4 +1,4 @@
-package syncer
+package bxh_adapter
 
 import (
 	"github.com/meshplus/bitxhub-kit/storage"
