@@ -19,7 +19,6 @@ var _ Router = (*UnionRouter)(nil)
 
 type UnionRouter struct {
 	peermgr          peermgr.PeerManager
-	syncer           syncer.Syncer
 	logger           logrus.FieldLogger
 	store            storage.Storage
 	appchains        map[string]*appchainmgr.Appchain

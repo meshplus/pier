@@ -7,22 +7,27 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/meshplus/pier/internal/adapt/bxh_adapter"
+
 	"github.com/Rican7/retry"
 	"github.com/Rican7/retry/strategy"
 	"github.com/hashicorp/go-plugin"
 	"github.com/meshplus/bitxhub-core/agency"
 	appchainmgr "github.com/meshplus/bitxhub-core/appchain-mgr"
 	"github.com/meshplus/bitxhub-kit/crypto"
+	"github.com/meshplus/bitxhub-kit/log"
 	"github.com/meshplus/bitxhub-kit/storage"
 	"github.com/meshplus/bitxhub-kit/storage/leveldb"
 	"github.com/meshplus/bitxhub-model/pb"
 	rpcx "github.com/meshplus/go-bitxhub-client"
 	"github.com/meshplus/pier/api"
 	_ "github.com/meshplus/pier/imports"
+	"github.com/meshplus/pier/internal/adapt"
 	"github.com/meshplus/pier/internal/agent"
 	"github.com/meshplus/pier/internal/appchain"
 	"github.com/meshplus/pier/internal/checker"
 	"github.com/meshplus/pier/internal/exchanger"
+	exchanger2 "github.com/meshplus/pier/internal/exchanger2"
 	"github.com/meshplus/pier/internal/executor"
 	"github.com/meshplus/pier/internal/lite"
 	"github.com/meshplus/pier/internal/lite/bxh_lite"
@@ -33,7 +38,6 @@ import (
 	"github.com/meshplus/pier/internal/repo"
 	"github.com/meshplus/pier/internal/router"
 	"github.com/meshplus/pier/internal/rulemgr"
-	"github.com/meshplus/pier/internal/syncer"
 	"github.com/meshplus/pier/internal/txcrypto"
 	"github.com/meshplus/pier/pkg/plugins"
 	_ "github.com/meshplus/pier/pkg/single"
@@ -73,10 +77,10 @@ func NewPier(repoRoot string, config *repo.Config) (*Pier, error) {
 		return nil, fmt.Errorf("repo load key: %w", err)
 	}
 
-	addr, err := privateKey.PublicKey().Address()
-	if err != nil {
-		return nil, fmt.Errorf("get address from private key %w", err)
-	}
+	//addr, err := privateKey.PublicKey().Address()
+	//if err != nil {
+	//	return nil, fmt.Errorf("get address from private key %w", err)
+	//}
 
 	nodePrivKey, err := repo.LoadNodePrivateKey(repoRoot)
 	if err != nil {
@@ -89,7 +93,6 @@ func NewPier(repoRoot string, config *repo.Config) (*Pier, error) {
 		ex        exchanger.IExchanger
 		lite      lite.Lite
 		pierHA    agency.PierHA
-		sync      syncer.Syncer
 		apiServer *api.Server
 		//chain       *appchainmgr.Appchain
 		peerManager peermgr.PeerManager
@@ -136,11 +139,6 @@ func NewPier(repoRoot string, config *repo.Config) (*Pier, error) {
 		}
 
 		bxhID = config.Mode.Relay.BitXHubID
-		// agent queries all services' meta about current appchain from bitxhub
-		serviceMeta, err = syncer.GetServiceInterchainMeta(client, bxhID, config.Appchain.ID)
-		if err != nil {
-			return nil, err
-		}
 
 		cryptor, err = txcrypto.NewRelayCryptor(client, privateKey)
 		if err != nil {
@@ -150,14 +148,6 @@ func NewPier(repoRoot string, config *repo.Config) (*Pier, error) {
 		lite, err = bxh_lite.New(client, store, loggers.Logger(loggers.BxhLite))
 		if err != nil {
 			return nil, fmt.Errorf("lite create: %w", err)
-		}
-
-		sync, err = syncer.New(addr.String(), config.Appchain.ID, repo.RelayMode,
-			syncer.WithClient(client), syncer.WithLite(lite),
-			syncer.WithStorage(store), syncer.WithLogger(loggers.Logger(loggers.Syncer)),
-		)
-		if err != nil {
-			return nil, fmt.Errorf("syncer create: %w", err)
 		}
 
 		pierHAConstructor, err := agency.GetPierHAConstructor(config.HA.Mode)
@@ -179,7 +169,7 @@ func NewPier(repoRoot string, config *repo.Config) (*Pier, error) {
 	var cli plugins.Client
 	var grpcPlugin *plugin.Client
 	err = retry.Retry(func(attempt uint) error {
-		cli, grpcPlugin, err = plugins.CreateClient(config.Appchain.ID, config.Appchain, extra)
+		cli, grpcPlugin, err = plugins.CreateClient(&config.Appchain, extra)
 		if err != nil {
 			logger.Errorf("client plugin create:%s", err)
 		}
@@ -211,7 +201,6 @@ func NewPier(repoRoot string, config *repo.Config) (*Pier, error) {
 		exchanger.WithExecutor(exec),
 		exchanger.WithMonitor(mnt),
 		exchanger.WithPeerMgr(peerManager),
-		exchanger.WithSyncer(sync),
 		exchanger.WithAPIServer(apiServer),
 		exchanger.WithStorage(store),
 		exchanger.WithLogger(loggers.Logger(loggers.Exchanger)),
@@ -259,7 +248,6 @@ func NewUnionPier(repoRoot string, config *repo.Config) (*Pier, error) {
 	var (
 		ex          exchanger.IExchanger
 		lite        lite.Lite
-		sync        syncer.Syncer
 		ck          checker.Checker
 		peerManager peermgr.PeerManager
 		serviceMeta = make(map[string]*pb.Interchain)
@@ -303,13 +291,6 @@ func NewUnionPier(repoRoot string, config *repo.Config) (*Pier, error) {
 		return nil, fmt.Errorf("lite create: %w", err)
 	}
 
-	sync, err = syncer.New(addr.String(), config.Appchain.ID, repo.UnionMode,
-		syncer.WithClient(client), syncer.WithLite(lite), syncer.WithStorage(store), syncer.WithLogger(loggers.Logger(loggers.Syncer)),
-	)
-	if err != nil {
-		return nil, fmt.Errorf("syncer create: %w", err)
-	}
-
 	cli := agent.CreateClient(client)
 	exec, err := executor.New(cli, addr.String(), store, nil, loggers.Logger(loggers.Executor))
 	if err != nil {
@@ -322,7 +303,6 @@ func NewUnionPier(repoRoot string, config *repo.Config) (*Pier, error) {
 		exchanger.WithExecutor(exec),
 		exchanger.WithPeerMgr(peerManager),
 		exchanger.WithChecker(ck),
-		exchanger.WithSyncer(sync),
 		exchanger.WithStorage(store),
 		exchanger.WithRouter(router),
 		exchanger.WithLogger(loggers.Logger(loggers.Exchanger)),
@@ -367,6 +347,70 @@ func (pier *Pier) Start() error {
 	return nil
 }
 
+func NewPier2(repoRoot string, config *repo.Config) (*Pier, error) {
+	var (
+		ex     exchanger.IExchanger
+		pierHA agency.PierHA
+	)
+
+	logger := loggers.Logger(loggers.App)
+	privateKey, err := repo.LoadPrivateKey(repoRoot)
+	if err != nil {
+		return nil, fmt.Errorf("repo load key: %w", err)
+	}
+
+	switch config.Mode.Type {
+	case repo.DirectMode:
+		return nil, fmt.Errorf("direct mode is unsupported yet")
+	case repo.RelayMode:
+		appchainAdapter, err := adapt.NewAppchainAdapter(config, loggers.Logger(loggers.Appchain))
+		if err != nil {
+			return nil, fmt.Errorf("new appchain adapter: %w", err)
+		}
+
+		client, err := newBitXHubClient(logger, privateKey, config)
+		if err != nil {
+			return nil, fmt.Errorf("create bitxhub client: %w", err)
+		}
+
+		bxhAdapter, err := bxh_adapter.New(config.Appchain.ID, config.Appchain.ID, repo.RelayMode,
+			bxh_adapter.WithClient(client),
+			bxh_adapter.WithLogger(loggers.Logger(loggers.Syncer)))
+		if err != nil {
+			return nil, fmt.Errorf("new bitxhub adapter: %w", err)
+		}
+
+		pierHAConstructor, err := agency.GetPierHAConstructor(config.HA.Mode)
+		if err != nil {
+			return nil, fmt.Errorf("pier ha constructor not found")
+		}
+
+		pierHA = pierHAConstructor(client, config.Appchain.ID)
+
+		ex, err = exchanger2.New(repo.RelayMode, config.Appchain.ID, config.Mode.Relay.BitXHubID,
+			exchanger2.WithSrcAdapt(appchainAdapter),
+			exchanger2.WithDestAdapt(bxhAdapter),
+			exchanger2.WithLogger(log.NewWithModule("exchanger")))
+		if err != nil {
+			return nil, fmt.Errorf("exchanger create: %w", err)
+		}
+	default:
+		return nil, fmt.Errorf("unsupported mode")
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+
+	return &Pier{
+		privateKey: privateKey,
+		exchanger:  ex,
+		pierHA:     pierHA,
+		logger:     logger,
+		ctx:        ctx,
+		cancel:     cancel,
+		config:     config,
+	}, nil
+}
+
 func (pier *Pier) startPierHA() {
 	logger.Info("pier HA manager start")
 	status := false
@@ -385,18 +429,6 @@ func (pier *Pier) startPierHA() {
 						"source_interchain_counter": meta.SourceInterchainCounter,
 						"source_receipt_counter":    meta.SourceReceiptCounter,
 					}).Infof("Pier information of service %s", serviceID)
-				}
-				if err := pier.monitor.Start(); err != nil {
-					pier.logger.Errorf("monitor start: %w", err)
-					return
-				}
-				if err := pier.exec.Start(); err != nil {
-					pier.logger.Errorf("executor start: %w", err)
-					return
-				}
-				if err := pier.lite.Start(); err != nil {
-					pier.logger.Errorf("lite start: %w", err)
-					return
 				}
 				if err := pier.exchanger.Start(); err != nil {
 					pier.logger.Errorf("exchanger start: %w", err)
