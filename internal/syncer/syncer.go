@@ -52,28 +52,28 @@ type SubscriptionKey struct {
 	AppchainDID string `json:"appchain_did"`
 }
 
-// New creates instance of WrapperSyncer given agent interacting with bitxhub,
-// validators addresses of bitxhub and local storage
-func New(pierID, appchainID string, mode string, opts ...Option) (*WrapperSyncer, error) {
-	cfg, err := GenerateConfig(opts...)
-	if err != nil {
-		return nil, err
-	}
-
-	ws := &WrapperSyncer{
-		wrappersC:  make(chan *pb.InterchainTxWrappers, maxChSize),
-		ibtpC:      make(chan *model.WrappedIBTP, maxChSize),
-		client:     cfg.client,
-		lite:       cfg.lite,
-		storage:    cfg.storage,
-		logger:     cfg.logger,
-		mode:       mode,
-		pierID:     pierID,
-		appchainID: appchainID,
-	}
-
-	return ws, nil
-}
+//// New creates instance of WrapperSyncer given agent interacting with bitxhub,
+//// validators addresses of bitxhub and local storage
+//func New(pierID, appchainID string, mode string, opts ...Option) (*WrapperSyncer, error) {
+//	cfg, err := GenerateConfig(opts...)
+//	if err != nil {
+//		return nil, err
+//	}
+//
+//	ws := &WrapperSyncer{
+//		wrappersC:  make(chan *pb.InterchainTxWrappers, maxChSize),
+//		ibtpC:      make(chan *model.WrappedIBTP, maxChSize),
+//		client:     cfg.client,
+//		lite:       cfg.lite,
+//		storage:    cfg.storage,
+//		logger:     cfg.logger,
+//		mode:       mode,
+//		pierID:     pierID,
+//		appchainID: appchainID,
+//	}
+//
+//	return ws, nil
+//}
 
 // Start implements Syncer
 func (syncer *WrapperSyncer) Start() error {
