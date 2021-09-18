@@ -66,7 +66,7 @@ func start(ctx *cli.Context) error {
 			return fmt.Errorf("check plugin: %w", err)
 		}
 
-		pier, err = app.NewPier(repoRoot, config)
+		pier, err = app.NewPier2(repoRoot, config)
 		if err != nil {
 			return err
 		}
