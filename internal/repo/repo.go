@@ -34,6 +34,8 @@ const (
 	// ConfigName is config name
 	ConfigName = "pier.toml"
 
+	NetworkName = "network.toml"
+
 	// config path
 	ConfigPath = "../../config"
 
