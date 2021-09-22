@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
+	"strings"
 
 	"github.com/meshplus/bitxhub-kit/crypto/asym"
 	"github.com/meshplus/bitxhub-kit/fileutil"
@@ -66,28 +68,23 @@ var initCMD = cli.Command{
 			Name:  "relay",
 			Usage: "Initialize pier relay mode configuration",
 			Flags: []cli.Flag{
-				cli.StringSliceFlag{
+				cli.StringFlag{
 					Name:     "addrs",
 					Usage:    "Specify bitxhub nodes' address",
 					Required: false,
-					Value:    &cli.StringSlice{"localhost:60011", "localhost:60012", "localhost:60013", "localhost:60014"},
+					Value:    "localhost:60011,localhost:60012,localhost:60013,localhost:60014",
 				},
-				cli.Uint64Flag{
+				cli.StringFlag{
 					Name:     "quorum",
 					Usage:    "Specify the quorum number of BitXHub",
 					Required: false,
-					Value:    2,
+					Value:    "2",
 				},
-				cli.StringSliceFlag{
+				cli.StringFlag{
 					Name:     "validators",
 					Usage:    "Specify validators of bitxhub",
 					Required: false,
-					Value: &cli.StringSlice{
-						"0x000f1a7a08ccc48e5d30f80850cf1cf283aa3abd",
-						"0xe93b92f1da08f925bdee44e91e7768380ae83307",
-						"0xb18c8575e3284e79b92100025a31378feb8100d6",
-						"0x856E2B9A5FA82FD1B031D1FF6863864DBAC7995D",
-					},
+					Value:    "0x000f1a7a08ccc48e5d30f80850cf1cf283aa3abd,0xe93b92f1da08f925bdee44e91e7768380ae83307,0xb18c8575e3284e79b92100025a31378feb8100d6,0x856E2B9A5FA82FD1B031D1FF6863864DBAC7995D",
 				},
 			},
 			Action: initPier,
@@ -108,11 +105,11 @@ var initCMD = cli.Command{
 			Name:  "union",
 			Usage: "Initialize pier union mode configuration",
 			Flags: []cli.Flag{
-				cli.StringSliceFlag{
+				cli.StringFlag{
 					Name:     "addrs",
 					Usage:    "Specify bitxhub nodes' address",
 					Required: false,
-					Value:    &cli.StringSlice{"localhost:60011", "localhost:60012", "localhost:60013", "localhost:60014"},
+					Value:    "localhost:60011,localhost:60012,localhost:60013,localhost:60014",
 				},
 				cli.StringSliceFlag{
 					Name:     "addPier",
@@ -160,13 +157,17 @@ func initPier(ctx *cli.Context) error {
 	mode := ctx.Command.Name
 	switch mode {
 	case "relay":
-		addrs := ctx.StringSlice("addrs")
-		quorum := ctx.Uint64("quorum")
-		validators := ctx.StringSlice("validators")
+		addrs := ctx.String("addrs")
+		validators := ctx.String("validators")
 		vpr.Set("mode.type", "relay")
 		vpr.Set("mode.relay.addrs", addrs)
-		vpr.Set("mode.relay.quorum", quorum)
 		vpr.Set("mode.relay.validators", validators)
+		quorum := ctx.String("quorum")
+		in, err := strconv.Atoi(quorum)
+		if err != nil {
+			return fmt.Errorf("quorum type err: %w", err)
+		}
+		vpr.Set("mode.relay.quorum", in)
 	case "direct":
 		if err := updateNetworkAddrs(ctx, nil, repoRoot, mode); err != nil {
 			return err
@@ -174,7 +175,7 @@ func initPier(ctx *cli.Context) error {
 		vpr.Set("mode.type", "direct")
 
 	case "union":
-		addrs := ctx.StringSlice("addrs")
+		addrs := ctx.String("addrs")
 		if err := updateNetworkAddrs(ctx, nil, repoRoot, mode); err != nil {
 			return err
 		}
@@ -253,15 +254,21 @@ func initClientWithKeyPath(ctx *cli.Context, chainAdminKeyPath string) (rpcx.Cli
 		return nil, nil, err
 	}
 
-	addrs := []string{}
+	var addrs []string
 	switch config.Mode.Type {
 	case repo.RelayMode:
-		addrs = config.Mode.Relay.Addrs
+		for _, addr := range strings.Split(config.Mode.Relay.Addrs, ",") {
+			addrs = append(addrs, addr)
+		}
 	case repo.DirectMode:
 		//TODO: Direct model doesn't need this function, Not sure the process is correct.
 		break
 	case repo.UnionMode:
-		addrs = config.Mode.Union.Addrs
+		for _, addr := range strings.Split(config.Mode.Union.Addrs, ",") {
+			addrs = append(addrs, addr)
+		}
+	default:
+		return nil, nil, fmt.Errorf("the type of mode is not support")
 	}
 
 	client, err := loadClient(chainAdminKeyPath, addrs, ctx)
