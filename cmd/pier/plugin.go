@@ -52,7 +52,7 @@ var pluginCMD = cli.Command{
 				cli.StringFlag{
 					Name:     "config",
 					Usage:    "Specify the path to fabric config.yaml",
-					Required: false,
+					Required: true,
 				},
 				cli.StringFlag{
 					Name:     "event-filter",
@@ -291,10 +291,9 @@ func updateAppchainConfig(ctx *cli.Context, configDir, chainType string) error {
 
 	switch chainType {
 	case "fabric":
-		setNonemptyString(v, "event-filter", ctx.String("event-filter"))
 		setNonemptyString(v, "username", ctx.String("username"))
 		setNonemptyString(v, "ccid", ctx.String("ccid"))
-		setNonemptyString(v, "channelId", ctx.String("channel-id"))
+		setNonemptyString(v, "channel_id", ctx.String("channel-id"))
 		setNonemptyString(v, "org", ctx.String("org"))
 		if err := v.WriteConfig(); err != nil {
 			return err

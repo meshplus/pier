@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/meshplus/pier/internal/adapt/bxh_adapter"
@@ -269,7 +270,7 @@ func NewUnionPier(repoRoot string, config *repo.Config) (*Pier, error) {
 		rpcx.WithPrivateKey(privateKey),
 	}
 	nodesInfo := make([]*rpcx.NodeInfo, 0, len(config.Mode.Union.Addrs))
-	for index, addr := range config.Mode.Union.Addrs {
+	for index, addr := range strings.Split(config.Mode.Union.Addrs, ",") {
 		nodeInfo := &rpcx.NodeInfo{Addr: addr}
 		if config.Security.EnableTLS {
 			nodeInfo.CertPath = filepath.Join(config.RepoRoot, config.Security.Tlsca)
@@ -509,7 +510,7 @@ func newBitXHubClient(logger logrus.FieldLogger, privateKey crypto.PrivateKey, c
 		rpcx.WithPrivateKey(privateKey),
 	}
 	nodesInfo := make([]*rpcx.NodeInfo, 0, len(config.Mode.Relay.Addrs))
-	for index, addr := range config.Mode.Relay.Addrs {
+	for index, addr := range strings.Split(config.Mode.Relay.Addrs, ",") {
 		nodeInfo := &rpcx.NodeInfo{Addr: addr}
 		if config.Security.EnableTLS {
 			nodeInfo.CertPath = filepath.Join(config.RepoRoot, config.Security.Tlsca)
