@@ -5,6 +5,7 @@ import (
 	"github.com/meshplus/pier/internal/repo"
 	"github.com/spf13/viper"
 	"github.com/urfave/cli"
+	"net"
 	"path/filepath"
 	"strings"
 )
@@ -174,7 +175,7 @@ func updateBxhAddrs(ctx *cli.Context, vpr *viper.Viper, mode string) ([]string, 
 		for _, delAddr := range strings.Split(delAddrs, ",") {
 			// if addr does not exit, return err.
 			if ok := tmpAddrs[delAddr]; !ok {
-				return nil, fmt.Errorf("not exit the addr")
+				return nil, fmt.Errorf("addr does not exist")
 			}
 			delete(tmpAddrs, delAddr)
 		}
@@ -226,7 +227,10 @@ func updateNetworkAddrs(ctx *cli.Context, oldConfig *repo.NetworkConfig, repoRoo
 				return fmt.Errorf(
 					"illegal host input:%s, correct input looks like: [ip1]:[port1],[ip2]:[port2]", host)
 			}
-			ip := host[0]
+			ip := net.ParseIP(host[0])
+			if ip == nil {
+				return fmt.Errorf("illegal type of ipv4: %s", host[0])
+			}
 			port := host[1]
 			peer := fmt.Sprintf("/ip4/%s/tcp/%s/p2p", ip, port)
 			hosts = append(hosts, peer)
@@ -247,11 +251,11 @@ func updateNetworkAddrs(ctx *cli.Context, oldConfig *repo.NetworkConfig, repoRoo
 		if len(mutiStr) != 2 {
 			return fmt.Errorf("illegal pier input:%s, correct input looks like: [ip]:[port]#[Pid]", str)
 		}
-		// remove pier form pierMap. if not exist, return err.
+		// remove pier form pierMap. if does not exist, return err.
 		if _, ok := pierMap[mutiStr[1]]; ok {
 			delete(pierMap, mutiStr[1])
 		} else {
-			return fmt.Errorf("%s is not exit", str)
+			return fmt.Errorf("%s does not exit", str)
 		}
 	}
 

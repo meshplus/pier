@@ -25,21 +25,16 @@ syncer = "info"
 [mode]
 type = "relay" # relay, direct or union
 [mode.relay]
-addrs = ["localhost:60011", "localhost:60012", "localhost:60013", "localhost:60014"]
+addrs = "localhost:60011,localhost:60012,localhost:60013,localhost:60014"
 timeout_limit = "1s"
 quorum = 2
-validators = [
-    "0x000f1a7a08ccc48e5d30f80850cf1cf283aa3abd",
-    "0xe93b92f1da08f925bdee44e91e7768380ae83307",
-    "0xb18c8575e3284e79b92100025a31378feb8100d6",
-    "0x856E2B9A5FA82FD1B031D1FF6863864DBAC7995D",
-]
+validators = "0x000f1a7a08ccc48e5d30f80850cf1cf283aa3abd,0xe93b92f1da08f925bdee44e91e7768380ae83307,0xb18c8575e3284e79b92100025a31378feb8100d6,0x856E2B9A5FA82FD1B031D1FF6863864DBAC7995D"
 bitxhub_id = "1356"
 [mode.direct]
 gas_limit = 0x5f5e100
 
 [mode.union]
-addrs = ["localhost:60011", "localhost:60012", "localhost:60013", "localhost:60014"]
+addrs = "localhost:60011,localhost:60012,localhost:60013,localhost:60014"
 providers = 1
 
 [security]
