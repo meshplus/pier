@@ -65,6 +65,7 @@ func (ex *Exchanger) Start() error {
 	if err := retry.Retry(func(attempt uint) error {
 		if srcAdaptName, err = ex.srcAdapt.Name(); err != nil {
 			ex.logger.Errorf("get name from srcAdapt", "error", err.Error())
+			return err
 		}
 		ex.srcAdaptName = srcAdaptName
 		return nil
@@ -74,6 +75,7 @@ func (ex *Exchanger) Start() error {
 	if err := retry.Retry(func(attempt uint) error {
 		if destAdaptName, err = ex.destAdapt.Name(); err != nil {
 			ex.logger.Errorf("get name from destAdapt", "error", err.Error())
+			return err
 		}
 		ex.destAdaptName = destAdaptName
 		return nil
@@ -84,6 +86,7 @@ func (ex *Exchanger) Start() error {
 	if err := retry.Retry(func(attempt uint) error {
 		if serviceList, err = ex.srcAdapt.GetServiceIDList(); err != nil {
 			ex.logger.Errorf("get serviceIdList from srcAdapt", "error", err.Error())
+			return err
 		}
 		return nil
 	}, strategy.Wait(3*time.Second)); err != nil {
@@ -120,13 +123,14 @@ func (ex *Exchanger) listenIBTPFromDestAdapt() {
 	for {
 		select {
 		case <-ex.ctx.Done():
+			ex.logger.Info("ListenIBTPFromDestAdapt Stop!")
 			return
 		case ibtp, ok := <-ch:
-			ex.logger.Info("Receive ibtp from :", ex.destAdaptName)
 			if !ok {
 				ex.logger.Warn("Unexpected closed channel while listening on interchain ibtp")
 				return
 			}
+			ex.logger.WithFields(logrus.Fields{"index": ibtp.Index, "type": ibtp.Type, "ibtp_id": ibtp.ID()}).Info("Receive ibtp from :", ex.destAdaptName)
 			var index uint64
 			if ex.isIBTPBelongSrc(ibtp) {
 				_, ok = ex.destServiceMeta[ibtp.From]
@@ -195,13 +199,14 @@ func (ex *Exchanger) listenIBTPFromSrcAdapt() {
 	for {
 		select {
 		case <-ex.ctx.Done():
+			ex.logger.Info("ListenIBTPFromSrcAdapt Stop!")
 			return
 		case ibtp, ok := <-ch:
-			ex.logger.Info("Receive interchain ibtp from :", ex.srcAdaptName)
 			if !ok {
 				ex.logger.Warn("Unexpected closed channel while listening on interchain ibtp")
 				return
 			}
+			ex.logger.WithFields(logrus.Fields{"index": ibtp.Index, "type": ibtp.Type, "ibtp_id": ibtp.ID()}).Info("Receive ibtp from :", ex.srcAdaptName)
 			var index uint64
 			if ex.isIBTPBelongSrc(ibtp) {
 				_, ok = ex.srcServiceMeta[ibtp.From]
