@@ -19,7 +19,7 @@ const (
 	Router      = "router"
 	RuleMgr     = "rule_mgr"
 	Swarm       = "swarm"
-	Syncer      = "syncer"
+	Syncer      = "bxh_adapter"
 )
 
 var w *loggerWrapper
