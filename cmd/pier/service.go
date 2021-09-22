@@ -273,21 +273,55 @@ func updateService(ctx *cli.Context) error {
 	if err != nil {
 		return err
 	}
-
 	client, _, err := initClientWithKeyPath(ctx, path.Join(repoRoot, repo.KeyName))
 	if err != nil {
 		return err
+	}
+
+	old, err := client.InvokeBVMContract(
+		constant.ServiceMgrContractAddr.Address(),
+		"GetServiceInfo", nil, rpcx.String(fmt.Sprintf("%s:%s", chainID, serviceID)),
+	)
+	if err != nil {
+		return err
+	}
+
+	if !old.IsSuccess() {
+		return fmt.Errorf("get serviceInfo: %s", old.Ret)
+	}
+
+	serviceInfo := service_mgr.Service{}
+	if err = json.Unmarshal(old.Ret, &serviceInfo); err != nil {
+		return err
+	}
+
+	if name == "" && intro == "" && ordered == serviceInfo.Ordered && permit == "" && details == "" {
+		fmt.Printf("Please specify at least one arg for %s.\n", fmt.Sprintf("%s:%s", chainID, serviceID))
+		return nil
+	}
+
+	var ct = func(old, new string) string {
+		if new != "" {
+			return new
+		} else {
+			return old
+		}
+	}
+
+	var oldPermit string
+	for i, _ := range serviceInfo.Permission {
+		oldPermit = oldPermit + "," + i
 	}
 	// init method registry with this admin key
 	receipt, err := client.InvokeBVMContract(
 		constant.ServiceMgrContractAddr.Address(),
 		"UpdateService", nil,
 		rpcx.String(fmt.Sprintf("%s:%s", chainID, serviceID)),
-		rpcx.String(name),
-		rpcx.String(intro),
+		rpcx.String(ct(serviceInfo.Name, name)),
+		rpcx.String(ct(serviceInfo.Intro, intro)),
 		rpcx.Bool(ordered),
-		rpcx.String(permit),
-		rpcx.String(details),
+		rpcx.String(ct(oldPermit, permit)),
+		rpcx.String(ct(serviceInfo.Details, details)),
 		rpcx.String(reason),
 	)
 	if err != nil {
