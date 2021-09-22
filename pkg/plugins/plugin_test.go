@@ -8,6 +8,7 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/meshplus/bitxhub-model/pb"
 	"github.com/meshplus/pier/internal/repo"
+	"github.com/meshplus/pier/internal/utils"
 	"github.com/meshplus/pier/pkg/plugins/mock_client"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
@@ -28,7 +29,7 @@ func TestCreateClient(t *testing.T) {
 		Plugin: "appchain_plugin",
 	}
 
-	_, _, err := CreateClient(from, appchainConfig, make([]byte, 0))
+	_, _, err := CreateClient(&appchainConfig, make([]byte, 0))
 	require.NotNil(t, err)
 }
 
@@ -62,38 +63,31 @@ func TestGRPCServer(t *testing.T) {
 	grpcServer := GRPCServer{cli}
 	initReq := &pb.InitializeRequest{
 		ConfigPath: configPath,
-		PierId:     from,
 		Extra:      make([]byte, 0),
 	}
-	outReq := &pb.GetOutMessageRequest{
-		To:  to,
-		Idx: uint64(1),
+	outReq := &pb.GetMessageRequest{
+		ServicePair: fmt.Sprintf("%s-%s", from, to),
+		Idx:         uint64(1),
 	}
-	inReq := &pb.GetInMessageRequest{
-		From: from,
-		Idx:  uint64(1),
-	}
-	rollbackReq := &pb.RollbackIBTPRequest{
-		Ibtp:     &pb.IBTP{},
-		SrcChain: true,
+	inReq := &pb.GetMessageRequest{
+		ServicePair: fmt.Sprintf("%s-%s", from, to),
+		Idx:         uint64(1),
 	}
 
 	ch := make(chan *pb.IBTP, 1)
 	close(ch)
 
-	cli.EXPECT().Initialize(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
+	cli.EXPECT().Initialize(gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
 	cli.EXPECT().Start().Return(nil).AnyTimes()
 	cli.EXPECT().Stop().Return(nil).AnyTimes()
 	cli.EXPECT().GetIBTP().Return(ch).AnyTimes()
 	cli.EXPECT().SubmitIBTP(gomock.Any()).Return(nil, nil).AnyTimes()
-	cli.EXPECT().RollbackIBTP(gomock.Any(), gomock.Any()).Return(nil, nil).AnyTimes()
-	cli.EXPECT().IncreaseInMeta(gomock.Any()).Return(nil, nil).AnyTimes()
+	cli.EXPECT().SubmitReceipt(gomock.Any()).Return(nil, nil).AnyTimes()
 	cli.EXPECT().GetOutMessage(gomock.Any(), gomock.Any()).Return(nil, nil).AnyTimes()
-	cli.EXPECT().GetInMessage(gomock.Any(), gomock.Any()).Return(nil, nil).AnyTimes()
+	cli.EXPECT().GetReceiptMessage(gomock.Any(), gomock.Any()).Return(nil, nil).AnyTimes()
 	cli.EXPECT().GetInMeta().Return(nil, nil).AnyTimes()
 	cli.EXPECT().GetOutMeta().Return(nil, nil).AnyTimes()
 	cli.EXPECT().GetCallbackMeta().Return(nil, nil).AnyTimes()
-	cli.EXPECT().GetReceipt(gomock.Any()).Return(nil, nil).AnyTimes()
 	cli.EXPECT().Name().Return(name).AnyTimes()
 	cli.EXPECT().Type().Return(ty).AnyTimes()
 
@@ -111,16 +105,13 @@ func TestGRPCServer(t *testing.T) {
 	_, err = grpcServer.SubmitIBTP(ctx, &pb.IBTP{})
 	require.Nil(t, err)
 
-	_, err = grpcServer.RollbackIBTP(ctx, rollbackReq)
-	require.Nil(t, err)
-
-	_, err = grpcServer.IncreaseInMeta(ctx, nil)
+	_, err = grpcServer.SubmitReceipt(ctx, &pb.IBTP{})
 	require.Nil(t, err)
 
 	_, err = grpcServer.GetOutMessage(ctx, outReq)
 	require.Nil(t, err)
 
-	_, err = grpcServer.GetInMessage(ctx, inReq)
+	_, err = grpcServer.GetReceiptMessage(ctx, inReq)
 	require.Nil(t, err)
 
 	_, err = grpcServer.GetInMeta(ctx, nil)
@@ -142,9 +133,6 @@ func TestGRPCServer(t *testing.T) {
 	typeRet, err := grpcServer.Type(ctx, nil)
 	require.Nil(t, err)
 	require.Equal(t, ty, typeRet.Type)
-
-	_, err = grpcServer.GetReceipt(ctx, nil)
-	require.Nil(t, err)
 }
 
 func TestGRPCClient(t *testing.T) {
@@ -154,8 +142,7 @@ func TestGRPCClient(t *testing.T) {
 	grpcClientError, err := getGRPCClient(ctx1, &mockAppchainPluginClient{})
 	require.Nil(t, err)
 
-	require.Nil(t, grpcClient.Initialize(configPath, from, make([]byte, 0)))
-	require.NotNil(t, grpcClient.Initialize(configPath, to, make([]byte, 0)))
+	require.Nil(t, grpcClient.Initialize(configPath, make([]byte, 0)))
 	require.Nil(t, grpcClient.Start())
 	require.NotNil(t, grpcClientError.Start())
 	require.Nil(t, grpcClient.Stop())
@@ -168,24 +155,19 @@ func TestGRPCClient(t *testing.T) {
 	_, err = grpcClient.SubmitIBTP(&pb.IBTP{})
 	require.Nil(t, err)
 
-	// test for error
-	_, err = grpcClient.RollbackIBTP(nil, true)
-	require.NotNil(t, err)
-	// try again and it will be success
-	_, err = grpcClient.RollbackIBTP(nil, true)
+	_, err = grpcClient.SubmitReceipt(&pb.IBTP{})
 	require.Nil(t, err)
 
-	_, err = grpcClient.IncreaseInMeta(&pb.IBTP{})
-	require.Nil(t, err)
+	servicePair := fmt.Sprintf("%s-%s", from, to)
 
-	ibtp, err := grpcClient.GetOutMessage(to, uint64(1))
+	ibtp, err := grpcClient.GetOutMessage(servicePair, uint64(1))
 	require.Nil(t, err)
-	require.Equal(t, to, ibtp.To)
+	require.Equal(t, servicePair, ibtp.ServicePair())
 	require.Equal(t, uint64(1), ibtp.Index)
 
-	_, err = grpcClient.GetInMessage(from, uint64(1))
+	_, err = grpcClient.GetReceiptMessage(servicePair, uint64(1))
 	require.Nil(t, err)
-	_, err = grpcClient.GetInMessage(from, uint64(2))
+	_, err = grpcClient.GetReceiptMessage(servicePair, uint64(2))
 	require.NotNil(t, err)
 
 	_, err = grpcClient.GetInMeta()
@@ -203,23 +185,11 @@ func TestGRPCClient(t *testing.T) {
 	_, err = grpcClientError.GetCallbackMeta()
 	require.NotNil(t, err)
 
-	require.Nil(t, grpcClient.CommitCallback(nil))
-
 	require.Equal(t, name, grpcClient.Name())
 	require.Equal(t, "", grpcClientError.Name())
 
 	require.Equal(t, ty, grpcClient.Type())
 	require.Equal(t, "", grpcClientError.Type())
-
-	ibtp = &pb.IBTP{
-		From:  "from",
-		To:    "to",
-		Index: 1,
-	}
-	_, err = grpcClient.GetReceipt(ibtp)
-	require.Nil(t, err)
-	_, err = grpcClientError.GetReceipt(ibtp)
-	require.NotNil(t, err)
 }
 
 func TestAppchainGRPCPlugin_GRPCClient(t *testing.T) {
@@ -258,6 +228,29 @@ func getGRPCClient(ctx context.Context, mc *mockAppchainPluginClient) (*GRPCClie
 //==========================================================
 type mockAppchainPluginClient struct {
 	count uint64
+}
+
+func (mc *mockAppchainPluginClient) SubmitReceipt(ctx context.Context, in *pb.IBTP, opts ...grpc.CallOption) (*pb.SubmitIBTPResponse, error) {
+	if mc.count%2 == 0 {
+		mc.count++
+		return nil, fmt.Errorf("submit ibtp receipt error")
+	}
+	mc.count++
+	return nil, nil
+}
+
+func (mc *mockAppchainPluginClient) GetReceiptMessage(ctx context.Context, in *pb.GetMessageRequest, opts ...grpc.CallOption) (*pb.IBTP, error) {
+	from, to, err := utils.ParseServicePair(in.ServicePair)
+	if err != nil {
+		return nil, err
+	}
+
+	return &pb.IBTP{
+		From:  from,
+		To:    to,
+		Index: in.Idx,
+		Type:  pb.IBTP_RECEIPT_SUCCESS,
+	}, nil
 }
 
 func (mc *mockAppchainPluginClient) GetLockEvent(ctx context.Context, in *pb.Empty, opts ...grpc.CallOption) (pb.AppchainPlugin_GetLockEventClient, error) {
@@ -305,9 +298,6 @@ func (mc *mockAppchainPluginClient) GetDstRollbackMeta(ctx context.Context, in *
 }
 
 func (mc *mockAppchainPluginClient) Initialize(ctx context.Context, in *pb.InitializeRequest, opts ...grpc.CallOption) (*pb.Empty, error) {
-	if in.PierId == to {
-		return nil, fmt.Errorf("initialize error")
-	}
 	return nil, nil
 }
 
@@ -341,17 +331,30 @@ func (mc *mockAppchainPluginClient) SubmitIBTP(ctx context.Context, in *pb.IBTP,
 	return nil, nil
 }
 
-func (mc *mockAppchainPluginClient) GetOutMessage(ctx context.Context, in *pb.GetOutMessageRequest, opts ...grpc.CallOption) (*pb.IBTP, error) {
+func (mc *mockAppchainPluginClient) GetOutMessage(ctx context.Context, in *pb.GetMessageRequest, opts ...grpc.CallOption) (*pb.IBTP, error) {
+	from, to, err := utils.ParseServicePair(in.ServicePair)
+	if err != nil {
+		return nil, err
+	}
+
 	return &pb.IBTP{
-		To:    in.To,
+		From:  from,
+		To:    to,
 		Index: in.Idx,
 	}, nil
 }
 
-func (mc *mockAppchainPluginClient) GetInMessage(ctx context.Context, in *pb.GetInMessageRequest, opts ...grpc.CallOption) (*pb.GetInMessageResponse, error) {
+func (mc *mockAppchainPluginClient) GetInMessage(ctx context.Context, in *pb.GetMessageRequest, opts ...grpc.CallOption) (*pb.IBTP, error) {
 	if in.Idx == uint64(1) {
-		return &pb.GetInMessageResponse{
-			Result: make([][]byte, 0),
+		from, to, err := utils.ParseServicePair(in.ServicePair)
+		if err != nil {
+			return nil, err
+		}
+		return &pb.IBTP{
+			From:  from,
+			To:    to,
+			Index: in.Idx,
+			Type:  pb.IBTP_RECEIPT_SUCCESS,
 		}, nil
 	} else {
 		return nil, fmt.Errorf("get in message error")
@@ -386,23 +389,6 @@ func (mc *mockAppchainPluginClient) GetCallbackMeta(ctx context.Context, in *pb.
 }
 
 func (mc *mockAppchainPluginClient) CommitCallback(ctx context.Context, in *pb.IBTP, opts ...grpc.CallOption) (*pb.Empty, error) {
-	return nil, nil
-}
-
-func (mc *mockAppchainPluginClient) RollbackIBTP(ctx context.Context, in *pb.RollbackIBTPRequest, opts ...grpc.CallOption) (*pb.RollbackIBTPResponse, error) {
-	if mc.count%2 == 0 {
-		mc.count++
-		return nil, fmt.Errorf("rollback ibtp error")
-	}
-	mc.count++
-	return nil, nil
-}
-
-func (mc *mockAppchainPluginClient) IncreaseInMeta(ctx context.Context, in *pb.IBTP, opts ...grpc.CallOption) (*pb.IBTP, error) {
-	if mc.count%2 == 0 {
-		mc.count++
-		return nil, fmt.Errorf("increaseInMeta error")
-	}
 	return nil, nil
 }
 

@@ -21,7 +21,7 @@ var (
 	ErrMetaOutOfDate = fmt.Errorf("interchain meta is out of date")
 )
 
-//go:generate mockgen -destination mock_syncer/mock_syncer.go -package mock_syncer -source interface.go
+//go:generate mockgen -destination mock_syncer/mock_syncer.go -package mock_syncer -source syncer.go
 type Syncer interface {
 	// Start starts the service of syncer
 	Start() error

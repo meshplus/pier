@@ -9,6 +9,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/meshplus/pier/internal/adapt/mock_adapt"
+
 	"github.com/golang/mock/gomock"
 	crypto2 "github.com/libp2p/go-libp2p-core/crypto"
 	peer2 "github.com/libp2p/go-libp2p-core/peer"
@@ -29,7 +31,6 @@ import (
 	"github.com/meshplus/pier/internal/peermgr/mock_peermgr"
 	"github.com/meshplus/pier/internal/repo"
 	"github.com/meshplus/pier/internal/router/mock_router"
-	"github.com/meshplus/pier/internal/syncer"
 	"github.com/meshplus/pier/internal/syncer/mock_syncer"
 	"github.com/meshplus/pier/pkg/model"
 	"github.com/stretchr/testify/require"
@@ -55,340 +56,339 @@ func TestStartRelay(t *testing.T) {
 	//testRollback(t)
 }
 
-func testNormalStartRelay(t *testing.T) {
-	mode := repo.RelayMode
-	mockMonitor, mockExecutor, mockSyncer, mockChecker, store := prepareRelay(t)
-	meta := &pb.Interchain{}
-
-	outCh := make(chan *pb.IBTP)
-	inCh := make(chan *model.WrappedIBTP)
-
-	srcServiceID := fmt.Sprintf("1356:%s:%s", chain0, from)
-	dstServiceID := fmt.Sprintf("1356:%s:%s", chain1, to)
-	servicePair := fmt.Sprintf("%s-%s", srcServiceID, dstServiceID)
-
-	outMeta := make(map[string]uint64)
-	outMeta[servicePair] = 1
-	inMeta := make(map[string]uint64)
-	inMeta[servicePair] = 1
-	callbackMeta := make(map[string]uint64)
-	meta.InterchainCounter = map[string]uint64{srcServiceID: 1}
-
-	mockMonitor.EXPECT().ListenIBTP().Return(outCh).AnyTimes()
-	mockMonitor.EXPECT().QueryOuterMeta().Return(outMeta).AnyTimes()
-	mockExecutor.EXPECT().QueryInterchainMeta().Return(inMeta).AnyTimes()
-	mockExecutor.EXPECT().QueryCallbackMeta().Return(callbackMeta).AnyTimes()
-	mockSyncer.EXPECT().RegisterRollbackHandler(gomock.Any()).Return(nil).AnyTimes()
-	mockSyncer.EXPECT().Start().Return(nil)
-	mockSyncer.EXPECT().Stop().Return(nil)
-	mockSyncer.EXPECT().ListenIBTP().Return(inCh).AnyTimes()
-	mockSyncer.EXPECT().SendIBTP(gomock.Any()).Return(nil).AnyTimes()
-
-	ibtps, ibtpM := genIBTPs(t, 100, pb.IBTP_INTERCHAIN)
-	mockSyncer.EXPECT().QueryIBTP(gomock.Any(), gomock.Any()).
-		DoAndReturn(func(id string) (*pb.IBTP, bool, error) {
-			return ibtpM[id], true, nil
-		}).AnyTimes()
-
-	mockExecutor.EXPECT().QueryIBTPReceipt(gomock.Any()).
-		DoAndReturn(func(originalIBTP *pb.IBTP) (*pb.IBTP, error) {
-			ibtp := getIBTP(t, originalIBTP.Index, pb.IBTP_RECEIPT_SUCCESS)
-			return ibtp, nil
-		}).AnyTimes()
-	mockExecutor.EXPECT().ExecuteIBTP(gomock.Any()).
-		DoAndReturn(func(wIbtp *model.WrappedIBTP) (*pb.IBTP, error) {
-			receipt := getIBTP(t, wIbtp.Ibtp.Index, pb.IBTP_RECEIPT_SUCCESS)
-			return receipt, nil
-		}).AnyTimes()
-
-	serviceMata := make(map[string]*pb.Interchain)
-	serviceMata[dstServiceID] = meta
-	mockExchanger, err := New(mode, chain1, serviceMata,
-		WithMonitor(mockMonitor), WithExecutor(mockExecutor),
-		WithSyncer(mockSyncer), WithLogger(log.NewWithModule("exchanger")),
-		WithChecker(mockChecker), WithStorage(store),
-	)
-
-	mntIbtps, mntIbtpM := genIBTPs(t, 100, pb.IBTP_INTERCHAIN)
-	mockMonitor.EXPECT().QueryIBTP(gomock.Any()).DoAndReturn(func(id string) (*pb.IBTP, bool, error) {
-		return mntIbtpM[id], true, nil
-	}).AnyTimes()
-
-	require.Nil(t, err)
-	require.Nil(t, mockExchanger.Start())
-
-	testRelayIBTPFromSyncer(t, inCh, ibtps, mockExchanger)
-
-	testRelayIBTPFromMnt(t, outCh, mntIbtps, mockExchanger)
-
-	// test for asset exchange ibtp
-	time.Sleep(500 * time.Microsecond)
-	close(outCh)
-	close(inCh)
-	require.Nil(t, mockExchanger.Stop())
-}
-
-func testMonitor(t *testing.T) {
-	mode := repo.RelayMode
-	meta := &pb.Interchain{}
-	outMeta := make(map[string]uint64)
-	inMeta := make(map[string]uint64)
-	callbackMeta := make(map[string]uint64)
-
-	mockMonitor, mockExecutor, mockSyncer, mockChecker, store := prepareRelay(t)
-	mockMonitor.EXPECT().QueryOuterMeta().Return(outMeta).AnyTimes()
-	mockExecutor.EXPECT().QueryInterchainMeta().Return(inMeta).AnyTimes()
-	mockExecutor.EXPECT().QueryCallbackMeta().Return(callbackMeta).AnyTimes()
-
-	serviceMata := make(map[string]*pb.Interchain)
-	serviceMata[from] = meta
-	mockExchanger, err := New(mode, from, serviceMata,
-		WithMonitor(mockMonitor), WithExecutor(mockExecutor),
-		WithSyncer(mockSyncer), WithLogger(log.NewWithModule("exchanger")),
-		WithChecker(mockChecker), WithStorage(store),
-	)
-	require.Nil(t, err)
-
-	outCh := make(chan *pb.IBTP, 4)
-	mockMonitor.EXPECT().ListenIBTP().Return(outCh)
-
-	go mockExchanger.listenAndSendIBTPFromMnt()
-
-	// test for ignored ibtp
-	mockExchanger.serviceMeta[from].InterchainCounter[to] = 1
-	ignoredIBTP := getIBTP(t, 1, pb.IBTP_INTERCHAIN)
-	outCh <- ignoredIBTP
-
-	// test for sending retry error and update meta error
-	ibtp2 := getIBTP(t, 2, pb.IBTP_INTERCHAIN)
-	interchainMeta := make(map[string]uint64)
-	interchainMeta[to] = 3
-	updatedInterchainMeta := &pb.Interchain{
-		InterchainCounter: interchainMeta,
-	}
-	mockSyncer.EXPECT().SendIBTP(ibtp2).Return(fmt.Errorf("send ibtp error"))
-	mockMonitor.EXPECT().QueryIBTP(ibtp2.ID()).Return(nil, fmt.Errorf("query ibtp error"))
-	mockMonitor.EXPECT().QueryIBTP(ibtp2.ID()).Return(ibtp2, nil)
-	mockSyncer.EXPECT().SendIBTP(ibtp2).Return(syncer.ErrMetaOutOfDate)
-	mockSyncer.EXPECT().QueryInterchainMeta(fmt.Sprintf("%s-%s", from, to)).Return(updatedInterchainMeta)
-	outCh <- ibtp2
-
-	time.Sleep(2 * time.Second)
-	require.Equal(t, mockExchanger.serviceMeta[from], interchainMeta)
-}
-
-func testApplyInterchain(t *testing.T) {
-	mode := repo.RelayMode
-	meta := &pb.Interchain{}
-	outMeta := make(map[string]uint64)
-	inMeta := make(map[string]uint64)
-	callbackMeta := make(map[string]uint64)
-
-	mockMonitor, mockExecutor, mockSyncer, mockChecker, store := prepareRelay(t)
-	mockMonitor.EXPECT().QueryOuterMeta().Return(outMeta).AnyTimes()
-	mockExecutor.EXPECT().QueryInterchainMeta().Return(inMeta).AnyTimes()
-	mockExecutor.EXPECT().QueryCallbackMeta().Return(callbackMeta).AnyTimes()
-
-	serviceMata := make(map[string]*pb.Interchain)
-	serviceMata[from] = meta
-	mockExchanger, err := New(mode, from, serviceMata,
-		WithMonitor(mockMonitor), WithExecutor(mockExecutor),
-		WithSyncer(mockSyncer), WithLogger(log.NewWithModule("exchanger")),
-		WithChecker(mockChecker), WithStorage(store),
-	)
-	require.Nil(t, err)
-
-	inCh := make(chan *model.WrappedIBTP, 2)
-	signs := []byte("signs for asset exchange")
-	mockSyncer.EXPECT().ListenIBTP().Return(inCh).AnyTimes()
-	go mockExchanger.listenAndSendIBTPFromSyncer()
-
-	// test for ignored interchain ibtp
-	mockExchanger.serviceMeta[to].SourceInterchainCounter[from] = 1
-	interchainIBTP1 := getIBTP(t, 1, pb.IBTP_INTERCHAIN)
-	inCh <- &model.WrappedIBTP{Ibtp: interchainIBTP1, IsValid: true}
-
-	// test for handle missing
-	interchainIBTP2 := getIBTP(t, 2, pb.IBTP_INTERCHAIN)
-	badInterchainIBTP3 := getIBTP(t, 3, 7)
-	inCh <- &model.WrappedIBTP{Ibtp: badInterchainIBTP3, IsValid: true}
-	interchainIBTP3 := getIBTP(t, 3, pb.IBTP_INTERCHAIN)
-	mockSyncer.EXPECT().QueryIBTP(gomock.Any(), gomock.Any()).Return(nil, false, fmt.Errorf("query ibtp error"))
-	inCh <- &model.WrappedIBTP{Ibtp: interchainIBTP3, IsValid: true}
-
-	// test for send ibtp normal error
-	mockSyncer.EXPECT().QueryIBTP(gomock.Any(), gomock.Any()).Return(interchainIBTP2, true, nil)
-	////mockSyncer.EXPECT().GetAssetExchangeSigns(assetTxID).Return(nil, fmt.Errorf("get signs error"))
-	mockSyncer.EXPECT().GetAssetExchangeSigns(gomock.Any()).Return(signs, nil).AnyTimes()
-	mockSyncer.EXPECT().SendIBTP(gomock.Any()).Return(fmt.Errorf("send ibtp error"))
-	mockSyncer.EXPECT().SendIBTP(gomock.Any()).Return(nil)
-	mockExecutor.EXPECT().ExecuteIBTP(gomock.Any()).Return(&pb.IBTP{}, nil).AnyTimes()
-	mockExecutor.EXPECT().QueryIBTPReceipt(gomock.Any()).Return(&pb.IBTP{}, nil)
-	inCh <- &model.WrappedIBTP{Ibtp: interchainIBTP3, IsValid: true}
-
-	// test for update source receipt meta
-	sourceReceiptMeta := make(map[string]uint64)
-	sourceReceiptMeta[to] = 4
-	updatedInterchainMeta := &pb.Interchain{
-		SourceReceiptCounter: sourceReceiptMeta,
-	}
-	mockSyncer.EXPECT().SendIBTP(gomock.Any()).Return(syncer.ErrMetaOutOfDate)
-	mockSyncer.EXPECT().SendIBTP(gomock.Any()).Return(nil).AnyTimes()
-	mockSyncer.EXPECT().QueryInterchainMeta(gomock.Any()).Return(updatedInterchainMeta).AnyTimes()
-	interchainIBTP4 := getIBTP(t, 4, pb.IBTP_INTERCHAIN)
-	inCh <- &model.WrappedIBTP{Ibtp: interchainIBTP4, IsValid: true}
-
-	time.Sleep(3 * time.Second)
-	require.Equal(t, uint64(4), mockExchanger.serviceMeta[to].SourceInterchainCounter[from])
-	require.Equal(t, mockExchanger.serviceMeta[to].SourceReceiptCounter, sourceReceiptMeta)
-}
-
-func testApplyReceipt(t *testing.T) {
-	mode := repo.RelayMode
-	meta := &pb.Interchain{}
-	outMeta := make(map[string]uint64)
-	//outMeta[to] = 1
-	inMeta := make(map[string]uint64)
-	//inMeta[to] = 1
-	callbackMeta := make(map[string]uint64)
-
-	mockMonitor, mockExecutor, mockSyncer, mockChecker, store := prepareRelay(t)
-	mockMonitor.EXPECT().QueryOuterMeta().Return(outMeta).AnyTimes()
-	mockExecutor.EXPECT().QueryInterchainMeta().Return(inMeta).AnyTimes()
-	mockExecutor.EXPECT().QueryCallbackMeta().Return(callbackMeta).AnyTimes()
-
-	serviceMeta := make(map[string]*pb.Interchain)
-	serviceMeta[from] = meta
-	mockExchanger, err := New(mode, from, serviceMeta,
-		WithMonitor(mockMonitor), WithExecutor(mockExecutor),
-		WithSyncer(mockSyncer), WithLogger(log.NewWithModule("exchanger")),
-		WithChecker(mockChecker), WithStorage(store),
-	)
-	require.Nil(t, err)
-
-	inCh := make(chan *model.WrappedIBTP, 2)
-	//signs := []byte("signs for asset exchange")
-	mockSyncer.EXPECT().ListenIBTP().Return(inCh).AnyTimes()
-	go mockExchanger.listenAndSendIBTPFromSyncer()
-
-	receiptIBTP1 := getIBTP(t, 1, pb.IBTP_RECEIPT_SUCCESS)
-	mockExchanger.serviceMeta[from].ReceiptCounter[to] = 1
-	inCh <- &model.WrappedIBTP{Ibtp: receiptIBTP1, IsValid: true}
-	receiptIBTP3 := getIBTP(t, 3, pb.IBTP_RECEIPT_SUCCESS)
-	inCh <- &model.WrappedIBTP{Ibtp: receiptIBTP3, IsValid: true}
-	receiptIBTP2 := getIBTP(t, 2, pb.IBTP_RECEIPT_SUCCESS)
-	wReceiptIBTP2 := &model.WrappedIBTP{Ibtp: receiptIBTP2, IsValid: true}
-	//mockSyncer.EXPECT().GetAssetExchangeSigns(assetTxID).Return(nil, fmt.Errorf("get signs error"))
-	//mockSyncer.EXPECT().GetAssetExchangeSigns(gomock.Any()).Return(signs, nil)
-	mockExecutor.EXPECT().ExecuteIBTP(wReceiptIBTP2).Return(nil, nil)
-	inCh <- wReceiptIBTP2
-	time.Sleep(2 * time.Millisecond)
-	require.Equal(t, uint64(2), mockExchanger.serviceMeta[from].ReceiptCounter[to])
-}
-
-func testRollback(t *testing.T) {
-	mode := repo.RelayMode
-	meta := &pb.Interchain{}
-	outMeta := make(map[string]uint64)
-	inMeta := make(map[string]uint64)
-	callbackMeta := make(map[string]uint64)
-	callbackMeta[to] = 1
-
-	mockMonitor, mockExecutor, mockSyncer, mockChecker, store := prepareRelay(t)
-	mockMonitor.EXPECT().QueryOuterMeta().Return(outMeta).AnyTimes()
-	mockExecutor.EXPECT().QueryInterchainMeta().Return(inMeta).AnyTimes()
-	mockExecutor.EXPECT().QueryCallbackMeta().Return(callbackMeta).AnyTimes()
-	mockExecutor.EXPECT().Rollback(gomock.Any(), gomock.Any()).AnyTimes()
-
-	serviceMeta := make(map[string]*pb.Interchain)
-	serviceMeta[from] = meta
-	mockExchanger, err := New(mode, from, serviceMeta,
-		WithMonitor(mockMonitor), WithExecutor(mockExecutor),
-		WithSyncer(mockSyncer), WithLogger(log.NewWithModule("exchanger")),
-		WithChecker(mockChecker), WithStorage(store),
-	)
-	require.Nil(t, err)
-
-	// test for rollback ibtp receipt
-	receipt := getIBTP(t, 1, pb.IBTP_RECEIPT_FAILURE)
-	mockExchanger.handleRollback(receipt, "")
-
-	// test for ignored ibtp
-	ibtp1 := getIBTP(t, 1, pb.IBTP_INTERCHAIN)
-	mockExchanger.handleRollback(ibtp1, "")
-
-	// test for pooled ibtp
-	ibtp3 := getIBTP(t, 3, pb.IBTP_INTERCHAIN)
-	mockExchanger.handleRollback(ibtp3, "")
-
-	ibtp2 := getIBTP(t, 2, pb.IBTP_INTERCHAIN)
-	mockExchanger.handleRollback(ibtp2, "")
-
-	time.Sleep(1 * time.Millisecond)
-	require.Equal(t, uint64(3), mockExchanger.serviceMeta[from].ReceiptCounter[to])
-}
-
-func testRecoverErrorStartRelay(t *testing.T) {
-	mode := repo.RelayMode
-	mockMonitor, mockExecutor, mockSyncer, mockChecker, store := prepareRelay(t)
-	meta := &pb.Interchain{}
-
-	outCh := make(chan *pb.IBTP)
-	inCh := make(chan *model.WrappedIBTP)
-
-	outMeta := make(map[string]uint64)
-	outMeta[to] = 1
-	inMeta := make(map[string]uint64)
-	inMeta[to] = 1
-	callbackMeta := make(map[string]uint64)
-	meta.InterchainCounter = map[string]uint64{to: 1}
-
-	mockMonitor.EXPECT().QueryOuterMeta().Return(outMeta).AnyTimes()
-	mockExecutor.EXPECT().QueryInterchainMeta().Return(inMeta).AnyTimes()
-	mockExecutor.EXPECT().QueryCallbackMeta().Return(callbackMeta).AnyTimes()
-	mockSyncer.EXPECT().ListenIBTP().Return(inCh).AnyTimes()
-	mockMonitor.EXPECT().ListenIBTP().Return(outCh).AnyTimes()
-
-	serviceMeta := make(map[string]*pb.Interchain)
-	serviceMeta[from] = meta
-	mockExchanger, err := New(mode, from, serviceMeta,
-		WithMonitor(mockMonitor), WithExecutor(mockExecutor),
-		WithSyncer(mockSyncer), WithLogger(log.NewWithModule("exchanger")),
-		WithChecker(mockChecker), WithStorage(store),
-	)
-	require.Nil(t, err)
-
-	mockSyncer.EXPECT().RegisterRollbackHandler(gomock.Any()).Return(nil).AnyTimes()
-	syncerError := fmt.Errorf("start syncer failed")
-	mockSyncer.EXPECT().Start().Return(syncerError)
-	require.Equal(t, true, errors.Is(mockExchanger.Start(), syncerError))
-
-	mockSyncer.EXPECT().Start().Return(nil).AnyTimes()
-	// mock recover error
-	mockSyncer.EXPECT().QueryIBTP(gomock.Any(), gomock.Any()).Return(nil, false, syncer.ErrIBTPNotFound).MaxTimes(1)
-	mockSyncer.EXPECT().SendIBTP(gomock.Any()).Return(fmt.Errorf("send ibtp receipt error")).MaxTimes(2)
-	require.Panics(t, func() { mockExchanger.Start() })
-
-	// test for recovering ibtp
-	ibtp := getIBTP(t, 1, pb.IBTP_RECEIPT_SUCCESS)
-	mockMonitor.EXPECT().QueryIBTP(gomock.Any()).Return(nil, fmt.Errorf("query ibtp error")).MaxTimes(10)
-	mockMonitor.EXPECT().QueryIBTP(gomock.Any()).Return(ibtp, nil).MaxTimes(2)
-
-	//outMeta[to] = 0
-
-	//require.Panics(t, func() { mockExchanger.Start() })
-
-	// test for recovering ibtp receipt
-	//mockSyncer.EXPECT().QueryIBTP(gomock.Any()).Return(ibtp, nil).AnyTimes()
-	//mockExecutor.EXPECT().QueryIBTPReceipt(gomock.Any()).
-	//	Return(nil, fmt.Errorf("query ibtp receipt error"))
-	//require.Panics(t, func() { mockExchanger.Start() })
-
-	//mockExecutor.EXPECT().QueryIBTPReceipt(gomock.Any()).
-	//	Return(&pb.IBTP{}, nil).AnyTimes()
-	//mockSyncer.EXPECT().SendIBTP(gomock.Any()).Return(fmt.Errorf("send ibtp receipt error"))
-	//require.Panics(t, func() { mockExchanger.Start() })
-}
+//func testNormalStartRelay(t *testing.T) {
+//	mode := repo.RelayMode
+//	mockMonitor, mockExecutor, mockAdapter, mockChecker, store := prepareRelay(t)
+//	meta := &pb.Interchain{}
+//
+//	outCh := make(chan *pb.IBTP)
+//	inCh := make(chan *model.WrappedIBTP)
+//
+//	srcServiceID := fmt.Sprintf("1356:%s:%s", chain0, from)
+//	dstServiceID := fmt.Sprintf("1356:%s:%s", chain1, to)
+//	servicePair := fmt.Sprintf("%s-%s", srcServiceID, dstServiceID)
+//
+//	outMeta := make(map[string]uint64)
+//	outMeta[servicePair] = 1
+//	inMeta := make(map[string]uint64)
+//	inMeta[servicePair] = 1
+//	callbackMeta := make(map[string]uint64)
+//	meta.InterchainCounter = map[string]uint64{srcServiceID: 1}
+//
+//	mockMonitor.EXPECT().ListenIBTP().Return(outCh).AnyTimes()
+//	mockMonitor.EXPECT().QueryOuterMeta().Return(outMeta).AnyTimes()
+//	mockExecutor.EXPECT().QueryInterchainMeta().Return(inMeta).AnyTimes()
+//	mockExecutor.EXPECT().QueryCallbackMeta().Return(callbackMeta).AnyTimes()
+//	mockAdapter.EXPECT().Start().Return(nil)
+//	mockAdapter.EXPECT().Stop().Return(nil)
+//	mockAdapter.EXPECT().MonitorIBTP().Return(inCh).AnyTimes()
+//	mockAdapter.EXPECT().SendIBTP(gomock.Any()).Return(nil).AnyTimes()
+//
+//	ibtps, ibtpM := genIBTPs(t, 100, pb.IBTP_INTERCHAIN)
+//	mockAdapter.EXPECT().QueryIBTP(gomock.Any(), gomock.Any()).
+//		DoAndReturn(func(id string) (*pb.IBTP, bool, error) {
+//			return ibtpM[id], true, nil
+//		}).AnyTimes()
+//
+//	mockExecutor.EXPECT().QueryIBTPReceipt(gomock.Any()).
+//		DoAndReturn(func(originalIBTP *pb.IBTP) (*pb.IBTP, error) {
+//			ibtp := getIBTP(t, originalIBTP.Index, pb.IBTP_RECEIPT_SUCCESS)
+//			return ibtp, nil
+//		}).AnyTimes()
+//	mockExecutor.EXPECT().ExecuteIBTP(gomock.Any()).
+//		DoAndReturn(func(wIbtp *model.WrappedIBTP) (*pb.IBTP, error) {
+//			receipt := getIBTP(t, wIbtp.Ibtp.Index, pb.IBTP_RECEIPT_SUCCESS)
+//			return receipt, nil
+//		}).AnyTimes()
+//
+//	serviceMata := make(map[string]*pb.Interchain)
+//	serviceMata[dstServiceID] = meta
+//	mockExchanger, err := New(mode, chain1, serviceMata,
+//		WithMonitor(mockMonitor), WithExecutor(mockExecutor),
+//		WithSyncer(mockAdapter), WithLogger(log.NewWithModule("exchanger")),
+//		WithChecker(mockChecker), WithStorage(store),
+//	)
+//
+//	mntIbtps, mntIbtpM := genIBTPs(t, 100, pb.IBTP_INTERCHAIN)
+//	mockMonitor.EXPECT().QueryIBTP(gomock.Any()).DoAndReturn(func(id string) (*pb.IBTP, bool, error) {
+//		return mntIbtpM[id], true, nil
+//	}).AnyTimes()
+//
+//	require.Nil(t, err)
+//	require.Nil(t, mockExchanger.Start())
+//
+//	testRelayIBTPFromSyncer(t, inCh, ibtps, mockExchanger)
+//
+//	testRelayIBTPFromMnt(t, outCh, mntIbtps, mockExchanger)
+//
+//	// test for asset exchange ibtp
+//	time.Sleep(500 * time.Microsecond)
+//	close(outCh)
+//	close(inCh)
+//	require.Nil(t, mockExchanger.Stop())
+//}
+//
+//func testMonitor(t *testing.T) {
+//	mode := repo.RelayMode
+//	meta := &pb.Interchain{}
+//	outMeta := make(map[string]uint64)
+//	inMeta := make(map[string]uint64)
+//	callbackMeta := make(map[string]uint64)
+//
+//	mockMonitor, mockExecutor, mockSyncer, mockChecker, store := prepareRelay(t)
+//	mockMonitor.EXPECT().QueryOuterMeta().Return(outMeta).AnyTimes()
+//	mockExecutor.EXPECT().QueryInterchainMeta().Return(inMeta).AnyTimes()
+//	mockExecutor.EXPECT().QueryCallbackMeta().Return(callbackMeta).AnyTimes()
+//
+//	serviceMata := make(map[string]*pb.Interchain)
+//	serviceMata[from] = meta
+//	mockExchanger, err := New(mode, from, serviceMata,
+//		WithMonitor(mockMonitor), WithExecutor(mockExecutor),
+//		WithSyncer(mockSyncer), WithLogger(log.NewWithModule("exchanger")),
+//		WithChecker(mockChecker), WithStorage(store),
+//	)
+//	require.Nil(t, err)
+//
+//	outCh := make(chan *pb.IBTP, 4)
+//	mockMonitor.EXPECT().ListenIBTP().Return(outCh)
+//
+//	go mockExchanger.listenAndSendIBTPFromMnt()
+//
+//	// test for ignored ibtp
+//	mockExchanger.serviceMeta[from].InterchainCounter[to] = 1
+//	ignoredIBTP := getIBTP(t, 1, pb.IBTP_INTERCHAIN)
+//	outCh <- ignoredIBTP
+//
+//	// test for sending retry error and update meta error
+//	ibtp2 := getIBTP(t, 2, pb.IBTP_INTERCHAIN)
+//	interchainMeta := make(map[string]uint64)
+//	interchainMeta[to] = 3
+//	updatedInterchainMeta := &pb.Interchain{
+//		InterchainCounter: interchainMeta,
+//	}
+//	mockSyncer.EXPECT().SendIBTP(ibtp2).Return(fmt.Errorf("send ibtp error"))
+//	mockMonitor.EXPECT().QueryIBTP(ibtp2.ID()).Return(nil, fmt.Errorf("query ibtp error"))
+//	mockMonitor.EXPECT().QueryIBTP(ibtp2.ID()).Return(ibtp2, nil)
+//	mockSyncer.EXPECT().SendIBTP(ibtp2).Return(syncer.ErrMetaOutOfDate)
+//	mockSyncer.EXPECT().QueryInterchainMeta(fmt.Sprintf("%s-%s", from, to)).Return(updatedInterchainMeta)
+//	outCh <- ibtp2
+//
+//	time.Sleep(2 * time.Second)
+//	require.Equal(t, mockExchanger.serviceMeta[from], interchainMeta)
+//}
+//
+//func testApplyInterchain(t *testing.T) {
+//	mode := repo.RelayMode
+//	meta := &pb.Interchain{}
+//	outMeta := make(map[string]uint64)
+//	inMeta := make(map[string]uint64)
+//	callbackMeta := make(map[string]uint64)
+//
+//	mockMonitor, mockExecutor, mockSyncer, mockChecker, store := prepareRelay(t)
+//	mockMonitor.EXPECT().QueryOuterMeta().Return(outMeta).AnyTimes()
+//	mockExecutor.EXPECT().QueryInterchainMeta().Return(inMeta).AnyTimes()
+//	mockExecutor.EXPECT().QueryCallbackMeta().Return(callbackMeta).AnyTimes()
+//
+//	serviceMata := make(map[string]*pb.Interchain)
+//	serviceMata[from] = meta
+//	mockExchanger, err := New(mode, from, serviceMata,
+//		WithMonitor(mockMonitor), WithExecutor(mockExecutor),
+//		WithSyncer(mockSyncer), WithLogger(log.NewWithModule("exchanger")),
+//		WithChecker(mockChecker), WithStorage(store),
+//	)
+//	require.Nil(t, err)
+//
+//	inCh := make(chan *model.WrappedIBTP, 2)
+//	signs := []byte("signs for asset exchange")
+//	mockSyncer.EXPECT().ListenIBTP().Return(inCh).AnyTimes()
+//	go mockExchanger.listenAndSendIBTPFromSyncer()
+//
+//	// test for ignored interchain ibtp
+//	mockExchanger.serviceMeta[to].SourceInterchainCounter[from] = 1
+//	interchainIBTP1 := getIBTP(t, 1, pb.IBTP_INTERCHAIN)
+//	inCh <- &model.WrappedIBTP{Ibtp: interchainIBTP1, IsValid: true}
+//
+//	// test for handle missing
+//	interchainIBTP2 := getIBTP(t, 2, pb.IBTP_INTERCHAIN)
+//	badInterchainIBTP3 := getIBTP(t, 3, 7)
+//	inCh <- &model.WrappedIBTP{Ibtp: badInterchainIBTP3, IsValid: true}
+//	interchainIBTP3 := getIBTP(t, 3, pb.IBTP_INTERCHAIN)
+//	mockSyncer.EXPECT().QueryIBTP(gomock.Any(), gomock.Any()).Return(nil, false, fmt.Errorf("query ibtp error"))
+//	inCh <- &model.WrappedIBTP{Ibtp: interchainIBTP3, IsValid: true}
+//
+//	// test for send ibtp normal error
+//	mockSyncer.EXPECT().QueryIBTP(gomock.Any(), gomock.Any()).Return(interchainIBTP2, true, nil)
+//	////mockSyncer.EXPECT().GetAssetExchangeSigns(assetTxID).Return(nil, fmt.Errorf("get signs error"))
+//	mockSyncer.EXPECT().GetAssetExchangeSigns(gomock.Any()).Return(signs, nil).AnyTimes()
+//	mockSyncer.EXPECT().SendIBTP(gomock.Any()).Return(fmt.Errorf("send ibtp error"))
+//	mockSyncer.EXPECT().SendIBTP(gomock.Any()).Return(nil)
+//	mockExecutor.EXPECT().ExecuteIBTP(gomock.Any()).Return(&pb.IBTP{}, nil).AnyTimes()
+//	mockExecutor.EXPECT().QueryIBTPReceipt(gomock.Any()).Return(&pb.IBTP{}, nil)
+//	inCh <- &model.WrappedIBTP{Ibtp: interchainIBTP3, IsValid: true}
+//
+//	// test for update source receipt meta
+//	sourceReceiptMeta := make(map[string]uint64)
+//	sourceReceiptMeta[to] = 4
+//	updatedInterchainMeta := &pb.Interchain{
+//		SourceReceiptCounter: sourceReceiptMeta,
+//	}
+//	mockSyncer.EXPECT().SendIBTP(gomock.Any()).Return(syncer.ErrMetaOutOfDate)
+//	mockSyncer.EXPECT().SendIBTP(gomock.Any()).Return(nil).AnyTimes()
+//	mockSyncer.EXPECT().QueryInterchainMeta(gomock.Any()).Return(updatedInterchainMeta).AnyTimes()
+//	interchainIBTP4 := getIBTP(t, 4, pb.IBTP_INTERCHAIN)
+//	inCh <- &model.WrappedIBTP{Ibtp: interchainIBTP4, IsValid: true}
+//
+//	time.Sleep(3 * time.Second)
+//	require.Equal(t, uint64(4), mockExchanger.serviceMeta[to].SourceInterchainCounter[from])
+//	require.Equal(t, mockExchanger.serviceMeta[to].SourceReceiptCounter, sourceReceiptMeta)
+//}
+//
+//func testApplyReceipt(t *testing.T) {
+//	mode := repo.RelayMode
+//	meta := &pb.Interchain{}
+//	outMeta := make(map[string]uint64)
+//	//outMeta[to] = 1
+//	inMeta := make(map[string]uint64)
+//	//inMeta[to] = 1
+//	callbackMeta := make(map[string]uint64)
+//
+//	mockMonitor, mockExecutor, mockSyncer, mockChecker, store := prepareRelay(t)
+//	mockMonitor.EXPECT().QueryOuterMeta().Return(outMeta).AnyTimes()
+//	mockExecutor.EXPECT().QueryInterchainMeta().Return(inMeta).AnyTimes()
+//	mockExecutor.EXPECT().QueryCallbackMeta().Return(callbackMeta).AnyTimes()
+//
+//	serviceMeta := make(map[string]*pb.Interchain)
+//	serviceMeta[from] = meta
+//	mockExchanger, err := New(mode, from, serviceMeta,
+//		WithMonitor(mockMonitor), WithExecutor(mockExecutor),
+//		WithSyncer(mockSyncer), WithLogger(log.NewWithModule("exchanger")),
+//		WithChecker(mockChecker), WithStorage(store),
+//	)
+//	require.Nil(t, err)
+//
+//	inCh := make(chan *model.WrappedIBTP, 2)
+//	//signs := []byte("signs for asset exchange")
+//	mockSyncer.EXPECT().ListenIBTP().Return(inCh).AnyTimes()
+//	go mockExchanger.listenAndSendIBTPFromSyncer()
+//
+//	receiptIBTP1 := getIBTP(t, 1, pb.IBTP_RECEIPT_SUCCESS)
+//	mockExchanger.serviceMeta[from].ReceiptCounter[to] = 1
+//	inCh <- &model.WrappedIBTP{Ibtp: receiptIBTP1, IsValid: true}
+//	receiptIBTP3 := getIBTP(t, 3, pb.IBTP_RECEIPT_SUCCESS)
+//	inCh <- &model.WrappedIBTP{Ibtp: receiptIBTP3, IsValid: true}
+//	receiptIBTP2 := getIBTP(t, 2, pb.IBTP_RECEIPT_SUCCESS)
+//	wReceiptIBTP2 := &model.WrappedIBTP{Ibtp: receiptIBTP2, IsValid: true}
+//	//mockSyncer.EXPECT().GetAssetExchangeSigns(assetTxID).Return(nil, fmt.Errorf("get signs error"))
+//	//mockSyncer.EXPECT().GetAssetExchangeSigns(gomock.Any()).Return(signs, nil)
+//	mockExecutor.EXPECT().ExecuteIBTP(wReceiptIBTP2).Return(nil, nil)
+//	inCh <- wReceiptIBTP2
+//	time.Sleep(2 * time.Millisecond)
+//	require.Equal(t, uint64(2), mockExchanger.serviceMeta[from].ReceiptCounter[to])
+//}
+//
+//func testRollback(t *testing.T) {
+//	mode := repo.RelayMode
+//	meta := &pb.Interchain{}
+//	outMeta := make(map[string]uint64)
+//	inMeta := make(map[string]uint64)
+//	callbackMeta := make(map[string]uint64)
+//	callbackMeta[to] = 1
+//
+//	mockMonitor, mockExecutor, mockSyncer, mockChecker, store := prepareRelay(t)
+//	mockMonitor.EXPECT().QueryOuterMeta().Return(outMeta).AnyTimes()
+//	mockExecutor.EXPECT().QueryInterchainMeta().Return(inMeta).AnyTimes()
+//	mockExecutor.EXPECT().QueryCallbackMeta().Return(callbackMeta).AnyTimes()
+//	mockExecutor.EXPECT().Rollback(gomock.Any(), gomock.Any()).AnyTimes()
+//
+//	serviceMeta := make(map[string]*pb.Interchain)
+//	serviceMeta[from] = meta
+//	mockExchanger, err := New(mode, from, serviceMeta,
+//		WithMonitor(mockMonitor), WithExecutor(mockExecutor),
+//		WithSyncer(mockSyncer), WithLogger(log.NewWithModule("exchanger")),
+//		WithChecker(mockChecker), WithStorage(store),
+//	)
+//	require.Nil(t, err)
+//
+//	// test for rollback ibtp receipt
+//	receipt := getIBTP(t, 1, pb.IBTP_RECEIPT_FAILURE)
+//	mockExchanger.handleRollback(receipt, "")
+//
+//	// test for ignored ibtp
+//	ibtp1 := getIBTP(t, 1, pb.IBTP_INTERCHAIN)
+//	mockExchanger.handleRollback(ibtp1, "")
+//
+//	// test for pooled ibtp
+//	ibtp3 := getIBTP(t, 3, pb.IBTP_INTERCHAIN)
+//	mockExchanger.handleRollback(ibtp3, "")
+//
+//	ibtp2 := getIBTP(t, 2, pb.IBTP_INTERCHAIN)
+//	mockExchanger.handleRollback(ibtp2, "")
+//
+//	time.Sleep(1 * time.Millisecond)
+//	require.Equal(t, uint64(3), mockExchanger.serviceMeta[from].ReceiptCounter[to])
+//}
+//
+//func testRecoverErrorStartRelay(t *testing.T) {
+//	mode := repo.RelayMode
+//	mockMonitor, mockExecutor, mockSyncer, mockChecker, store := prepareRelay(t)
+//	meta := &pb.Interchain{}
+//
+//	outCh := make(chan *pb.IBTP)
+//	inCh := make(chan *model.WrappedIBTP)
+//
+//	outMeta := make(map[string]uint64)
+//	outMeta[to] = 1
+//	inMeta := make(map[string]uint64)
+//	inMeta[to] = 1
+//	callbackMeta := make(map[string]uint64)
+//	meta.InterchainCounter = map[string]uint64{to: 1}
+//
+//	mockMonitor.EXPECT().QueryOuterMeta().Return(outMeta).AnyTimes()
+//	mockExecutor.EXPECT().QueryInterchainMeta().Return(inMeta).AnyTimes()
+//	mockExecutor.EXPECT().QueryCallbackMeta().Return(callbackMeta).AnyTimes()
+//	mockSyncer.EXPECT().ListenIBTP().Return(inCh).AnyTimes()
+//	mockMonitor.EXPECT().ListenIBTP().Return(outCh).AnyTimes()
+//
+//	serviceMeta := make(map[string]*pb.Interchain)
+//	serviceMeta[from] = meta
+//	mockExchanger, err := New(mode, from, serviceMeta,
+//		WithMonitor(mockMonitor), WithExecutor(mockExecutor),
+//		WithSyncer(mockSyncer), WithLogger(log.NewWithModule("exchanger")),
+//		WithChecker(mockChecker), WithStorage(store),
+//	)
+//	require.Nil(t, err)
+//
+//	mockSyncer.EXPECT().RegisterRollbackHandler(gomock.Any()).Return(nil).AnyTimes()
+//	syncerError := fmt.Errorf("start syncer failed")
+//	mockSyncer.EXPECT().Start().Return(syncerError)
+//	require.Equal(t, true, errors.Is(mockExchanger.Start(), syncerError))
+//
+//	mockSyncer.EXPECT().Start().Return(nil).AnyTimes()
+//	// mock recover error
+//	mockSyncer.EXPECT().QueryIBTP(gomock.Any(), gomock.Any()).Return(nil, false, syncer.ErrIBTPNotFound).MaxTimes(1)
+//	mockSyncer.EXPECT().SendIBTP(gomock.Any()).Return(fmt.Errorf("send ibtp receipt error")).MaxTimes(2)
+//	require.Panics(t, func() { mockExchanger.Start() })
+//
+//	// test for recovering ibtp
+//	ibtp := getIBTP(t, 1, pb.IBTP_RECEIPT_SUCCESS)
+//	mockMonitor.EXPECT().QueryIBTP(gomock.Any()).Return(nil, fmt.Errorf("query ibtp error")).MaxTimes(10)
+//	mockMonitor.EXPECT().QueryIBTP(gomock.Any()).Return(ibtp, nil).MaxTimes(2)
+//
+//	//outMeta[to] = 0
+//
+//	//require.Panics(t, func() { mockExchanger.Start() })
+//
+//	// test for recovering ibtp receipt
+//	//mockSyncer.EXPECT().QueryIBTP(gomock.Any()).Return(ibtp, nil).AnyTimes()
+//	//mockExecutor.EXPECT().QueryIBTPReceipt(gomock.Any()).
+//	//	Return(nil, fmt.Errorf("query ibtp receipt error"))
+//	//require.Panics(t, func() { mockExchanger.Start() })
+//
+//	//mockExecutor.EXPECT().QueryIBTPReceipt(gomock.Any()).
+//	//	Return(&pb.IBTP{}, nil).AnyTimes()
+//	//mockSyncer.EXPECT().SendIBTP(gomock.Any()).Return(fmt.Errorf("send ibtp receipt error"))
+//	//require.Panics(t, func() { mockExchanger.Start() })
+//}
 
 func testRelayIBTPFromMnt(t *testing.T, outCh chan *pb.IBTP, ibtps []*pb.IBTP, exchanger *Exchanger) {
 	for i, ibtp := range ibtps {
@@ -676,190 +676,190 @@ func TestStartUnionMode(t *testing.T) {
 	//testUnionStartAndStop(t)
 }
 
-func testUnionMode(pierID string, t *testing.T) {
-	mode := repo.UnionMode
-	mockMonitor, mockExecutor, mockSyncer, mockPeerMgr, mockRouter, store := prepareUnoin(t, true)
-	meta := &pb.Interchain{}
+//func testUnionMode(pierID string, t *testing.T) {
+//	mode := repo.UnionMode
+//	mockMonitor, mockExecutor, mockSyncer, mockPeerMgr, mockRouter, store := prepareUnoin(t, true)
+//	meta := &pb.Interchain{}
+//
+//	var stream network.Stream
+//	// mock ibtp for Message_ROUTER_IBTP_SEND
+//	ibtp := &model.WrappedIBTP{
+//		Ibtp:    getIBTPWithFromTo(t, 1, pb.IBTP_INTERCHAIN, pierID, to),
+//		IsValid: true,
+//	}
+//	ibtpBytes, err := json.Marshal(ibtp)
+//	require.Nil(t, err)
+//	ibtpMsg := peermgr.Message(pb.Message_ROUTER_IBTP_SEND, true, ibtpBytes)
+//	// mock getInterchainMsg for Message_ROUTER_INTERCHAIN_SEND
+//	interchainInfoMsg := peermgr.Message(pb.Message_ROUTER_INTERCHAIN_GET, true, []byte(pierID))
+//	interchainCounter := &pb.Interchain{
+//		InterchainCounter:    map[string]uint64{pierID: 1},
+//		ReceiptCounter:       map[string]uint64{pierID: 1},
+//		SourceReceiptCounter: map[string]uint64{pierID: 1},
+//	}
+//	signs := []byte("signs for ibtp in bitxhub")
+//	//appchains := []*appchainmgr.Appchain{
+//	//	{
+//	//		ID:         pierID,
+//	//		Name:       "hpc",
+//	//		Validators: "validator for hpc",
+//	//		Status:     governance.GovernanceAvailable,
+//	//		ChainType:  "hyperchain",
+//	//		Desc:       "appchain for test",
+//	//		PublicKey:  "",
+//	//	},
+//	//}
+//
+//	//appchains := []*appchainmgr.Appchain{
+//	//	{
+//	//		ID:        pierID,
+//	//		TrustRoot: []byte("validator for hpc"),
+//	//		Status:    governance.GovernanceAvailable,
+//	//		Broker:    "",
+//	//		Desc:      "appchain for test",
+//	//		Version:   0,
+//	//	},
+//	//}
+//
+//	icBytes, err := interchainCounter.Marshal()
+//	require.Nil(t, err)
+//	recoverACKMsg := peermgr.Message(pb.Message_ACK, true, icBytes)
+//
+//	inCh := make(chan *model.WrappedIBTP)
+//
+//	mockSyncer.EXPECT().ListenIBTP().Return(inCh).AnyTimes()
+//	mockSyncer.EXPECT().SendIBTP(gomock.Any()).Return(nil).AnyTimes()
+//	mockSyncer.EXPECT().GetIBTPSigns(ibtp).Return(signs, nil).AnyTimes()
+//	mockExecutor.EXPECT().QueryInterchainMeta().Return(map[string]uint64{to: 1}).AnyTimes()
+//	mockExecutor.EXPECT().QueryCallbackMeta().Return(map[string]uint64{to: 1}).AnyTimes()
+//	mockExecutor.EXPECT().ExecuteIBTP(ibtp).Return(nil, nil).AnyTimes()
+//	mockPeerMgr.EXPECT().AsyncSendWithStream(gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
+//	mockPeerMgr.EXPECT().FindProviders(ibtp.Ibtp.To).Return(pierID, nil)
+//	mockPeerMgr.EXPECT().Send(pierID, gomock.Any()).Return(recoverACKMsg, nil)
+//	mockRouter.EXPECT().Route(ibtp).Return(nil).AnyTimes()
+//
+//	serviceMeta := make(map[string]*pb.Interchain)
+//	serviceMeta[from] = meta
+//	mockExchanger, err := New(mode, pierID, serviceMeta,
+//		WithMonitor(mockMonitor), WithExecutor(mockExecutor),
+//		WithSyncer(mockSyncer), WithPeerMgr(mockPeerMgr),
+//		WithRouter(mockRouter), WithStorage(store),
+//		WithLogger(log.NewWithModule("exchanger")),
+//	)
+//	require.Nil(t, err)
+//	require.Nil(t, mockExchanger.Start())
+//
+//	// test Message_ROUTER_IBTP_SEND for peerMgr to handle msg from other union piers
+//	mockExchanger.handleRouterSendIBTPMessage(stream, ibtpMsg)
+//
+//	// test Message_ROUTER_INTERCHAIN_SEND for peerMgr to handle msg from other union piers
+//	mockExchanger.handleRouterInterchain(stream, interchainInfoMsg)
+//
+//	// test RegisterIBTPHandler for syncer to handle ibtp from bitxhub
+//	mockExchanger.handleUnionIBTPFromBitXHub(ibtp)
+//
+//	// test RegisterRecoverHandler for syncer to handle recover in bitxhub
+//	mockExchanger.handleRecover(ibtp.Ibtp)
+//	time.Sleep(1 * time.Second)
+//	close(inCh)
+//	require.Nil(t, mockExchanger.Stop())
+//}
 
-	var stream network.Stream
-	// mock ibtp for Message_ROUTER_IBTP_SEND
-	ibtp := &model.WrappedIBTP{
-		Ibtp:    getIBTPWithFromTo(t, 1, pb.IBTP_INTERCHAIN, pierID, to),
-		IsValid: true,
-	}
-	ibtpBytes, err := json.Marshal(ibtp)
-	require.Nil(t, err)
-	ibtpMsg := peermgr.Message(pb.Message_ROUTER_IBTP_SEND, true, ibtpBytes)
-	// mock getInterchainMsg for Message_ROUTER_INTERCHAIN_SEND
-	interchainInfoMsg := peermgr.Message(pb.Message_ROUTER_INTERCHAIN_GET, true, []byte(pierID))
-	interchainCounter := &pb.Interchain{
-		InterchainCounter:    map[string]uint64{pierID: 1},
-		ReceiptCounter:       map[string]uint64{pierID: 1},
-		SourceReceiptCounter: map[string]uint64{pierID: 1},
-	}
-	signs := []byte("signs for ibtp in bitxhub")
-	//appchains := []*appchainmgr.Appchain{
-	//	{
-	//		ID:         pierID,
-	//		Name:       "hpc",
-	//		Validators: "validator for hpc",
-	//		Status:     governance.GovernanceAvailable,
-	//		ChainType:  "hyperchain",
-	//		Desc:       "appchain for test",
-	//		PublicKey:  "",
-	//	},
-	//}
+//func testUnionStartAndStop(t *testing.T) {
+//	mode := repo.UnionMode
+//	mockMonitor, mockExecutor, mockSyncer, mockPeerMgr, mockRouter, store := prepareUnoin(t, false)
+//	meta := &pb.Interchain{}
+//	mockExecutor.EXPECT().QueryInterchainMeta().Return(map[string]uint64{to: 1}).AnyTimes()
+//	mockExecutor.EXPECT().QueryCallbackMeta().Return(map[string]uint64{to: 1}).AnyTimes()
+//
+//	serviceMeta := make(map[string]*pb.Interchain)
+//	serviceMeta[from] = meta
+//	mockExchanger, err := New(mode, pierID, serviceMeta,
+//		WithMonitor(mockMonitor), WithExecutor(mockExecutor),
+//		WithSyncer(mockSyncer), WithPeerMgr(mockPeerMgr),
+//		WithRouter(mockRouter), WithStorage(store),
+//		WithLogger(log.NewWithModule("exchanger")),
+//	)
+//	require.Nil(t, err)
+//
+//	inCh := make(chan *model.WrappedIBTP)
+//	mockSyncer.EXPECT().ListenIBTP().Return(inCh).AnyTimes()
+//	// mock exchanger start error
+//	startError := fmt.Errorf("start unoin exchanger error")
+//	mockPeerMgr.EXPECT().Start().Return(startError)
+//	require.Equal(t, true, errors.Is(mockExchanger.startWithUnionMode(), startError))
+//
+//	mockPeerMgr.EXPECT().Start().Return(nil).AnyTimes()
+//	mockPeerMgr.EXPECT().RegisterMsgHandler(pb.Message_ROUTER_IBTP_SEND, gomock.Any()).Return(startError)
+//	require.Equal(t, true, errors.Is(mockExchanger.startWithUnionMode(), startError))
+//
+//	mockPeerMgr.EXPECT().RegisterMsgHandler(pb.Message_ROUTER_IBTP_SEND, gomock.Any()).Return(nil).AnyTimes()
+//	mockPeerMgr.EXPECT().RegisterMsgHandler(pb.Message_ROUTER_INTERCHAIN_GET, gomock.Any()).Return(startError)
+//	require.Equal(t, true, errors.Is(mockExchanger.startWithUnionMode(), startError))
+//
+//	mockPeerMgr.EXPECT().RegisterMsgHandler(pb.Message_ROUTER_INTERCHAIN_GET, gomock.Any()).Return(nil).AnyTimes()
+//	require.Equal(t, true, errors.Is(mockExchanger.startWithUnionMode(), startError))
+//
+//	mockRouter.EXPECT().Start().Return(startError)
+//	require.Equal(t, true, errors.Is(mockExchanger.startWithUnionMode(), startError))
+//
+//	mockRouter.EXPECT().Start().Return(nil).AnyTimes()
+//	mockSyncer.EXPECT().Start().Return(startError)
+//	require.Equal(t, true, errors.Is(mockExchanger.startWithUnionMode(), startError))
+//
+//	// mock exchanger stop error
+//	stopError := fmt.Errorf("stop exchanger error")
+//	mockSyncer.EXPECT().Stop().Return(stopError)
+//	require.Equal(t, true, errors.Is(mockExchanger.Stop(), stopError))
+//
+//	mockSyncer.EXPECT().Stop().Return(nil).AnyTimes()
+//	mockPeerMgr.EXPECT().Stop().Return(stopError)
+//	require.Equal(t, true, errors.Is(mockExchanger.Stop(), stopError))
+//
+//	mockPeerMgr.EXPECT().Stop().Return(nil).AnyTimes()
+//	mockRouter.EXPECT().Stop().Return(stopError)
+//	require.Equal(t, true, errors.Is(mockExchanger.Stop(), stopError))
+//}
 
-	//appchains := []*appchainmgr.Appchain{
-	//	{
-	//		ID:        pierID,
-	//		TrustRoot: []byte("validator for hpc"),
-	//		Status:    governance.GovernanceAvailable,
-	//		Broker:    "",
-	//		Desc:      "appchain for test",
-	//		Version:   0,
-	//	},
-	//}
-
-	icBytes, err := interchainCounter.Marshal()
-	require.Nil(t, err)
-	recoverACKMsg := peermgr.Message(pb.Message_ACK, true, icBytes)
-
-	inCh := make(chan *model.WrappedIBTP)
-
-	mockSyncer.EXPECT().ListenIBTP().Return(inCh).AnyTimes()
-	mockSyncer.EXPECT().SendIBTP(gomock.Any()).Return(nil).AnyTimes()
-	mockSyncer.EXPECT().GetIBTPSigns(ibtp).Return(signs, nil).AnyTimes()
-	mockExecutor.EXPECT().QueryInterchainMeta().Return(map[string]uint64{to: 1}).AnyTimes()
-	mockExecutor.EXPECT().QueryCallbackMeta().Return(map[string]uint64{to: 1}).AnyTimes()
-	mockExecutor.EXPECT().ExecuteIBTP(ibtp).Return(nil, nil).AnyTimes()
-	mockPeerMgr.EXPECT().AsyncSendWithStream(gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
-	mockPeerMgr.EXPECT().FindProviders(ibtp.Ibtp.To).Return(pierID, nil)
-	mockPeerMgr.EXPECT().Send(pierID, gomock.Any()).Return(recoverACKMsg, nil)
-	mockRouter.EXPECT().Route(ibtp).Return(nil).AnyTimes()
-
-	serviceMeta := make(map[string]*pb.Interchain)
-	serviceMeta[from] = meta
-	mockExchanger, err := New(mode, pierID, serviceMeta,
-		WithMonitor(mockMonitor), WithExecutor(mockExecutor),
-		WithSyncer(mockSyncer), WithPeerMgr(mockPeerMgr),
-		WithRouter(mockRouter), WithStorage(store),
-		WithLogger(log.NewWithModule("exchanger")),
-	)
-	require.Nil(t, err)
-	require.Nil(t, mockExchanger.Start())
-
-	// test Message_ROUTER_IBTP_SEND for peerMgr to handle msg from other union piers
-	mockExchanger.handleRouterSendIBTPMessage(stream, ibtpMsg)
-
-	// test Message_ROUTER_INTERCHAIN_SEND for peerMgr to handle msg from other union piers
-	mockExchanger.handleRouterInterchain(stream, interchainInfoMsg)
-
-	// test RegisterIBTPHandler for syncer to handle ibtp from bitxhub
-	mockExchanger.handleUnionIBTPFromBitXHub(ibtp)
-
-	// test RegisterRecoverHandler for syncer to handle recover in bitxhub
-	mockExchanger.handleRecover(ibtp.Ibtp)
-	time.Sleep(1 * time.Second)
-	close(inCh)
-	require.Nil(t, mockExchanger.Stop())
-}
-
-func testUnionStartAndStop(t *testing.T) {
-	mode := repo.UnionMode
-	mockMonitor, mockExecutor, mockSyncer, mockPeerMgr, mockRouter, store := prepareUnoin(t, false)
-	meta := &pb.Interchain{}
-	mockExecutor.EXPECT().QueryInterchainMeta().Return(map[string]uint64{to: 1}).AnyTimes()
-	mockExecutor.EXPECT().QueryCallbackMeta().Return(map[string]uint64{to: 1}).AnyTimes()
-
-	serviceMeta := make(map[string]*pb.Interchain)
-	serviceMeta[from] = meta
-	mockExchanger, err := New(mode, pierID, serviceMeta,
-		WithMonitor(mockMonitor), WithExecutor(mockExecutor),
-		WithSyncer(mockSyncer), WithPeerMgr(mockPeerMgr),
-		WithRouter(mockRouter), WithStorage(store),
-		WithLogger(log.NewWithModule("exchanger")),
-	)
-	require.Nil(t, err)
-
-	inCh := make(chan *model.WrappedIBTP)
-	mockSyncer.EXPECT().ListenIBTP().Return(inCh).AnyTimes()
-	// mock exchanger start error
-	startError := fmt.Errorf("start unoin exchanger error")
-	mockPeerMgr.EXPECT().Start().Return(startError)
-	require.Equal(t, true, errors.Is(mockExchanger.startWithUnionMode(), startError))
-
-	mockPeerMgr.EXPECT().Start().Return(nil).AnyTimes()
-	mockPeerMgr.EXPECT().RegisterMsgHandler(pb.Message_ROUTER_IBTP_SEND, gomock.Any()).Return(startError)
-	require.Equal(t, true, errors.Is(mockExchanger.startWithUnionMode(), startError))
-
-	mockPeerMgr.EXPECT().RegisterMsgHandler(pb.Message_ROUTER_IBTP_SEND, gomock.Any()).Return(nil).AnyTimes()
-	mockPeerMgr.EXPECT().RegisterMsgHandler(pb.Message_ROUTER_INTERCHAIN_GET, gomock.Any()).Return(startError)
-	require.Equal(t, true, errors.Is(mockExchanger.startWithUnionMode(), startError))
-
-	mockPeerMgr.EXPECT().RegisterMsgHandler(pb.Message_ROUTER_INTERCHAIN_GET, gomock.Any()).Return(nil).AnyTimes()
-	require.Equal(t, true, errors.Is(mockExchanger.startWithUnionMode(), startError))
-
-	mockRouter.EXPECT().Start().Return(startError)
-	require.Equal(t, true, errors.Is(mockExchanger.startWithUnionMode(), startError))
-
-	mockRouter.EXPECT().Start().Return(nil).AnyTimes()
-	mockSyncer.EXPECT().Start().Return(startError)
-	require.Equal(t, true, errors.Is(mockExchanger.startWithUnionMode(), startError))
-
-	// mock exchanger stop error
-	stopError := fmt.Errorf("stop exchanger error")
-	mockSyncer.EXPECT().Stop().Return(stopError)
-	require.Equal(t, true, errors.Is(mockExchanger.Stop(), stopError))
-
-	mockSyncer.EXPECT().Stop().Return(nil).AnyTimes()
-	mockPeerMgr.EXPECT().Stop().Return(stopError)
-	require.Equal(t, true, errors.Is(mockExchanger.Stop(), stopError))
-
-	mockPeerMgr.EXPECT().Stop().Return(nil).AnyTimes()
-	mockRouter.EXPECT().Stop().Return(stopError)
-	require.Equal(t, true, errors.Is(mockExchanger.Stop(), stopError))
-}
-
-func testUnionIBTP(t *testing.T) {
-	mode := repo.UnionMode
-	mockMonitor, mockExecutor, mockSyncer, mockPeerMgr, mockRouter, store := prepareUnoin(t, false)
-	meta := &pb.Interchain{}
-	mockExecutor.EXPECT().QueryInterchainMeta().Return(map[string]uint64{to: 1}).AnyTimes()
-	mockExecutor.EXPECT().QueryCallbackMeta().Return(map[string]uint64{to: 1}).AnyTimes()
-
-	serviceMeta := make(map[string]*pb.Interchain)
-	serviceMeta[from] = meta
-	mockExchanger, err := New(mode, pierID, serviceMeta,
-		WithMonitor(mockMonitor), WithExecutor(mockExecutor),
-		WithSyncer(mockSyncer), WithPeerMgr(mockPeerMgr),
-		WithRouter(mockRouter), WithStorage(store),
-		WithLogger(log.NewWithModule("exchanger")),
-	)
-	require.Nil(t, err)
-
-	signs := []byte("signs for asset exchange")
-	unoinIBTP := getIBTPWithFromTo(t, 1, pb.IBTP_INTERCHAIN, pierID, to)
-	mockSyncer.EXPECT().GetIBTPSigns(unoinIBTP).Return(nil, fmt.Errorf("get ibtp signs error"))
-	mockSyncer.EXPECT().GetIBTPSigns(unoinIBTP).Return(signs, nil)
-
-	mockRouter.EXPECT().Route(unoinIBTP).Return(fmt.Errorf("route ibtp error"))
-	mockRouter.EXPECT().Route(unoinIBTP).Return(nil)
-	mockExchanger.handleUnionIBTPFromBitXHub(&model.WrappedIBTP{
-		Ibtp:    unoinIBTP,
-		IsValid: true,
-	})
-}
+//func testUnionIBTP(t *testing.T) {
+//	mode := repo.UnionMode
+//	mockMonitor, mockExecutor, mockSyncer, mockPeerMgr, mockRouter, store := prepareUnoin(t, false)
+//	meta := &pb.Interchain{}
+//	mockExecutor.EXPECT().QueryInterchainMeta().Return(map[string]uint64{to: 1}).AnyTimes()
+//	mockExecutor.EXPECT().QueryCallbackMeta().Return(map[string]uint64{to: 1}).AnyTimes()
+//
+//	serviceMeta := make(map[string]*pb.Interchain)
+//	serviceMeta[from] = meta
+//	mockExchanger, err := New(mode, pierID, serviceMeta,
+//		WithMonitor(mockMonitor), WithExecutor(mockExecutor),
+//		WithSyncer(mockSyncer), WithPeerMgr(mockPeerMgr),
+//		WithRouter(mockRouter), WithStorage(store),
+//		WithLogger(log.NewWithModule("exchanger")),
+//	)
+//	require.Nil(t, err)
+//
+//	signs := []byte("signs for asset exchange")
+//	unoinIBTP := getIBTPWithFromTo(t, 1, pb.IBTP_INTERCHAIN, pierID, to)
+//	mockSyncer.EXPECT().GetIBTPSigns(unoinIBTP).Return(nil, fmt.Errorf("get ibtp signs error"))
+//	mockSyncer.EXPECT().GetIBTPSigns(unoinIBTP).Return(signs, nil)
+//
+//	mockRouter.EXPECT().Route(unoinIBTP).Return(fmt.Errorf("route ibtp error"))
+//	mockRouter.EXPECT().Route(unoinIBTP).Return(nil)
+//	mockExchanger.handleUnionIBTPFromBitXHub(&model.WrappedIBTP{
+//		Ibtp:    unoinIBTP,
+//		IsValid: true,
+//	})
+//}
 
 func prepareRelay(t *testing.T) (
 	*mock_monitor.MockMonitor, *mock_executor.MockExecutor,
-	*mock_syncer.MockSyncer,
+	*mock_adapt.MockAdapt,
 	*checker.MockChecker, storage.Storage,
 ) {
 	mockCtl := gomock.NewController(t)
 	mockMonitor := mock_monitor.NewMockMonitor(mockCtl)
 	mockExecutor := mock_executor.NewMockExecutor(mockCtl)
-	mockSyncer := mock_syncer.NewMockSyncer(mockCtl)
+	mockAdapter := mock_adapt.NewMockAdapt(mockCtl)
 	mockChecker := &checker.MockChecker{}
 
 	tmpDir, err := ioutil.TempDir("", "storage")
@@ -867,7 +867,7 @@ func prepareRelay(t *testing.T) (
 	store, err := leveldb.New(tmpDir)
 	require.Nil(t, err)
 
-	return mockMonitor, mockExecutor, mockSyncer, mockChecker, store
+	return mockMonitor, mockExecutor, mockAdapter, mockChecker, store
 }
 
 func prepareDirect(t *testing.T, isNormal bool) (

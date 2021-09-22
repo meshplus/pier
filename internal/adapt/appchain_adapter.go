@@ -2,7 +2,6 @@ package adapt
 
 import (
 	"fmt"
-	"strconv"
 	"time"
 
 	"github.com/Rican7/retry"
@@ -70,22 +69,18 @@ func (a *AppchainAdapter) MonitorIBTP() chan *pb.IBTP {
 }
 
 func (a *AppchainAdapter) QueryIBTP(id string, isReq bool) (*pb.IBTP, error) {
-	srcServiceID, dstServiceID, idx, err := utils.ParseFullServiceID(id)
+	srcServiceID, dstServiceID, index, err := utils.ParseIBTPID(id)
 	if err != nil {
 		return nil, err
 	}
 
 	servicePair := pb.GenServicePair(srcServiceID, dstServiceID)
-	index, err := strconv.Atoi(idx)
-	if err != nil {
-		return nil, err
-	}
 
 	if isReq {
-		return a.client.GetOutMessage(servicePair, uint64(index))
+		return a.client.GetOutMessage(servicePair, index)
 	}
 
-	return a.client.GetReceiptMessage(servicePair, uint64(index))
+	return a.client.GetReceiptMessage(servicePair, index)
 }
 
 func (a *AppchainAdapter) SendIBTP(ibtp *pb.IBTP) error {
@@ -109,14 +104,14 @@ func (a *AppchainAdapter) SendIBTP(ibtp *pb.IBTP) error {
 	if err != nil {
 		// solidity broker cannot get detailed error info
 		return &SendIbtpError{
-			Err:    err.Error(),
+			Err:    fmt.Sprintf("fail to send ibtp %s with type %v: %v", ibtp.ID(), ibtp.Type, err),
 			Status: Other_Error,
 		}
 	}
 
 	if !res.Status {
 		return &SendIbtpError{
-			Err:    fmt.Sprintf("fail to send ibtp %s with type %v: %w", res.Message, ibtp.ID(), ibtp.Type),
+			Err:    fmt.Sprintf("fail to send ibtp %s with type %v: %s", ibtp.ID(), ibtp.Type, res.Message),
 			Status: Other_Error,
 		}
 	}

@@ -44,6 +44,10 @@ type Swarm struct {
 	cancel context.CancelFunc
 }
 
+func (swarm *Swarm) Peers() map[uint64]*peer.AddrInfo {
+	panic("implement me")
+}
+
 func New(config *repo.Config, nodePrivKey crypto.PrivateKey, privKey crypto.PrivateKey, providers uint64, logger logrus.FieldLogger) (*Swarm, error) {
 	libp2pPrivKey, err := convertToLibp2pPrivKey(nodePrivKey)
 	if err != nil {

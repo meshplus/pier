@@ -133,9 +133,8 @@ func getAppchain(id, chainType string) (*appchainmgr.Appchain, error) {
 
 func getIBTP(t *testing.T, index uint64, typ pb.IBTP_Type, fid, tid, proofPath string) *pb.IBTP {
 	ct := &pb.Content{
-		Func:     "interchainCharge",
-		Args:     [][]byte{[]byte("Alice"), []byte("Alice"), []byte("1")},
-		Callback: "interchainConfirm",
+		Func: "interchainCharge",
+		Args: [][]byte{[]byte("Alice"), []byte("Alice"), []byte("1")},
 	}
 	c, err := ct.Marshal()
 	require.Nil(t, err)

@@ -2,6 +2,7 @@ package utils
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 )
 
@@ -15,12 +16,26 @@ func ParseServicePair(servicePair string) (string, string, error) {
 }
 
 func ParseFullServiceID(serviceID string) (string, string, string, error) {
-	splits := strings.Split(serviceID, "-")
+	splits := strings.Split(serviceID, ":")
 	if len(splits) != 3 {
 		return "", "", "", fmt.Errorf("invalid service ID: %s", serviceID)
 	}
 
 	return splits[0], splits[1], splits[2], nil
+}
+
+func ParseIBTPID(id string) (string, string, uint64, error) {
+	splits := strings.Split(id, "-")
+	if len(splits) != 3 {
+		return "", "", 0, fmt.Errorf("invalid IBTP ID: %s", id)
+	}
+
+	index, err := strconv.Atoi(splits[2])
+	if err != nil {
+		return "", "", 0, fmt.Errorf("invalid  IBTP ID: %s", id)
+	}
+
+	return splits[0], splits[1], uint64(index), nil
 }
 
 func GetSrcDstBitXHubID(id string, isReq bool) (string, string, error) {

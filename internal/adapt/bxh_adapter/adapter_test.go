@@ -1,10 +1,13 @@
-package syncer
+package bxh_adapter
 
 import (
-	"errors"
 	"fmt"
+	"strconv"
+	"strings"
 	"testing"
 	"time"
+
+	"github.com/meshplus/bitxhub-model/constant"
 
 	"github.com/meshplus/pier/internal/loggers"
 
@@ -259,6 +262,12 @@ func TestQueryIBTP(t *testing.T) {
 	client.EXPECT().SendView(tx).Return(normalReceipt, nil)
 	client.EXPECT().GetTransaction(gomock.Any()).Return(normalResponse, nil)
 	client.EXPECT().GetReceipt(gomock.Any()).Return(normalReceipt, nil)
+
+	receipt := &pb.Receipt{
+		Ret:    []byte(strconv.Itoa(int(pb.TransactionStatus_SUCCESS))),
+		Status: pb.Receipt_SUCCESS,
+	}
+	client.EXPECT().InvokeBVMContract(constant.TransactionMgrContractAddr.Address(), "GetStatus", nil, gomock.Any()).Return(receipt, nil).AnyTimes()
 	ibtp, err := adapter.QueryIBTP(from, true)
 	require.Nil(t, err)
 	require.Equal(t, origin, ibtp)
@@ -423,6 +432,12 @@ func TestSendIBTP(t *testing.T) {
 		}).MaxTimes(2)
 	require.Nil(t, adapter.SendIBTP(&pb.IBTP{}))
 
+	receipt := &pb.Receipt{
+		Ret:    []byte(strconv.Itoa(int(pb.TransactionStatus_SUCCESS))),
+		Status: pb.Receipt_SUCCESS,
+	}
+	client.EXPECT().InvokeBVMContract(constant.TransactionMgrContractAddr.Address(), "GetStatus", nil, gomock.Any()).Return(receipt, nil).AnyTimes()
+
 	//err := adapter.RegisterRollbackHandler(func(ibtp *pb.IBTP, ibtpId string) {})
 	//require.Nil(t, err)
 
@@ -438,7 +453,7 @@ func TestSendIBTP(t *testing.T) {
 		Status: pb.Receipt_FAILED,
 	}
 	client.EXPECT().GetReceipt(hash).Return(failReceipt, nil).AnyTimes()
-	require.NotNil(t, adapter.SendIBTP(&pb.IBTP{}))
+	require.Nil(t, adapter.SendIBTP(&pb.IBTP{}))
 
 	//failReceipt.Ret = []byte(errMsg2)
 	//require.Nil(t, adapter.SendIBTP(&pb.IBTP{}))
@@ -456,7 +471,7 @@ func TestSendIBTP(t *testing.T) {
 	err = adapter.SendIBTP(&pb.IBTP{})
 	require.NotNil(t, err)
 	fmt.Printf("err is %s\n", err.Error())
-	require.Equal(t, true, errors.Is(err, ErrMetaOutOfDate))
+	require.Equal(t, true, strings.Contains(err.Error(), ibtpIndexWrong))
 }
 
 func TestQueryInterchainMeta(t *testing.T) {
@@ -509,6 +524,10 @@ func prepare(t *testing.T) (*BxhAdapter, *mock_client.MockClient) {
 		WithClient(client), WithLogger(log.NewWithModule("adapter")),
 	)
 	require.Nil(t, err)
+
+	subCh := make(chan interface{}, 2)
+	client.EXPECT().Subscribe(gomock.Any(), gomock.Any(), gomock.Any()).Return(subCh, nil).AnyTimes()
+	client.EXPECT().GetMultiSigns(gomock.Any(), gomock.Any()).Return(&pb.SignResponse{Sign: make(map[string][]byte)}, nil).AnyTimes()
 
 	return adapter, client
 }
