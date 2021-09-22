@@ -24,6 +24,8 @@ type Exchanger struct {
 	// U: hub 	   -- uPier
 	srcAdapt        adapt.Adapt
 	destAdapt       adapt.Adapt
+	srcAdaptName    string
+	destAdaptName   string
 	srcServiceMeta  map[string]*pb.Interchain
 	destServiceMeta map[string]*pb.Interchain
 
@@ -54,9 +56,31 @@ func New(typ, srcChainId, srcBxhId string, opts ...Option) (*Exchanger, error) {
 func (ex *Exchanger) Start() error {
 	// init meta info
 	var (
-		serviceList []string
-		err         error
+		srcAdaptName  string
+		destAdaptName string
+		serviceList   []string
+		err           error
 	)
+
+	if err := retry.Retry(func(attempt uint) error {
+		if srcAdaptName, err = ex.srcAdapt.Name(); err != nil {
+			ex.logger.Errorf("get name from srcAdapt", "error", err.Error())
+		}
+		ex.srcAdaptName = srcAdaptName
+		return nil
+	}, strategy.Wait(3*time.Second)); err != nil {
+		return fmt.Errorf("retry error to get name from srcAdapt: %w", err)
+	}
+	if err := retry.Retry(func(attempt uint) error {
+		if destAdaptName, err = ex.destAdapt.Name(); err != nil {
+			ex.logger.Errorf("get name from destAdapt", "error", err.Error())
+		}
+		ex.destAdaptName = destAdaptName
+		return nil
+	}, strategy.Wait(3*time.Second)); err != nil {
+		return fmt.Errorf("retry error to get name from destAdapt: %w", err)
+	}
+
 	if err := retry.Retry(func(attempt uint) error {
 		if serviceList, err = ex.srcAdapt.GetServiceIDList(); err != nil {
 			ex.logger.Errorf("get serviceIdList from srcAdapt", "error", err.Error())
@@ -98,7 +122,7 @@ func (ex *Exchanger) listenIBTPFromDestAdapt() {
 		case <-ex.ctx.Done():
 			return
 		case ibtp, ok := <-ch:
-			ex.logger.Info("Receive ibtp from :", ex.destAdapt.Name())
+			ex.logger.Info("Receive ibtp from :", ex.destAdaptName)
 			if !ok {
 				ex.logger.Warn("Unexpected closed channel while listening on interchain ibtp")
 				return
@@ -145,7 +169,7 @@ func (ex *Exchanger) listenIBTPFromDestAdapt() {
 					// if err occurs, try to get new ibtp and resend
 					if err, ok := err.(*adapt.SendIbtpError); ok {
 						if err.NeedRetry() {
-							ex.logger.Errorf("send IBTP to Adapt:%s", ex.srcAdapt.Name(), "error", err.Error())
+							ex.logger.Errorf("send IBTP to Adapt:%s", ex.srcAdaptName, "error", err.Error())
 							// query to new ibtp
 							ibtp = ex.queryIBTP(ex.destAdapt, ibtp.ID(), !ex.isIBTPBelongSrc(ibtp))
 							return fmt.Errorf("retry sending ibtp")
@@ -173,7 +197,7 @@ func (ex *Exchanger) listenIBTPFromSrcAdapt() {
 		case <-ex.ctx.Done():
 			return
 		case ibtp, ok := <-ch:
-			ex.logger.Info("Receive interchain ibtp from :", ex.srcAdapt.Name())
+			ex.logger.Info("Receive interchain ibtp from :", ex.srcAdaptName)
 			if !ok {
 				ex.logger.Warn("Unexpected closed channel while listening on interchain ibtp")
 				return
@@ -220,7 +244,7 @@ func (ex *Exchanger) listenIBTPFromSrcAdapt() {
 					// if err occurs, try to get new ibtp and resend
 					if err, ok := err.(*adapt.SendIbtpError); ok {
 						if err.NeedRetry() {
-							ex.logger.Errorf("send IBTP to Adapt:%s", ex.destAdapt.Name(), "error", err.Error())
+							ex.logger.Errorf("send IBTP to Adapt:%s", ex.destAdaptName, "error", err.Error())
 							// query to new ibtp
 							ibtp = ex.queryIBTP(ex.srcAdapt, ibtp.ID(), ex.isIBTPBelongSrc(ibtp))
 							return fmt.Errorf("retry sending ibtp")
@@ -268,7 +292,7 @@ func (ex *Exchanger) queryIBTP(destAdapt adapt.Adapt, ibtpID string, isReq bool)
 	if err := retry.Retry(func(attempt uint) error {
 		ibtp, err = destAdapt.QueryIBTP(ibtpID, isReq)
 		if err != nil {
-			ex.logger.Errorf("queryIBTP from Adapt:%s", destAdapt.Name(), "error", err.Error())
+			ex.logger.Errorf("queryIBTP from Adapt:%s", ex.destAdaptName, "error", err.Error())
 			return err
 		}
 		return nil
