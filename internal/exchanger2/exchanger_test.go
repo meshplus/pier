@@ -2,6 +2,7 @@ package exchanger
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -14,17 +15,19 @@ import (
 )
 
 const (
-	chain0 = "chain0"
-	chain1 = "chain1"
-	from   = "0x3f9d18f7c3a6e5e4c0b877fe3e688ab08840b997"
-	to     = "0x3f9d18f7c3a6e5e4c0b877fe3e688ab08840b998"
-	pierID = "0x892eedc032948be00722038a29f2a90d0e05352f"
+	chain0          = "chain0"
+	chain1          = "chain1"
+	from            = "0x3f9d18f7c3a6e5e4c0b877fe3e688ab08840b997"
+	to              = "0x3f9d18f7c3a6e5e4c0b877fe3e688ab08840b998"
+	pierID          = "0x892eedc032948be00722038a29f2a90d0e05352f"
+	fullFromService = "1356:fabric:0x3f9d18f7c3a6e5e4c0b877fe3e688ab08840b998"
+	fullToService   = "1356:ether:0x3f9d18f7c3a6e5e4c0b877fe3e688ab08840b997"
 )
 
 var errorUnhappy = fmt.Errorf("nil")
 
 func TestRelayMode(t *testing.T) {
-	//testNormalStartRelay(t)
+	testNormalStartRelay(t)
 	//testRecoverErrorStartRelay(t)
 }
 
@@ -42,7 +45,6 @@ func prepareRelay(t *testing.T) (
 
 func testNormalStartRelay(t *testing.T) {
 	mockAdaptRelay, mockAdaptAppchain, mockExchanger := prepareRelay(t)
-	//meta := &pb.Interchain{}
 
 	srcIBTPCh := make(chan *pb.IBTP)
 	destIBTPCh := make(chan *pb.IBTP)
@@ -50,10 +52,10 @@ func testNormalStartRelay(t *testing.T) {
 	mockAdaptAppchain.EXPECT().MonitorIBTP().Return(srcIBTPCh).AnyTimes()
 	mockAdaptRelay.EXPECT().Start().Return(nil).AnyTimes()
 	mockAdaptRelay.EXPECT().Stop().Return(nil).AnyTimes()
-	mockAdaptRelay.EXPECT().Name().Return("fabric", nil).AnyTimes()
+	mockAdaptRelay.EXPECT().Name().Return("bitxhub", nil).AnyTimes()
 	mockAdaptAppchain.EXPECT().Start().Return(nil).AnyTimes()
 	mockAdaptAppchain.EXPECT().Stop().Return(nil).AnyTimes()
-	mockAdaptAppchain.EXPECT().Name().Return("bitxhub", nil).AnyTimes()
+	mockAdaptAppchain.EXPECT().Name().Return("fabric", nil).AnyTimes()
 
 	//adapt0ServiceID_1 := fmt.Sprintf("1356:%s:%s", chain0, from)
 	//adapt0ServiceID_2 := fmt.Sprintf("1356:%s:%s", chain0, from)
@@ -66,22 +68,33 @@ func testNormalStartRelay(t *testing.T) {
 	//inMeta[servicePair] = 1
 	//meta.InterchainCounter = map[string]uint64{srcServiceID: 1}
 
+	mockAdaptRelay.EXPECT().QueryIBTP(gomock.Any(), gomock.Any()).Return(&pb.IBTP{}, nil).AnyTimes()
+	mockAdaptAppchain.EXPECT().QueryIBTP(gomock.Any(), gomock.Any()).Return(&pb.IBTP{}, nil).AnyTimes()
+
 	mockAdaptRelay.EXPECT().SendIBTP(gomock.Any()).Return(nil).AnyTimes()
 	mockAdaptAppchain.EXPECT().SendIBTP(gomock.Any()).Return(nil).AnyTimes()
 
-	mockAdaptAppchain.EXPECT().GetServiceIDList().Return([]string{"1356:fabric:transfer", "1356:fabric:data"}, nil).AnyTimes()
-	mockAdaptAppchain.EXPECT().QueryInterchain(gomock.Eq("1356:fabric:transfer")).
-		Return(&pb.Interchain{ID: "1356:fabric:transfer"}, nil).AnyTimes()
-	mockAdaptAppchain.EXPECT().QueryInterchain(gomock.Eq("1356:fabric:data")).
-		Return(&pb.Interchain{ID: "1356:fabric:transfer"}, nil).AnyTimes()
-	mockAdaptRelay.EXPECT().QueryInterchain(gomock.Eq("1356:fabric:transfer")).
-		Return(&pb.Interchain{ID: "1356:fabric:transfer"}, nil).AnyTimes()
-	mockAdaptRelay.EXPECT().QueryInterchain(gomock.Eq("1356:fabric:data")).
-		Return(&pb.Interchain{ID: "1356:fabric:transfer"}, nil).AnyTimes()
+	mockAdaptAppchain.EXPECT().GetServiceIDList().Return([]string{fullFromService}, nil).AnyTimes()
+	mockAdaptAppchain.EXPECT().QueryInterchain(gomock.Eq(fullFromService)).
+		Return(&pb.Interchain{ID: fullFromService,
+			SourceInterchainCounter: make(map[string]uint64),
+			ReceiptCounter:          make(map[string]uint64),
+			SourceReceiptCounter:    map[string]uint64{fullToService: 1},
+			InterchainCounter:       map[string]uint64{fullToService: 1}}, nil).AnyTimes()
+	//mockAdaptAppchain.EXPECT().QueryInterchain(gomock.Eq("1356:fabric:data")).
+	//	Return(&pb.Interchain{ID: "1356:fabric:transfer"}, nil).AnyTimes()
+	mockAdaptRelay.EXPECT().QueryInterchain(gomock.Eq(fullFromService)).
+		Return(&pb.Interchain{ID: fullFromService,
+			SourceInterchainCounter: map[string]uint64{fullToService: 1},
+			ReceiptCounter:          map[string]uint64{fullToService: 1},
+			SourceReceiptCounter:    make(map[string]uint64),
+			InterchainCounter:       make(map[string]uint64)}, nil).AnyTimes()
+	//mockAdaptRelay.EXPECT().QueryInterchain(gomock.Eq("1356:fabric:data")).
+	//	Return(&pb.Interchain{ID: "1356:fabric:transfer"}, nil).AnyTimes()
 
-	ibtps_src, _ := genIBTPs(t, 100, pb.IBTP_INTERCHAIN)
+	ibtps_src, _ := genIBTPs(t, 100, pb.IBTP_INTERCHAIN, false)
 
-	ibtps_dest, _ := genIBTPs(t, 100, pb.IBTP_INTERCHAIN)
+	ibtps_dest, _ := genIBTPs(t, 100, pb.IBTP_INTERCHAIN, true)
 
 	//srcServiceMeta := make(map[string]*pb.Interchain)
 	//destServiceMeta := make(map[string]*pb.Interchain)
@@ -90,7 +103,6 @@ func testNormalStartRelay(t *testing.T) {
 	require.Nil(t, mockExchanger.Start())
 
 	testRelayIBTPFromDest(t, destIBTPCh, ibtps_dest, mockExchanger)
-
 	testRelayIBTPFromSrc(t, srcIBTPCh, ibtps_src, mockExchanger)
 
 	// test for asset exchange ibtp
@@ -169,8 +181,15 @@ func testRelayIBTPFromSrc(t *testing.T, outCh chan *pb.IBTP, ibtps []*pb.IBTP, e
 		}
 	}
 	time.Sleep(100 * time.Millisecond)
-	exchanger.listenIBTPFromSrcAdapt()
-	require.Equal(t, uint64(100), exchanger.srcServiceMeta[from].InterchainCounter[ibtps[0].To])
+	require.Equal(t, uint64(100), exchanger.srcServiceMeta[ibtps[0].From].InterchainCounter[ibtps[0].To])
+
+	ibtpReceipts, _ := genIBTPs(t, 100, pb.IBTP_RECEIPT_SUCCESS, false)
+	for _, receipt := range ibtpReceipts {
+		outCh <- receipt
+	}
+
+	time.Sleep(100 * time.Millisecond)
+	require.Equal(t, uint64(100), exchanger.srcServiceMeta[ibtpReceipts[0].To].SourceReceiptCounter[ibtpReceipts[0].From])
 }
 
 func testRelayIBTPFromDest(t *testing.T, inCh chan *pb.IBTP, ibtps []*pb.IBTP, exchanger *Exchanger) {
@@ -181,29 +200,29 @@ func testRelayIBTPFromDest(t *testing.T, inCh chan *pb.IBTP, ibtps []*pb.IBTP, e
 	}
 
 	time.Sleep(100 * time.Millisecond)
-	require.Equal(t, uint64(100), exchanger.destServiceMeta[to].SourceInterchainCounter[ibtps[0].From])
+	require.Equal(t, uint64(100), exchanger.destServiceMeta[ibtps[0].To].SourceInterchainCounter[ibtps[0].From])
 
-	ibtpReceipts, _ := genIBTPs(t, 100, pb.IBTP_RECEIPT_SUCCESS)
+	ibtpReceipts, _ := genIBTPs(t, 100, pb.IBTP_RECEIPT_SUCCESS, true)
 	for _, receipt := range ibtpReceipts {
 		inCh <- receipt
 	}
 
 	time.Sleep(100 * time.Millisecond)
-	require.Equal(t, uint64(100), exchanger.destServiceMeta[from].ReceiptCounter[ibtps[0].To])
+	require.Equal(t, uint64(100), exchanger.destServiceMeta[ibtpReceipts[0].From].ReceiptCounter[ibtpReceipts[0].To])
 }
 
-func genIBTPs(t *testing.T, count int, typ pb.IBTP_Type) ([]*pb.IBTP, map[string]*pb.IBTP) {
+func genIBTPs(t *testing.T, count int, typ pb.IBTP_Type, isDestToSrc bool) ([]*pb.IBTP, map[string]*pb.IBTP) {
 	ibtps := make([]*pb.IBTP, 0, count)
 	ibtpM := make(map[string]*pb.IBTP, count)
 	for i := 1; i <= count; i++ {
-		ibtp := getIBTP(t, uint64(i), typ)
+		ibtp := getIBTP(t, uint64(i), typ, isDestToSrc)
 		ibtps = append(ibtps, ibtp)
 		ibtpM[ibtp.ID()] = ibtp
 	}
 	return ibtps, ibtpM
 }
 
-func getIBTP(t *testing.T, index uint64, typ pb.IBTP_Type) *pb.IBTP {
+func getIBTP(t *testing.T, index uint64, typ pb.IBTP_Type, isDestToSrc bool) *pb.IBTP {
 	ct := &pb.Content{
 		Func: "set",
 		Args: [][]byte{[]byte("Alice")},
@@ -217,14 +236,44 @@ func getIBTP(t *testing.T, index uint64, typ pb.IBTP_Type) *pb.IBTP {
 	}
 	ibtppd, err := pd.Marshal()
 	require.Nil(t, err)
-
-	return &pb.IBTP{
-		From:    fmt.Sprintf("1356:chain0:%s", from),
-		To:      fmt.Sprintf("1356:chain1:%s", to),
-		Payload: ibtppd,
-		Index:   index,
-		Type:    typ,
+	if strings.EqualFold(typ.String(), pb.IBTP_INTERCHAIN.String()) && !isDestToSrc {
+		return &pb.IBTP{
+			From:    fmt.Sprintf("1356:fabric:%s1", to),
+			To:      fmt.Sprintf("1356:ether:%s", from),
+			Payload: ibtppd,
+			Index:   index,
+			Type:    typ,
+		}
 	}
+
+	if strings.EqualFold(typ.String(), pb.IBTP_RECEIPT_SUCCESS.String()) && !isDestToSrc {
+		return &pb.IBTP{
+			From:    fmt.Sprintf("1356:ether:%s", to),
+			To:      fmt.Sprintf("1356:fabric:%s2", from),
+			Payload: ibtppd,
+			Index:   index,
+			Type:    typ,
+		}
+	}
+
+	if strings.EqualFold(typ.String(), pb.IBTP_INTERCHAIN.String()) {
+		return &pb.IBTP{
+			From:    fmt.Sprintf("1356:ether:%s", from),
+			To:      fmt.Sprintf("1356:fabric:%s", to),
+			Payload: ibtppd,
+			Index:   index,
+			Type:    typ,
+		}
+	} else {
+		return &pb.IBTP{
+			From:    fmt.Sprintf("1356:fabric:%s", to),
+			To:      fmt.Sprintf("1356:ether:%s", from),
+			Payload: ibtppd,
+			Index:   index,
+			Type:    typ,
+		}
+	}
+
 }
 
 func TestUnionMode(t *testing.T) {
