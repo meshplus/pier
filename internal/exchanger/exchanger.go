@@ -17,7 +17,6 @@ import (
 	"github.com/meshplus/pier/internal/executor"
 	"github.com/meshplus/pier/internal/monitor"
 	"github.com/meshplus/pier/internal/peermgr"
-	peerMsg "github.com/meshplus/pier/internal/peermgr/proto"
 	"github.com/meshplus/pier/internal/repo"
 	"github.com/meshplus/pier/internal/router"
 	"github.com/meshplus/pier/internal/syncer"
@@ -59,11 +58,11 @@ func New(typ, appchainDID string, serviceMeta map[string]*pb.Interchain, opts ..
 
 	ctx, cancel := context.WithCancel(context.Background())
 	exchanger := &Exchanger{
-		checker:     config.checker,
-		apiServer:   config.apiServer,
-		mnt:         config.mnt,
-		peerMgr:     config.peerMgr,
-		syncer:      config.syncer,
+		checker:   config.checker,
+		apiServer: config.apiServer,
+		mnt:       config.mnt,
+		peerMgr:   config.peerMgr,
+		//syncer:      config.syncer,
 		store:       config.store,
 		router:      config.router,
 		logger:      config.logger,
@@ -120,19 +119,19 @@ func (ex *Exchanger) startWithDirectMode() error {
 		return fmt.Errorf("register on connection handler: %w", err)
 	}
 
-	if err := ex.peerMgr.RegisterMsgHandler(peerMsg.Message_INTERCHAIN_META_GET, ex.handleGetInterchainMessage); err != nil {
+	if err := ex.peerMgr.RegisterMsgHandler(pb.Message_INTERCHAIN_META_GET, ex.handleGetInterchainMessage); err != nil {
 		return fmt.Errorf("register query interchain msg handler: %w", err)
 	}
 
-	if err := ex.peerMgr.RegisterMsgHandler(peerMsg.Message_IBTP_SEND, ex.handleSendIBTPMessage); err != nil {
+	if err := ex.peerMgr.RegisterMsgHandler(pb.Message_IBTP_SEND, ex.handleSendIBTPMessage); err != nil {
 		return fmt.Errorf("register ibtp handler: %w", err)
 	}
 
-	if err := ex.peerMgr.RegisterMsgHandler(peerMsg.Message_IBTP_RECEIPT_SEND, ex.handleSendIBTPReceiptMessage); err != nil {
+	if err := ex.peerMgr.RegisterMsgHandler(pb.Message_IBTP_RECEIPT_SEND, ex.handleSendIBTPReceiptMessage); err != nil {
 		return fmt.Errorf("register ibtp handler: %w", err)
 	}
 
-	if err := ex.peerMgr.RegisterMsgHandler(peerMsg.Message_IBTP_GET, ex.handleGetIBTPMessage); err != nil {
+	if err := ex.peerMgr.RegisterMsgHandler(pb.Message_IBTP_GET, ex.handleGetIBTPMessage); err != nil {
 		return fmt.Errorf("register ibtp receipt handler: %w", err)
 	}
 
@@ -166,19 +165,19 @@ func (ex *Exchanger) startWithUnionMode() error {
 		return fmt.Errorf("peerMgr start: %w", err)
 	}
 
-	if err := ex.peerMgr.RegisterMsgHandler(peerMsg.Message_ROUTER_IBTP_SEND, ex.handleRouterSendIBTPMessage); err != nil {
+	if err := ex.peerMgr.RegisterMsgHandler(pb.Message_ROUTER_IBTP_SEND, ex.handleRouterSendIBTPMessage); err != nil {
 		return fmt.Errorf("register router ibtp send handler: %w", err)
 	}
 
-	if err := ex.peerMgr.RegisterMsgHandler(peerMsg.Message_ROUTER_IBTP_GET, ex.handleRouterGetIBTPMessage); err != nil {
+	if err := ex.peerMgr.RegisterMsgHandler(pb.Message_ROUTER_IBTP_GET, ex.handleRouterGetIBTPMessage); err != nil {
 		return fmt.Errorf("register router ibtp get handler: %w", err)
 	}
 
-	if err := ex.peerMgr.RegisterMsgHandler(peerMsg.Message_ROUTER_IBTP_RECEIPT_GET, ex.handleRouterGetIBTPMessage); err != nil {
+	if err := ex.peerMgr.RegisterMsgHandler(pb.Message_ROUTER_IBTP_RECEIPT_GET, ex.handleRouterGetIBTPMessage); err != nil {
 		return fmt.Errorf("register router ibtp get handler: %w", err)
 	}
 
-	if err := ex.peerMgr.RegisterMsgHandler(peerMsg.Message_ROUTER_INTERCHAIN_GET, ex.handleRouterInterchain); err != nil {
+	if err := ex.peerMgr.RegisterMsgHandler(pb.Message_ROUTER_INTERCHAIN_GET, ex.handleRouterInterchain); err != nil {
 		return fmt.Errorf("register router interchain handler: %w", err)
 	}
 
@@ -364,7 +363,7 @@ func (ex *Exchanger) sendIBTP(ibtp *pb.IBTP) error {
 			if err != nil {
 				panic(fmt.Sprintf("marshal ibtp: %s", err.Error()))
 			}
-			msg := peermgr.Message(peerMsg.Message_IBTP_SEND, true, data)
+			msg := peermgr.Message(pb.Message_IBTP_SEND, true, data)
 
 			var dst string
 			if ibtp.Type == pb.IBTP_INTERCHAIN {
@@ -414,14 +413,14 @@ func (ex *Exchanger) queryIBTP(id, target string, isReq bool) (*pb.IBTP, bool, e
 		}
 	case repo.DirectMode:
 		// query ibtp from another pier
-		msg := peermgr.Message(peerMsg.Message_IBTP_GET, true, []byte(id))
+		msg := peermgr.Message(pb.Message_IBTP_GET, true, []byte(id))
 		result, err := ex.peerMgr.Send(target, msg)
 		if err != nil {
 			return nil, false, err
 		}
 
 		ibtp = &pb.IBTP{}
-		if err := ibtp.Unmarshal(result.Payload.Data); err != nil {
+		if err := ibtp.Unmarshal(peermgr.DataToPayload(result).Data); err != nil {
 			return nil, false, err
 		}
 	default:

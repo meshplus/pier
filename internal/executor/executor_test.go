@@ -152,7 +152,7 @@ func TestQueryReceipt(t *testing.T) {
 	originalIBTP := getIBTP(t, 1, pb.IBTP_INTERCHAIN, false)
 	receiptIBTP := getIBTP(t, 1, pb.IBTP_RECEIPT_SUCCESS, false)
 
-	cli.EXPECT().GetReceipt(originalIBTP).Return(receiptIBTP, nil).AnyTimes()
+	cli.EXPECT().GetReceiptMessage(originalIBTP.ServicePair(), originalIBTP.Index).Return(receiptIBTP, nil).AnyTimes()
 
 	// test for normal ibtp receipt
 	receipt, err := exec.QueryIBTPReceipt(originalIBTP)
@@ -165,23 +165,6 @@ func TestQueryReceipt(t *testing.T) {
 	// test for nil ibtp receipt
 	receipt, err = exec.QueryIBTPReceipt(nil)
 	require.NotNil(t, err)
-}
-
-func TestRollback(t *testing.T) {
-	exec, cli := prepare(t)
-	defer exec.storage.Close()
-
-	originalIBTP := getIBTP(t, 1, pb.IBTP_INTERCHAIN, false)
-	resp := &pb.RollbackIBTPResponse{
-		Status:  true,
-		Message: "rollback success",
-	}
-	cli.EXPECT().RollbackIBTP(originalIBTP, gomock.Any()).Return(nil, fmt.Errorf("rollback error"))
-	cli.EXPECT().RollbackIBTP(originalIBTP, gomock.Any()).Return(resp, nil)
-
-	// test for retry of ibtp rollback
-	exec.Rollback(originalIBTP, false)
-	time.Sleep(2 * time.Second)
 }
 
 func prepare(t *testing.T) (*ChannelExecutor, *mock_client.MockClient) {
@@ -199,9 +182,8 @@ func prepare(t *testing.T) (*ChannelExecutor, *mock_client.MockClient) {
 	}
 
 	ct := &pb.Content{
-		Func:     "interchainCharge",
-		Args:     [][]byte{[]byte("Alice")},
-		Callback: "interchainConfirm",
+		Func: "interchainCharge",
+		Args: [][]byte{[]byte("Alice")},
 	}
 	c, err := ct.Marshal()
 
@@ -253,9 +235,8 @@ func getBadFormatIBTPReceipt(t *testing.T, index uint64, typ pb.IBTP_Type, encry
 
 func getIBTP(t *testing.T, index uint64, typ pb.IBTP_Type, encrypted bool) *pb.IBTP {
 	ct := &pb.Content{
-		Func:     "set",
-		Args:     [][]byte{[]byte("Alice")},
-		Callback: "interchainConfirm",
+		Func: "set",
+		Args: [][]byte{[]byte("Alice")},
 	}
 	c, err := ct.Marshal()
 	require.Nil(t, err)

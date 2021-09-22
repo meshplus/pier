@@ -50,12 +50,13 @@ func (mr *MockClientMockRecorder) GetCallbackMeta() *gomock.Call {
 }
 
 // GetChainID mocks base method.
-func (m *MockClient) GetChainID() (string, string) {
+func (m *MockClient) GetChainID() (string, string, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetChainID")
 	ret0, _ := ret[0].(string)
 	ret1, _ := ret[1].(string)
-	return ret0, ret1
+	ret2, _ := ret[2].(error)
+	return ret0, ret1, ret2
 }
 
 // GetChainID indicates an expected call of GetChainID.
@@ -154,11 +155,12 @@ func (mr *MockClientMockRecorder) GetReceiptMessage(servicePair, idx interface{}
 }
 
 // GetServices mocks base method.
-func (m *MockClient) GetServices() []string {
+func (m *MockClient) GetServices() ([]string, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetServices")
 	ret0, _ := ret[0].([]string)
-	return ret0
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
 }
 
 // GetServices indicates an expected call of GetServices.
@@ -168,17 +170,17 @@ func (mr *MockClientMockRecorder) GetServices() *gomock.Call {
 }
 
 // Initialize mocks base method.
-func (m *MockClient) Initialize(configPath, pierID string, extra []byte) error {
+func (m *MockClient) Initialize(configPath string, extra []byte) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Initialize", configPath, pierID, extra)
+	ret := m.ctrl.Call(m, "Initialize", configPath, extra)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // Initialize indicates an expected call of Initialize.
-func (mr *MockClientMockRecorder) Initialize(configPath, pierID, extra interface{}) *gomock.Call {
+func (mr *MockClientMockRecorder) Initialize(configPath, extra interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Initialize", reflect.TypeOf((*MockClient)(nil).Initialize), configPath, pierID, extra)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Initialize", reflect.TypeOf((*MockClient)(nil).Initialize), configPath, extra)
 }
 
 // Name mocks base method.

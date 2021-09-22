@@ -11,6 +11,11 @@ import (
 	"github.com/spf13/viper"
 )
 
+type Repo struct {
+	Config        *Config
+	NetworkConfig *NetworkConfig
+}
+
 // Config represents the necessary config data for starting pier
 type Config struct {
 	RepoRoot string
@@ -65,14 +70,12 @@ type Relay struct {
 }
 
 type Direct struct {
-	Peers    []string `toml:"peers" json:"peers"`
-	GasLimit uint64   `toml:"gas_limit" json:"gas_limit"`
+	GasLimit uint64 `toml:"gas_limit" json:"gas_limit"`
 }
 
 type Union struct {
-	Addrs      []string `toml:"addrs" json:"addrs"`
-	Connectors []string `toml:"connectors" json:"connectors"`
-	Providers  uint64   `toml:"providers" json:"providers"`
+	Addrs     []string `toml:"addrs" json:"addrs"`
+	Providers uint64   `toml:"providers" json:"providers"`
 }
 
 // GetValidators gets validator address of bitxhub
@@ -138,13 +141,11 @@ func DefaultConfig() *Config {
 				BitXHubID: "1356",
 			},
 			Direct: Direct{
-				Peers:    []string{},
 				GasLimit: 0x5f5e100,
 			},
 			Union: Union{
-				Addrs:      []string{"localhost:60011"},
-				Connectors: []string{},
-				Providers:  1,
+				Addrs:     []string{"localhost:60011"},
+				Providers: 1,
 			},
 		},
 		Log: Log{

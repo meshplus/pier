@@ -50,10 +50,10 @@ func testNormalStartRelay(t *testing.T) {
 	mockAdaptAppchain.EXPECT().MonitorIBTP().Return(srcIBTPCh).AnyTimes()
 	mockAdaptRelay.EXPECT().Start().Return(nil).AnyTimes()
 	mockAdaptRelay.EXPECT().Stop().Return(nil).AnyTimes()
-	mockAdaptRelay.EXPECT().Name().Return("fabric").AnyTimes()
+	mockAdaptRelay.EXPECT().Name().Return("fabric", nil).AnyTimes()
 	mockAdaptAppchain.EXPECT().Start().Return(nil).AnyTimes()
 	mockAdaptAppchain.EXPECT().Stop().Return(nil).AnyTimes()
-	mockAdaptAppchain.EXPECT().Name().Return("bitxhub").AnyTimes()
+	mockAdaptAppchain.EXPECT().Name().Return("bitxhub", nil).AnyTimes()
 
 	//adapt0ServiceID_1 := fmt.Sprintf("1356:%s:%s", chain0, from)
 	//adapt0ServiceID_2 := fmt.Sprintf("1356:%s:%s", chain0, from)
@@ -69,15 +69,15 @@ func testNormalStartRelay(t *testing.T) {
 	mockAdaptRelay.EXPECT().SendIBTP(gomock.Any()).Return(nil).AnyTimes()
 	mockAdaptAppchain.EXPECT().SendIBTP(gomock.Any()).Return(nil).AnyTimes()
 
-	mockAdaptAppchain.EXPECT().GetServiceIDList().Return([]string{"1356:fabric:transfer", "1356:fabric:data"}).AnyTimes()
+	mockAdaptAppchain.EXPECT().GetServiceIDList().Return([]string{"1356:fabric:transfer", "1356:fabric:data"}, nil).AnyTimes()
 	mockAdaptAppchain.EXPECT().QueryInterchain(gomock.Eq("1356:fabric:transfer")).
-		Return(&pb.Interchain{ID: "1356:fabric:transfer"}).AnyTimes()
+		Return(&pb.Interchain{ID: "1356:fabric:transfer"}, nil).AnyTimes()
 	mockAdaptAppchain.EXPECT().QueryInterchain(gomock.Eq("1356:fabric:data")).
-		Return(&pb.Interchain{ID: "1356:fabric:transfer"}).AnyTimes()
+		Return(&pb.Interchain{ID: "1356:fabric:transfer"}, nil).AnyTimes()
 	mockAdaptRelay.EXPECT().QueryInterchain(gomock.Eq("1356:fabric:transfer")).
-		Return(&pb.Interchain{ID: "1356:fabric:transfer"}).AnyTimes()
+		Return(&pb.Interchain{ID: "1356:fabric:transfer"}, nil).AnyTimes()
 	mockAdaptRelay.EXPECT().QueryInterchain(gomock.Eq("1356:fabric:data")).
-		Return(&pb.Interchain{ID: "1356:fabric:transfer"}).AnyTimes()
+		Return(&pb.Interchain{ID: "1356:fabric:transfer"}, nil).AnyTimes()
 
 	ibtps_src, _ := genIBTPs(t, 100, pb.IBTP_INTERCHAIN)
 

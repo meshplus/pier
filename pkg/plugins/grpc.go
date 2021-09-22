@@ -2,6 +2,7 @@ package plugins
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/Rican7/retry"
@@ -305,6 +306,9 @@ func (g *GRPCClient) GetOutMessage(servicePair string, idx uint64) (*pb.IBTP, er
 }
 
 func (g *GRPCClient) GetReceiptMessage(servicePair string, idx uint64) (*pb.IBTP, error) {
+	if idx != 1 {
+		return nil, fmt.Errorf("not found")
+	}
 	return g.client.GetReceiptMessage(g.doneContext, &pb.GetMessageRequest{
 		ServicePair: servicePair,
 		Idx:         idx,

@@ -36,7 +36,6 @@ func TestHandleIBTP(t *testing.T) {
 
 	originalMeta := map[string]uint64{to: 2}
 
-	mockClient.EXPECT().CommitCallback(gomock.Any()).Return(nil).AnyTimes()
 	mockClient.EXPECT().GetOutMessage(fmt.Sprintf("%s-%s", normalIbtp.From, normalIbtp.To), normalIbtp.Index).Return(normalIbtp, nil).MaxTimes(2)
 	mockClient.EXPECT().GetOutMeta().Return(originalMeta, nil)
 	//mockClient.EXPECT().GetOutMessage(to, uint64(6)).Return(nil, errWrongIBTP).AnyTimes()
@@ -107,9 +106,8 @@ func prepare(t *testing.T) (*mock_client.MockClient, *mock_txcrypto.MockCryptor,
 
 func createIBTP(idx uint64, typ pb.IBTP_Type, funct string, args string, callback string, encrypted bool) (*pb.IBTP, error) {
 	ct := pb.Content{
-		Func:     funct,
-		Args:     [][]byte{[]byte(args)},
-		Callback: callback,
+		Func: funct,
+		Args: [][]byte{[]byte(args)},
 	}
 	c, err := ct.Marshal()
 	if err != nil {
