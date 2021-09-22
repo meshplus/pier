@@ -64,11 +64,12 @@ func (mr *MockAdaptMockRecorder) MonitorIBTP() *gomock.Call {
 }
 
 // Name mocks base method.
-func (m *MockAdapt) Name() string {
+func (m *MockAdapt) Name() (string, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Name")
 	ret0, _ := ret[0].(string)
-	return ret0
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
 }
 
 // Name indicates an expected call of Name.
