@@ -9,7 +9,7 @@ type Adapt interface {
 	// Stop stops adapt
 	Stop() error
 	// Name get adapt name
-	Name() string
+	Name() (string, error)
 
 	// MonitorIBTP listen on ibtp from dest chain
 	MonitorIBTP() chan *pb.IBTP

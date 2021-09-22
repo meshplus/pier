@@ -24,6 +24,7 @@ const (
 	CurServiceNotAvailable     = "current service not available"
 	TargetServiceNotAvailable  = "target service not available"
 
+	proofFailed          = "verify failed"
 	invalidIBTP          = "invalid ibtp"
 	ibtpIndexExist       = "index already exists"
 	ibtpIndexWrong       = "wrong index"
