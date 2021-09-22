@@ -15,7 +15,7 @@ func ParseServicePair(servicePair string) (string, string, error) {
 }
 
 func ParseFullServiceID(serviceID string) (string, string, string, error) {
-	splits := strings.Split(serviceID, ":")
+	splits := strings.Split(serviceID, "-")
 	if len(splits) != 3 {
 		return "", "", "", fmt.Errorf("invalid service ID: %s", serviceID)
 	}

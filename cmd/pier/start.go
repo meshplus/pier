@@ -77,7 +77,7 @@ func start(ctx *cli.Context) error {
 		}
 	}
 
-	fmt.Printf("Client Type: %s\n", pier.Type())
+	//fmt.Printf("Client Type: %s\n", pier.Type())
 	runPProf(config.Port.PProf)
 
 	var wg sync.WaitGroup

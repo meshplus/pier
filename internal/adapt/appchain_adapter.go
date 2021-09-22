@@ -10,6 +10,7 @@ import (
 	"github.com/hashicorp/go-plugin"
 	"github.com/meshplus/bitxhub-model/pb"
 	"github.com/meshplus/pier/internal/repo"
+	"github.com/meshplus/pier/internal/utils"
 	"github.com/meshplus/pier/pkg/plugins"
 	"github.com/sirupsen/logrus"
 )
@@ -60,8 +61,8 @@ func (a *AppchainAdapter) Stop() error {
 	return nil
 }
 
-func (a *AppchainAdapter) Name() string {
-	return a.appchainID
+func (a *AppchainAdapter) Name() (string, error) {
+	return a.appchainID, nil
 }
 
 func (a *AppchainAdapter) MonitorIBTP() chan *pb.IBTP {
@@ -69,7 +70,7 @@ func (a *AppchainAdapter) MonitorIBTP() chan *pb.IBTP {
 }
 
 func (a *AppchainAdapter) QueryIBTP(id string, isReq bool) (*pb.IBTP, error) {
-	srcServiceID, dstServiceID, idx, err := pb.ParseFullServiceID(id)
+	srcServiceID, dstServiceID, idx, err := utils.ParseFullServiceID(id)
 	if err != nil {
 		return nil, err
 	}
@@ -106,11 +107,18 @@ func (a *AppchainAdapter) SendIBTP(ibtp *pb.IBTP) error {
 
 	}
 	if err != nil {
-		return err
+		// solidity broker cannot get detailed error info
+		return &SendIbtpError{
+			Err:    err.Error(),
+			Status: Other_Error,
+		}
 	}
 
 	if !res.Status {
-		return fmt.Errorf("fail to send ibtp %s with type %v: %w", res.Message, ibtp.ID(), ibtp.Type)
+		return &SendIbtpError{
+			Err:    fmt.Sprintf("fail to send ibtp %s with type %v: %w", res.Message, ibtp.ID(), ibtp.Type),
+			Status: Other_Error,
+		}
 	}
 
 	return nil
@@ -203,7 +211,7 @@ func (a *AppchainAdapter) figureOutReceivedIBTPCategory(ibtp *pb.IBTP) (pb.IBTP_
 func filterMap(meta map[string]uint64, serviceID string, isSrc bool) (map[string]uint64, error) {
 	counterM := make(map[string]uint64)
 	for servicePair, idx := range meta {
-		srcServiceID, dstServiceID, err := pb.ParseServicePair(servicePair)
+		srcServiceID, dstServiceID, err := utils.ParseServicePair(servicePair)
 		if err != nil {
 			return nil, err
 		}

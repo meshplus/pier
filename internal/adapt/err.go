@@ -10,6 +10,7 @@ const (
 	ValidationRules_Unregister
 	Proof_Invalid
 	Index_Wrong
+	Other_Error
 )
 
 type SendIbtpError struct {

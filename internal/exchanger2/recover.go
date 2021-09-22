@@ -18,6 +18,7 @@ func (ex *Exchanger) handleMissingIBTPByServicePair(begin, end uint64, fromAdapt
 		ex.logger.WithFields(logrus.Fields{
 			"service pair": fmt.Sprintf("%s-%s", srcService, targetService),
 			"index":        begin,
+			"isReq":        isReq,
 		}).Info("handle missing event from:" + adaptName)
 		ibtp := ex.queryIBTP(fromAdapt, fmt.Sprintf("%s-%s-%d", srcService, targetService, begin), isReq)
 		sendIBTP(ex, toAdapt, ibtp)
@@ -48,7 +49,7 @@ func (ex *Exchanger) recover() {
 		for k, count := range interchain.InterchainCounter {
 			destCount, ok := ex.destServiceMeta[interchain.ID].InterchainCounter[k]
 			if !ok {
-				panic(fmt.Sprintf("service can not found in destAdapt : %s", k))
+				destCount = 0
 			}
 			// handle unsentIBTP : query IBTP -> sendIBTP
 			var begin = destCount + 1
@@ -59,7 +60,7 @@ func (ex *Exchanger) recover() {
 		for k, count := range interchain.SourceReceiptCounter {
 			destCount, ok := ex.destServiceMeta[interchain.ID].SourceReceiptCounter[k]
 			if !ok {
-				panic(fmt.Sprintf("service can not found in destAdapt : %s", k))
+				destCount = 0
 			}
 			// handle unsentIBTP : query IBTP -> sendIBTP
 			var begin = destCount + 1
@@ -73,7 +74,7 @@ func (ex *Exchanger) recover() {
 		for k, count := range interchain.SourceInterchainCounter {
 			destCount, ok := ex.srcServiceMeta[interchain.ID].SourceInterchainCounter[k]
 			if !ok {
-				panic(fmt.Sprintf("service can not found in adapt0 : %s", k))
+				destCount = 0
 			}
 
 			// handle unsentIBTP : query IBTP -> sendIBTP
@@ -85,7 +86,7 @@ func (ex *Exchanger) recover() {
 		for k, count := range interchain.ReceiptCounter {
 			destCount, ok := ex.srcServiceMeta[interchain.ID].ReceiptCounter[k]
 			if !ok {
-				panic(fmt.Sprintf("service can not found in adapt0 : %s", k))
+				destCount = 0
 			}
 
 			// handle unsentIBTP : query IBTP -> sendIBTP
