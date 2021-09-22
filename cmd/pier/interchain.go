@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/meshplus/bitxhub-kit/types"
 	"github.com/meshplus/bitxhub-model/constant"
@@ -49,7 +50,7 @@ func getIBTP(ctx *cli.Context) error {
 		return fmt.Errorf("init config error: %s", err)
 	}
 
-	client, err := loadClient(repo.KeyPath(repoRoot), config.Mode.Relay.Addrs, ctx)
+	client, err := loadClient(repo.KeyPath(repoRoot), strings.Split(config.Mode.Relay.Addrs, ","), ctx)
 	if err != nil {
 		return fmt.Errorf("load client: %w", err)
 	}
