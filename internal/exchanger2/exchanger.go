@@ -118,6 +118,16 @@ func (ex *Exchanger) Start() error {
 	return nil
 }
 
+func initInterchain(serviceMeta map[string]*pb.Interchain, fullServiceId string) {
+	serviceMeta[fullServiceId] = &pb.Interchain{
+		ID:                      fullServiceId,
+		InterchainCounter:       make(map[string]uint64),
+		ReceiptCounter:          make(map[string]uint64),
+		SourceInterchainCounter: make(map[string]uint64),
+		SourceReceiptCounter:    make(map[string]uint64),
+	}
+}
+
 func (ex *Exchanger) listenIBTPFromDestAdapt() {
 	ch := ex.destAdapt.MonitorIBTP()
 	for {
@@ -135,32 +145,20 @@ func (ex *Exchanger) listenIBTPFromDestAdapt() {
 			if ex.isIBTPBelongSrc(ibtp) {
 				_, ok = ex.destServiceMeta[ibtp.From]
 				if !ok {
-					ex.destServiceMeta[ibtp.From] = &pb.Interchain{
-						ID:                      ibtp.From,
-						InterchainCounter:       make(map[string]uint64),
-						ReceiptCounter:          make(map[string]uint64),
-						SourceInterchainCounter: make(map[string]uint64),
-						SourceReceiptCounter:    make(map[string]uint64),
-					}
+					initInterchain(ex.destServiceMeta, ibtp.From)
 				}
 				index = ex.destServiceMeta[ibtp.From].ReceiptCounter[ibtp.To]
 			} else {
 				_, ok = ex.destServiceMeta[ibtp.To]
 				if !ok {
-					ex.destServiceMeta[ibtp.To] = &pb.Interchain{
-						ID:                      ibtp.To,
-						InterchainCounter:       make(map[string]uint64),
-						ReceiptCounter:          make(map[string]uint64),
-						SourceInterchainCounter: make(map[string]uint64),
-						SourceReceiptCounter:    make(map[string]uint64),
-					}
+					initInterchain(ex.destServiceMeta, ibtp.To)
 				}
 				index = ex.destServiceMeta[ibtp.To].SourceInterchainCounter[ibtp.From]
 			}
 
 			if index >= ibtp.Index {
 				ex.logger.WithFields(logrus.Fields{"index": ibtp.Index, "to_counter": index, "ibtp_id": ibtp.ID()}).Info("Ignore ibtp")
-				return
+				continue
 			}
 
 			if index+1 < ibtp.Index {
@@ -211,32 +209,20 @@ func (ex *Exchanger) listenIBTPFromSrcAdapt() {
 			if ex.isIBTPBelongSrc(ibtp) {
 				_, ok = ex.srcServiceMeta[ibtp.From]
 				if !ok {
-					ex.srcServiceMeta[ibtp.From] = &pb.Interchain{
-						ID:                      ibtp.From,
-						InterchainCounter:       make(map[string]uint64),
-						ReceiptCounter:          make(map[string]uint64),
-						SourceInterchainCounter: make(map[string]uint64),
-						SourceReceiptCounter:    make(map[string]uint64),
-					}
+					initInterchain(ex.srcServiceMeta, ibtp.From)
 				}
 				index = ex.srcServiceMeta[ibtp.From].InterchainCounter[ibtp.To]
 			} else {
 				_, ok = ex.srcServiceMeta[ibtp.To]
 				if !ok {
-					ex.srcServiceMeta[ibtp.To] = &pb.Interchain{
-						ID:                      ibtp.To,
-						InterchainCounter:       make(map[string]uint64),
-						ReceiptCounter:          make(map[string]uint64),
-						SourceInterchainCounter: make(map[string]uint64),
-						SourceReceiptCounter:    make(map[string]uint64),
-					}
+					initInterchain(ex.srcServiceMeta, ibtp.To)
 				}
 				index = ex.srcServiceMeta[ibtp.To].SourceReceiptCounter[ibtp.From]
 			}
 
 			if index >= ibtp.Index {
 				ex.logger.WithFields(logrus.Fields{"index": ibtp.Index, "to_counter": index, "ibtp_id": ibtp.ID()}).Info("Ignore ibtp")
-				return
+				continue
 			}
 
 			if index+1 < ibtp.Index {
