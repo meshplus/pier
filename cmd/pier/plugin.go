@@ -24,7 +24,7 @@ import (
 // TODO: set url
 var binaryUrl = map[string]string{
 	"fabric":   "https://github.com/meshplus/pier-client-fabric/releases/download/v1.11.1/fabric-client-v1.11.1-%s",
-	"ethereum": "https://github.com/meshplus/pier-client-ethereum/releases/download/v1.11.2/eth-client-v1.11.2-%s",
+	"ethereum": "https://github.com/meshplus/pier-client-ethereum/releases/download/v1.14.0/eth-client-v1.14.0-%s",
 	//"flato":    "https://raw.githubusercontent.com/meshplus/pier-client-ethereum/release-1.11/config/data_swapper.abi",
 	//"bcos":     "https://raw.githubusercontent.com/meshplus/pier-client-ethereum/release-1.11/config/data_swapper.abi",
 }
@@ -54,6 +54,7 @@ var pluginCMD = cli.Command{
 					Usage:    "Specify the path to fabric config.yaml",
 					Required: true,
 				},
+				//todo: remove it
 				cli.StringFlag{
 					Name:     "event-filter",
 					Usage:    "Specify the event filter on fabric chaincode",
@@ -79,6 +80,11 @@ var pluginCMD = cli.Command{
 					Usage:    "Specify the organization",
 					Required: false,
 				},
+				//cli.StringFlag{
+				//	Name:     "timeout-height",
+				//	Usage:    "Specify the ibtp timeout block height",
+				//	Required: false,
+				//},
 			},
 			Action: configPlugin,
 		},
@@ -119,6 +125,11 @@ var pluginCMD = cli.Command{
 				cli.StringFlag{
 					Name:     "data-swapper",
 					Usage:    "Specify the data swapper contract address",
+					Required: false,
+				},
+				cli.StringFlag{
+					Name:     "timeout-height",
+					Usage:    "Specify the ibtp timeout block height",
 					Required: false,
 				},
 			},
@@ -295,6 +306,7 @@ func updateAppchainConfig(ctx *cli.Context, configDir, chainType string) error {
 		setNonemptyString(v, "ccid", ctx.String("ccid"))
 		setNonemptyString(v, "channel_id", ctx.String("channel-id"))
 		setNonemptyString(v, "org", ctx.String("org"))
+		//setNonemptyString(v, "timeout_height", ctx.String("timeout-height"))
 		if err := v.WriteConfig(); err != nil {
 			return err
 		}
@@ -306,7 +318,7 @@ func updateAppchainConfig(ctx *cli.Context, configDir, chainType string) error {
 		}
 
 		if config := ctx.String("config"); config != "" {
-			if err := copyFile(config, filepath.Join(configDir, "config.yaml")); err != nil {
+			if err := copyFile(filepath.Join(config, "config.yaml"), filepath.Join(configDir, "config.yaml")); err != nil {
 				return err
 			}
 		}
@@ -314,6 +326,7 @@ func updateAppchainConfig(ctx *cli.Context, configDir, chainType string) error {
 		setNonemptyString(v, "ether.addr", ctx.String("addr"))
 		setNonemptyString(v, "ether.contract_address", ctx.String("broker"))
 		setNonemptyString(v, "ether.min_confirm", ctx.String("min-confirm"))
+		setNonemptyString(v, "ether.timeout_height", ctx.String("timeout-height"))
 
 		if broker := ctx.String("broker"); broker != "" {
 			addr := common.HexToAddress(broker).String()
