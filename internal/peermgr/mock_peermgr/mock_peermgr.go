@@ -110,6 +110,20 @@ func (mr *MockPeerManagerMockRecorder) FindProviders(id interface{}) *gomock.Cal
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindProviders", reflect.TypeOf((*MockPeerManager)(nil).FindProviders), id)
 }
 
+// Peers mocks base method.
+func (m *MockPeerManager) Peers() map[uint64]*peer.AddrInfo {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Peers")
+	ret0, _ := ret[0].(map[uint64]*peer.AddrInfo)
+	return ret0
+}
+
+// Peers indicates an expected call of Peers.
+func (mr *MockPeerManagerMockRecorder) Peers() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Peers", reflect.TypeOf((*MockPeerManager)(nil).Peers))
+}
+
 // Provider mocks base method.
 func (m *MockPeerManager) Provider(arg0 string, arg1 bool) error {
 	m.ctrl.T.Helper()

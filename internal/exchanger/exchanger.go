@@ -58,11 +58,11 @@ func New(typ, appchainDID string, serviceMeta map[string]*pb.Interchain, opts ..
 
 	ctx, cancel := context.WithCancel(context.Background())
 	exchanger := &Exchanger{
-		checker:     config.checker,
-		apiServer:   config.apiServer,
-		mnt:         config.mnt,
-		peerMgr:     config.peerMgr,
-		syncer:      config.syncer,
+		checker:   config.checker,
+		apiServer: config.apiServer,
+		mnt:       config.mnt,
+		peerMgr:   config.peerMgr,
+		//syncer:      config.syncer,
 		store:       config.store,
 		router:      config.router,
 		logger:      config.logger,

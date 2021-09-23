@@ -3,6 +3,7 @@ package executor
 import (
 	"context"
 	"fmt"
+
 	"github.com/meshplus/bitxhub-kit/storage"
 	"github.com/meshplus/bitxhub-model/pb"
 	"github.com/meshplus/pier/internal/txcrypto"
@@ -94,5 +95,5 @@ func (e *ChannelExecutor) QueryIBTPReceipt(originalIBTP *pb.IBTP) (*pb.IBTP, err
 	if originalIBTP == nil {
 		return nil, fmt.Errorf("empty original ibtp")
 	}
-	return e.client.GetReceipt(originalIBTP)
+	return e.client.GetReceiptMessage(pb.GenServicePair(originalIBTP.From, originalIBTP.To), originalIBTP.Index)
 }

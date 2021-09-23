@@ -56,8 +56,7 @@ func TestClient_SubmitIBTPWithCallback(t *testing.T) {
 	mockClient.EXPECT().GetMultiSigns(gomock.Any(), gomock.Any()).Return(sr, nil).AnyTimes()
 
 	content := &pb.Content{
-		Func:     "get",
-		Callback: "set",
+		Func: "get",
 	}
 
 	c, err := content.Marshal()
@@ -107,7 +106,7 @@ func TestClient_Other(t *testing.T) {
 	_, err = agClient.GetCallbackMeta()
 	require.Nil(t, err)
 
-	err = agClient.Initialize("", "", []byte{0})
+	err = agClient.Initialize("", []byte{0})
 	require.Nil(t, err)
 
 	err = agClient.Start()
@@ -138,5 +137,7 @@ func prepare(t *testing.T) *mock_client.MockClient {
 	mockClient := mock_client.NewMockClient(mockCtl)
 	addr := types.Address{}
 	addr.SetBytes([]byte(from))
+	mockClient.EXPECT().GetMultiSigns(gomock.Any(), gomock.Any()).Return(&pb.SignResponse{Sign: make(map[string][]byte)}, nil).AnyTimes()
+
 	return mockClient
 }

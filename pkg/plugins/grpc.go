@@ -2,6 +2,7 @@ package plugins
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/Rican7/retry"
@@ -10,6 +11,8 @@ import (
 )
 
 var _ pb.AppchainPluginServer = (*GRPCServer)(nil)
+
+var _ Client = (*GRPCClient)(nil)
 
 // ---- gRPC Server domain ----
 type GRPCServer struct {
@@ -45,7 +48,7 @@ func (s *GRPCServer) QueryRelayIndex(ctx context.Context, empty *pb.Empty) (*pb.
 }
 
 func (s *GRPCServer) Initialize(_ context.Context, req *pb.InitializeRequest) (*pb.Empty, error) {
-	err := s.Impl.Initialize(req.ConfigPath, req.PierId, req.Extra)
+	err := s.Impl.Initialize(req.ConfigPath, req.Extra)
 	return &pb.Empty{}, err
 }
 
@@ -89,24 +92,16 @@ func (s *GRPCServer) SubmitIBTP(_ context.Context, ibtp *pb.IBTP) (*pb.SubmitIBT
 	return s.Impl.SubmitIBTP(ibtp)
 }
 
-func (s *GRPCServer) RollbackIBTP(_ context.Context, req *pb.RollbackIBTPRequest) (*pb.RollbackIBTPResponse, error) {
-	return s.Impl.RollbackIBTP(req.Ibtp, req.SrcChain)
+func (s *GRPCServer) SubmitReceipt(ctx context.Context, ibtp *pb.IBTP) (*pb.SubmitIBTPResponse, error) {
+	return s.Impl.SubmitReceipt(ibtp)
 }
 
-func (s *GRPCServer) IncreaseInMeta(_ context.Context, in *pb.IBTP) (*pb.IBTP, error) {
-	return s.Impl.IncreaseInMeta(in)
+func (s *GRPCServer) GetOutMessage(_ context.Context, req *pb.GetMessageRequest) (*pb.IBTP, error) {
+	return s.Impl.GetOutMessage(req.ServicePair, req.Idx)
 }
 
-func (s *GRPCServer) GetOutMessage(_ context.Context, req *pb.GetOutMessageRequest) (*pb.IBTP, error) {
-	return s.Impl.GetOutMessage(req.To, req.Idx)
-}
-
-func (s *GRPCServer) GetInMessage(_ context.Context, req *pb.GetInMessageRequest) (*pb.GetInMessageResponse, error) {
-	reslut, err := s.Impl.GetInMessage(req.From, req.Idx)
-
-	return &pb.GetInMessageResponse{
-		Result: reslut,
-	}, err
+func (s *GRPCServer) GetReceiptMessage(_ context.Context, req *pb.GetMessageRequest) (*pb.IBTP, error) {
+	return s.Impl.GetReceiptMessage(req.ServicePair, req.Idx)
 }
 
 func (s *GRPCServer) GetInMeta(context.Context, *pb.Empty) (*pb.GetMetaResponse, error) {
@@ -142,17 +137,6 @@ func (s *GRPCServer) GetCallbackMeta(context.Context, *pb.Empty) (*pb.GetMetaRes
 	}, nil
 }
 
-func (s *GRPCServer) GetSrcRollbackMeta(ctx context.Context, empty *pb.Empty) (*pb.GetMetaResponse, error) {
-	m, err := s.Impl.GetSrcRollbackMeta()
-	if err != nil {
-		return nil, err
-	}
-
-	return &pb.GetMetaResponse{
-		Meta: m,
-	}, nil
-}
-
 func (s *GRPCServer) GetDstRollbackMeta(ctx context.Context, empty *pb.Empty) (*pb.GetMetaResponse, error) {
 	m, err := s.Impl.GetDstRollbackMeta()
 	if err != nil {
@@ -168,18 +152,22 @@ func (s *GRPCServer) CommitCallback(_ context.Context, _ *pb.IBTP) (*pb.Empty, e
 	return &pb.Empty{}, nil
 }
 
-func (s *GRPCServer) GetReceipt(_ context.Context, ibtp *pb.IBTP) (*pb.IBTP, error) {
-	return s.Impl.GetReceipt(ibtp)
-}
-
 func (s *GRPCServer) GetServices(ctx context.Context, empty *pb.Empty) (*pb.ServicesResponse, error) {
+	services, err := s.Impl.GetServices()
+	if err != nil {
+		return nil, err
+	}
+
 	return &pb.ServicesResponse{
-		Service: s.Impl.GetServices(),
+		Service: services,
 	}, nil
 }
 
 func (s *GRPCServer) GetChainID(ctx context.Context, empty *pb.Empty) (*pb.ChainIDResponse, error) {
-	bxhID, apchainID := s.Impl.GetChainID()
+	bxhID, apchainID, err := s.Impl.GetChainID()
+	if err != nil {
+		return nil, err
+	}
 
 	return &pb.ChainIDResponse{
 		BxhID:      bxhID,
@@ -207,9 +195,8 @@ type GRPCClient struct {
 	doneContext context.Context
 }
 
-func (g *GRPCClient) Initialize(configPath string, pierID string, extra []byte) error {
+func (g *GRPCClient) Initialize(configPath string, extra []byte) error {
 	_, err := g.client.Initialize(g.doneContext, &pb.InitializeRequest{
-		PierId:     pierID,
 		ConfigPath: configPath,
 		Extra:      extra,
 	})
@@ -294,53 +281,38 @@ func (g *GRPCClient) SubmitIBTP(ibtp *pb.IBTP) (*pb.SubmitIBTPResponse, error) {
 	return response, nil
 }
 
-func (g *GRPCClient) RollbackIBTP(ibtp *pb.IBTP, srcChain bool) (*pb.RollbackIBTPResponse, error) {
-	response, err := g.client.RollbackIBTP(g.doneContext, &pb.RollbackIBTPRequest{
-		Ibtp:     ibtp,
-		SrcChain: srcChain,
-	})
-	if err != nil {
-		return &pb.RollbackIBTPResponse{}, err
-	}
-
-	return response, nil
-}
-
-func (g *GRPCClient) IncreaseInMeta(original *pb.IBTP) (*pb.IBTP, error) {
-	var (
-		ibtp *pb.IBTP
-		err  error
-	)
+func (g *GRPCClient) SubmitReceipt(ibtp *pb.IBTP) (*pb.SubmitIBTPResponse, error) {
+	var err error
+	response := &pb.SubmitIBTPResponse{}
 	retry.Retry(func(attempt uint) error {
-		ibtp, err = g.client.IncreaseInMeta(g.doneContext, original)
+		response, err = g.client.SubmitReceipt(g.doneContext, ibtp)
 		if err != nil {
-			logger.Error("Increase in meta index request plugin server",
-				"ibtp id", original.ID(),
+			logger.Error("submit ibtp receipt to plugin server",
+				"ibtp id", ibtp.ID(),
 				"err", err.Error())
 			return err
 		}
 		return nil
 	}, strategy.Wait(1*time.Second))
-	return ibtp, nil
+
+	return response, nil
 }
 
-func (g *GRPCClient) GetOutMessage(to string, idx uint64) (*pb.IBTP, error) {
-	return g.client.GetOutMessage(g.doneContext, &pb.GetOutMessageRequest{
-		To:  to,
-		Idx: idx,
+func (g *GRPCClient) GetOutMessage(servicePair string, idx uint64) (*pb.IBTP, error) {
+	return g.client.GetOutMessage(g.doneContext, &pb.GetMessageRequest{
+		ServicePair: servicePair,
+		Idx:         idx,
 	})
 }
 
-func (g *GRPCClient) GetInMessage(from string, idx uint64) ([][]byte, error) {
-	response, err := g.client.GetInMessage(g.doneContext, &pb.GetInMessageRequest{
-		From: from,
-		Idx:  idx,
-	})
-	if err != nil {
-		return nil, err
+func (g *GRPCClient) GetReceiptMessage(servicePair string, idx uint64) (*pb.IBTP, error) {
+	if idx != 1 {
+		return nil, fmt.Errorf("not found")
 	}
-
-	return response.Result, nil
+	return g.client.GetReceiptMessage(g.doneContext, &pb.GetMessageRequest{
+		ServicePair: servicePair,
+		Idx:         idx,
+	})
 }
 
 func (g *GRPCClient) GetInMeta() (map[string]uint64, error) {
@@ -373,15 +345,6 @@ func (g *GRPCClient) GetCallbackMeta() (map[string]uint64, error) {
 	return response.Meta, nil
 }
 
-func (g *GRPCClient) GetSrcRollbackMeta() (map[string]uint64, error) {
-	response, err := g.client.GetSrcRollbackMeta(g.doneContext, &pb.Empty{})
-	if err != nil {
-		return nil, err
-	}
-
-	return response.Meta, nil
-}
-
 func (g *GRPCClient) GetDstRollbackMeta() (map[string]uint64, error) {
 	response, err := g.client.GetDstRollbackMeta(g.doneContext, &pb.Empty{})
 	if err != nil {
@@ -391,30 +354,22 @@ func (g *GRPCClient) GetDstRollbackMeta() (map[string]uint64, error) {
 	return response.Meta, nil
 }
 
-func (g *GRPCClient) CommitCallback(_ *pb.IBTP) error {
-	return nil
-}
-
-func (g *GRPCClient) GetReceipt(ibtp *pb.IBTP) (*pb.IBTP, error) {
-	return g.client.GetReceipt(g.doneContext, ibtp)
-}
-
-func (g *GRPCClient) GetServices() []string {
+func (g *GRPCClient) GetServices() ([]string, error) {
 	response, err := g.client.GetServices(g.doneContext, &pb.Empty{})
 	if err != nil {
-		return nil
+		return nil, err
 	}
 
-	return response.GetService()
+	return response.GetService(), nil
 }
 
-func (g *GRPCClient) GetChainID() (string, string) {
+func (g *GRPCClient) GetChainID() (string, string, error) {
 	response, err := g.client.GetChainID(g.doneContext, &pb.Empty{})
 	if err != nil {
-		return "", ""
+		return "", "", err
 	}
 
-	return response.BxhID, response.AppchainID
+	return response.BxhID, response.AppchainID, nil
 }
 
 func (g *GRPCClient) Name() string {

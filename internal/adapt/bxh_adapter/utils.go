@@ -1,4 +1,4 @@
-package syncer
+package bxh_adapter
 
 import (
 	"encoding/json"
@@ -14,6 +14,22 @@ import (
 	"github.com/meshplus/bitxhub-model/pb"
 	rpcx "github.com/meshplus/go-bitxhub-client"
 	"github.com/meshplus/pier/internal/loggers"
+)
+
+const (
+	CurAppchainNotAvailable    = "current appchain not available"
+	TargetAppchainNotAvailable = "target appchain not available"
+	SrcBitXHubNotAvailable     = "source bitxhub not available"
+	TargetBitXHubNotAvailable  = "target bitxhub not available"
+	CurServiceNotAvailable     = "current service not available"
+	TargetServiceNotAvailable  = "target service not available"
+
+	proofFailed          = "verify failed"
+	invalidIBTP          = "invalid ibtp"
+	ibtpIndexExist       = "index already exists"
+	ibtpIndexWrong       = "wrong index"
+	noBindRule           = "appchain didn't register rule"
+	InvalidTargetService = "invalid target service"
 )
 
 func GetServiceInterchainMeta(client rpcx.Client, bxhID, appchainID string) (map[string]*pb.Interchain, error) {

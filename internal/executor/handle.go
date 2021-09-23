@@ -2,10 +2,7 @@ package executor
 
 import (
 	"fmt"
-	"time"
 
-	"github.com/Rican7/retry"
-	"github.com/Rican7/retry/strategy"
 	"github.com/meshplus/bitxhub-model/pb"
 	"github.com/meshplus/pier/pkg/model"
 	"github.com/sirupsen/logrus"
@@ -53,10 +50,6 @@ func (e *ChannelExecutor) applyInterchainIBTP(wIbtp *model.WrappedIBTP) (*pb.IBT
 		"index": ibtp.Index,
 	})
 
-	if !wIbtp.IsValid {
-		// if this ibtp is invalid, just increase the inCounter index, cause source chain will rollback if this ibtp is failed
-		return e.client.IncreaseInMeta(wIbtp.Ibtp)
-	}
 	// todo: deal with plugin returned error
 	// execute interchain tx, and if execution failed, try to rollback
 	response, err := e.client.SubmitIBTP(ibtp)
@@ -120,29 +113,4 @@ func (e *ChannelExecutor) applyReceiptIBTP(wIbtp *model.WrappedIBTP) error {
 }
 
 func (e *ChannelExecutor) Rollback(ibtp *pb.IBTP, isSrcChain bool) {
-	if err := retry.Retry(func(attempt uint) error {
-		resp, err := e.client.RollbackIBTP(ibtp, isSrcChain)
-		if err != nil {
-			e.logger.Errorf("Execute rollback ibtp %v failed: %s, retry sending tx", ibtp, err.Error())
-			return fmt.Errorf("execute rollback tx: %w", err)
-		}
-
-		if !resp.Status {
-			e.logger.Errorf("Execute rollback ibtp %v got failed response: %s, retry sending tx", ibtp, resp.Message)
-			return fmt.Errorf("execute rollback tx: %w", err)
-		}
-
-		e.logger.WithFields(logrus.Fields{
-			"from":   ibtp.From,
-			"to":     ibtp.To,
-			"index":  ibtp.Index,
-			"type":   ibtp.Type,
-			"status": resp.Status,
-			"msg":    resp.Message,
-		}).Info("Executed rollback")
-
-		return nil
-	}, strategy.Wait(1*time.Second)); err != nil {
-		e.logger.Errorf("Execution of callback function failed: %s", err.Error())
-	}
 }

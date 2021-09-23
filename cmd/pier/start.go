@@ -66,7 +66,7 @@ func start(ctx *cli.Context) error {
 			return fmt.Errorf("check plugin: %w", err)
 		}
 
-		pier, err = app.NewPier(repoRoot, config)
+		pier, err = app.NewPier2(repoRoot, config)
 		if err != nil {
 			return err
 		}
@@ -77,7 +77,7 @@ func start(ctx *cli.Context) error {
 		}
 	}
 
-	fmt.Printf("Client Type: %s\n", pier.Type())
+	//fmt.Printf("Client Type: %s\n", pier.Type())
 	runPProf(config.Port.PProf)
 
 	var wg sync.WaitGroup
