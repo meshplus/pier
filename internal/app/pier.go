@@ -373,9 +373,7 @@ func NewPier2(repoRoot string, config *repo.Config) (*Pier, error) {
 			return nil, fmt.Errorf("create bitxhub client: %w", err)
 		}
 
-		bxhAdapter, err := bxh_adapter.New(config.Appchain.ID, config.Appchain.ID, repo.RelayMode,
-			bxh_adapter.WithClient(client),
-			bxh_adapter.WithLogger(loggers.Logger(loggers.Syncer)))
+		bxhAdapter, err := bxh_adapter.New(config.Appchain.ID, repo.RelayMode, client, loggers.Logger(loggers.Syncer))
 		if err != nil {
 			return nil, fmt.Errorf("new bitxhub adapter: %w", err)
 		}

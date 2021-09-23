@@ -54,22 +54,17 @@ func (b *BxhAdapter) Name() (string, error) {
 
 // New creates instance of WrapperSyncer given agent interacting with bitxhub,
 // validators addresses of bitxhub and local storage
-func New(pierID, appchainID string, mode string, opts ...Option) (*BxhAdapter, error) {
-	cfg, err := GenerateConfig(opts...)
-	if err != nil {
-		return nil, err
-	}
+func New(appchainID string, mode string, client rpcx.Client, logger logrus.FieldLogger) (*BxhAdapter, error) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	ba := &BxhAdapter{
 		wrappersC:  make(chan *pb.InterchainTxWrappers, maxChSize),
 		ibtpC:      make(chan *pb.IBTP, maxChSize),
-		client:     cfg.client,
-		logger:     cfg.logger,
+		client:     client,
+		logger:     logger,
 		ctx:        ctx,
 		cancel:     cancel,
 		mode:       mode,
-		pierID:     pierID,
 		appchainID: appchainID,
 	}
 
@@ -366,20 +361,19 @@ func (b *BxhAdapter) run() {
 		panic(err)
 	}
 
-	go func() {
-		for {
-			select {
-			case <-b.ctx.Done():
+	for {
+		select {
+		case <-b.ctx.Done():
+			return
+		case h, ok := <-rawCh:
+			if !ok {
+				b.logger.Warn("Unexpected closed channel while syncing interchain tx wrapper")
 				return
-			case h, ok := <-rawCh:
-				if !ok {
-					b.logger.Warn("Unexpected closed channel while syncing interchain tx wrapper")
-					return
-				}
-				b.wrappersC <- h.(*pb.InterchainTxWrappers)
 			}
+			b.wrappersC <- h.(*pb.InterchainTxWrappers)
 		}
-	}()
+	}
+
 }
 
 // listenInterchainTxWrappers listen on the wrapper channel for handling
