@@ -206,19 +206,6 @@ func updateInitOptions(ctx *cli.Context, vpr *viper.Viper, repoRoot string) erro
 	vpr.Set("security.common_name", commonName)
 	vpr.Set("HA.mode", ha)
 
-	keyPath := filepath.Join(repoRoot, repo.KeyName)
-	privKey, err := asym.RestorePrivateKey(keyPath, repo.KeyPassword)
-	if err != nil {
-		return err
-	}
-
-	addr, err := privKey.PublicKey().Address()
-	if err != nil {
-		return err
-	}
-
-	vpr.Set("appchain.did", fmt.Sprintf("did:bitxhub:appchain%s:.", addr.String()))
-
 	return nil
 }
 
