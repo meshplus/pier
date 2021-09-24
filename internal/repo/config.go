@@ -62,10 +62,10 @@ type Mode struct {
 
 // Relay are configs about bitxhub
 type Relay struct {
-	Addrs        string        `toml:"addrs" json:"addrs"`
+	Addrs        []string      `toml:"addrs" json:"addrs"`
 	TimeoutLimit time.Duration `mapstructure:"timeout_limit" json:"timeout_limit"`
 	Quorum       uint64        `toml:"quorum" json:"quorum"`
-	Validators   string        `toml:"validators" json:"validators"`
+	Validators   []string      `toml:"validators" json:"validators"`
 	BitXHubID    string        `mapstructure:"bitxhub_id" json:"bitxhub_id"`
 }
 
@@ -74,14 +74,14 @@ type Direct struct {
 }
 
 type Union struct {
-	Addrs     string `toml:"addrs" json:"addrs"`
-	Providers uint64 `toml:"providers" json:"providers"`
+	Addrs     []string `toml:"addrs" json:"addrs"`
+	Providers uint64   `toml:"providers" json:"providers"`
 }
 
 // GetValidators gets validator address of bitxhub
 func (relay *Relay) GetValidators() []*types.Address {
 	validators := make([]*types.Address, 0)
-	for _, v := range strings.Split(relay.Validators, ",") {
+	for _, v := range relay.Validators {
 		validators = append(validators, types.NewAddressByStr(v))
 	}
 	return validators
@@ -130,16 +130,21 @@ func DefaultConfig() *Config {
 		Mode: Mode{
 			Type: "relay",
 			Relay: Relay{
-				Addrs:      "localhost:60011",
-				Quorum:     2,
-				Validators: "0x000f1a7a08ccc48e5d30f80850cf1cf283aa3abd,0xe93b92f1da08f925bdee44e91e7768380ae83307,0xb18c8575e3284e79b92100025a31378feb8100d6,0x856E2B9A5FA82FD1B031D1FF6863864DBAC7995D",
-				BitXHubID:  "1356",
+				Addrs:  []string{"localhost:60011"},
+				Quorum: 2,
+				Validators: []string{
+					"0x000f1a7a08ccc48e5d30f80850cf1cf283aa3abd",
+					"0xe93b92f1da08f925bdee44e91e7768380ae83307",
+					"0xb18c8575e3284e79b92100025a31378feb8100d6",
+					"0x856E2B9A5FA82FD1B031D1FF6863864DBAC7995D",
+				},
+				BitXHubID: "1356",
 			},
 			Direct: Direct{
 				GasLimit: 0x5f5e100,
 			},
 			Union: Union{
-				Addrs:     "localhost:60011",
+				Addrs:     []string{"localhost:60011"},
 				Providers: 1,
 			},
 		},
