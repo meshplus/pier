@@ -134,6 +134,7 @@ func initInterchain(serviceMeta map[string]*pb.Interchain, fullServiceId string)
 }
 
 func (ex *Exchanger) listenIBTPFromDestAdapt() {
+	ex.logger.Infof("ListenIBTPFromDestAdapt %s Start!", ex.destAdaptName)
 	ch := ex.destAdapt.MonitorIBTP()
 	for {
 		select {
@@ -198,6 +199,7 @@ func (ex *Exchanger) listenIBTPFromDestAdapt() {
 }
 
 func (ex *Exchanger) listenIBTPFromSrcAdapt() {
+	ex.logger.Infof("ListenIBTPFromSrcAdapt %s Start!", ex.srcAdaptName)
 	ch := ex.srcAdapt.MonitorIBTP()
 	for {
 		select {
