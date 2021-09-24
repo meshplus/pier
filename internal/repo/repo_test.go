@@ -24,12 +24,6 @@ func TestInit(t *testing.T) {
 	_, err = LoadNodePrivateKey(root)
 	require.Nil(t, err)
 
-	config, err := UnmarshalConfig(root)
-	require.Nil(t, err)
-
-	validators := config.Mode.Relay.GetValidators()
-	require.Equal(t, 4, len(validators))
-
 	pathRoot, err := PathRoot()
 	require.Nil(t, err)
 	homeRoot, err := homedir.Expand(DefaultPathRoot)

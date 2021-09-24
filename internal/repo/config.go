@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/meshplus/bitxhub-kit/fileutil"
-	"github.com/meshplus/bitxhub-kit/types"
 	"github.com/spf13/viper"
 )
 
@@ -65,7 +64,6 @@ type Relay struct {
 	Addrs        []string      `toml:"addrs" json:"addrs"`
 	TimeoutLimit time.Duration `mapstructure:"timeout_limit" json:"timeout_limit"`
 	Quorum       uint64        `toml:"quorum" json:"quorum"`
-	Validators   []string      `toml:"validators" json:"validators"`
 	BitXHubID    string        `mapstructure:"bitxhub_id" json:"bitxhub_id"`
 }
 
@@ -76,15 +74,6 @@ type Direct struct {
 type Union struct {
 	Addrs     []string `toml:"addrs" json:"addrs"`
 	Providers uint64   `toml:"providers" json:"providers"`
-}
-
-// GetValidators gets validator address of bitxhub
-func (relay *Relay) GetValidators() []*types.Address {
-	validators := make([]*types.Address, 0)
-	for _, v := range relay.Validators {
-		validators = append(validators, types.NewAddressByStr(v))
-	}
-	return validators
 }
 
 // Log are config about log
@@ -130,21 +119,15 @@ func DefaultConfig() *Config {
 		Mode: Mode{
 			Type: "relay",
 			Relay: Relay{
-				Addrs:  []string{"localhost:60011"},
-				Quorum: 2,
-				Validators: []string{
-					"0x000f1a7a08ccc48e5d30f80850cf1cf283aa3abd",
-					"0xe93b92f1da08f925bdee44e91e7768380ae83307",
-					"0xb18c8575e3284e79b92100025a31378feb8100d6",
-					"0x856E2B9A5FA82FD1B031D1FF6863864DBAC7995D",
-				},
+				Addrs:     []string{"localhost:60011", "localhost:60012", "localhost:60013", "localhost:60014"},
+				Quorum:    2,
 				BitXHubID: "1356",
 			},
 			Direct: Direct{
 				GasLimit: 0x5f5e100,
 			},
 			Union: Union{
-				Addrs:     []string{"localhost:60011"},
+				Addrs:     []string{"localhost:60011", "localhost:60012", "localhost:60013", "localhost:60014"},
 				Providers: 1,
 			},
 		},

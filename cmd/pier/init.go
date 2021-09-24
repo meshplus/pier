@@ -71,17 +71,13 @@ var initCMD = cli.Command{
 					Name:     "addrs",
 					Usage:    "Specify bitxhub nodes' address",
 					Required: false,
+					Value:    &cli.StringSlice{"localhost:60011", "localhost:60012", "localhost:60013", "localhost:60014"},
 				},
 				cli.StringFlag{
 					Name:     "quorum",
 					Usage:    "Specify the quorum number of BitXHub",
 					Required: false,
 					Value:    "2",
-				},
-				cli.StringSliceFlag{
-					Name:     "validators",
-					Usage:    "Specify validators of bitxhub",
-					Required: false,
 				},
 			},
 			Action: initPier,
@@ -106,6 +102,7 @@ var initCMD = cli.Command{
 					Name:     "addrs",
 					Usage:    "Specify bitxhub nodes' address",
 					Required: false,
+					Value:    &cli.StringSlice{"localhost:60011", "localhost:60012", "localhost:60013", "localhost:60014"},
 				},
 				cli.StringSliceFlag{
 					Name:     "addPier",
@@ -153,9 +150,15 @@ func initPier(ctx *cli.Context) error {
 	mode := ctx.Command.Name
 	switch mode {
 	case "relay":
-		addrs := ctx.StringSlice("addrs")
-		validators := ctx.StringSlice("validators")
 		vpr.Set("mode.type", "relay")
+
+		addrs := ctx.StringSlice("addrs")
+		defaltaddrs := repo.DefaultConfig().Mode.Relay.Addrs
+		// if user input addr on Command, remove default addr
+		if len(addrs) > len(defaltaddrs) {
+			addrs = addrs[len(defaltaddrs):]
+		}
+		vpr.Set("mode.relay.addrs", addrs)
 
 		quorum := ctx.String("quorum")
 		in, err := strconv.Atoi(quorum)
@@ -163,16 +166,6 @@ func initPier(ctx *cli.Context) error {
 			return fmt.Errorf("quorum type err: %w", err)
 		}
 		vpr.Set("mode.relay.quorum", in)
-
-		if len(addrs) == 0 {
-			addrs = repo.DefaultConfig().Mode.Relay.Addrs
-		}
-		vpr.Set("mode.relay.addrs", addrs)
-
-		if validators == nil {
-			validators = repo.DefaultConfig().Mode.Relay.Validators
-		}
-		vpr.Set("mode.relay.validators", validators)
 	case "direct":
 		if err := updateNetworkAddrs(ctx, nil, repoRoot, mode); err != nil {
 			return err
@@ -181,15 +174,17 @@ func initPier(ctx *cli.Context) error {
 
 	case "union":
 		addrs := ctx.StringSlice("addrs")
-		if len(addrs) == 0 {
-			addrs = repo.DefaultConfig().Mode.Union.Addrs
+		defaltaddrs := repo.DefaultConfig().Mode.Union.Addrs
+		// if user input addr on Command, remove default addr
+		if len(addrs) > len(defaltaddrs) {
+			addrs = addrs[len(defaltaddrs):]
 		}
+		vpr.Set("mode.union.addrs", addrs)
 
 		if err := updateNetworkAddrs(ctx, nil, repoRoot, mode); err != nil {
 			return err
 		}
 		vpr.Set("mode.type", "union")
-		vpr.Set("mode.union.addrs", addrs)
 
 	}
 
