@@ -104,11 +104,16 @@ func (ex *Exchanger) Start() error {
 		}
 	}
 
-	ex.recover()
-
 	// start get ibtp to channel
-	ex.srcAdapt.Start()
-	ex.destAdapt.Start()
+	if err := ex.srcAdapt.Start(); err != nil {
+		return err
+	}
+
+	if err := ex.destAdapt.Start(); err != nil {
+		return err
+	}
+
+	ex.recover()
 
 	// start consumer
 	go ex.listenIBTPFromSrcAdapt()
