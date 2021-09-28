@@ -1,7 +1,8 @@
-package adapt
+package appchain_adapter
 
 import (
 	"fmt"
+	"github.com/meshplus/pier/internal/adapt"
 	"time"
 
 	"github.com/Rican7/retry"
@@ -14,9 +15,9 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-var _ Adapt = (*AppchainAdapter)(nil)
+var _ adapt.Adapt = (*Adapter)(nil)
 
-type AppchainAdapter struct {
+type Adapter struct {
 	config       *repo.Appchain
 	client       plugins.Client
 	pluginClient *plugin.Client
@@ -25,16 +26,20 @@ type AppchainAdapter struct {
 	bitxhubID    string
 }
 
-func (a *AppchainAdapter) MonitorUpdatedMeta() chan *[]byte {
+func (a *Adapter) GetAppchainID() string {
+	return a.appchainID
+}
+
+func (a *Adapter) MonitorUpdatedMeta() chan *[]byte {
 	panic("implement me")
 }
 
-func (a *AppchainAdapter) SendUpdatedMeta(byte []byte) error {
+func (a *Adapter) SendUpdatedMeta(byte []byte) error {
 	panic("implement me")
 }
 
-func NewAppchainAdapter(config *repo.Config, logger logrus.FieldLogger) (Adapt, error) {
-	adapter := &AppchainAdapter{
+func NewAppchainAdapter(config *repo.Config, logger logrus.FieldLogger) (adapt.Adapt, error) {
+	adapter := &Adapter{
 		config: &config.Appchain,
 		logger: logger,
 	}
@@ -46,7 +51,7 @@ func NewAppchainAdapter(config *repo.Config, logger logrus.FieldLogger) (Adapt, 
 	return adapter, nil
 }
 
-func (a *AppchainAdapter) Start() error {
+func (a *Adapter) Start() error {
 	if a.client == nil || a.pluginClient == nil {
 		if err := a.init(); err != nil {
 			return err
@@ -56,7 +61,7 @@ func (a *AppchainAdapter) Start() error {
 	return a.client.Start()
 }
 
-func (a *AppchainAdapter) Stop() error {
+func (a *Adapter) Stop() error {
 	if err := a.client.Stop(); err != nil {
 		return err
 	}
@@ -68,15 +73,15 @@ func (a *AppchainAdapter) Stop() error {
 	return nil
 }
 
-func (a *AppchainAdapter) Name() string {
+func (a *Adapter) Name() string {
 	return a.appchainID
 }
 
-func (a *AppchainAdapter) MonitorIBTP() chan *pb.IBTP {
+func (a *Adapter) MonitorIBTP() chan *pb.IBTP {
 	return a.client.GetIBTPCh()
 }
 
-func (a *AppchainAdapter) QueryIBTP(id string, isReq bool) (*pb.IBTP, error) {
+func (a *Adapter) QueryIBTP(id string, isReq bool) (*pb.IBTP, error) {
 	srcServiceID, dstServiceID, index, err := utils.ParseIBTPID(id)
 	if err != nil {
 		return nil, err
@@ -91,7 +96,7 @@ func (a *AppchainAdapter) QueryIBTP(id string, isReq bool) (*pb.IBTP, error) {
 	return a.client.GetReceiptMessage(servicePair, index)
 }
 
-func (a *AppchainAdapter) SendIBTP(ibtp *pb.IBTP) error {
+func (a *Adapter) SendIBTP(ibtp *pb.IBTP) error {
 	var (
 		category pb.IBTP_Category
 		res      *pb.SubmitIBTPResponse
@@ -136,27 +141,27 @@ func (a *AppchainAdapter) SendIBTP(ibtp *pb.IBTP) error {
 	}
 	if err != nil {
 		// solidity broker cannot get detailed error info
-		return &SendIbtpError{
+		return &adapt.SendIbtpError{
 			Err:    fmt.Sprintf("fail to send ibtp %s with type %v: %v", ibtp.ID(), ibtp.Type, err),
-			Status: Other_Error,
+			Status: adapt.Other_Error,
 		}
 	}
 
 	if !res.Status {
-		return &SendIbtpError{
+		return &adapt.SendIbtpError{
 			Err:    fmt.Sprintf("fail to send ibtp %s with type %v: %s", ibtp.ID(), ibtp.Type, res.Message),
-			Status: Other_Error,
+			Status: adapt.Other_Error,
 		}
 	}
 
 	return nil
 }
 
-func (a *AppchainAdapter) GetServiceIDList() ([]string, error) {
+func (a *Adapter) GetServiceIDList() ([]string, error) {
 	return a.client.GetServices()
 }
 
-func (a *AppchainAdapter) QueryInterchain(serviceID string) (*pb.Interchain, error) {
+func (a *Adapter) QueryInterchain(serviceID string) (*pb.Interchain, error) {
 	outMeta, err := a.client.GetOutMeta()
 	if err != nil {
 		return nil, err
@@ -200,7 +205,7 @@ func (a *AppchainAdapter) QueryInterchain(serviceID string) (*pb.Interchain, err
 
 }
 
-func (a *AppchainAdapter) init() error {
+func (a *Adapter) init() error {
 	var err error
 
 	if err := retry.Retry(func(attempt uint) error {
@@ -218,7 +223,7 @@ func (a *AppchainAdapter) init() error {
 	return err
 }
 
-func (a *AppchainAdapter) figureOutReceivedIBTPCategory(ibtp *pb.IBTP) (pb.IBTP_Category, error) {
+func (a *Adapter) figureOutReceivedIBTPCategory(ibtp *pb.IBTP) (pb.IBTP_Category, error) {
 	if err := ibtp.CheckServiceID(); err != nil {
 		return 0, err
 	}

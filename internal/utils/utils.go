@@ -32,7 +32,7 @@ func ParseIBTPID(id string) (string, string, uint64, error) {
 
 	index, err := strconv.Atoi(splits[2])
 	if err != nil {
-		return "", "", 0, fmt.Errorf("invalid  IBTP ID: %s", id)
+		return "", "", 0, fmt.Errorf("invalid IBTP ID: %s", id)
 	}
 
 	return splits[0], splits[1], uint64(index), nil
@@ -58,4 +58,12 @@ func GetSrcDstBitXHubID(id string, isReq bool) (string, string, error) {
 		return bxhID0, bxhID1, nil
 	}
 	return bxhID1, bxhID0, nil
+}
+
+func GetPierID(serviceID string) (string, error) {
+	_, appchainId, _, err := ParseFullServiceID(serviceID)
+	if err != nil {
+		return "", err
+	}
+	return appchainId, nil
 }

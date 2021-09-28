@@ -33,7 +33,7 @@ const (
 func TestName(t *testing.T) {
 	adapter, _ := prepare(t)
 	name := adapter.Name()
-	require.Equal(t, strconv.Itoa(bxhId), name)
+	require.Equal(t, fmt.Sprintf("bitxhub:%d", bxhId), name)
 }
 
 func TestStart(t *testing.T) {
@@ -370,7 +370,7 @@ func prepare(t *testing.T) (*BxhAdapter, *mock_client.MockClient) {
 	config := &repo.Config{}
 	config.Mode.Type = repo.RelayMode
 
-	adapter, err := New(from, repo.RelayMode,
+	adapter, err := New(repo.RelayMode,
 		client, log.NewWithModule("adapter"),
 	)
 	require.Nil(t, err)
