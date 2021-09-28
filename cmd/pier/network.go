@@ -79,7 +79,7 @@ var networkCMD = cli.Command{
 }
 
 func configNetwork(ctx *cli.Context) error {
-	repoRoot, err := repo.PathRoot()
+	repoRoot, err := repo.PathRootWithDefault(ctx.GlobalString("repo"))
 	if err != nil {
 		return err
 	}
