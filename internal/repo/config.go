@@ -98,6 +98,7 @@ type LogModule struct {
 	RuleMgr     string `mapstructure:"rule_mgr" toml:"rule_mgr" json:"rule_mgr"`
 	Swarm       string `toml:"swarm" json:"swarm"`
 	Syncer      string `toml:"bxh_adapter" json:"bxh_adapter"`
+	Direct      string `toml:"direct_adapter" json:"direct_adapter"`
 }
 
 // Appchain are configs about appchain
@@ -148,6 +149,7 @@ func DefaultConfig() *Config {
 				PeerMgr:     "info",
 				Router:      "info",
 				ApiServer:   "info",
+				Direct:      "info",
 			},
 		},
 		Security: Security{

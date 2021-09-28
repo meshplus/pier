@@ -52,20 +52,17 @@ func (b *BxhAdapter) SendUpdatedMeta(byte []byte) error {
 	panic("implement me")
 }
 
-func (b *BxhAdapter) Name() string {
-	bxhId, err := b.client.GetChainID()
-	if err != nil {
-		return ""
-	}
-	return strconv.Itoa(int(bxhId))
-}
-
 // New creates instance of WrapperSyncer given agent interacting with bitxhub,
 // validators addresses of bitxhub and local storage
-func New(appchainID string, mode string, client rpcx.Client, logger logrus.FieldLogger) (*BxhAdapter, error) {
-
+func New(mode string, client rpcx.Client, logger logrus.FieldLogger) (*BxhAdapter, error) {
+	appchainID, err := client.GetChainID()
+	if err != nil {
+		return nil, fmt.Errorf("new bxh adapter err: %w", err)
+	}
 	ctx, cancel := context.WithCancel(context.Background())
+
 	ba := &BxhAdapter{
+		// todo: not close the channel
 		wrappersC:  make(chan *pb.InterchainTxWrappers, maxChSize),
 		ibtpC:      make(chan *pb.IBTP, maxChSize),
 		client:     client,
@@ -73,7 +70,7 @@ func New(appchainID string, mode string, client rpcx.Client, logger logrus.Field
 		ctx:        ctx,
 		cancel:     cancel,
 		mode:       mode,
-		appchainID: appchainID,
+		appchainID: fmt.Sprintf("bitxhub:%d", appchainID),
 	}
 
 	return ba, nil
@@ -92,6 +89,10 @@ func (b *BxhAdapter) Stop() error {
 	b.cancel()
 	b.logger.Info("BxhAdapter stopped")
 	return nil
+}
+
+func (b *BxhAdapter) Name() string {
+	return b.appchainID
 }
 
 func (b *BxhAdapter) MonitorIBTP() chan *pb.IBTP {
@@ -416,10 +417,6 @@ func (b *BxhAdapter) handleInterchainTxWrapper(w *pb.InterchainTxWrapper, i int)
 		b.logger.Error("empty interchain tx wrapper")
 		return false
 	}
-	//todo how to solve timeoutIbtp
-	//for _, ibtpId := range w.TimeoutIbtps {
-	//	b.rollbackHandler(nil, ibtpId)
-	//}
 
 	for _, tx := range w.Transactions {
 		// if ibtp is failed

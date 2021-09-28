@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/meshplus/pier/internal/adapt/appchain_adapter"
+	"github.com/meshplus/pier/internal/adapt/direct_adapter"
 	"path/filepath"
 	"time"
 
@@ -22,7 +24,6 @@ import (
 	rpcx "github.com/meshplus/go-bitxhub-client"
 	"github.com/meshplus/pier/api"
 	_ "github.com/meshplus/pier/imports"
-	"github.com/meshplus/pier/internal/adapt"
 	"github.com/meshplus/pier/internal/agent"
 	"github.com/meshplus/pier/internal/appchain"
 	"github.com/meshplus/pier/internal/checker"
@@ -349,8 +350,9 @@ func (pier *Pier) Start() error {
 
 func NewPier2(repoRoot string, config *repo.Config) (*Pier, error) {
 	var (
-		ex     exchanger.IExchanger
-		pierHA agency.PierHA
+		ex          exchanger.IExchanger
+		pierHA      agency.PierHA
+		peerManager peermgr.PeerManager
 	)
 
 	logger := loggers.Logger(loggers.App)
@@ -359,11 +361,37 @@ func NewPier2(repoRoot string, config *repo.Config) (*Pier, error) {
 		return nil, fmt.Errorf("repo load key: %w", err)
 	}
 
+	nodePrivKey, err := repo.LoadNodePrivateKey(repoRoot)
+	if err != nil {
+		return nil, fmt.Errorf("repo load node key: %w", err)
+	}
+
 	switch config.Mode.Type {
 	case repo.DirectMode:
-		return nil, fmt.Errorf("direct mode is unsupported yet")
+		appchainAdapter, err := appchain_adapter.NewAppchainAdapter(config, loggers.Logger(loggers.Appchain))
+		if err != nil {
+			return nil, fmt.Errorf("new appchain adapter: %w", err)
+		}
+
+		peerManager, err = peermgr.New(config, nodePrivKey, privateKey, 1, loggers.Logger(loggers.PeerMgr))
+		if err != nil {
+			return nil, fmt.Errorf("peerMgr create: %w", err)
+		}
+		directAdapter, err := direct_adapter.New(peerManager, appchainAdapter.(appchain_adapter.AppchainAdapter), loggers.Logger(loggers.Direct))
+		if err != nil {
+			return nil, fmt.Errorf("new direct adapter: %w", err)
+		}
+
+		ex, err = exchanger2.New(repo.DirectMode, config.Appchain.ID, "",
+			exchanger2.WithSrcAdapt(appchainAdapter),
+			exchanger2.WithDestAdapt(directAdapter),
+			exchanger2.WithLogger(log.NewWithModule("exchanger")))
+		if err != nil {
+			return nil, fmt.Errorf("exchanger create: %w", err)
+		}
+		//return nil, fmt.Errorf("direct mode is unsupported yet")
 	case repo.RelayMode:
-		appchainAdapter, err := adapt.NewAppchainAdapter(config, loggers.Logger(loggers.Appchain))
+		appchainAdapter, err := appchain_adapter.NewAppchainAdapter(config, loggers.Logger(loggers.Appchain))
 		if err != nil {
 			return nil, fmt.Errorf("new appchain adapter: %w", err)
 		}
@@ -373,7 +401,7 @@ func NewPier2(repoRoot string, config *repo.Config) (*Pier, error) {
 			return nil, fmt.Errorf("create bitxhub client: %w", err)
 		}
 
-		bxhAdapter, err := bxh_adapter.New(config.Appchain.ID, repo.RelayMode, client, loggers.Logger(loggers.Syncer))
+		bxhAdapter, err := bxh_adapter.New(repo.RelayMode, client, loggers.Logger(loggers.Syncer))
 		if err != nil {
 			return nil, fmt.Errorf("new bitxhub adapter: %w", err)
 		}
