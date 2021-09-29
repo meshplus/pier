@@ -47,13 +47,13 @@ var initCMD = cli.Command{
 			Name:     "tlsca",
 			Usage:    "Specify TLS CA certificate path",
 			Required: false,
-			Value:    "certs/ca.pem",
+			Value:    "certs/agency.cert",
 		},
 		cli.StringFlag{
 			Name:     "common-name",
 			Usage:    "Specify common name to verify",
 			Required: false,
-			Value:    "localhost",
+			Value:    "BitXHub",
 		},
 		cli.StringFlag{
 			Name:     "ha",
