@@ -73,7 +73,7 @@ func (a *AppchainAdapter) Name() string {
 }
 
 func (a *AppchainAdapter) MonitorIBTP() chan *pb.IBTP {
-	return a.client.GetIBTP()
+	return a.client.GetIBTPCh()
 }
 
 func (a *AppchainAdapter) QueryIBTP(id string, isReq bool) (*pb.IBTP, error) {
@@ -103,10 +103,35 @@ func (a *AppchainAdapter) SendIBTP(ibtp *pb.IBTP) error {
 		return err
 	}
 
+	pd := &pb.Payload{}
+	if err := pd.Unmarshal(ibtp.Payload); err != nil {
+		return fmt.Errorf("ibtp payload unmarshal: %w", err)
+	}
+
+	_, _, serviceID, err := pb.ParseFullServiceID(ibtp.To)
+	if err != nil {
+		return err
+	}
+
+	proof := &pb.BxhProof{}
+	if ibtp.Proof != nil {
+		if err := proof.Unmarshal(ibtp.Proof); err != nil {
+			return err
+		}
+	}
+
 	if category == pb.IBTP_REQUEST {
-		res, err = a.client.SubmitIBTP(ibtp)
+		content := &pb.Content{}
+		if err := content.Unmarshal(pd.Content); err != nil {
+			return fmt.Errorf("ibtp content unmarshal: %w", err)
+		}
+		res, err = a.client.SubmitIBTP(ibtp.From, ibtp.Index, serviceID, ibtp.Type, content, proof, pd.Encrypted)
 	} else {
-		res, err = a.client.SubmitReceipt(ibtp)
+		result := &pb.Result{}
+		if err := result.Unmarshal(pd.Content); err != nil {
+			return fmt.Errorf("ibtp content unmarshal: %w", err)
+		}
+		res, err = a.client.SubmitReceipt(ibtp.To, ibtp.Index, serviceID, ibtp.Type, result, proof)
 
 	}
 	if err != nil {
