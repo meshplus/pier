@@ -44,6 +44,7 @@ func sendIBTP(ex *Exchanger, destAdapt adapt.Adapt, ibtp *pb.IBTP) {
 
 func (ex *Exchanger) recover() {
 	// handle src -> dest
+	ex.logger.Info("Start To Recover IBTPs!")
 	for _, interchain := range ex.srcServiceMeta {
 
 		for k, count := range interchain.InterchainCounter {
@@ -95,5 +96,5 @@ func (ex *Exchanger) recover() {
 			ex.srcServiceMeta[interchain.ID].ReceiptCounter[k] = count
 		}
 	}
-
+	ex.logger.Info("End To Recover IBTPs!")
 }
