@@ -12,10 +12,10 @@ import (
 	"strings"
 
 	"github.com/cavaliercoder/grab"
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/gobuffalo/packd"
 	"github.com/gobuffalo/packr"
 	"github.com/meshplus/bitxhub-kit/fileutil"
+	"github.com/meshplus/bitxhub-kit/types"
 	"github.com/meshplus/pier/internal/repo"
 	"github.com/spf13/viper"
 	"github.com/urfave/cli"
@@ -329,7 +329,7 @@ func updateAppchainConfig(ctx *cli.Context, configDir, chainType string) error {
 		setNonemptyString(v, "ether.timeout_height", ctx.String("timeout-height"))
 
 		if broker := ctx.String("broker"); broker != "" {
-			addr := common.HexToAddress(broker).String()
+			addr := types.NewAddressByStr(broker).String()
 			if !strings.EqualFold(addr, broker) {
 				return fmt.Errorf("invalid contract address")
 			}
@@ -466,7 +466,7 @@ func setABI(ctx *cli.Context, bizName string, v *viper.Viper, checksum bool) err
 	bizAddr := ctx.String(bizName)
 	if bizAddr != "" {
 		if checksum {
-			addr := common.HexToAddress(bizAddr).String()
+			addr := types.NewAddressByStr(bizAddr).String()
 			if !strings.EqualFold(addr, bizAddr) {
 				return fmt.Errorf("invalid biz address: %s", bizAddr)
 			}
