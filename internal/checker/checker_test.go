@@ -1,260 +1,157 @@
 package checker
 
 import (
-	"encoding/json"
-	"io/ioutil"
+	"fmt"
+	"math"
 	"testing"
 
-	"github.com/meshplus/bitxhub-core/governance"
+	"github.com/meshplus/bitxhub-core/validator"
+
+	"github.com/meshplus/bitxhub-kit/log"
+	"github.com/meshplus/pier/internal/loggers"
 
 	"github.com/golang/mock/gomock"
-	appchainmgr "github.com/meshplus/bitxhub-core/appchain-mgr"
-	"github.com/meshplus/bitxhub-kit/log"
-	"github.com/meshplus/bitxhub-kit/storage/leveldb"
-	"github.com/meshplus/bitxhub-kit/types"
 	"github.com/meshplus/bitxhub-model/pb"
-	"github.com/meshplus/pier/internal/appchain"
-	"github.com/meshplus/pier/internal/peermgr/mock_peermgr"
-	"github.com/meshplus/pier/internal/rulemgr"
+	"github.com/meshplus/pier/pkg/plugins/mock_client"
 	"github.com/stretchr/testify/require"
 )
 
 const (
-	from           = "0xe02d8fdacd59020d7f292ab3278d13674f5c404d"
-	to             = "0x0915fdfc96232c95fb9c62d27cc9dc0f13f50161"
-	from2          = "0x0915fdfc96232c95fb9c62d27cc9dc0f13f50162"
-	rulePrefix     = "validation-rule-"
-	proofPath      = "./testdata/proof_1.0.0_rc"
-	proofPath2     = "./testdata/proof_1.0.0_rc_complex"
-	validatorsPath = "./testdata/single_validator"
+	appchain0 = "appchain0"
+	appchain1 = "appchain1"
+	appchain2 = "appchain2"
+	bxhID     = "1356"
+	bxhID1    = "1357"
 )
 
-func TestMockChecker_Check(t *testing.T) {
-	checker := &MockChecker{}
-	require.Nil(t, checker.Check(nil))
-}
+func TestRelayChecker_BasicCheck(t *testing.T) {
+	c := gomock.NewController(t)
+	mockClient := mock_client.NewMockClient(c)
 
-func TestDirectChecker_Check(t *testing.T) {
-	// todo check err
-	//dc := New(t).(*DirectChecker)
-	//
-	//ibtp1 := getIBTP(t, uint64(1), pb.IBTP_INTERCHAIN, from, to, proofPath)
-	//ibtp2 := getIBTP(t, uint64(1), pb.IBTP_INTERCHAIN, "2", to, proofPath)
-	//ibtp3 := getIBTP(t, uint64(1), pb.IBTP_INTERCHAIN, "10", to, proofPath)
-	//ibtp4 := getIBTP(t, uint64(1), pb.IBTP_RECEIPT_SUCCESS, from, to, proofPath)
-	//ibtp5 := getIBTP(t, uint64(1), pb.IBTP_INTERCHAIN, from2, to, proofPath)
-	//ibtp6 := getIBTP(t, uint64(1), pb.IBTP_INTERCHAIN, from, to, proofPath2)
-	//
-	//// check with load not ok
-	//// not nil code
-	//err := dc.Check(ibtp1)
-	//require.NotNil(t, err)
-	//// nonexistent appchain
-	//err = dc.Check(ibtp2)
-	//require.NotNil(t, err)
-	//// appchain unmarshal error
-	//err = dc.Check(ibtp3)
-	//require.NotNil(t, err)
-	//// ethereum with nil code
-	//err = dc.Check(ibtp4)
-	//require.NotNil(t, err)
-	//// fabric with nil code
-	//err = dc.Check(ibtp5)
-	//require.Nil(t, err)
-	//
-	//// check with load ok
-	//app, err := getAppchain(from, "fabric")
-	//require.Nil(t, err)
-	//dc.appchainCache.Store(from, &appchainRule{
-	//	appchain:    app,
-	//	codeAddress: validator.SimFabricRuleAddr,
-	//})
-	//// check successfully
-	//err = dc.Check(ibtp1)
-	//require.Nil(t, err)
-	//// check unsuccessfully
-	//err = dc.Check(ibtp6)
-	//require.NotNil(t, err)
-}
+	checker := NewRelayChecker(mockClient, appchain1, bxhID, log.NewWithModule(loggers.App))
 
-func New(t *testing.T) Checker {
-	mockCtl := gomock.NewController(t)
-	mockCtl.Finish()
-	tmpDir, err := ioutil.TempDir("", "storage")
-	require.Nil(t, err)
-	storage, err := leveldb.New(tmpDir)
-	require.Nil(t, err)
-	storage.Put([]byte(rulePrefix+types.NewAddressByStr(from).String()), []byte("from"))
-
-	pm := mock_peermgr.NewMockPeerManager(mockCtl)
-	pm.EXPECT().RegisterMsgHandler(gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
-	pm.EXPECT().RegisterMultiMsgHandler(gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
-
-	rm, err := rulemgr.New(storage, pm, log.NewWithModule("api"), 0x5f5e100)
-	require.Nil(t, err)
-
-	am, err := appchain.NewManager(from, storage, pm, log.NewWithModule("api"))
-	require.Nil(t, err)
-	am.Mgr = &MockAppchainMgr{}
-
-	dc := NewDirectChecker(rm, am)
-	return dc
-}
-
-func getAppchain(id, chainType string) (*appchainmgr.Appchain, error) {
-	validators, err := ioutil.ReadFile(validatorsPath)
-	if err != nil {
-		return nil, err
+	ibtp := &pb.IBTP{
+		From:  fmt.Sprintf("%s:%s:service0", bxhID, appchain0),
+		To:    fmt.Sprintf("%s:%s:service1", bxhID, appchain1),
+		Index: 1,
+		Type:  pb.IBTP_INTERCHAIN,
 	}
+	isReq, err := checker.BasicCheck(ibtp)
+	require.Nil(t, err)
+	require.True(t, isReq)
 
-	// todo check err
-	//app := &appchainmgr.Appchain{
-	//	ID:            id,
-	//	Name:          "chainA",
-	//	Validators:    string(validators),
-	//	ConsensusType: "rbft",
-	//	ChainType:     chainType,
-	//	Desc:          "appchain",
-	//	Version:       "1.4.3",
-	//	PublicKey:     "",
-	//}
+	ibtp.Type = pb.IBTP_RECEIPT_ROLLBACK
+	isReq, err = checker.BasicCheck(ibtp)
+	require.Nil(t, err)
+	require.True(t, isReq)
 
-	app := &appchainmgr.Appchain{
-		ID:        id,
-		Status:    governance.GovernanceAvailable,
-		TrustRoot: validators,
-		Broker:    "",
-		Desc:      "appchain",
-		Version:   0,
-	}
+	ibtp.From = fmt.Sprintf("%s:%s:service0", bxhID, appchain1)
+	ibtp.To = fmt.Sprintf("%s:%s:service1", bxhID, appchain0)
+	ibtp.Type = pb.IBTP_INTERCHAIN
+	isReq, err = checker.BasicCheck(ibtp)
+	require.Nil(t, err)
+	require.False(t, isReq)
 
-	return app, nil
+	ibtp.To = fmt.Sprintf("%s:%s:service1", bxhID, appchain1)
+	isReq, err = checker.BasicCheck(ibtp)
+	require.NotNil(t, err)
+
+	ibtp.From = fmt.Sprintf("%s:%s:service0", bxhID, appchain0)
+	ibtp.To = fmt.Sprintf("%s:%s:service1", bxhID1, appchain1)
+	isReq, err = checker.BasicCheck(ibtp)
+	require.NotNil(t, err)
 }
 
-func getIBTP(t *testing.T, index uint64, typ pb.IBTP_Type, fid, tid, proofPath string) *pb.IBTP {
-	ct := &pb.Content{
-		Func: "interchainCharge",
-		Args: [][]byte{[]byte("Alice"), []byte("Alice"), []byte("1")},
+func TestRelayChecker_CheckProof(t *testing.T) {
+	c := gomock.NewController(t)
+	mockClient := mock_client.NewMockClient(c)
+
+	checker := NewRelayChecker(mockClient, appchain1, bxhID, log.NewWithModule(loggers.App))
+	err := checker.CheckProof(nil)
+	require.Nil(t, err)
+}
+
+func TestDirectChecker_BasicCheck(t *testing.T) {
+	c := gomock.NewController(t)
+	mockClient := mock_client.NewMockClient(c)
+
+	checker := NewDirectChecker(mockClient, appchain1, log.NewWithModule(loggers.App), math.MaxUint64)
+
+	ibtp := &pb.IBTP{
+		From:  fmt.Sprintf(":%s:service0", appchain0),
+		To:    fmt.Sprintf(":%s:service1", appchain1),
+		Index: 1,
+		Type:  pb.IBTP_INTERCHAIN,
 	}
-	c, err := ct.Marshal()
+	isReq, err := checker.BasicCheck(ibtp)
+	require.Nil(t, err)
+	require.True(t, isReq)
+
+	ibtp.From = fmt.Sprintf(":%s:service0", appchain1)
+	ibtp.To = fmt.Sprintf(":%s:service1", appchain0)
+	ibtp.Type = pb.IBTP_RECEIPT_FAILURE
+	isReq, err = checker.BasicCheck(ibtp)
+	require.Nil(t, err)
+	require.False(t, isReq)
+
+	ibtp.From = fmt.Sprintf("%s:%s:service0", bxhID, appchain1)
+	isReq, err = checker.BasicCheck(ibtp)
+	require.NotNil(t, err)
+
+	ibtp.From = fmt.Sprintf(":%s:service0", appchain1)
+	ibtp.To = fmt.Sprintf("%s:%s:service0", bxhID, appchain0)
+	isReq, err = checker.BasicCheck(ibtp)
+	require.NotNil(t, err)
+
+	ibtp.From = fmt.Sprintf(":%s:service0", appchain1)
+	ibtp.To = fmt.Sprintf(":%s:service1", appchain1)
+	isReq, err = checker.BasicCheck(ibtp)
+	require.NotNil(t, err)
+
+	ibtp.From = fmt.Sprintf(":%s:service0", appchain1)
+	ibtp.To = fmt.Sprintf(":%s:service1", appchain0)
+	ibtp.Type = pb.IBTP_INTERCHAIN
+	isReq, err = checker.BasicCheck(ibtp)
+	require.NotNil(t, err)
+
+	ibtp.From = fmt.Sprintf(":%s:service0", appchain0)
+	ibtp.To = fmt.Sprintf(":%s:service1", appchain1)
+	ibtp.Type = pb.IBTP_RECEIPT_SUCCESS
+	isReq, err = checker.BasicCheck(ibtp)
+	require.NotNil(t, err)
+}
+
+func TestDirectChecker_CheckProof(t *testing.T) {
+	c := gomock.NewController(t)
+	mockClient := mock_client.NewMockClient(c)
+
+	appchainInfo := &AppchainInfo{
+		broker:    "0x3f9d18f7c3a6e5e4c0b877fe3e688ab08840b997",
+		trustRoot: []byte{1},
+		ruleAddr:  validator.HappyRuleAddr,
+	}
+	mockClient.EXPECT().GetAppchainInfo(appchain0).Return(appchainInfo.broker, appchainInfo.trustRoot, appchainInfo.ruleAddr, nil).AnyTimes()
+
+	checker := NewDirectChecker(mockClient, appchain1, log.NewWithModule(loggers.App), math.MaxUint64)
+
+	ibtp := &pb.IBTP{
+		From:  fmt.Sprintf(":%s:service0", appchain2),
+		To:    fmt.Sprintf(":%s:service1", appchain1),
+		Index: 1,
+		Type:  pb.IBTP_INTERCHAIN,
+	}
+	mockClient.EXPECT().GetAppchainInfo(appchain2).Return("", nil, "", fmt.Errorf("no appchain found")).MaxTimes(1)
+	err := checker.CheckProof(ibtp)
+	require.NotNil(t, err)
+
+	mockClient.EXPECT().GetAppchainInfo(appchain2).Return("", nil, validator.FabricRuleAddr, nil).MaxTimes(1)
+	err = checker.CheckProof(ibtp)
+	require.NotNil(t, err)
+
+	ibtp.From = fmt.Sprintf(":%s:service0", appchain0)
+	err = checker.CheckProof(ibtp)
 	require.Nil(t, err)
 
-	pd := pb.Payload{
-		Encrypted: false,
-		Content:   c,
-	}
-	ibtppd, err := pd.Marshal()
+	err = checker.CheckProof(ibtp)
 	require.Nil(t, err)
-
-	proof, err := ioutil.ReadFile(proofPath)
-	require.Nil(t, err)
-
-	return &pb.IBTP{
-		From:    fid,
-		To:      tid,
-		Payload: ibtppd,
-		Index:   index,
-		Type:    typ,
-		Proof:   proof,
-	}
 }
-
-// MockAppchainMgr================================================
-type MockAppchainMgr struct {
-}
-
-func (m MockAppchainMgr) ChangeStatus(id, trigger, lastStatus string, extra []byte) (bool, []byte) {
-	panic("implement me")
-}
-
-func (m MockAppchainMgr) GovernancePre(id string, event governance.EventType, extra []byte) (interface{}, error) {
-	panic("implement me")
-}
-
-func (m MockAppchainMgr) CountAvailable(extra []byte) (bool, []byte) {
-	return true, nil
-}
-
-func (m MockAppchainMgr) CountAll(extra []byte) (bool, []byte) {
-	return true, nil
-}
-
-func (m MockAppchainMgr) All(extra []byte) (interface{}, error) {
-	return nil, nil
-}
-
-func (m MockAppchainMgr) QueryById(id string, extra []byte) (interface{}, error) {
-	if id == from || id == from2 {
-		app, err := getAppchain(id, "fabric")
-		if err != nil {
-			return false, nil
-		}
-		data, err := json.Marshal(app)
-		if err != nil {
-			return false, nil
-		}
-		return data, nil
-	} else if id == to {
-		app, err := getAppchain(id, "ethereum")
-		data, err := json.Marshal(app)
-		if err != nil {
-			return false, nil
-		}
-		return data, nil
-	} else if id == "10" {
-		return []byte("10"), nil
-	} else {
-		// todo will return true
-		return nil, nil
-	}
-}
-
-func (m MockAppchainMgr) Register(chainInfo *appchainmgr.Appchain) (bool, []byte) {
-	return true, nil
-}
-
-func (m MockAppchainMgr) Update(updateInfo *appchainmgr.Appchain) (bool, []byte) {
-	return true, nil
-}
-
-func (m MockAppchainMgr) CountAvailableAppchains() (bool, []byte) {
-	return true, nil
-}
-
-func (m MockAppchainMgr) UpdateAppchain(id, appchainOwner, docAddr, docHash, validators string, consensusType, chainType, name, desc, version, pubkey string) (bool, []byte) {
-	return true, nil
-}
-
-func (m MockAppchainMgr) Audit(proposer string, isApproved int32, desc string) (bool, []byte) {
-	return true, nil
-}
-
-func (m MockAppchainMgr) FetchAuditRecords(id string) (bool, []byte) {
-	return true, nil
-}
-
-func (m MockAppchainMgr) CountApprovedAppchains() (bool, []byte) {
-	return true, nil
-}
-
-func (m MockAppchainMgr) CountAppchains() (bool, []byte) {
-	return true, nil
-}
-
-func (m MockAppchainMgr) Appchains() (bool, []byte) {
-	return true, nil
-}
-
-func (m MockAppchainMgr) DeleteAppchain(id string) (bool, []byte) {
-	return true, nil
-}
-
-func (m MockAppchainMgr) Appchain() (bool, []byte) {
-	return true, nil
-}
-
-func (m MockAppchainMgr) GetPubKeyByChainID(id string) (bool, []byte) {
-	return true, nil
-}
-
-var _ appchainmgr.AppchainMgr = &MockAppchainMgr{}

@@ -233,7 +233,7 @@ func (ex *Exchanger) handleRollbackedIBTP(servicePair string, begin, end uint64)
 			return fmt.Errorf("fetch ibtp:%w", err)
 		}
 
-		ibtp.Type = pb.IBTP_ROLLBACK
+		//ibtp.Type = pb.IBTP_ROLLBACK
 
 		if err := ex.sendIBTP(ibtp); err != nil {
 			return err

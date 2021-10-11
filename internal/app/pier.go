@@ -4,12 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/meshplus/pier/internal/adapt/appchain_adapter"
-	"github.com/meshplus/pier/internal/adapt/direct_adapter"
 	"path/filepath"
 	"time"
-
-	"github.com/meshplus/pier/internal/adapt/bxh_adapter"
 
 	"github.com/Rican7/retry"
 	"github.com/Rican7/retry/strategy"
@@ -24,9 +20,10 @@ import (
 	rpcx "github.com/meshplus/go-bitxhub-client"
 	"github.com/meshplus/pier/api"
 	_ "github.com/meshplus/pier/imports"
-	"github.com/meshplus/pier/internal/agent"
+	"github.com/meshplus/pier/internal/adapt/appchain_adapter"
+	"github.com/meshplus/pier/internal/adapt/bxh_adapter"
+	"github.com/meshplus/pier/internal/adapt/direct_adapter"
 	"github.com/meshplus/pier/internal/appchain"
-	"github.com/meshplus/pier/internal/checker"
 	"github.com/meshplus/pier/internal/exchanger"
 	exchanger2 "github.com/meshplus/pier/internal/exchanger2"
 	"github.com/meshplus/pier/internal/executor"
@@ -38,7 +35,6 @@ import (
 	"github.com/meshplus/pier/internal/peermgr"
 	"github.com/meshplus/pier/internal/repo"
 	"github.com/meshplus/pier/internal/router"
-	"github.com/meshplus/pier/internal/rulemgr"
 	"github.com/meshplus/pier/internal/txcrypto"
 	"github.com/meshplus/pier/pkg/plugins"
 	_ "github.com/meshplus/pier/pkg/single"
@@ -89,7 +85,6 @@ func NewPier(repoRoot string, config *repo.Config) (*Pier, error) {
 	}
 
 	var (
-		ck        checker.Checker
 		cryptor   txcrypto.Cryptor
 		ex        exchanger.IExchanger
 		lite      lite.Lite
@@ -108,10 +103,10 @@ func NewPier(repoRoot string, config *repo.Config) (*Pier, error) {
 			return nil, fmt.Errorf("peerMgr create: %w", err)
 		}
 
-		ruleMgr, err := rulemgr.New(store, peerManager, loggers.Logger(loggers.RuleMgr), config.Mode.Direct.GasLimit)
-		if err != nil {
-			return nil, fmt.Errorf("ruleMgr create: %w", err)
-		}
+		//ruleMgr, err := rulemgr.New(store, peerManager, loggers.Logger(loggers.RuleMgr), config.Mode.Direct.GasLimit)
+		//if err != nil {
+		//	return nil, fmt.Errorf("ruleMgr create: %w", err)
+		//}
 
 		appchainMgr, err := appchain.NewManager(config.Appchain.ID, store, peerManager, loggers.Logger(loggers.AppchainMgr))
 		if err != nil {
@@ -123,17 +118,15 @@ func NewPier(repoRoot string, config *repo.Config) (*Pier, error) {
 			return nil, fmt.Errorf("gin service create: %w", err)
 		}
 
-		ck = checker.NewDirectChecker(ruleMgr, appchainMgr)
+		//ck = checker.NewDirectChecker(ruleMgr, appchainMgr)
 
-		cryptor, err = txcrypto.NewDirectCryptor(appchainMgr, privateKey)
-		if err != nil {
-			return nil, fmt.Errorf("cryptor create: %w", err)
-		}
+		//cryptor, err = txcrypto.NewDirectCryptor(appchainMgr, privateKey)
+		//if err != nil {
+		//	return nil, fmt.Errorf("cryptor create: %w", err)
+		//}
 
 		lite = &direct_lite.MockLite{}
 	case repo.RelayMode:
-		ck = &checker.MockChecker{}
-
 		client, err := newBitXHubClient(logger, privateKey, config)
 		if err != nil {
 			return nil, fmt.Errorf("create bitxhub client: %w", err)
@@ -198,7 +191,7 @@ func NewPier(repoRoot string, config *repo.Config) (*Pier, error) {
 	}
 
 	ex, err = exchanger.New(config.Mode.Type, config.Appchain.ID, serviceMeta,
-		exchanger.WithChecker(ck),
+		//exchanger.WithChecker(ck),
 		exchanger.WithExecutor(exec),
 		exchanger.WithMonitor(mnt),
 		exchanger.WithPeerMgr(peerManager),
@@ -247,14 +240,14 @@ func NewUnionPier(repoRoot string, config *repo.Config) (*Pier, error) {
 		return nil, fmt.Errorf("get address from private key %w", err)
 	}
 	var (
-		ex          exchanger.IExchanger
-		lite        lite.Lite
-		ck          checker.Checker
+		ex   exchanger.IExchanger
+		lite lite.Lite
+		//ck          checker.Checker
 		peerManager peermgr.PeerManager
 		serviceMeta = make(map[string]*pb.Interchain)
 	)
 
-	ck = &checker.MockChecker{}
+	//ck = &checker.MockChecker{}
 	nodePrivKey, err := repo.LoadNodePrivateKey(repoRoot)
 	if err != nil {
 		return nil, fmt.Errorf("repo load node key: %w", err)
@@ -292,8 +285,8 @@ func NewUnionPier(repoRoot string, config *repo.Config) (*Pier, error) {
 		return nil, fmt.Errorf("lite create: %w", err)
 	}
 
-	cli := agent.CreateClient(client)
-	exec, err := executor.New(cli, addr.String(), store, nil, loggers.Logger(loggers.Executor))
+	//cli := agent.CreateClient(client)
+	//exec, err := executor.New(cli, addr.String(), store, nil, loggers.Logger(loggers.Executor))
 	if err != nil {
 		return nil, fmt.Errorf("executor create: %w", err)
 	}
@@ -301,9 +294,9 @@ func NewUnionPier(repoRoot string, config *repo.Config) (*Pier, error) {
 	router := router.New(peerManager, store, loggers.Logger(loggers.Router), peerManager.(*peermgr.Swarm).ConnectedPeerIDs())
 
 	ex, err = exchanger.New(config.Mode.Type, addr.String(), serviceMeta,
-		exchanger.WithExecutor(exec),
+		//exchanger.WithExecutor(exec),
 		exchanger.WithPeerMgr(peerManager),
-		exchanger.WithChecker(ck),
+		//exchanger.WithChecker(ck),
 		exchanger.WithStorage(store),
 		exchanger.WithRouter(router),
 		exchanger.WithLogger(loggers.Logger(loggers.Exchanger)),
@@ -318,13 +311,13 @@ func NewUnionPier(repoRoot string, config *repo.Config) (*Pier, error) {
 		privateKey:  privateKey,
 		serviceMeta: serviceMeta,
 		exchanger:   ex,
-		exec:        exec,
-		lite:        lite,
-		storage:     store,
-		logger:      logger,
-		ctx:         ctx,
-		cancel:      cancel,
-		config:      config,
+		//exec:        exec,
+		lite:    lite,
+		storage: store,
+		logger:  logger,
+		ctx:     ctx,
+		cancel:  cancel,
+		config:  config,
 	}, nil
 }
 
@@ -368,16 +361,17 @@ func NewPier2(repoRoot string, config *repo.Config) (*Pier, error) {
 
 	switch config.Mode.Type {
 	case repo.DirectMode:
-		appchainAdapter, err := appchain_adapter.NewAppchainAdapter(config, loggers.Logger(loggers.Appchain))
-		if err != nil {
-			return nil, fmt.Errorf("new appchain adapter: %w", err)
-		}
-
 		peerManager, err = peermgr.New(config, nodePrivKey, privateKey, 1, loggers.Logger(loggers.PeerMgr))
 		if err != nil {
 			return nil, fmt.Errorf("peerMgr create: %w", err)
 		}
-		directAdapter, err := direct_adapter.New(peerManager, appchainAdapter.(appchain_adapter.AppchainAdapter), loggers.Logger(loggers.Direct))
+		cryptor, err := txcrypto.NewDirectCryptor(peerManager, privateKey)
+		appchainAdapter, err := appchain_adapter.NewAppchainAdapter(config, loggers.Logger(loggers.Appchain), cryptor)
+		if err != nil {
+			return nil, fmt.Errorf("new appchain adapter: %w", err)
+		}
+
+		directAdapter, err := direct_adapter.New(peerManager, appchainAdapter, loggers.Logger(loggers.Direct))
 		if err != nil {
 			return nil, fmt.Errorf("new direct adapter: %w", err)
 		}
@@ -389,22 +383,21 @@ func NewPier2(repoRoot string, config *repo.Config) (*Pier, error) {
 		if err != nil {
 			return nil, fmt.Errorf("exchanger create: %w", err)
 		}
-		//return nil, fmt.Errorf("direct mode is unsupported yet")
-	case repo.RelayMode:
-		appchainAdapter, err := appchain_adapter.NewAppchainAdapter(config, loggers.Logger(loggers.Appchain))
-		if err != nil {
-			return nil, fmt.Errorf("new appchain adapter: %w", err)
-		}
 
+		return nil, fmt.Errorf("direct mode is unsupported yet")
+	case repo.RelayMode:
 		client, err := newBitXHubClient(logger, privateKey, config)
 		if err != nil {
 			return nil, fmt.Errorf("create bitxhub client: %w", err)
 		}
 
-		bxhAdapter, err := bxh_adapter.New(repo.RelayMode, client, loggers.Logger(loggers.Syncer))
+		cryptor, err := txcrypto.NewRelayCryptor(client, privateKey)
+		appchainAdapter, err := appchain_adapter.NewAppchainAdapter(config, loggers.Logger(loggers.Appchain), cryptor)
 		if err != nil {
-			return nil, fmt.Errorf("new bitxhub adapter: %w", err)
+			return nil, fmt.Errorf("new appchain adapter: %w", err)
 		}
+
+		bxhAdapter, err := bxh_adapter.New(repo.RelayMode, client, loggers.Logger(loggers.Syncer))
 
 		pierHAConstructor, err := agency.GetPierHAConstructor(config.HA.Mode)
 		if err != nil {
