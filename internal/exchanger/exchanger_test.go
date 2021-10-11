@@ -854,13 +854,13 @@ func TestStartUnionMode(t *testing.T) {
 func prepareRelay(t *testing.T) (
 	*mock_monitor.MockMonitor, *mock_executor.MockExecutor,
 	*mock_adapt.MockAdapt,
-	*checker.MockChecker, storage.Storage,
+	*checker.RelayChecker, storage.Storage,
 ) {
 	mockCtl := gomock.NewController(t)
 	mockMonitor := mock_monitor.NewMockMonitor(mockCtl)
 	mockExecutor := mock_executor.NewMockExecutor(mockCtl)
 	mockAdapter := mock_adapt.NewMockAdapt(mockCtl)
-	mockChecker := &checker.MockChecker{}
+	mockChecker := &checker.RelayChecker{}
 
 	tmpDir, err := ioutil.TempDir("", "storage")
 	require.Nil(t, err)
@@ -872,13 +872,13 @@ func prepareRelay(t *testing.T) (
 
 func prepareDirect(t *testing.T, isNormal bool) (
 	*mock_monitor.MockMonitor, *mock_executor.MockExecutor,
-	*checker.MockChecker, *mock_peermgr.MockPeerManager,
+	*checker.RelayChecker, *mock_peermgr.MockPeerManager,
 	*api.Server, storage.Storage,
 ) {
 	mockCtl := gomock.NewController(t)
 	mockMonitor := mock_monitor.NewMockMonitor(mockCtl)
 	mockExecutor := mock_executor.NewMockExecutor(mockCtl)
-	mockChecker := &checker.MockChecker{}
+	mockChecker := &checker.RelayChecker{}
 	mockPeerMgr := mock_peermgr.NewMockPeerManager(mockCtl)
 	mockAppchainMgr := &appchain.Manager{}
 	mockServer, err := api.NewServer(mockAppchainMgr, mockPeerMgr, &repo.Config{}, log.NewWithModule("api"))

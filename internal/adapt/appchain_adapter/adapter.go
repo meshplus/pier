@@ -9,39 +9,36 @@ import (
 	"github.com/hashicorp/go-plugin"
 	"github.com/meshplus/bitxhub-model/pb"
 	"github.com/meshplus/pier/internal/adapt"
+	"github.com/meshplus/pier/internal/checker"
 	"github.com/meshplus/pier/internal/repo"
+	"github.com/meshplus/pier/internal/txcrypto"
 	"github.com/meshplus/pier/internal/utils"
 	"github.com/meshplus/pier/pkg/plugins"
 	"github.com/sirupsen/logrus"
 )
 
-var _ adapt.Adapt = (*Adapter)(nil)
+var _ adapt.Adapt = (*AppchainAdapter)(nil)
 
-type Adapter struct {
-	config       *repo.Appchain
+type AppchainAdapter struct {
+	config       *repo.Config
 	client       plugins.Client
 	pluginClient *plugin.Client
+	checker      checker.Checker
+	cryptor      txcrypto.Cryptor
 	logger       logrus.FieldLogger
-	appchainID   string
-	bitxhubID    string
+	ibtpC        chan *pb.IBTP
+
+	appchainID string
+	bitxhubID  string
 }
 
-func (a *Adapter) GetAppchainID() string {
-	return a.appchainID
-}
+const IBTP_CH_SIZE = 1024
 
-func (a *Adapter) MonitorUpdatedMeta() chan *[]byte {
-	panic("implement me")
-}
-
-func (a *Adapter) SendUpdatedMeta(byte []byte) error {
-	panic("implement me")
-}
-
-func NewAppchainAdapter(config *repo.Config, logger logrus.FieldLogger) (adapt.Adapt, error) {
-	adapter := &Adapter{
-		config: &config.Appchain,
-		logger: logger,
+func NewAppchainAdapter(config *repo.Config, logger logrus.FieldLogger, crypto txcrypto.Cryptor) (adapt.Adapt, error) {
+	adapter := &AppchainAdapter{
+		config:  config,
+		cryptor: crypto,
+		logger:  logger,
 	}
 
 	if err := adapter.init(); err != nil {
@@ -51,17 +48,38 @@ func NewAppchainAdapter(config *repo.Config, logger logrus.FieldLogger) (adapt.A
 	return adapter, nil
 }
 
-func (a *Adapter) Start() error {
+func (a *AppchainAdapter) Start() error {
 	if a.client == nil || a.pluginClient == nil {
 		if err := a.init(); err != nil {
 			return err
 		}
 	}
 
-	return a.client.Start()
+	if err := a.client.Start(); err != nil {
+		return err
+	}
+
+	go func() {
+		ibtpC := a.client.GetIBTPCh()
+		if ibtpC != nil {
+			for ibtp := range ibtpC {
+				ibtp, _, err := a.handlePayload(ibtp, true)
+				if err != nil {
+					a.logger.Warnf("fail to encrypt monitored ibtp: %v", err)
+					continue
+				}
+
+				a.ibtpC <- ibtp
+			}
+		}
+		a.logger.Info("ibtp channel of appchain plugin is closed")
+		close(a.ibtpC)
+	}()
+
+	return nil
 }
 
-func (a *Adapter) Stop() error {
+func (a *AppchainAdapter) Stop() error {
 	if err := a.client.Stop(); err != nil {
 		return err
 	}
@@ -73,15 +91,15 @@ func (a *Adapter) Stop() error {
 	return nil
 }
 
-func (a *Adapter) Name() string {
-	return a.appchainID
+func (a *AppchainAdapter) Name() string {
+	return fmt.Sprintf("appchain: %s", a.appchainID)
 }
 
-func (a *Adapter) MonitorIBTP() chan *pb.IBTP {
-	return a.client.GetIBTPCh()
+func (a *AppchainAdapter) MonitorIBTP() chan *pb.IBTP {
+	return a.ibtpC
 }
 
-func (a *Adapter) QueryIBTP(id string, isReq bool) (*pb.IBTP, error) {
+func (a *AppchainAdapter) QueryIBTP(id string, isReq bool) (*pb.IBTP, error) {
 	srcServiceID, dstServiceID, index, err := utils.ParseIBTPID(id)
 	if err != nil {
 		return nil, err
@@ -96,49 +114,49 @@ func (a *Adapter) QueryIBTP(id string, isReq bool) (*pb.IBTP, error) {
 	return a.client.GetReceiptMessage(servicePair, index)
 }
 
-func (a *Adapter) SendIBTP(ibtp *pb.IBTP) error {
+func (a *AppchainAdapter) SendIBTP(ibtp *pb.IBTP) error {
 	var (
-		category pb.IBTP_Category
-		res      *pb.SubmitIBTPResponse
-		err      error
+		res   *pb.SubmitIBTPResponse
+		proof *pb.BxhProof
 	)
 
-	category, err = a.figureOutReceivedIBTPCategory(ibtp)
+	isReq, err := a.checker.BasicCheck(ibtp)
 	if err != nil {
 		return err
 	}
 
-	pd := &pb.Payload{}
-	if err := pd.Unmarshal(ibtp.Payload); err != nil {
-		return fmt.Errorf("ibtp payload unmarshal: %w", err)
-	}
-
-	_, _, serviceID, err := pb.ParseFullServiceID(ibtp.To)
+	ibtp, pd, err := a.handlePayload(ibtp, false)
 	if err != nil {
 		return err
 	}
 
-	proof := &pb.BxhProof{}
-	if ibtp.Proof != nil {
+	if err := a.checker.CheckProof(ibtp); err != nil {
+		return err
+	}
+
+	if a.config.Mode.Type == repo.RelayMode {
+		proof = &pb.BxhProof{}
 		if err := proof.Unmarshal(ibtp.Proof); err != nil {
-			return err
+			return fmt.Errorf("fail to unmarshal proof of ibtp %s: %w", ibtp.ID(), err)
 		}
 	}
 
-	if category == pb.IBTP_REQUEST {
+	if isReq {
 		content := &pb.Content{}
 		if err := content.Unmarshal(pd.Content); err != nil {
-			return fmt.Errorf("ibtp content unmarshal: %w", err)
+			return fmt.Errorf("unmarshal content of ibtp %s: %w", ibtp.ID(), err)
 		}
+		_, _, serviceID := ibtp.ParseTo()
 		res, err = a.client.SubmitIBTP(ibtp.From, ibtp.Index, serviceID, ibtp.Type, content, proof, pd.Encrypted)
 	} else {
 		result := &pb.Result{}
 		if err := result.Unmarshal(pd.Content); err != nil {
-			return fmt.Errorf("ibtp content unmarshal: %w", err)
+			return fmt.Errorf("unmarshal result of ibtp %s: %w", ibtp.ID(), err)
 		}
+		_, _, serviceID := ibtp.ParseFrom()
 		res, err = a.client.SubmitReceipt(ibtp.To, ibtp.Index, serviceID, ibtp.Type, result, proof)
-
 	}
+
 	if err != nil {
 		// solidity broker cannot get detailed error info
 		return &adapt.SendIbtpError{
@@ -157,11 +175,11 @@ func (a *Adapter) SendIBTP(ibtp *pb.IBTP) error {
 	return nil
 }
 
-func (a *Adapter) GetServiceIDList() ([]string, error) {
+func (a *AppchainAdapter) GetServiceIDList() ([]string, error) {
 	return a.client.GetServices()
 }
 
-func (a *Adapter) QueryInterchain(serviceID string) (*pb.Interchain, error) {
+func (a *AppchainAdapter) QueryInterchain(serviceID string) (*pb.Interchain, error) {
 	outMeta, err := a.client.GetOutMeta()
 	if err != nil {
 		return nil, err
@@ -205,11 +223,11 @@ func (a *Adapter) QueryInterchain(serviceID string) (*pb.Interchain, error) {
 
 }
 
-func (a *Adapter) init() error {
+func (a *AppchainAdapter) init() error {
 	var err error
 
 	if err := retry.Retry(func(attempt uint) error {
-		a.client, a.pluginClient, err = plugins.CreateClient(a.config, nil)
+		a.client, a.pluginClient, err = plugins.CreateClient(&a.config.Appchain, nil)
 		if err != nil {
 			a.logger.Errorf("create client plugin", "error", err.Error())
 		}
@@ -218,27 +236,80 @@ func (a *Adapter) init() error {
 		return fmt.Errorf("retry error to create plugin: %w", err)
 	}
 
-	a.bitxhubID, a.appchainID, err = a.client.GetChainID()
+	a.ibtpC = make(chan *pb.IBTP, IBTP_CH_SIZE)
 
-	return err
+	a.bitxhubID, a.appchainID, err = a.client.GetChainID()
+	if err != nil {
+		return err
+	}
+
+	if a.config.Mode.Type == repo.DirectMode {
+		a.checker = checker.NewDirectChecker(a.client, a.appchainID, a.logger, a.config.Mode.Direct.GasLimit)
+	} else {
+		a.checker = checker.NewRelayChecker(a.client, a.appchainID, a.bitxhubID, a.logger)
+	}
+
+	return nil
 }
 
-func (a *Adapter) figureOutReceivedIBTPCategory(ibtp *pb.IBTP) (pb.IBTP_Category, error) {
-	if err := ibtp.CheckServiceID(); err != nil {
-		return 0, err
+func (a *AppchainAdapter) GetChainID() string {
+	return a.appchainID
+}
+
+func (a *AppchainAdapter) MonitorUpdatedMeta() chan *[]byte {
+	panic("implement me")
+}
+
+func (a *AppchainAdapter) SendUpdatedMeta(byte []byte) error {
+	panic("implement me")
+}
+
+func (a *AppchainAdapter) handlePayload(ibtp *pb.IBTP, encrypt bool) (*pb.IBTP, *pb.Payload, error) {
+	pd := pb.Payload{}
+	if err := pd.Unmarshal(ibtp.Payload); err != nil {
+		return nil, nil, fmt.Errorf("cannot unmarshal payload for monitored ibtp %s", ibtp.ID())
 	}
 
-	bxhID, chainID, _ := ibtp.ParseFrom()
-	if bxhID == a.bitxhubID && chainID == a.appchainID {
-		return pb.IBTP_RESPONSE, nil
+	var (
+		chainID    string
+		newContent []byte
+		err        error
+	)
+	_, srcChainID, _ := ibtp.ParseFrom()
+	_, dstChainID, _ := ibtp.ParseTo()
+
+	if pd.Encrypted {
+		if encrypt {
+			if ibtp.Category() == pb.IBTP_REQUEST {
+				chainID = dstChainID
+			} else {
+				chainID = srcChainID
+			}
+			newContent, err = a.cryptor.Encrypt(pd.Content, chainID)
+			if err != nil {
+				return nil, nil, fmt.Errorf("cannot encrypt content for monitored ibtp %s", ibtp.ID())
+			}
+		} else {
+			if ibtp.Category() == pb.IBTP_REQUEST {
+				chainID = srcChainID
+			} else {
+				chainID = dstChainID
+			}
+			newContent, err = a.cryptor.Decrypt(pd.Content, chainID)
+			if err != nil {
+				return nil, nil, fmt.Errorf("cannot encrypt content for monitored ibtp %s", ibtp.ID())
+			}
+		}
+
+		pd.Content = newContent
+		data, err := pd.Marshal()
+		if err != nil {
+			return nil, nil, fmt.Errorf("cannot marshal payload for monitored ibtp %s", ibtp.ID())
+		}
+		ibtp.Payload = data
 	}
 
-	bxhID, chainID, _ = ibtp.ParseTo()
-	if bxhID == a.bitxhubID && chainID == a.appchainID {
-		return pb.IBTP_REQUEST, nil
-	}
-
-	return 0, fmt.Errorf("this IBTP %s is not for current appchain", ibtp.ID())
+	return ibtp, &pd, nil
 }
 
 func filterMap(meta map[string]uint64, serviceID string, isSrc bool) (map[string]uint64, error) {

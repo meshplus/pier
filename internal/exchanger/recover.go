@@ -233,7 +233,6 @@ func (ex *Exchanger) handleRollbackedIBTP(servicePair string, begin, end uint64)
 			return fmt.Errorf("fetch ibtp:%w", err)
 		}
 
-		// todo: Temporary annotation
 		//ibtp.Type = pb.IBTP_ROLLBACK
 
 		if err := ex.sendIBTP(ibtp); err != nil {

@@ -5,6 +5,8 @@ import (
 	"github.com/meshplus/pier/api"
 	"github.com/meshplus/pier/internal/adapt/bxh_adapter"
 	"github.com/meshplus/pier/internal/checker"
+
+	//"github.com/meshplus/pier/internal/checker"
 	"github.com/meshplus/pier/internal/executor"
 	"github.com/meshplus/pier/internal/monitor"
 	"github.com/meshplus/pier/internal/peermgr"

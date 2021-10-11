@@ -7,7 +7,6 @@ import (
 	lru "github.com/hashicorp/golang-lru"
 	"github.com/meshplus/bitxhub-model/pb"
 	"github.com/meshplus/pier/internal/adapt"
-	"github.com/meshplus/pier/internal/adapt/appchain_adapter"
 	"github.com/meshplus/pier/internal/peermgr"
 	"github.com/meshplus/pier/internal/utils"
 	"github.com/sirupsen/logrus"
@@ -34,6 +33,11 @@ type DirectAdapter struct {
 	appchainID    string
 }
 
+// TODO: return counterparty appchain ID
+func (d *DirectAdapter) GetChainID() string {
+	panic("implement me")
+}
+
 func (d *DirectAdapter) MonitorUpdatedMeta() chan *[]byte {
 	panic("implement me")
 }
@@ -46,13 +50,13 @@ func (d *DirectAdapter) GetServiceIDList() ([]string, error) {
 	panic("implement me")
 }
 
-func New(peerMgr peermgr.PeerManager, appchainAdapt appchain_adapter.AppchainAdapter, logger logrus.FieldLogger) (*DirectAdapter, error) {
+func New(peerMgr peermgr.PeerManager, appchainAdapt adapt.Adapt, logger logrus.FieldLogger) (*DirectAdapter, error) {
 	ibtpCache, err := lru.New(maxCacheSize)
 	if err != nil {
 		return nil, fmt.Errorf("ibtpCache initialize err: %w", err)
 	}
 
-	appchainID := appchainAdapt.GetAppchainID()
+	appchainID := appchainAdapt.GetChainID()
 
 	da := &DirectAdapter{
 		logger:        logger,

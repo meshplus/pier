@@ -11,6 +11,8 @@ type Adapt interface {
 	// Name get adapt name
 	Name() string
 
+	GetChainID() string
+
 	// MonitorIBTP listen on ibtp from dest chain
 	MonitorIBTP() chan *pb.IBTP
 
