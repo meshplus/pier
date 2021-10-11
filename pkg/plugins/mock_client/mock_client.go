@@ -34,6 +34,23 @@ func (m *MockClient) EXPECT() *MockClientMockRecorder {
 	return m.recorder
 }
 
+// GetAppchainInfo mocks base method.
+func (m *MockClient) GetAppchainInfo(chainID string) (string, []byte, string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetAppchainInfo", chainID)
+	ret0, _ := ret[0].(string)
+	ret1, _ := ret[1].([]byte)
+	ret2, _ := ret[2].(string)
+	ret3, _ := ret[3].(error)
+	return ret0, ret1, ret2, ret3
+}
+
+// GetAppchainInfo indicates an expected call of GetAppchainInfo.
+func (mr *MockClientMockRecorder) GetAppchainInfo(chainID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetAppchainInfo", reflect.TypeOf((*MockClient)(nil).GetAppchainInfo), chainID)
+}
+
 // GetCallbackMeta mocks base method.
 func (m *MockClient) GetCallbackMeta() (map[string]uint64, error) {
 	m.ctrl.T.Helper()

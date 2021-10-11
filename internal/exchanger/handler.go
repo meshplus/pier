@@ -20,7 +20,7 @@ import (
 // handleIBTP handle ibtps from bitxhub
 func (ex *Exchanger) handleIBTP(wIbtp *model.WrappedIBTP, entry logrus.FieldLogger) {
 	ibtp := wIbtp.Ibtp
-	err := ex.checker.Check(ibtp)
+	err := ex.checker.CheckProof(ibtp)
 	if err != nil {
 		// todo: send receipt back to bitxhub
 		return
@@ -169,7 +169,7 @@ func (ex *Exchanger) handleSendIBTPMessage(stream network.Stream, msg *pb.Messag
 			return
 		}
 		defer ex.timeCost()()
-		err := ex.checker.Check(wIbtp.Ibtp)
+		err := ex.checker.CheckProof(wIbtp.Ibtp)
 		if err != nil {
 			ex.logger.Error("check ibtp: %w", err)
 			return
@@ -196,7 +196,7 @@ func (ex *Exchanger) handleSendIBTPReceiptMessage(stream network.Stream, msg *pb
 		return
 	}
 
-	err := ex.checker.Check(receipt)
+	err := ex.checker.CheckProof(receipt)
 	if err != nil {
 		ex.logger.Error("check ibtp: %w", err)
 		return

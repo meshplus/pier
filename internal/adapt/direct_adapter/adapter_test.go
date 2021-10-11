@@ -10,7 +10,7 @@ import (
 	"github.com/meshplus/bitxhub-kit/log"
 	"github.com/meshplus/bitxhub-model/pb"
 	network "github.com/meshplus/go-lightp2p"
-	"github.com/meshplus/pier/internal/adapt/appchain_adapter/mock_appchainAdapt"
+	"github.com/meshplus/pier/internal/adapt/mock_adapt"
 	"github.com/meshplus/pier/internal/peermgr"
 	"github.com/meshplus/pier/internal/peermgr/mock_peermgr"
 	"github.com/meshplus/pier/internal/repo"
@@ -211,15 +211,15 @@ func TestHandleGetIBTPMessage(t *testing.T) {
 
 }
 
-func prepare(t *testing.T) (*DirectAdapter, *DirectAdapter, *mock_peermgr.MockPeerManager, *mock_appchainAdapt.MockAppchainAdapter) {
+func prepare(t *testing.T) (*DirectAdapter, *DirectAdapter, *mock_peermgr.MockPeerManager, *mock_adapt.MockAdapt) {
 	mockCtl := gomock.NewController(t)
 	mockCtl.Finish()
 
 	config := &repo.Config{}
 	config.Mode.Type = repo.DirectMode
 	mockPeerMgr := mock_peermgr.NewMockPeerManager(mockCtl)
-	mockAppChainAdapt := mock_appchainAdapt.NewMockAppchainAdapter(mockCtl)
-	mockAppChainAdapt.EXPECT().GetAppchainID().Return(appChainId).AnyTimes()
+	mockAppChainAdapt := mock_adapt.NewMockAdapt(mockCtl)
+	mockAppChainAdapt.EXPECT().GetChainID().Return(appChainId).AnyTimes()
 	adapter1, err := New(mockPeerMgr, mockAppChainAdapt, log.NewWithModule("direct_adapter1"))
 	adapter2, err := New(mockPeerMgr, mockAppChainAdapt, log.NewWithModule("direct_adapter2"))
 	require.Nil(t, err)

@@ -1,10 +1,12 @@
 package checker
 
-import "github.com/meshplus/bitxhub-model/pb"
+import (
+	"github.com/meshplus/bitxhub-model/pb"
+)
 
-type MockChecker struct {
-}
+//go:generate mockgen -destination mock_checker/mock_checker.go -package mock_checker -source checker.go
+type Checker interface {
+	BasicCheck(ibtp *pb.IBTP) (bool, error)
 
-func (ck *MockChecker) Check(ibtp *pb.IBTP) error {
-	return nil
+	CheckProof(ibtp *pb.IBTP) error
 }
