@@ -1,90 +1,118 @@
 package checker
 
 import (
-	//"crypto/sha256"
-	//"fmt"
+	"fmt"
 	"sync"
 
-	appchainmgr "github.com/meshplus/bitxhub-core/appchain-mgr"
+	"github.com/meshplus/bitxhub-kit/types"
+	"github.com/sirupsen/logrus"
+
+	"github.com/meshplus/bitxhub-core/validator"
+
+	"github.com/meshplus/pier/pkg/plugins"
+
 	//"github.com/meshplus/bitxhub-core/validator"
 	//"github.com/meshplus/bitxhub-kit/types"
 	"github.com/meshplus/bitxhub-model/pb"
-	"github.com/meshplus/pier/internal/appchain"
-	"github.com/meshplus/pier/internal/rulemgr"
 )
 
+var _ Checker = (*DirectChecker)(nil)
+
 type DirectChecker struct {
-	ruleMgr       *rulemgr.RuleMgr
-	appchainMgr   *appchain.Manager
-	appchainCache sync.Map
+	ve         *validator.ValidationEngine
+	client     plugins.Client
+	chainInfoM map[string]*AppchainInfo
+	appchainID string
 }
 
-type appchainRule struct {
-	appchain    *appchainmgr.Appchain
-	codeAddress string
+type AppchainInfo struct {
+	broker    string
+	trustRoot []byte
+	ruleAddr  string
 }
 
-func NewDirectChecker(ruleMgr *rulemgr.RuleMgr, appchainMgr *appchain.Manager) Checker {
+func NewDirectChecker(client plugins.Client, appchainID string, logger logrus.FieldLogger, gasLimit uint64) Checker {
+	ledger := &CodeLedger{
+		validateCode: make(map[string][]byte),
+	}
+
 	return &DirectChecker{
-		ruleMgr:     ruleMgr,
-		appchainMgr: appchainMgr,
+		ve:         validator.NewValidationEngine(ledger, &sync.Map{}, logger, gasLimit),
+		client:     client,
+		chainInfoM: make(map[string]*AppchainInfo),
+		appchainID: appchainID,
 	}
 }
 
-func (c *DirectChecker) Check(ibtp *pb.IBTP) error {
-	// todo check err
-	//chainID := ibtp.From
-	//if ibtp.Type == pb.IBTP_RECEIPT_SUCCESS || ibtp.Type == pb.IBTP_RECEIPT_FAILURE {
-	//	chainID = ibtp.To
-	//}
-	//
-	//appchainLoad, ok := c.appchainCache.Load(chainID)
-	//var appchain *appchainmgr.Appchain
-	//var validatorAddr string
-	//if !ok {
-	//	appchainByte, err := c.appchainMgr.Mgr.QueryById(chainID, nil)
-	//	if err != nil {
-	//		return fmt.Errorf("appchain %s not found", chainID)
-	//	}
-	//
-	//	appchain = appchainByte.(*appchainmgr.Appchain)
-	//	//if err := json.Unmarshal(appchainByte.([]byte), appchain); err != nil {
-	//	//	return fmt.Errorf("unmarshal appchain: %w", err)
-	//	//}
-	//
-	//	chainAddr := types.NewAddressByStr(chainID)
-	//	code := c.ruleMgr.Ledger.GetCode(chainAddr)
-	//	if code == nil {
-	//		// todo all been SimFabricRuleAddr
-	//		//if appchain.ChainType == "fabric" {
-	//		validatorAddr = validator.SimFabricRuleAddr
-	//		//} else {
-	//		//	return fmt.Errorf("not found rule address from appchain:%s", appchain.ID)
-	//		//}
-	//	} else {
-	//		codeHash := sha256.Sum256(code)
-	//		validatorAddr = types.NewAddress(codeHash[:]).String()
-	//	}
-	//
-	//	c.appchainCache.Store(chainID, &appchainRule{
-	//		appchain:    appchain,
-	//		codeAddress: validatorAddr,
-	//	})
-	//} else {
-	//	appchainRule := appchainLoad.(*appchainRule)
-	//	appchain = appchainRule.appchain
-	//	validatorAddr = appchainRule.codeAddress
-	//}
-	//
-	//// todo validator has been del
-	//ok, err := c.ruleMgr.Validate(validatorAddr, ibtp.From, ibtp.Proof, ibtp.Payload, string(appchain.TrustRoot))
-	//if err != nil {
-	//	return err
-	//}
-	//
-	//if !ok {
-	//	return fmt.Errorf("rule check failed")
-	//}
-	//
+func (c *DirectChecker) BasicCheck(ibtp *pb.IBTP) (bool, error) {
+	if err := ibtp.CheckServiceID(); err != nil {
+		return false, err
+	}
+
+	bxhID0, chainID0, _ := ibtp.ParseFrom()
+	bxhID1, chainID1, _ := ibtp.ParseTo()
+	if bxhID0 != "" || bxhID1 != "" {
+		return false, fmt.Errorf("invalid IBTP ID %s: bxh ID should be empty", ibtp.ID())
+	}
+
+	if chainID0 == chainID1 {
+		return false, fmt.Errorf("invalid IBTP ID %s: the same from and to appchain", ibtp.ID())
+	}
+
+	if ibtp.Category() == pb.IBTP_REQUEST && c.appchainID != chainID1 ||
+		ibtp.Category() == pb.IBTP_RESPONSE && c.appchainID != chainID0 {
+		return false, fmt.Errorf("invalid IBTP ID %s with type %v", ibtp.ID(), ibtp.Type)
+	}
+
+	return ibtp.Category() == pb.IBTP_REQUEST, nil
+}
+
+func (c *DirectChecker) CheckProof(ibtp *pb.IBTP) error {
+	var chainID string
+
+	if ibtp.Category() == pb.IBTP_REQUEST {
+		_, chainID, _, _ = pb.ParseFullServiceID(ibtp.From)
+	} else {
+		_, chainID, _, _ = pb.ParseFullServiceID(ibtp.To)
+	}
+
+	appchainInfo, ok := c.chainInfoM[chainID]
+	if !ok {
+		broker, trustRoot, ruleAddr, err := c.client.GetAppchainInfo(chainID)
+		if err != nil {
+			return err
+		}
+		appchainInfo = &AppchainInfo{
+			broker:    broker,
+			trustRoot: trustRoot,
+			ruleAddr:  ruleAddr,
+		}
+		c.chainInfoM[chainID] = appchainInfo
+	}
+
+	ok, _, err := c.ve.Validate(appchainInfo.ruleAddr, chainID, ibtp.Proof, ibtp.Payload, string(appchainInfo.trustRoot))
+	if err != nil {
+		return err
+	}
+
+	if !ok {
+		return fmt.Errorf("validate ibtp %s failed", ibtp.ID())
+	}
+
+	return nil
+}
+
+type CodeLedger struct {
+	client       plugins.Client
+	validateCode map[string][]byte
+}
+
+func (l *CodeLedger) GetCode(address *types.Address) []byte {
+	code, _ := l.validateCode[address.String()]
+	return code
+}
+
+func (l *CodeLedger) SetCode(address *types.Address, code []byte) error {
+	l.validateCode[address.String()] = code
 	return nil
 }

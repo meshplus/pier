@@ -400,6 +400,10 @@ func (mc *mockAppchainPluginClient) GetReceipt(ctx context.Context, in *pb.IBTP,
 	return nil, fmt.Errorf("mockAppchainPluginClient get receipt error")
 }
 
+func (mc *mockAppchainPluginClient) GetAppchainInfo(ctx context.Context, in *pb.ChainInfoRequest, opts ...grpc.CallOption) (*pb.ChainInfoResponse, error) {
+	panic("implement me")
+}
+
 func (mc *mockAppchainPluginClient) Name(ctx context.Context, in *pb.Empty, opts ...grpc.CallOption) (*pb.NameResponse, error) {
 	if ctx == context.Background() {
 		return &pb.NameResponse{

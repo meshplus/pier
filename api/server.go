@@ -15,7 +15,6 @@ import (
 	"github.com/meshplus/pier/internal/appchain"
 	"github.com/meshplus/pier/internal/peermgr"
 	"github.com/meshplus/pier/internal/repo"
-	"github.com/meshplus/pier/internal/rulemgr"
 	"github.com/sirupsen/logrus"
 )
 
@@ -58,7 +57,7 @@ func (g *Server) Start() error {
 		v1.POST(client.AuditAppchainUrl, g.auditAppchain)
 		v1.GET(client.GetAppchainUrl, g.getAppchain)
 
-		v1.POST(client.RegisterRuleUrl, g.registerRule)
+		//v1.POST(client.RegisterRuleUrl, g.registerRule)
 	}
 
 	go func() {
@@ -182,49 +181,49 @@ func (g *Server) handleAckAppchain(c *gin.Context, msg *pb.Message) {
 	c.JSON(http.StatusOK, res)
 }
 
-func (g *Server) registerRule(c *gin.Context) {
-	// target pier id
-	pierID := c.Query("pier_id")
-	rule := &rulemgr.Rule{}
-	res := &response{}
-	if err := c.BindJSON(&rule); err != nil {
-		res.Data = []byte(err.Error())
-		c.JSON(http.StatusBadRequest, res)
-		return
-	}
-	data, err := json.Marshal(rule)
-	if err != nil {
-		g.logger.Errorln(err)
-		return
-	}
-	msg := peermgr.Message(pb.Message_RULE_DEPLOY, true, data)
-	ackMsg, err := g.peerMgr.Send(pierID, msg)
-	if err != nil {
-		res.Data = []byte(err.Error())
-		c.JSON(http.StatusInternalServerError, res)
-		return
-	}
-	g.handleAckRule(c, ackMsg)
-}
+//func (g *Server) registerRule(c *gin.Context) {
+//	// target pier id
+//	pierID := c.Query("pier_id")
+//	rule := &rulemgr.Rule{}
+//	res := &response{}
+//	if err := c.BindJSON(&rule); err != nil {
+//		res.Data = []byte(err.Error())
+//		c.JSON(http.StatusBadRequest, res)
+//		return
+//	}
+//	data, err := json.Marshal(rule)
+//	if err != nil {
+//		g.logger.Errorln(err)
+//		return
+//	}
+//	msg := peermgr.Message(pb.Message_RULE_DEPLOY, true, data)
+//	ackMsg, err := g.peerMgr.Send(pierID, msg)
+//	if err != nil {
+//		res.Data = []byte(err.Error())
+//		c.JSON(http.StatusInternalServerError, res)
+//		return
+//	}
+//	g.handleAckRule(c, ackMsg)
+//}
 
-func (g *Server) handleAckRule(c *gin.Context, msg *pb.Message) {
-	data := peermgr.DataToPayload(msg).Data
-	ruleRes := &rulemgr.RuleResponse{}
-	if err := json.Unmarshal(data, ruleRes); err != nil {
-		g.logger.Error(err)
-		return
-	}
-	res := &response{
-		Data: []byte(ruleRes.Content),
-	}
-
-	if !ruleRes.Ok {
-		c.JSON(http.StatusInternalServerError, res)
-		return
-	}
-
-	c.JSON(http.StatusOK, res)
-}
+//func (g *Server) handleAckRule(c *gin.Context, msg *pb.Message) {
+//	data := peermgr.DataToPayload(msg).Data
+//	ruleRes := &rulemgr.RuleResponse{}
+//	if err := json.Unmarshal(data, ruleRes); err != nil {
+//		g.logger.Error(err)
+//		return
+//	}
+//	res := &response{
+//		Data: []byte(ruleRes.Content),
+//	}
+//
+//	if !ruleRes.Ok {
+//		c.JSON(http.StatusInternalServerError, res)
+//		return
+//	}
+//
+//	c.JSON(http.StatusOK, res)
+//}
 
 func (g *Server) getSelfPierID(ctx *gin.Context) (string, error) {
 	repoRoot := g.config.RepoRoot
