@@ -16,7 +16,7 @@ func (mgr *Manager) handleMessage(s network.Stream, msg *pb.Message) {
 	switch msg.Type {
 	case pb.Message_APPCHAIN_REGISTER:
 		// todo check err
-		//ok, res = mgr.Mgr.Register(msg.Payload.Data)
+		// ok, res = mgr.Mgr.Register(msg.Payload.Data)
 	case pb.Message_APPCHAIN_UPDATE:
 		//ok, res = mgr.Mgr.Update(msg.Payload.Data)
 	case pb.Message_APPCHAIN_GET:

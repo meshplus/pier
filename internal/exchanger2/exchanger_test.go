@@ -52,10 +52,10 @@ func testNormalStartRelay(t *testing.T) {
 	mockAdaptAppchain.EXPECT().MonitorIBTP().Return(srcIBTPCh).AnyTimes()
 	mockAdaptRelay.EXPECT().Start().Return(nil).AnyTimes()
 	mockAdaptRelay.EXPECT().Stop().Return(nil).AnyTimes()
-	mockAdaptRelay.EXPECT().Name().Return("bitxhub", nil).AnyTimes()
+	mockAdaptRelay.EXPECT().Name().Return("bitxhub").AnyTimes()
 	mockAdaptAppchain.EXPECT().Start().Return(nil).AnyTimes()
 	mockAdaptAppchain.EXPECT().Stop().Return(nil).AnyTimes()
-	mockAdaptAppchain.EXPECT().Name().Return("fabric", nil).AnyTimes()
+	mockAdaptAppchain.EXPECT().Name().Return("fabric").AnyTimes()
 
 	//adapt0ServiceID_1 := fmt.Sprintf("1356:%s:%s", chain0, from)
 	//adapt0ServiceID_2 := fmt.Sprintf("1356:%s:%s", chain0, from)

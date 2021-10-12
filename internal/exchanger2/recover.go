@@ -13,7 +13,7 @@ import (
 )
 
 func (ex *Exchanger) handleMissingIBTPByServicePair(begin, end uint64, fromAdapt, toAdapt adapt.Adapt, srcService, targetService string, isReq bool) {
-	adaptName, _ := fromAdapt.Name()
+	adaptName := fromAdapt.Name()
 	for ; begin <= end; begin++ {
 		ex.logger.WithFields(logrus.Fields{
 			"service pair": fmt.Sprintf("%s-%s", srcService, targetService),
@@ -26,7 +26,7 @@ func (ex *Exchanger) handleMissingIBTPByServicePair(begin, end uint64, fromAdapt
 }
 
 func sendIBTP(ex *Exchanger, destAdapt adapt.Adapt, ibtp *pb.IBTP) {
-	adaptName, _ := destAdapt.Name()
+	adaptName := destAdapt.Name()
 	if err := retry.Retry(func(attempt uint) error {
 		if err := destAdapt.SendIBTP(ibtp); err != nil {
 			if err, ok := err.(*adapt.SendIbtpError); ok {

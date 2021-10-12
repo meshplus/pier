@@ -29,6 +29,9 @@ type Exchanger struct {
 	srcServiceMeta  map[string]*pb.Interchain
 	destServiceMeta map[string]*pb.Interchain
 
+	srcIBTPMap  map[string]chan *pb.IBTP
+	destIBTPMap map[string]chan *pb.IBTP
+
 	logger logrus.FieldLogger
 	ctx    context.Context
 	cancel context.CancelFunc
@@ -46,6 +49,8 @@ func New(typ, srcChainId, srcBxhId string, opts ...Option) (*Exchanger, error) {
 		logger:          config.logger,
 		srcServiceMeta:  make(map[string]*pb.Interchain),
 		destServiceMeta: make(map[string]*pb.Interchain),
+		srcIBTPMap:      make(map[string]chan *pb.IBTP),
+		destIBTPMap:     make(map[string]chan *pb.IBTP),
 		mode:            typ,
 		ctx:             ctx,
 		cancel:          cancel,
@@ -56,32 +61,12 @@ func New(typ, srcChainId, srcBxhId string, opts ...Option) (*Exchanger, error) {
 func (ex *Exchanger) Start() error {
 	// init meta info
 	var (
-		srcAdaptName  string
-		destAdaptName string
-		serviceList   []string
-		err           error
+		serviceList []string
+		err         error
 	)
 
-	if err := retry.Retry(func(attempt uint) error {
-		if srcAdaptName, err = ex.srcAdapt.Name(); err != nil {
-			ex.logger.Errorf("get name from srcAdapt", "error", err.Error())
-			return err
-		}
-		ex.srcAdaptName = srcAdaptName
-		return nil
-	}, strategy.Wait(3*time.Second)); err != nil {
-		return fmt.Errorf("retry error to get name from srcAdapt: %w", err)
-	}
-	if err := retry.Retry(func(attempt uint) error {
-		if destAdaptName, err = ex.destAdapt.Name(); err != nil {
-			ex.logger.Errorf("get name from destAdapt", "error", err.Error())
-			return err
-		}
-		ex.destAdaptName = destAdaptName
-		return nil
-	}, strategy.Wait(3*time.Second)); err != nil {
-		return fmt.Errorf("retry error to get name from destAdapt: %w", err)
-	}
+	ex.srcAdaptName = ex.srcAdapt.Name()
+	ex.destAdaptName = ex.destAdapt.Name()
 
 	if err := retry.Retry(func(attempt uint) error {
 		if serviceList, err = ex.srcAdapt.GetServiceIDList(); err != nil {
@@ -116,8 +101,8 @@ func (ex *Exchanger) Start() error {
 	ex.recover()
 
 	// start consumer
-	go ex.listenIBTPFromSrcAdapt()
-	go ex.listenIBTPFromDestAdapt()
+	go ex.listenIBTPFromSrcAdaptToServicePairCh()
+	go ex.listenIBTPFromDestAdaptToServicePairCh()
 
 	ex.logger.Info("Exchanger started")
 	return nil
@@ -133,15 +118,37 @@ func initInterchain(serviceMeta map[string]*pb.Interchain, fullServiceId string)
 	}
 }
 
-func (ex *Exchanger) listenIBTPFromDestAdapt() {
-	ex.logger.Infof("ListenIBTPFromDestAdapt %s Start!", ex.destAdaptName)
+func (ex *Exchanger) listenIBTPFromDestAdaptToServicePairCh() {
+	ex.logger.Infof("listenIBTPFromDestAdaptToServicePairCh %s Start!", ex.destAdaptName)
 	ch := ex.destAdapt.MonitorIBTP()
+	for {
+		select {
+		case <-ex.ctx.Done():
+			ex.logger.Info("listenIBTPFromDestAdaptToServicePairCh Stop!")
+			return
+		case ibtp, ok := <-ch:
+			if !ok {
+				ex.logger.Warn("Unexpected closed channel while listening on interchain ibtp")
+				return
+			}
+			key := ibtp.From + ibtp.To
+			_, ok2 := ex.destIBTPMap[key]
+			if !ok2 {
+				ex.destIBTPMap[key] = make(chan *pb.IBTP, 1024)
+				go ex.listenIBTPFromDestAdapt(key)
+			}
+			ex.destIBTPMap[key] <- ibtp
+
+		}
+	}
+}
+func (ex *Exchanger) listenIBTPFromDestAdapt(servicePair string) {
 	for {
 		select {
 		case <-ex.ctx.Done():
 			ex.logger.Info("ListenIBTPFromDestAdapt Stop!")
 			return
-		case ibtp, ok := <-ch:
+		case ibtp, ok := <-ex.destIBTPMap[servicePair]:
 			if !ok {
 				ex.logger.Warn("Unexpected closed channel while listening on interchain ibtp")
 				return
@@ -198,15 +205,37 @@ func (ex *Exchanger) listenIBTPFromDestAdapt() {
 	}
 }
 
-func (ex *Exchanger) listenIBTPFromSrcAdapt() {
-	ex.logger.Infof("ListenIBTPFromSrcAdapt %s Start!", ex.srcAdaptName)
+func (ex *Exchanger) listenIBTPFromSrcAdaptToServicePairCh() {
+	ex.logger.Infof("listenIBTPFromSrcAdaptToServicePairCh %s Start!", ex.srcAdaptName)
 	ch := ex.srcAdapt.MonitorIBTP()
+	for {
+		select {
+		case <-ex.ctx.Done():
+			ex.logger.Info("listenIBTPFromSrcAdaptToServicePairCh Stop!")
+			return
+		case ibtp, ok := <-ch:
+			if !ok {
+				ex.logger.Warn("Unexpected closed channel while listening on interchain ibtp")
+				return
+			}
+			key := ibtp.From + ibtp.To
+			_, ok2 := ex.srcIBTPMap[key]
+			if !ok2 {
+				ex.srcIBTPMap[key] = make(chan *pb.IBTP, 1024)
+				go ex.listenIBTPFromSrcAdapt(key)
+			}
+			ex.srcIBTPMap[key] <- ibtp
+
+		}
+	}
+}
+func (ex *Exchanger) listenIBTPFromSrcAdapt(servicePair string) {
 	for {
 		select {
 		case <-ex.ctx.Done():
 			ex.logger.Info("ListenIBTPFromSrcAdapt Stop!")
 			return
-		case ibtp, ok := <-ch:
+		case ibtp, ok := <-ex.srcIBTPMap[servicePair]:
 			if !ok {
 				ex.logger.Warn("Unexpected closed channel while listening on interchain ibtp")
 				return
