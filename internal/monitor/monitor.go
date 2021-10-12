@@ -47,7 +47,7 @@ func (m *AppchainMonitor) Start() error {
 		return err
 	}
 
-	ch := m.client.GetIBTP()
+	ch := m.client.GetIBTPCh()
 	go func() {
 		for {
 			select {

@@ -23,6 +23,22 @@ type BxhClient struct {
 	appchainmgr.Appchain
 }
 
+func (client *BxhClient) GetIBTPCh() chan *pb.IBTP {
+	panic("implement me")
+}
+
+func (client *BxhClient) GetUpdateMeta() chan *pb.UpdateMeta {
+	panic("implement me")
+}
+
+func (client *BxhClient) SubmitIBTP(from string, index uint64, serviceID string, ibtpType pb.IBTP_Type, content *pb.Content, proof *pb.BxhProof, isEncrypted bool) (*pb.SubmitIBTPResponse, error) {
+	panic("implement me")
+}
+
+func (client *BxhClient) SubmitReceipt(to string, index uint64, serviceID string, ibtpType pb.IBTP_Type, result *pb.Result, proof *pb.BxhProof) (*pb.SubmitIBTPResponse, error) {
+	panic("implement me")
+}
+
 var _ plugins.Client = (*BxhClient)(nil)
 
 // CreateClient creates plugin client from agent
@@ -33,61 +49,61 @@ func CreateClient(agent rpcx.Client) *BxhClient {
 }
 
 // SubmitIBTP submits the inter-relaychain ibtp to relaychain to execute ibtp.Payload
-func (client *BxhClient) SubmitIBTP(ibtp *pb.IBTP) (*pb.SubmitIBTPResponse, error) {
-	ret := &pb.SubmitIBTPResponse{}
-	ret.Status = false
-	payload := &pb.Payload{}
-	if err := payload.Unmarshal(ibtp.Payload); err != nil {
-		return ret, fmt.Errorf("ibtp payload unmarshal: %w", err)
-	}
-	content := &pb.Content{}
-	if err := content.Unmarshal(payload.Content); err != nil {
-		return ret, fmt.Errorf("ibtp content unmarshal: %w", err)
-	}
-
-	args := []*pb.Arg{}
-	//args = append(args, rpcx.String(content.DstContractId))
-	args = append(args, rpcx.String(content.Func))
-	realArg, err := json.Marshal(content.Args)
-	if err != nil {
-		return ret, fmt.Errorf("args marshal: %w", err)
-	}
-	args = append(args, rpcx.Bytes(realArg))
-
-	receipt, err := client.agent.InvokeContract(
-		pb.TransactionData_BVM,
-		constant.InterRelayBrokerContractAddr.Address(), // broker
-		"InvokeInterRelayContract",
-		nil,
-		args...)
-	if err != nil {
-		return ret, fmt.Errorf("invoke payload: %w", err)
-	}
-
-	ret.Status = receipt.IsSuccess()
-	ret.Message = string(receipt.Ret)
-	ret.Result = &pb.IBTP{}
-
-	newArgs := make([][]byte, 0) // TODO modify by receipt.Ret
-	switch content.Func {
-	case "Synchronize":
-		newArgs = append(newArgs, nil)
-	}
-
-	newIbtp, err := client.generateCallback(ibtp, newArgs, receipt.IsSuccess())
-	if err != nil {
-		return nil, err
-	}
-
-	newIbtp.Proof, err = client.getProof(newIbtp)
-	if err != nil {
-		return nil, err
-	}
-
-	ret.Result = newIbtp
-
-	return ret, nil
-}
+//func (client *BxhClient) SubmitIBTP(ibtp *pb.IBTP) (*pb.SubmitIBTPResponse, error) {
+//	ret := &pb.SubmitIBTPResponse{}
+//	ret.Status = false
+//	payload := &pb.Payload{}
+//	if err := payload.Unmarshal(ibtp.Payload); err != nil {
+//		return ret, fmt.Errorf("ibtp payload unmarshal: %w", err)
+//	}
+//	content := &pb.Content{}
+//	if err := content.Unmarshal(payload.Content); err != nil {
+//		return ret, fmt.Errorf("ibtp content unmarshal: %w", err)
+//	}
+//
+//	args := []*pb.Arg{}
+//	//args = append(args, rpcx.String(content.DstContractId))
+//	args = append(args, rpcx.String(content.Func))
+//	realArg, err := json.Marshal(content.Args)
+//	if err != nil {
+//		return ret, fmt.Errorf("args marshal: %w", err)
+//	}
+//	args = append(args, rpcx.Bytes(realArg))
+//
+//	receipt, err := client.agent.InvokeContract(
+//		pb.TransactionData_BVM,
+//		constant.InterRelayBrokerContractAddr.Address(), // broker
+//		"InvokeInterRelayContract",
+//		nil,
+//		args...)
+//	if err != nil {
+//		return ret, fmt.Errorf("invoke payload: %w", err)
+//	}
+//
+//	ret.Status = receipt.IsSuccess()
+//	ret.Message = string(receipt.Ret)
+//	ret.Result = &pb.IBTP{}
+//
+//	newArgs := make([][]byte, 0) // TODO modify by receipt.Ret
+//	switch content.Func {
+//	case "Synchronize":
+//		newArgs = append(newArgs, nil)
+//	}
+//
+//	newIbtp, err := client.generateCallback(ibtp, newArgs, receipt.IsSuccess())
+//	if err != nil {
+//		return nil, err
+//	}
+//
+//	newIbtp.Proof, err = client.getProof(newIbtp)
+//	if err != nil {
+//		return nil, err
+//	}
+//
+//	ret.Result = newIbtp
+//
+//	return ret, nil
+//}
 
 // GetInMessage gets receipt by index and source chain_id
 // TODO
@@ -112,10 +128,6 @@ func (client *BxhClient) GetInMeta() (map[string]uint64, error) {
 		return nil, err
 	}
 	return InCounterMap, nil
-}
-
-func (client *BxhClient) SubmitReceipt(ibtp *pb.IBTP) (*pb.SubmitIBTPResponse, error) {
-	return nil, nil
 }
 
 func (client *BxhClient) GetReceiptMessage(servicePair string, idx uint64) (*pb.IBTP, error) {
