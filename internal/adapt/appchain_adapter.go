@@ -25,6 +25,14 @@ type AppchainAdapter struct {
 	bitxhubID    string
 }
 
+func (a *AppchainAdapter) MonitorUpdatedMeta() chan *[]byte {
+	panic("implement me")
+}
+
+func (a *AppchainAdapter) SendUpdatedMeta(byte []byte) error {
+	panic("implement me")
+}
+
 func NewAppchainAdapter(config *repo.Config, logger logrus.FieldLogger) (Adapt, error) {
 	adapter := &AppchainAdapter{
 		config: &config.Appchain,
@@ -60,8 +68,8 @@ func (a *AppchainAdapter) Stop() error {
 	return nil
 }
 
-func (a *AppchainAdapter) Name() (string, error) {
-	return a.appchainID, nil
+func (a *AppchainAdapter) Name() string {
+	return a.appchainID
 }
 
 func (a *AppchainAdapter) MonitorIBTP() chan *pb.IBTP {

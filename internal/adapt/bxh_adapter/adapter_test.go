@@ -32,8 +32,7 @@ const (
 
 func TestName(t *testing.T) {
 	adapter, _ := prepare(t)
-	name, err := adapter.Name()
-	require.Nil(t, err)
+	name := adapter.Name()
 	require.Equal(t, strconv.Itoa(bxhId), name)
 }
 

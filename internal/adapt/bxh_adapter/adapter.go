@@ -44,12 +44,20 @@ type BxhAdapter struct {
 	cancel     context.CancelFunc
 }
 
-func (b *BxhAdapter) Name() (string, error) {
+func (b *BxhAdapter) MonitorUpdatedMeta() chan *[]byte {
+	panic("implement me")
+}
+
+func (b *BxhAdapter) SendUpdatedMeta(byte []byte) error {
+	panic("implement me")
+}
+
+func (b *BxhAdapter) Name() string {
 	bxhId, err := b.client.GetChainID()
 	if err != nil {
-		return "", err
+		return ""
 	}
-	return strconv.Itoa(int(bxhId)), nil
+	return strconv.Itoa(int(bxhId))
 }
 
 // New creates instance of WrapperSyncer given agent interacting with bitxhub,
