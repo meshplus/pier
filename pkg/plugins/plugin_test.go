@@ -80,9 +80,9 @@ func TestGRPCServer(t *testing.T) {
 	cli.EXPECT().Initialize(gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
 	cli.EXPECT().Start().Return(nil).AnyTimes()
 	cli.EXPECT().Stop().Return(nil).AnyTimes()
-	cli.EXPECT().GetIBTP().Return(ch).AnyTimes()
-	cli.EXPECT().SubmitIBTP(gomock.Any()).Return(nil, nil).AnyTimes()
-	cli.EXPECT().SubmitReceipt(gomock.Any()).Return(nil, nil).AnyTimes()
+	cli.EXPECT().GetIBTPCh().Return(ch).AnyTimes()
+	cli.EXPECT().SubmitIBTP(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, nil).AnyTimes()
+	cli.EXPECT().SubmitReceipt(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, nil).AnyTimes()
 	cli.EXPECT().GetOutMessage(gomock.Any(), gomock.Any()).Return(nil, nil).AnyTimes()
 	cli.EXPECT().GetReceiptMessage(gomock.Any(), gomock.Any()).Return(nil, nil).AnyTimes()
 	cli.EXPECT().GetInMeta().Return(nil, nil).AnyTimes()
@@ -100,12 +100,12 @@ func TestGRPCServer(t *testing.T) {
 	_, err = grpcServer.Stop(ctx, nil)
 	require.Nil(t, err)
 
-	require.Nil(t, grpcServer.GetIBTP(nil, &mockAppchainPlugin_GetIBTPServer{}))
+	require.Nil(t, grpcServer.GetIBTPCh(nil, &mockAppchainPlugin_GetIBTPServer{}))
 
-	_, err = grpcServer.SubmitIBTP(ctx, &pb.IBTP{})
+	_, err = grpcServer.SubmitIBTP(ctx, &pb.SubmitIBTPRequest{})
 	require.Nil(t, err)
 
-	_, err = grpcServer.SubmitReceipt(ctx, &pb.IBTP{})
+	_, err = grpcServer.SubmitReceipt(ctx, &pb.SubmitReceiptRequest{})
 	require.Nil(t, err)
 
 	_, err = grpcServer.GetOutMessage(ctx, outReq)
@@ -147,15 +147,15 @@ func TestGRPCClient(t *testing.T) {
 	require.NotNil(t, grpcClientError.Start())
 	require.Nil(t, grpcClient.Stop())
 	require.NotNil(t, grpcClientError.Stop())
-	require.Equal(t, 0, len(grpcClient.GetIBTP()))
+	require.Equal(t, 0, len(grpcClient.GetIBTPCh()))
 	require.Panics(t, func() {
-		grpcClientError.GetIBTP()
+		grpcClientError.GetIBTPCh()
 	})
 
-	_, err = grpcClient.SubmitIBTP(&pb.IBTP{})
+	_, err = grpcClient.SubmitIBTP("", 0, "", pb.IBTP_INTERCHAIN, &pb.Content{}, &pb.BxhProof{}, false)
 	require.Nil(t, err)
 
-	_, err = grpcClient.SubmitReceipt(&pb.IBTP{})
+	_, err = grpcClient.SubmitReceipt("", 0, "", pb.IBTP_INTERCHAIN, &pb.Result{}, &pb.BxhProof{})
 	require.Nil(t, err)
 
 	servicePair := fmt.Sprintf("%s-%s", from, to)
@@ -230,7 +230,7 @@ type mockAppchainPluginClient struct {
 	count uint64
 }
 
-func (mc *mockAppchainPluginClient) SubmitReceipt(ctx context.Context, in *pb.IBTP, opts ...grpc.CallOption) (*pb.SubmitIBTPResponse, error) {
+func (mc *mockAppchainPluginClient) SubmitReceipt(ctx context.Context, in *pb.SubmitReceiptRequest, opts ...grpc.CallOption) (*pb.SubmitIBTPResponse, error) {
 	if mc.count%2 == 0 {
 		mc.count++
 		return nil, fmt.Errorf("submit ibtp receipt error")
@@ -251,10 +251,6 @@ func (mc *mockAppchainPluginClient) GetReceiptMessage(ctx context.Context, in *p
 		Index: in.Idx,
 		Type:  pb.IBTP_RECEIPT_SUCCESS,
 	}, nil
-}
-
-func (mc *mockAppchainPluginClient) GetLockEvent(ctx context.Context, in *pb.Empty, opts ...grpc.CallOption) (pb.AppchainPlugin_GetLockEventClient, error) {
-	panic("implement me")
 }
 
 func (mc *mockAppchainPluginClient) GetUpdateMeta(ctx context.Context, in *pb.Empty, opts ...grpc.CallOption) (pb.AppchainPlugin_GetUpdateMetaClient, error) {
@@ -315,14 +311,14 @@ func (mc *mockAppchainPluginClient) Stop(ctx context.Context, in *pb.Empty, opts
 	return nil, fmt.Errorf("mockAppchainPluginClient stop error")
 }
 
-func (mc *mockAppchainPluginClient) GetIBTP(ctx context.Context, in *pb.Empty, opts ...grpc.CallOption) (pb.AppchainPlugin_GetIBTPClient, error) {
+func (mc *mockAppchainPluginClient) GetIBTPCh(ctx context.Context, in *pb.Empty, opts ...grpc.CallOption) (pb.AppchainPlugin_GetIBTPChClient, error) {
 	if ctx == context.Background() {
 		return &mockAppchainPlugin_GetIBTPClient{}, nil
 	}
 	return nil, fmt.Errorf("mockAppchainPluginClient get ibtp error")
 }
 
-func (mc *mockAppchainPluginClient) SubmitIBTP(ctx context.Context, in *pb.IBTP, opts ...grpc.CallOption) (*pb.SubmitIBTPResponse, error) {
+func (mc *mockAppchainPluginClient) SubmitIBTP(ctx context.Context, in *pb.SubmitIBTPRequest, opts ...grpc.CallOption) (*pb.SubmitIBTPResponse, error) {
 	if mc.count%2 == 0 {
 		mc.count++
 		return nil, fmt.Errorf("submit ibtp error")
@@ -457,7 +453,7 @@ func (m mockAppchainPlugin_GetIBTPClient) RecvMsg(interface{}) error {
 	return nil
 }
 
-var _ pb.AppchainPlugin_GetIBTPClient = &mockAppchainPlugin_GetIBTPClient{}
+var _ pb.AppchainPlugin_GetIBTPChClient = &mockAppchainPlugin_GetIBTPClient{}
 
 //==================================
 type mockAppchainPlugin_GetIBTPServer struct {
@@ -492,4 +488,4 @@ func (m mockAppchainPlugin_GetIBTPServer) RecvMsg(interface{}) error {
 	return nil
 }
 
-var _ pb.AppchainPlugin_GetIBTPServer = &mockAppchainPlugin_GetIBTPServer{}
+var _ pb.AppchainPlugin_GetIBTPChServer = &mockAppchainPlugin_GetIBTPServer{}
