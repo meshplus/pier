@@ -77,6 +77,9 @@ func New(mode string, client rpcx.Client, logger logrus.FieldLogger) (*BxhAdapte
 }
 
 func (b *BxhAdapter) Start() error {
+	if b.ibtpC == nil || b.wrappersC == nil {
+		b.restartCh()
+	}
 	go b.run()
 	go b.listenInterchainTxWrappers()
 
@@ -87,6 +90,8 @@ func (b *BxhAdapter) Start() error {
 
 func (b *BxhAdapter) Stop() error {
 	b.cancel()
+	close(b.ibtpC)
+	b.ibtpC = nil
 	b.logger.Info("BxhAdapter stopped")
 	return nil
 }
@@ -373,6 +378,8 @@ func (b *BxhAdapter) run() {
 	for {
 		select {
 		case <-b.ctx.Done():
+			close(b.wrappersC)
+			b.wrappersC = nil
 			return
 		case h, ok := <-rawCh:
 			if !ok {
@@ -530,4 +537,13 @@ func (b *BxhAdapter) getMultiSign(ibtp *pb.IBTP, isReq bool) ([]byte, error) {
 		return nil, err
 	}
 	return retProof, nil
+}
+
+func (b *BxhAdapter) restartCh() {
+	if b.ibtpC == nil {
+		b.ibtpC = make(chan *pb.IBTP, maxChSize)
+	}
+	if b.wrappersC == nil {
+		b.wrappersC = make(chan *pb.InterchainTxWrappers, maxChSize)
+	}
 }
