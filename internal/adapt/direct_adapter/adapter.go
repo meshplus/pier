@@ -2,6 +2,8 @@ package direct_adapter
 
 import (
 	"fmt"
+	"sync"
+
 	lru "github.com/hashicorp/golang-lru"
 	"github.com/meshplus/bitxhub-model/pb"
 	"github.com/meshplus/pier/internal/adapt"
@@ -10,7 +12,6 @@ import (
 	"github.com/meshplus/pier/internal/utils"
 	"github.com/sirupsen/logrus"
 	"go.uber.org/atomic"
-	"sync"
 )
 
 var _ adapt.Adapt = (*DirectAdapter)(nil)
