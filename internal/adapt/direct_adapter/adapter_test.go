@@ -2,6 +2,10 @@ package direct_adapter
 
 import (
 	"fmt"
+	"strings"
+	"testing"
+	"time"
+
 	"github.com/golang/mock/gomock"
 	"github.com/meshplus/bitxhub-kit/log"
 	"github.com/meshplus/bitxhub-model/pb"
@@ -11,17 +15,12 @@ import (
 	"github.com/meshplus/pier/internal/peermgr/mock_peermgr"
 	"github.com/meshplus/pier/internal/repo"
 	"github.com/stretchr/testify/require"
-	"strings"
-	"testing"
-	"time"
 )
 
 const (
 	fromHash   = "0x9f41dd84524bf8a42f8ab58ecfca6e1752d6fd93fe8dc00af4c71963c97db59f"
 	toHash     = "0xabc2s384524bf8a42f8ab58ecfca6e1752d6fd93fe8dc00af4c71963c97db60e"
 	appChainId = "testAppChain"
-	serviceId1 = "transfer"
-	serviceId2 = "data_swapper"
 )
 
 func TestName(t *testing.T) {

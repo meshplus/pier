@@ -28,57 +28,6 @@ const (
 	InvalidTargetService = "invalid target service"
 )
 
-//func GetServiceInterchainMeta(client rpcx.Client, bxhID, appchainID string) (map[string]*pb.Interchain, error) {
-//	var (
-//		services           []*service_mgr.Service
-//		serviceInterchains = make(map[string]*pb.Interchain)
-//	)
-//	tx, err := client.GenerateContractTx(pb.TransactionData_BVM, constant.ServiceMgrContractAddr.Address(),
-//		"GetServicesByAppchainID", rpcx.String(appchainID))
-//	if err != nil {
-//		return nil, err
-//	}
-//
-//	ret := getTxView(client, tx)
-//
-//	if err := json.Unmarshal(ret, &services); err != nil {
-//		return nil, err
-//	}
-//
-//	for _, service := range services {
-//		fullServiceID := fmt.Sprintf("%s:%s:%s", bxhID, appchainID, service.ServiceID)
-//		serviceInterchains[fullServiceID] = GetInterchainByServiceID(client, fullServiceID)
-//	}
-//
-//	return serviceInterchains, nil
-//}
-//
-//func GetInterchainByServiceID(client rpcx.Client, fullServiceID string) *pb.Interchain {
-//	tx, err := client.GenerateContractTx(pb.TransactionData_BVM, constant.InterchainContractAddr.Address(),
-//		"GetInterchain", rpcx.String(fullServiceID))
-//	if err != nil {
-//		panic(err)
-//	}
-//
-//	ret := getTxView(client, tx)
-//	if len(ret) == 0 {
-//		return &pb.Interchain{
-//			ID:                      fullServiceID,
-//			InterchainCounter:       make(map[string]uint64),
-//			ReceiptCounter:          make(map[string]uint64),
-//			SourceInterchainCounter: make(map[string]uint64),
-//			SourceReceiptCounter:    make(map[string]uint64),
-//		}
-//	}
-//
-//	interchain := &pb.Interchain{}
-//	if err := interchain.Unmarshal(ret); err != nil {
-//		panic(err)
-//	}
-//
-//	return interchain
-//}
-
 func getTxView(client rpcx.Client, tx *pb.BxhTransaction) []byte {
 	var (
 		receipt     *pb.Receipt
