@@ -15,6 +15,7 @@ require (
 	github.com/golang/mock v1.5.0
 	github.com/hashicorp/go-hclog v0.0.0-20180709165350-ff2cf002a8dd
 	github.com/hashicorp/go-plugin v1.3.0
+	github.com/hashicorp/golang-lru v0.5.5-0.20210104140557-80c98217689d
 	github.com/ipfs/go-cid v0.0.7
 	github.com/libp2p/go-libp2p-core v0.6.1
 	github.com/meshplus/bitxhub-core v1.3.1-0.20210918105020-399b319d967f
@@ -38,3 +39,7 @@ require (
 replace github.com/libp2p/go-libp2p-core => github.com/libp2p/go-libp2p-core v0.5.6
 
 replace github.com/hyperledger/fabric => github.com/hyperledger/fabric v2.0.1+incompatible
+
+replace github.com/meshplus/bitxhub-core => github.com/meshplus/bitxhub-core v1.3.1-0.20211012092228-4ee8410ba2de
+
+replace github.com/meshplus/bitxhub-model => github.com/meshplus/bitxhub-model v1.2.1-0.20211012081501-148db204705a

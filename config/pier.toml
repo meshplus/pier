@@ -21,6 +21,7 @@ router = "info"
 rule_mgr = "info"
 swarm = "info"
 syncer = "info"
+direct_adapter = "info"
 
 [mode]
 type = "relay" # relay, direct or union

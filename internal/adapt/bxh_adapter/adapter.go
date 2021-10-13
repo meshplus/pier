@@ -52,20 +52,17 @@ func (b *BxhAdapter) SendUpdatedMeta(byte []byte) error {
 	panic("implement me")
 }
 
-func (b *BxhAdapter) Name() string {
-	bxhId, err := b.client.GetChainID()
-	if err != nil {
-		return ""
-	}
-	return strconv.Itoa(int(bxhId))
-}
-
 // New creates instance of WrapperSyncer given agent interacting with bitxhub,
 // validators addresses of bitxhub and local storage
-func New(appchainID string, mode string, client rpcx.Client, logger logrus.FieldLogger) (*BxhAdapter, error) {
-
+func New(mode string, client rpcx.Client, logger logrus.FieldLogger) (*BxhAdapter, error) {
+	appchainID, err := client.GetChainID()
+	if err != nil {
+		return nil, fmt.Errorf("new bxh adapter err: %w", err)
+	}
 	ctx, cancel := context.WithCancel(context.Background())
+
 	ba := &BxhAdapter{
+		// todo: not close the channel
 		wrappersC:  make(chan *pb.InterchainTxWrappers, maxChSize),
 		ibtpC:      make(chan *pb.IBTP, maxChSize),
 		client:     client,
@@ -73,13 +70,16 @@ func New(appchainID string, mode string, client rpcx.Client, logger logrus.Field
 		ctx:        ctx,
 		cancel:     cancel,
 		mode:       mode,
-		appchainID: appchainID,
+		appchainID: fmt.Sprintf("bitxhub:%d", appchainID),
 	}
 
 	return ba, nil
 }
 
 func (b *BxhAdapter) Start() error {
+	if b.ibtpC == nil || b.wrappersC == nil {
+		b.restartCh()
+	}
 	go b.run()
 	go b.listenInterchainTxWrappers()
 
@@ -90,8 +90,14 @@ func (b *BxhAdapter) Start() error {
 
 func (b *BxhAdapter) Stop() error {
 	b.cancel()
+	close(b.ibtpC)
+	b.ibtpC = nil
 	b.logger.Info("BxhAdapter stopped")
 	return nil
+}
+
+func (b *BxhAdapter) Name() string {
+	return b.appchainID
 }
 
 func (b *BxhAdapter) MonitorIBTP() chan *pb.IBTP {
@@ -372,6 +378,8 @@ func (b *BxhAdapter) run() {
 	for {
 		select {
 		case <-b.ctx.Done():
+			close(b.wrappersC)
+			b.wrappersC = nil
 			return
 		case h, ok := <-rawCh:
 			if !ok {
@@ -416,10 +424,6 @@ func (b *BxhAdapter) handleInterchainTxWrapper(w *pb.InterchainTxWrapper, i int)
 		b.logger.Error("empty interchain tx wrapper")
 		return false
 	}
-	//todo how to solve timeoutIbtp
-	//for _, ibtpId := range w.TimeoutIbtps {
-	//	b.rollbackHandler(nil, ibtpId)
-	//}
 
 	for _, tx := range w.Transactions {
 		// if ibtp is failed
@@ -533,4 +537,13 @@ func (b *BxhAdapter) getMultiSign(ibtp *pb.IBTP, isReq bool) ([]byte, error) {
 		return nil, err
 	}
 	return retProof, nil
+}
+
+func (b *BxhAdapter) restartCh() {
+	if b.ibtpC == nil {
+		b.ibtpC = make(chan *pb.IBTP, maxChSize)
+	}
+	if b.wrappersC == nil {
+		b.wrappersC = make(chan *pb.InterchainTxWrappers, maxChSize)
+	}
 }

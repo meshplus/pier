@@ -111,10 +111,10 @@ func (mr *MockPeerManagerMockRecorder) FindProviders(id interface{}) *gomock.Cal
 }
 
 // Peers mocks base method.
-func (m *MockPeerManager) Peers() map[uint64]*peer.AddrInfo {
+func (m *MockPeerManager) Peers() map[string]*peer.AddrInfo {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Peers")
-	ret0, _ := ret[0].(map[uint64]*peer.AddrInfo)
+	ret0, _ := ret[0].(map[string]*peer.AddrInfo)
 	return ret0
 }
 
