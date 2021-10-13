@@ -1,10 +1,11 @@
 package direct_adapter
 
 import (
+	"time"
+
 	"github.com/meshplus/bitxhub-model/pb"
 	network "github.com/meshplus/go-lightp2p"
 	"github.com/meshplus/pier/internal/peermgr"
-	"time"
 )
 
 func (d *DirectAdapter) handleGetIBTPMessage(stream network.Stream, msg *pb.Message) {

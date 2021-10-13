@@ -2,13 +2,13 @@ package appchain_adapter
 
 import (
 	"fmt"
-	"github.com/meshplus/pier/internal/adapt"
 	"time"
 
 	"github.com/Rican7/retry"
 	"github.com/Rican7/retry/strategy"
 	"github.com/hashicorp/go-plugin"
 	"github.com/meshplus/bitxhub-model/pb"
+	"github.com/meshplus/pier/internal/adapt"
 	"github.com/meshplus/pier/internal/repo"
 	"github.com/meshplus/pier/internal/utils"
 	"github.com/meshplus/pier/pkg/plugins"
