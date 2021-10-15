@@ -205,7 +205,8 @@ func (ex *Exchanger) sendRollbackedIBTP() {
 				ex.logger.Warn("Unexpected closed channel while listening on interchain ibtp")
 				return
 			}
-			ibtp.Type = pb.IBTP_ROLLBACK
+			// todo: Temporary annotation
+			//ibtp.Type = pb.IBTP_ROLLBACK
 			if err := ex.sendIBTP(ibtp); err != nil {
 				ex.logger.Infof("Send rollbacked ibtp: %s", err.Error())
 			}
@@ -294,8 +295,9 @@ func (ex *Exchanger) listenAndSendIBTPFromSyncer() {
 				ex.handleUnionIBTPFromBitXHub(wIbtp)
 			} else {
 				switch wIbtp.Ibtp.Type {
-				case pb.IBTP_INTERCHAIN, pb.IBTP_ROLLBACK:
-					ex.applyInterchain(wIbtp, entry)
+				// todo: Temporary annotation
+				//case pb.IBTP_INTERCHAIN, pb.IBTP_ROLLBACK:
+				//	ex.applyInterchain(wIbtp, entry)
 				case pb.IBTP_RECEIPT_SUCCESS, pb.IBTP_RECEIPT_FAILURE, pb.IBTP_RECEIPT_ROLLBACK:
 					//ex.applyReceipt(wIbtp, entry)
 					ex.feedIBTPReceipt(wIbtp)
