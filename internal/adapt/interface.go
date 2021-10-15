@@ -10,6 +10,8 @@ type Adapt interface {
 	Stop() error
 	// Name get adapt name
 	Name() string
+	// ID   get adapt ID
+	ID() string
 
 	GetChainID() string
 

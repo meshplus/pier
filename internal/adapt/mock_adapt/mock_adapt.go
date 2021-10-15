@@ -63,6 +63,20 @@ func (mr *MockAdaptMockRecorder) GetServiceIDList() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetServiceIDList", reflect.TypeOf((*MockAdapt)(nil).GetServiceIDList))
 }
 
+// ID mocks base method.
+func (m *MockAdapt) ID() string {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ID")
+	ret0, _ := ret[0].(string)
+	return ret0
+}
+
+// ID indicates an expected call of ID.
+func (mr *MockAdaptMockRecorder) ID() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ID", reflect.TypeOf((*MockAdapt)(nil).ID))
+}
+
 // MonitorIBTP mocks base method.
 func (m *MockAdapt) MonitorIBTP() chan *pb.IBTP {
 	m.ctrl.T.Helper()

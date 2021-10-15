@@ -370,7 +370,7 @@ func prepare(t *testing.T) (*BxhAdapter, *mock_client.MockClient) {
 	config := &repo.Config{}
 	config.Mode.Type = repo.RelayMode
 
-	adapter, err := New(repo.RelayMode,
+	adapter, err := New(repo.RelayMode, "",
 		client, log.NewWithModule("adapter"),
 	)
 	require.Nil(t, err)
