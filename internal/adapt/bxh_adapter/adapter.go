@@ -38,11 +38,11 @@ type BxhAdapter struct {
 	wrappersC chan *pb.InterchainTxWrappers
 	ibtpC     chan *pb.IBTP
 
-	mode   string
-	pierID string
-	bxhID  uint64
-	ctx    context.Context
-	cancel context.CancelFunc
+	mode       string
+	appchainId string
+	bxhID      uint64
+	ctx        context.Context
+	cancel     context.CancelFunc
 }
 
 // TODO: return bitxhub ID
@@ -60,7 +60,7 @@ func (b *BxhAdapter) SendUpdatedMeta(byte []byte) error {
 
 // New creates instance of WrapperSyncer given agent interacting with bitxhub,
 // validators addresses of bitxhub and local storage
-func New(mode string, client rpcx.Client, logger logrus.FieldLogger) (*BxhAdapter, error) {
+func New(mode, appchainId string, client rpcx.Client, logger logrus.FieldLogger) (*BxhAdapter, error) {
 	bxhID, err := client.GetChainID()
 	if err != nil {
 		return nil, fmt.Errorf("new bxh adapter err: %w", err)
@@ -68,15 +68,15 @@ func New(mode string, client rpcx.Client, logger logrus.FieldLogger) (*BxhAdapte
 	ctx, cancel := context.WithCancel(context.Background())
 
 	ba := &BxhAdapter{
-		// todo: not close the channel
-		wrappersC: make(chan *pb.InterchainTxWrappers, maxChSize),
-		ibtpC:     make(chan *pb.IBTP, maxChSize),
-		client:    client,
-		logger:    logger,
-		ctx:       ctx,
-		cancel:    cancel,
-		mode:      mode,
-		bxhID:     bxhID,
+		wrappersC:  make(chan *pb.InterchainTxWrappers, maxChSize),
+		ibtpC:      make(chan *pb.IBTP, maxChSize),
+		client:     client,
+		appchainId: appchainId,
+		logger:     logger,
+		ctx:        ctx,
+		cancel:     cancel,
+		mode:       mode,
+		bxhID:      bxhID,
 	}
 
 	return ba, nil
@@ -324,9 +324,9 @@ func (b *BxhAdapter) GetServiceIDList() ([]string, error) {
 
 	ids := make([]string, 0)
 
-	bitXHubChainIDs, err := b.GetBitXHubChainIDs()
+	bitXHubChainIDs, err := b.getBitXHubChainIDs()
 	if err != nil {
-		b.logger.Panic(err)
+		return nil, err
 	}
 	bitXHubChainIDsMap := make(map[string]interface{})
 	for _, v := range bitXHubChainIDs {
@@ -336,7 +336,7 @@ func (b *BxhAdapter) GetServiceIDList() ([]string, error) {
 		var bxh string
 		var err error
 		if bxh, _, _, err = pb.ParseFullServiceID(service); err != nil {
-			panic(err)
+			return nil, err
 		}
 		if b.mode == repo.UnionMode && bxh != b.ID() {
 			_, ok := bitXHubChainIDsMap[bxh]
@@ -375,7 +375,7 @@ func (b *BxhAdapter) QueryInterchain(serviceID string) (*pb.Interchain, error) {
 	return interchain, nil
 }
 
-func (b *BxhAdapter) GetBitXHubChainIDs() ([]string, error) {
+func (b *BxhAdapter) getBitXHubChainIDs() ([]string, error) {
 	tx, err := b.client.GenerateContractTx(pb.TransactionData_BVM, constant.AppchainMgrContractAddr.Address(),
 		"GetBitXHubChainIDs")
 	if err != nil {
@@ -405,7 +405,7 @@ func (b *BxhAdapter) run() {
 	}
 	// retry for network reason
 	if err := retry.Retry(func(attempt uint) error {
-		rawCh, err = b.client.Subscribe(b.ctx, subscriptType, []byte(strconv.Itoa(int(b.bxhID))))
+		rawCh, err = b.client.Subscribe(b.ctx, subscriptType, []byte(b.appchainId))
 		if err != nil {
 			return err
 		}

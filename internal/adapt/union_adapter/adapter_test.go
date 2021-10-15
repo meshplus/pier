@@ -10,7 +10,7 @@ import (
 	"github.com/meshplus/bitxhub-kit/log"
 	"github.com/meshplus/bitxhub-model/pb"
 	network "github.com/meshplus/go-lightp2p"
-	mock_bxhAdapt "github.com/meshplus/pier/internal/adapt/bxh_adapter/mock_BxhAdapt"
+	"github.com/meshplus/pier/internal/adapt/mock_adapt"
 	"github.com/meshplus/pier/internal/peermgr"
 	"github.com/meshplus/pier/internal/peermgr/mock_peermgr"
 	"github.com/meshplus/pier/internal/repo"
@@ -202,14 +202,14 @@ func TestHandleGetIBTPMessage(t *testing.T) {
 
 }
 
-func prepare(t *testing.T) (*UnionAdapter, *UnionAdapter, *mock_peermgr.MockPeerManager, *mock_bxhAdapt.MockBxhAdapterI) {
+func prepare(t *testing.T) (*UnionAdapter, *UnionAdapter, *mock_peermgr.MockPeerManager, *mock_adapt.MockAdapt) {
 	mockCtl := gomock.NewController(t)
 	mockCtl.Finish()
 
 	config := &repo.Config{}
 	config.Mode.Type = repo.UnionMode
 	mockPeerMgr := mock_peermgr.NewMockPeerManager(mockCtl)
-	mockBxhChainAdapt := mock_bxhAdapt.NewMockBxhAdapterI(mockCtl)
+	mockBxhChainAdapt := mock_adapt.NewMockAdapt(mockCtl)
 	adapter1, err := New(mockPeerMgr, mockBxhChainAdapt, log.NewWithModule("union_adapter1"))
 	adapter2, err := New(mockPeerMgr, mockBxhChainAdapt, log.NewWithModule("union_adapter2"))
 	require.Nil(t, err)
