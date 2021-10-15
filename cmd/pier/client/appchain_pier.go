@@ -274,7 +274,7 @@ func savePierAppchain(ctx *cli.Context, path string) error {
 	appchain := &appchainmgr.Appchain{
 		ID:        addr.String(),
 		TrustRoot: nil,
-		Broker:    "",
+		Broker:    []byte("brokerAddr"),
 		Desc:      "",
 		Version:   0,
 		Status:    governance.GovernanceAvailable,

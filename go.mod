@@ -40,6 +40,6 @@ replace github.com/libp2p/go-libp2p-core => github.com/libp2p/go-libp2p-core v0.
 
 replace github.com/hyperledger/fabric => github.com/hyperledger/fabric v2.0.1+incompatible
 
-replace github.com/meshplus/bitxhub-core => github.com/meshplus/bitxhub-core v1.3.1-0.20211012092228-4ee8410ba2de
+replace github.com/meshplus/bitxhub-core => github.com/meshplus/bitxhub-core v1.3.1-0.20211015044526-39e8bbfefa99
 
 replace github.com/meshplus/bitxhub-model => github.com/meshplus/bitxhub-model v1.2.1-0.20211012081501-148db204705a

@@ -80,7 +80,22 @@ var (
 	appchainBrokerFlag = cli.StringFlag{
 		Name:     "broker",
 		Usage:    "Specify appchain broker contract address",
-		Required: true,
+		Required: false,
+	}
+	fabricBrokerChannelIDFlag = cli.StringFlag{
+		Name:     "broker-cid",
+		Usage:    "Specify fabric broker contract channel ID, only for fabric appchain",
+		Required: false,
+	}
+	fabricBrokerChaincodeIDFlag = cli.StringFlag{
+		Name:     "broker-ccid",
+		Usage:    "Specify fabric broker contract chaincode ID, only for fabric appchain",
+		Required: false,
+	}
+	fabricBrokerVersionFlag = cli.StringFlag{
+		Name:     "broker-v",
+		Usage:    "Specify appchain broker contract version, only for fabric appchain",
+		Required: false,
 	}
 	appchainBindFlag = cli.StringSliceFlag{
 		Name:     "bind",
@@ -91,6 +106,16 @@ var (
 		Name:     "master-rule",
 		Usage:    "Specify appchain master-rule",
 		Required: true,
+	}
+	appchainMasterRuleUrlFlag = cli.StringFlag{
+		Name:     "rule-url",
+		Usage:    "Specify appchain master-rule url",
+		Required: true,
+	}
+	appchainAdminFlag = cli.StringFlag{
+		Name:     "admin",
+		Usage:    "Specify appchain admin addr list, multiple addresses are separated by \",\". The current user is included by default.",
+		Required: false,
 	}
 	appchainConsensusFlag = cli.StringFlag{
 		Name:     "consensus",
@@ -104,7 +129,7 @@ var (
 	}
 	appchainRuleFlag = cli.StringFlag{
 		Name:     "rule",
-		Usage:    "Specify appchain rule",
+		Usage:    "Specify appchain rule addr",
 		Required: false,
 	}
 	appchainRuleUrlFlag = cli.StringFlag{

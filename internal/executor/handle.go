@@ -27,8 +27,9 @@ func (e *ChannelExecutor) ExecuteIBTP(wIbtp *model.WrappedIBTP) (*pb.IBTP, error
 	}).Info("Apply tx")
 
 	switch ibtp.Type {
-	case pb.IBTP_INTERCHAIN, pb.IBTP_ROLLBACK:
-		return e.applyInterchainIBTP(wIbtp)
+	// todo: Temporary annotation
+	//case pb.IBTP_INTERCHAIN, pb.IBTP_ROLLBACK:
+	//	return e.applyInterchainIBTP(wIbtp)
 	case pb.IBTP_RECEIPT_SUCCESS, pb.IBTP_RECEIPT_FAILURE:
 		err := e.applyReceiptIBTP(wIbtp)
 		return nil, err
@@ -42,38 +43,40 @@ func (e *ChannelExecutor) ExecuteIBTP(wIbtp *model.WrappedIBTP) (*pb.IBTP, error
 // if this interchain tx has callback function, get results from the execution
 // of it and set these results as callback function's args
 func (e *ChannelExecutor) applyInterchainIBTP(wIbtp *model.WrappedIBTP) (*pb.IBTP, error) {
-	ibtp := wIbtp.Ibtp
-	entry := e.logger.WithFields(logrus.Fields{
-		"from":  ibtp.From,
-		"to":    ibtp.To,
-		"type":  ibtp.Type,
-		"index": ibtp.Index,
-	})
-
-	// todo: deal with plugin returned error
-	// execute interchain tx, and if execution failed, try to rollback
-	response, err := e.client.SubmitIBTP(ibtp)
-	if err != nil {
-		entry.WithField("error", err).Panic("Submit ibtp")
-	}
-
-	if response == nil || response.Result == nil {
-		entry.WithField("error", err).Panic("empty response")
-	}
-
-	if !response.Status {
-		pd := &pb.Payload{}
-		if err := pd.Unmarshal(response.Result.Payload); err != nil {
-			entry.Panic("Unmarshal payload")
-		}
-
-		entry.WithFields(logrus.Fields{
-			"result":  response.Message,
-			"payload": pd,
-		}).Warn("Get wrong response, need rollback on source chain")
-	}
-
-	return response.Result, nil
+	// todo: Temporary annotation
+	//ibtp := wIbtp.Ibtp
+	//entry := e.logger.WithFields(logrus.Fields{
+	//	"from":  ibtp.From,
+	//	"to":    ibtp.To,
+	//	"type":  ibtp.Type,
+	//	"index": ibtp.Index,
+	//})
+	//
+	////todo: deal with plugin returned error
+	////execute interchain tx, and if execution failed, try to rollback
+	//response, err := e.client.SubmitIBTP(ibtp)
+	//if err != nil {
+	//	entry.WithField("error", err).Panic("Submit ibtp")
+	//}
+	//
+	//if response == nil || response.Result == nil {
+	//	entry.WithField("error", err).Panic("empty response")
+	//}
+	//
+	//if !response.Status {
+	//	pd := &pb.Payload{}
+	//	if err := pd.Unmarshal(response.Result.Payload); err != nil {
+	//		entry.Panic("Unmarshal payload")
+	//	}
+	//
+	//	entry.WithFields(logrus.Fields{
+	//		"result":  response.Message,
+	//		"payload": pd,
+	//	}).Warn("Get wrong response, need rollback on source chain")
+	//}
+	//
+	//return response.Result, nil
+	return nil, nil
 }
 
 func (e *ChannelExecutor) applyReceiptIBTP(wIbtp *model.WrappedIBTP) error {
@@ -104,10 +107,11 @@ func (e *ChannelExecutor) applyReceiptIBTP(wIbtp *model.WrappedIBTP) error {
 		ibtp.Payload = payload
 	}
 
-	if _, err := e.client.SubmitIBTP(ibtp); err != nil {
-		e.logger.Errorf("Execute callback tx: %s", err.Error())
-		return fmt.Errorf("execute callback tx: %w", err)
-	}
+	// todo: Temporary annotation
+	//if _, err := e.client.SubmitIBTP(ibtp); err != nil {
+	//	e.logger.Errorf("Execute callback tx: %s", err.Error())
+	//	return fmt.Errorf("execute callback tx: %w", err)
+	//}
 
 	return nil
 }
