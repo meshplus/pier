@@ -2,13 +2,10 @@ package router
 
 import (
 	"encoding/json"
-	"io/ioutil"
-	"path/filepath"
 	"testing"
 
 	"github.com/golang/mock/gomock"
 	"github.com/meshplus/bitxhub-kit/log"
-	"github.com/meshplus/bitxhub-kit/storage/leveldb"
 	"github.com/meshplus/bitxhub-model/pb"
 	"github.com/meshplus/pier/internal/peermgr"
 	"github.com/meshplus/pier/internal/peermgr/mock_peermgr"
@@ -31,15 +28,15 @@ func TestUnionRouter_Route(t *testing.T) {
 	mockPeerManager.EXPECT().Connect(gomock.Any()).Return(other, nil).AnyTimes()
 	mockPeerManager.EXPECT().Send(gomock.Any(), gomock.Any()).Return(message, nil).AnyTimes()
 
-	repoRoot, err := ioutil.TempDir("", "router_commit")
-	assert.Nil(t, err)
-	storage, err := leveldb.New(filepath.Join(repoRoot, "storage"))
+	//repoRoot, err := ioutil.TempDir("", "router_commit")
+	//assert.Nil(t, err)
+	//storage, err := leveldb.New(filepath.Join(repoRoot, "storage"))
 
-	router := New(mockPeerManager, storage, log.NewWithModule("router"), []string{""})
+	router := New(mockPeerManager, log.NewWithModule("router"), []string{""})
 	router.Start()
 
 	ibtp := mockIBTP(t, 1, pb.IBTP_INTERCHAIN)
-	err = router.Route(ibtp)
+	err := router.Route(ibtp)
 	require.Nil(t, err)
 
 	// send repeated ibtp

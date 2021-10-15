@@ -99,6 +99,7 @@ type LogModule struct {
 	Swarm       string `toml:"swarm" json:"swarm"`
 	Syncer      string `toml:"bxh_adapter" json:"bxh_adapter"`
 	Direct      string `toml:"direct_adapter" json:"direct_adapter"`
+	Union       string `toml:"union_adapter" json:"union_adapter"`
 }
 
 // Appchain are configs about appchain
@@ -150,6 +151,7 @@ func DefaultConfig() *Config {
 				Router:      "info",
 				ApiServer:   "info",
 				Direct:      "info",
+				Union:       "info",
 			},
 		},
 		Security: Security{

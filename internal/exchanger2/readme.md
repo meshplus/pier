@@ -44,6 +44,21 @@
 3. 最终得到两份一致的ServiceMeta。
 4. 在消费过程中两边ServiceMeta不需要保证一致，仅由ibtp发送成功后触发维护。
 
+### 恢复流程（union模式：src-中继链，dest-union_pier）
+1. src获取所有**非当前**中继链的服务interchain；
+2. 处理src -> dest
+   1. 遍历中继链Adapt下Interchain的所有服务，处理两种遗漏交易：
+      - ①中继链作为来源链未发出的请求；
+      - ②中继链作为目的链未发出的回执；
+   2. 抹平index差距中的所有ibtp后将dest的SourceInterchainCounter和ReceiptCounter与src对齐。
+3. 处理dest -> src
+   1. 遍历unionAdapt下Interchain的所有服务，处理两种遗漏交易：
+      - ①中继链作为目的链未收到的请求；
+      - ②中继链作为来源链未收到的回执；
+   2. 抹平index差距中的所有ibtp后将src的InterchainCounter和SourceReceiptCounter与dest对齐
+4. 最终得到两份一致的ServiceMeta。
+5. 在消费过程中两边ServiceMeta不需要保证一致，仅由ibtp发送成功后触发维护。
+
 ### 消费流程
 
 1. 消费srcAdapt生产的ibtp

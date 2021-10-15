@@ -12,7 +12,6 @@ import (
 
 	"github.com/Rican7/retry"
 	"github.com/Rican7/retry/strategy"
-	service_mgr "github.com/meshplus/bitxhub-core/service-mgr"
 	"github.com/meshplus/bitxhub-kit/types"
 	"github.com/meshplus/bitxhub-model/constant"
 	"github.com/meshplus/bitxhub-model/pb"
@@ -21,6 +20,8 @@ import (
 	"github.com/meshplus/pier/internal/repo"
 	"github.com/sirupsen/logrus"
 )
+
+var _ adapt.Adapt = (*BxhAdapter)(nil)
 
 var (
 	_                adapt.Adapt = (*BxhAdapter)(nil)
@@ -37,11 +38,11 @@ type BxhAdapter struct {
 	wrappersC chan *pb.InterchainTxWrappers
 	ibtpC     chan *pb.IBTP
 
-	mode       string
-	pierID     string
-	appchainID string
-	ctx        context.Context
-	cancel     context.CancelFunc
+	mode   string
+	pierID string
+	bxhID  uint64
+	ctx    context.Context
+	cancel context.CancelFunc
 }
 
 // TODO: return bitxhub ID
@@ -60,7 +61,7 @@ func (b *BxhAdapter) SendUpdatedMeta(byte []byte) error {
 // New creates instance of WrapperSyncer given agent interacting with bitxhub,
 // validators addresses of bitxhub and local storage
 func New(mode string, client rpcx.Client, logger logrus.FieldLogger) (*BxhAdapter, error) {
-	appchainID, err := client.GetChainID()
+	bxhID, err := client.GetChainID()
 	if err != nil {
 		return nil, fmt.Errorf("new bxh adapter err: %w", err)
 	}
@@ -68,14 +69,14 @@ func New(mode string, client rpcx.Client, logger logrus.FieldLogger) (*BxhAdapte
 
 	ba := &BxhAdapter{
 		// todo: not close the channel
-		wrappersC:  make(chan *pb.InterchainTxWrappers, maxChSize),
-		ibtpC:      make(chan *pb.IBTP, maxChSize),
-		client:     client,
-		logger:     logger,
-		ctx:        ctx,
-		cancel:     cancel,
-		mode:       mode,
-		appchainID: fmt.Sprintf("bitxhub:%d", appchainID),
+		wrappersC: make(chan *pb.InterchainTxWrappers, maxChSize),
+		ibtpC:     make(chan *pb.IBTP, maxChSize),
+		client:    client,
+		logger:    logger,
+		ctx:       ctx,
+		cancel:    cancel,
+		mode:      mode,
+		bxhID:     bxhID,
 	}
 
 	return ba, nil
@@ -101,8 +102,12 @@ func (b *BxhAdapter) Stop() error {
 	return nil
 }
 
+func (b *BxhAdapter) ID() string {
+	return fmt.Sprintf("%d", b.bxhID)
+}
+
 func (b *BxhAdapter) Name() string {
-	return b.appchainID
+	return fmt.Sprintf("bitxhub:%d", b.bxhID)
 }
 
 func (b *BxhAdapter) MonitorIBTP() chan *pb.IBTP {
@@ -304,28 +309,41 @@ func (b *BxhAdapter) SendIBTP(ibtp *pb.IBTP) error {
 }
 
 func (b *BxhAdapter) GetServiceIDList() ([]string, error) {
-	tx, err := b.client.GenerateContractTx(pb.TransactionData_BVM, constant.ServiceMgrContractAddr.Address(),
-		"GetAllServices")
+	tx, err := b.client.GenerateContractTx(pb.TransactionData_BVM, constant.InterchainContractAddr.Address(),
+		"GetAllServiceIDs")
 	if err != nil {
 		panic(err)
 	}
 
 	ret := getTxView(b.client, tx)
 
-	services := make([]*service_mgr.Service, 0)
+	services := make([]string, 0)
 	if err := json.Unmarshal(ret, &services); err != nil {
 		panic(err)
 	}
 
 	ids := make([]string, 0)
 
-	bxhID, err := b.client.GetChainID()
+	bitXHubChainIDs, err := b.GetBitXHubChainIDs()
 	if err != nil {
-		return nil, err
+		b.logger.Panic(err)
 	}
-
+	bitXHubChainIDsMap := make(map[string]interface{})
+	for _, v := range bitXHubChainIDs {
+		bitXHubChainIDsMap[v] = ""
+	}
 	for _, service := range services {
-		ids = append(ids, fmt.Sprintf("%d:%s:%s", bxhID, service.ChainID, service.ServiceID))
+		var bxh string
+		var err error
+		if bxh, _, _, err = pb.ParseFullServiceID(service); err != nil {
+			panic(err)
+		}
+		if b.mode == repo.UnionMode && bxh != b.ID() {
+			_, ok := bitXHubChainIDsMap[bxh]
+			if ok {
+				ids = append(ids, service)
+			}
+		}
 	}
 
 	return ids, nil
@@ -357,6 +375,22 @@ func (b *BxhAdapter) QueryInterchain(serviceID string) (*pb.Interchain, error) {
 	return interchain, nil
 }
 
+func (b *BxhAdapter) GetBitXHubChainIDs() ([]string, error) {
+	tx, err := b.client.GenerateContractTx(pb.TransactionData_BVM, constant.AppchainMgrContractAddr.Address(),
+		"GetBitXHubChainIDs")
+	if err != nil {
+		return nil, err
+	}
+
+	ret := getTxView(b.client, tx)
+
+	bitXHubChainIDs := make([]string, 0)
+	if err := json.Unmarshal(ret, &bitXHubChainIDs); err != nil {
+		return nil, err
+	}
+	return bitXHubChainIDs, nil
+}
+
 //  move interchainWrapper into wrappers channel
 func (b *BxhAdapter) run() {
 	var (
@@ -371,7 +405,7 @@ func (b *BxhAdapter) run() {
 	}
 	// retry for network reason
 	if err := retry.Retry(func(attempt uint) error {
-		rawCh, err = b.client.Subscribe(b.ctx, subscriptType, []byte(b.appchainID))
+		rawCh, err = b.client.Subscribe(b.ctx, subscriptType, []byte(strconv.Itoa(int(b.bxhID))))
 		if err != nil {
 			return err
 		}
