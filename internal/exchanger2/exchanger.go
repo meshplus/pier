@@ -97,8 +97,11 @@ func (ex *Exchanger) Start() error {
 	if err := ex.destAdapt.Start(); err != nil {
 		return err
 	}
-
-	ex.recover()
+	if repo.UnionMode == ex.mode {
+		ex.recover(ex.destServiceMeta, ex.srcServiceMeta)
+	} else {
+		ex.recover(ex.srcServiceMeta, ex.destServiceMeta)
+	}
 
 	// start consumer
 	go ex.listenIBTPFromSrcAdaptToServicePairCh()
@@ -245,13 +248,21 @@ func (ex *Exchanger) listenIBTPFromSrcAdapt(servicePair string) {
 			if ex.isIBTPBelongSrc(ibtp) {
 				_, ok = ex.srcServiceMeta[ibtp.From]
 				if !ok {
-					initInterchain(ex.srcServiceMeta, ibtp.From)
+					interchain, err := ex.srcAdapt.QueryInterchain(ibtp.From)
+					if err != nil {
+						ex.logger.Panic(ex.logger)
+					}
+					ex.srcServiceMeta[ibtp.From] = interchain
 				}
 				index = ex.srcServiceMeta[ibtp.From].InterchainCounter[ibtp.To]
 			} else {
 				_, ok = ex.srcServiceMeta[ibtp.To]
 				if !ok {
-					initInterchain(ex.srcServiceMeta, ibtp.To)
+					interchain, err := ex.srcAdapt.QueryInterchain(ibtp.To)
+					if err != nil {
+						ex.logger.Panic(ex.logger)
+					}
+					ex.srcServiceMeta[ibtp.To] = interchain
 				}
 				index = ex.srcServiceMeta[ibtp.To].SourceReceiptCounter[ibtp.From]
 			}

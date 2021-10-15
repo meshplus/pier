@@ -22,6 +22,7 @@ rule_mgr = "info"
 swarm = "info"
 syncer = "info"
 direct_adapter = "info"
+union_adapter = "info"
 
 [mode]
 type = "relay" # relay, direct or union

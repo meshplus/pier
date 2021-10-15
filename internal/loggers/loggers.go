@@ -21,6 +21,7 @@ const (
 	Swarm       = "swarm"
 	Syncer      = "bxh_adapter"
 	Direct      = "direct_adapter"
+	Union       = "union_adapter"
 )
 
 var w *loggerWrapper
@@ -59,6 +60,8 @@ func InitializeLogger(config *repo.Config) {
 	m[PeerMgr].Logger.SetLevel(log.ParseLevel(config.Log.Module.PeerMgr))
 	m[Direct] = log.NewWithModule(Direct)
 	m[Direct].Logger.SetLevel(log.ParseLevel(config.Log.Module.Direct))
+	m[Union] = log.NewWithModule(Union)
+	m[Union].Logger.SetLevel(log.ParseLevel(config.Log.Module.Union))
 	w = &loggerWrapper{loggers: m}
 }
 
