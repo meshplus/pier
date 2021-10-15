@@ -4,8 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/meshplus/pier/internal/adapt/appchain_adapter"
+	"github.com/meshplus/pier/internal/adapt/direct_adapter"
 	"path/filepath"
 	"time"
+
+	"github.com/meshplus/pier/internal/adapt/bxh_adapter"
 
 	"github.com/Rican7/retry"
 	"github.com/Rican7/retry/strategy"
@@ -20,10 +24,9 @@ import (
 	rpcx "github.com/meshplus/go-bitxhub-client"
 	"github.com/meshplus/pier/api"
 	_ "github.com/meshplus/pier/imports"
-	"github.com/meshplus/pier/internal/adapt/appchain_adapter"
-	"github.com/meshplus/pier/internal/adapt/bxh_adapter"
-	"github.com/meshplus/pier/internal/adapt/direct_adapter"
+	"github.com/meshplus/pier/internal/agent"
 	"github.com/meshplus/pier/internal/appchain"
+	"github.com/meshplus/pier/internal/checker"
 	"github.com/meshplus/pier/internal/exchanger"
 	exchanger2 "github.com/meshplus/pier/internal/exchanger2"
 	"github.com/meshplus/pier/internal/executor"
@@ -35,6 +38,7 @@ import (
 	"github.com/meshplus/pier/internal/peermgr"
 	"github.com/meshplus/pier/internal/repo"
 	"github.com/meshplus/pier/internal/router"
+	"github.com/meshplus/pier/internal/rulemgr"
 	"github.com/meshplus/pier/internal/txcrypto"
 	"github.com/meshplus/pier/pkg/plugins"
 	_ "github.com/meshplus/pier/pkg/single"
@@ -224,100 +228,65 @@ func NewPier(repoRoot string, config *repo.Config) (*Pier, error) {
 }
 
 func NewUnionPier(repoRoot string, config *repo.Config) (*Pier, error) {
-	store, err := leveldb.New(filepath.Join(config.RepoRoot, "store"))
-	if err != nil {
-		return nil, fmt.Errorf("read from datastaore %w", err)
-	}
-
 	logger := loggers.Logger(loggers.App)
 	privateKey, err := repo.LoadPrivateKey(repoRoot)
 	if err != nil {
 		return nil, fmt.Errorf("repo load key: %w", err)
 	}
 
-	addr, err := privateKey.PublicKey().Address()
+	client, err := newBitXHubClient(logger, privateKey, config)
 	if err != nil {
-		return nil, fmt.Errorf("get address from private key %w", err)
+		return nil, fmt.Errorf("create bitxhub client: %w", err)
 	}
-	var (
-		ex   exchanger.IExchanger
-		lite lite.Lite
-		//ck          checker.Checker
-		peerManager peermgr.PeerManager
-		serviceMeta = make(map[string]*pb.Interchain)
-	)
 
-	//ck = &checker.MockChecker{}
+	bxhAdapter, err := bxh_adapter.New(repo.UnionMode, client, loggers.Logger(loggers.Syncer))
+	if err != nil {
+		return nil, fmt.Errorf("new bitxhub adapter: %w", err)
+	}
+
 	nodePrivKey, err := repo.LoadNodePrivateKey(repoRoot)
 	if err != nil {
 		return nil, fmt.Errorf("repo load node key: %w", err)
 	}
 
-	peerManager, err = peermgr.New(config, nodePrivKey, privateKey, config.Mode.Union.Providers, loggers.Logger(loggers.PeerMgr))
+	peerManager, err := peermgr.New(config, nodePrivKey, privateKey, config.Mode.Union.Providers, loggers.Logger(loggers.PeerMgr))
 	if err != nil {
 		return nil, fmt.Errorf("peerMgr create: %w", err)
 	}
 
-	opts := []rpcx.Option{
-		rpcx.WithLogger(logger),
-		rpcx.WithPrivateKey(privateKey),
-	}
-	nodesInfo := make([]*rpcx.NodeInfo, 0, len(config.Mode.Union.Addrs))
-	for index, addr := range config.Mode.Union.Addrs {
-		nodeInfo := &rpcx.NodeInfo{Addr: addr}
-		if config.Security.EnableTLS {
-			nodeInfo.CertPath = filepath.Join(config.RepoRoot, config.Security.Tlsca)
-			nodeInfo.EnableTLS = config.Security.EnableTLS
-			nodeInfo.CommonName = config.Security.CommonName
-			nodeInfo.AccessCert = filepath.Join(config.RepoRoot, config.Security.AccessCert[index])
-			nodeInfo.AccessKey = filepath.Join(config.RepoRoot, config.Security.AccessKey)
-		}
-		nodesInfo = append(nodesInfo, nodeInfo)
-	}
-	opts = append(opts, rpcx.WithNodesInfo(nodesInfo...), rpcx.WithTimeoutLimit(config.Mode.Relay.TimeoutLimit))
-	client, err := rpcx.New(opts...)
+	unionAdapt, err := union_adapter.New(peerManager, bxhAdapter, loggers.Logger(loggers.Union))
 	if err != nil {
-		return nil, fmt.Errorf("create bitxhub client: %w", err)
+		return nil, fmt.Errorf("new union adapter: %w", err)
 	}
 
-	lite, err = bxh_lite.New(client, store, loggers.Logger(loggers.BxhLite))
-	if err != nil {
-		return nil, fmt.Errorf("lite create: %w", err)
-	}
-
-	//cli := agent.CreateClient(client)
-	//exec, err := executor.New(cli, addr.String(), store, nil, loggers.Logger(loggers.Executor))
-	if err != nil {
-		return nil, fmt.Errorf("executor create: %w", err)
-	}
-
-	router := router.New(peerManager, store, loggers.Logger(loggers.Router), peerManager.(*peermgr.Swarm).ConnectedPeerIDs())
-
-	ex, err = exchanger.New(config.Mode.Type, addr.String(), serviceMeta,
-		//exchanger.WithExecutor(exec),
-		exchanger.WithPeerMgr(peerManager),
-		//exchanger.WithChecker(ck),
-		exchanger.WithStorage(store),
-		exchanger.WithRouter(router),
-		exchanger.WithLogger(loggers.Logger(loggers.Exchanger)),
-	)
+	ex, err := exchanger2.New(repo.UnionMode, "", bxhAdapter.ID(),
+		exchanger2.WithSrcAdapt(bxhAdapter),
+		exchanger2.WithDestAdapt(unionAdapt),
+		exchanger2.WithLogger(loggers.Logger(loggers.Exchanger)))
 	if err != nil {
 		return nil, fmt.Errorf("exchanger create: %w", err)
 	}
 
-	ctx, cancel := context.WithCancel(context.Background())
+	//ex, err = exchanger.New(config.Mode.Type, addr.String(), serviceMeta,
+	//	exchanger.WithExecutor(exec),
+	//	exchanger.WithPeerMgr(peerManager),
+	//	exchanger.WithChecker(ck),
+	//	exchanger.WithStorage(store),
+	//	exchanger.WithRouter(router),
+	//	exchanger.WithLogger(loggers.Logger(loggers.Exchanger)),
+	//)
+	//if err != nil {
+	//	return nil, fmt.Errorf("exchanger create: %w", err)
+	//}
 
+	ctx, cancel := context.WithCancel(context.Background())
 	return &Pier{
-		privateKey:  privateKey,
-		serviceMeta: serviceMeta,
-		exchanger:   ex,
-		//exec:        exec,
-		lite:    lite,
-		storage: store,
-		logger:  logger,
-		ctx:     ctx,
-		cancel:  cancel,
-		config:  config,
+		privateKey: privateKey,
+		exchanger:  ex,
+		logger:     logger,
+		ctx:        ctx,
+		cancel:     cancel,
+		config:     config,
 	}, nil
 }
 

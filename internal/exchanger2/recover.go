@@ -42,13 +42,13 @@ func sendIBTP(ex *Exchanger, destAdapt adapt.Adapt, ibtp *pb.IBTP) {
 	}
 }
 
-func (ex *Exchanger) recover() {
+func (ex *Exchanger) recover(srcServiceMeta map[string]*pb.Interchain, destServiceMeta map[string]*pb.Interchain) {
 	// handle src -> dest
 	ex.logger.Info("Start To Recover IBTPs!")
-	for _, interchain := range ex.srcServiceMeta {
+	for _, interchain := range srcServiceMeta {
 
 		for k, count := range interchain.InterchainCounter {
-			destCount, ok := ex.destServiceMeta[interchain.ID].InterchainCounter[k]
+			destCount, ok := destServiceMeta[interchain.ID].InterchainCounter[k]
 			if !ok {
 				destCount = 0
 			}
@@ -56,24 +56,24 @@ func (ex *Exchanger) recover() {
 			var begin = destCount + 1
 			ex.handleMissingIBTPByServicePair(begin, count, ex.srcAdapt, ex.destAdapt, interchain.ID, k, true)
 			// success then equal index
-			ex.destServiceMeta[interchain.ID].InterchainCounter[k] = count
+			destServiceMeta[interchain.ID].InterchainCounter[k] = count
 		}
 		for k, count := range interchain.SourceReceiptCounter {
-			destCount, ok := ex.destServiceMeta[interchain.ID].SourceReceiptCounter[k]
+			destCount, ok := destServiceMeta[interchain.ID].SourceReceiptCounter[k]
 			if !ok {
 				destCount = 0
 			}
 			// handle unsentIBTP : query IBTP -> sendIBTP
 			var begin = destCount + 1
 			ex.handleMissingIBTPByServicePair(begin, count, ex.srcAdapt, ex.destAdapt, k, interchain.ID, false)
-			ex.destServiceMeta[interchain.ID].SourceReceiptCounter[k] = count
+			destServiceMeta[interchain.ID].SourceReceiptCounter[k] = count
 		}
 	}
 
 	// handle dest -> src
-	for _, interchain := range ex.destServiceMeta {
+	for _, interchain := range destServiceMeta {
 		for k, count := range interchain.SourceInterchainCounter {
-			destCount, ok := ex.srcServiceMeta[interchain.ID].SourceInterchainCounter[k]
+			destCount, ok := srcServiceMeta[interchain.ID].SourceInterchainCounter[k]
 			if !ok {
 				destCount = 0
 			}
@@ -81,11 +81,11 @@ func (ex *Exchanger) recover() {
 			// handle unsentIBTP : query IBTP -> sendIBTP
 			var begin = destCount + 1
 			ex.handleMissingIBTPByServicePair(begin, count, ex.destAdapt, ex.srcAdapt, k, interchain.ID, true)
-			ex.srcServiceMeta[interchain.ID].SourceInterchainCounter[k] = count
+			srcServiceMeta[interchain.ID].SourceInterchainCounter[k] = count
 		}
 
 		for k, count := range interchain.ReceiptCounter {
-			destCount, ok := ex.srcServiceMeta[interchain.ID].ReceiptCounter[k]
+			destCount, ok := srcServiceMeta[interchain.ID].ReceiptCounter[k]
 			if !ok {
 				destCount = 0
 			}
@@ -93,7 +93,7 @@ func (ex *Exchanger) recover() {
 			// handle unsentIBTP : query IBTP -> sendIBTP
 			var begin = destCount + 1
 			ex.handleMissingIBTPByServicePair(begin, count, ex.destAdapt, ex.srcAdapt, interchain.ID, k, false)
-			ex.srcServiceMeta[interchain.ID].ReceiptCounter[k] = count
+			srcServiceMeta[interchain.ID].ReceiptCounter[k] = count
 		}
 	}
 	ex.logger.Info("End To Recover IBTPs!")

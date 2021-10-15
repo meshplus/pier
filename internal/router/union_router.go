@@ -6,7 +6,6 @@ import (
 	"sync"
 
 	"github.com/ipfs/go-cid"
-	appchainmgr "github.com/meshplus/bitxhub-core/appchain-mgr"
 	"github.com/meshplus/bitxhub-kit/storage"
 	"github.com/meshplus/bitxhub-model/pb"
 	"github.com/meshplus/pier/internal/peermgr"
@@ -20,7 +19,6 @@ type UnionRouter struct {
 	peermgr          peermgr.PeerManager
 	logger           logrus.FieldLogger
 	store            storage.Storage
-	appchains        map[string]*appchainmgr.Appchain
 	pbTable          sync.Map
 	connectedPierIDs []string
 
@@ -28,12 +26,10 @@ type UnionRouter struct {
 	cancel context.CancelFunc
 }
 
-func New(peermgr peermgr.PeerManager, store storage.Storage, logger logrus.FieldLogger, connectedPierIDs []string) *UnionRouter {
+func New(peermgr peermgr.PeerManager, logger logrus.FieldLogger, connectedPierIDs []string) *UnionRouter {
 	ctx, cancel := context.WithCancel(context.Background())
 	return &UnionRouter{
 		peermgr:          peermgr,
-		store:            store,
-		appchains:        make(map[string]*appchainmgr.Appchain),
 		logger:           logger,
 		ctx:              ctx,
 		cancel:           cancel,
