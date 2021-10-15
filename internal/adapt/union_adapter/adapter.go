@@ -7,7 +7,7 @@ import (
 
 	"github.com/meshplus/bitxhub-model/pb"
 	rpcx "github.com/meshplus/go-bitxhub-client"
-	"github.com/meshplus/pier/internal/adapt/bxh_adapter"
+	"github.com/meshplus/pier/internal/adapt"
 	"github.com/meshplus/pier/internal/loggers"
 	"github.com/meshplus/pier/internal/peermgr"
 	"github.com/meshplus/pier/internal/router"
@@ -22,10 +22,9 @@ type UnionAdapter struct {
 	logger logrus.FieldLogger
 	ibtpC  chan *pb.IBTP
 
-	bxhAdapter bxh_adapter.BxhAdapterI
+	bxhAdapter adapt.Adapt
 	peerMgr    peermgr.PeerManager
 	router     router.Router
-	mode       string
 	bxhId      string
 	ctx        context.Context
 	cancel     context.CancelFunc
@@ -47,7 +46,11 @@ func (b *UnionAdapter) Name() string {
 	return fmt.Sprintf("union:%s", b.bxhId)
 }
 
-func New(peerMgr peermgr.PeerManager, bxh bxh_adapter.BxhAdapterI, logger logrus.FieldLogger) (*UnionAdapter, error) {
+func (b *UnionAdapter) ID() string {
+	return fmt.Sprintf("%s", b.bxhId)
+}
+
+func New(peerMgr peermgr.PeerManager, bxh adapt.Adapt, logger logrus.FieldLogger) (*UnionAdapter, error) {
 
 	router := router.New(peerMgr, loggers.Logger(loggers.Router), peerMgr.(*peermgr.Swarm).ConnectedPeerIDs())
 	da := &UnionAdapter{
@@ -66,9 +69,6 @@ func (u *UnionAdapter) Start() error {
 	if u.ibtpC == nil {
 		u.ibtpC = make(chan *pb.IBTP, maxChSize)
 	}
-	if err := u.peerMgr.Start(); err != nil {
-		return fmt.Errorf("peerMgr start: %w", err)
-	}
 
 	if err := u.peerMgr.RegisterMsgHandler(pb.Message_ROUTER_IBTP_SEND, u.handleRouterSendIBTPMessage); err != nil {
 		return fmt.Errorf("register router ibtp send handler: %w", err)
@@ -86,14 +86,23 @@ func (u *UnionAdapter) Start() error {
 		return fmt.Errorf("register router interchain handler: %w", err)
 	}
 
+	if err := u.peerMgr.Start(); err != nil {
+		return fmt.Errorf("peerMgr start: %w", err)
+	}
+
 	go func() {
 		for {
-			err := u.router.Broadcast(u.bxhId)
-			if err != nil {
-				u.logger.Warnf("broadcast BitXHub ID %s: %w", u.bxhId, err)
+			select {
+			case <-u.ctx.Done():
+				u.logger.Info("UnionAdapter Broadcast Stoped!")
+				return
+			default:
+				err := u.router.Broadcast(u.bxhId)
+				if err != nil {
+					u.logger.Warnf("broadcast BitXHub ID %s: %w", u.bxhId, err)
+				}
+				time.Sleep(time.Second)
 			}
-
-			time.Sleep(time.Second)
 		}
 	}()
 	u.logger.Info("UnionAdapter started")

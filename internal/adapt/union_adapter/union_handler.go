@@ -25,37 +25,6 @@ func (ex *UnionAdapter) handleRouterInterchain(s network.Stream, msg *pb.Message
 	}
 }
 
-func (ex *UnionAdapter) handleUnionIBTPFromPier(ibtp *pb.IBTP) error {
-	// todo exchanger消费部分代码
-	//ic, ok := ex.serviceMeta[ibtp.From]
-	//if !ok {
-	//	ic = ex.syncer.QueryInterchainMeta(ibtp.From)
-	//	ex.serviceMeta[ibtp.From] = ic
-	//}
-	//
-	//if ibtp.Category() == pb.IBTP_REQUEST {
-	//	if ibtp.Index <= ic.InterchainCounter[ibtp.To] {
-	//		return nil
-	//	}
-	//
-	//	ex.askMissingIBTPFromUnionPier(ibtp.From, ibtp.To, ic.InterchainCounter[ibtp.To]+1, ibtp.Index-1, true)
-	//} else if ibtp.Category() == pb.IBTP_RESPONSE {
-	//	if ibtp.Index <= ic.ReceiptCounter[ibtp.To] {
-	//		return nil
-	//	}
-	//
-	//	ex.askMissingIBTPFromUnionPier(ibtp.From, ibtp.To, ic.ReceiptCounter[ibtp.To]+1, ibtp.Index-1, false)
-	//} else {
-	//	return fmt.Errorf("get unknown ibtp category with id %s and type %s", ibtp.ID(), ibtp.Type)
-	//}
-	//
-	//if err := ex.sendIBTP(ibtp); err != nil {
-	//	return fmt.Errorf("send ibtp %s to BitXHub: %v", ibtp.ID(), err)
-	//}
-	//
-	return nil
-}
-
 //handleRouterSendIBTPMessage handles IBTP from union interchain network
 func (ex *UnionAdapter) handleRouterSendIBTPMessage(stream network.Stream, msg *pb.Message) {
 	handle := func() error {
