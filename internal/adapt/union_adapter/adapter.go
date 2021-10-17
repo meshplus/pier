@@ -52,7 +52,8 @@ func (b *UnionAdapter) ID() string {
 
 func New(peerMgr peermgr.PeerManager, bxh adapt.Adapt, logger logrus.FieldLogger) (*UnionAdapter, error) {
 
-	router := router.New(peerMgr, loggers.Logger(loggers.Router), peerMgr.(*peermgr.Swarm).ConnectedPeerIDs())
+	router := router.New(peerMgr, loggers.Logger(loggers.Router))
+	ctx, cancel := context.WithCancel(context.Background())
 	da := &UnionAdapter{
 		logger:     logger,
 		peerMgr:    peerMgr,
@@ -60,6 +61,8 @@ func New(peerMgr peermgr.PeerManager, bxh adapt.Adapt, logger logrus.FieldLogger
 		bxhAdapter: bxh,
 		ibtpC:      make(chan *pb.IBTP, maxChSize),
 		bxhId:      bxh.ID(),
+		ctx:        ctx,
+		cancel:     cancel,
 	}
 
 	return da, nil
@@ -79,7 +82,7 @@ func (u *UnionAdapter) Start() error {
 	}
 
 	if err := u.peerMgr.RegisterMsgHandler(pb.Message_ROUTER_IBTP_RECEIPT_GET, u.handleRouterGetIBTPMessage); err != nil {
-		return fmt.Errorf("register router ibtp get handler: %w", err)
+		return fmt.Errorf("register router ibtp receipt get handler: %w", err)
 	}
 
 	if err := u.peerMgr.RegisterMsgHandler(pb.Message_ROUTER_INTERCHAIN_GET, u.handleRouterInterchain); err != nil {

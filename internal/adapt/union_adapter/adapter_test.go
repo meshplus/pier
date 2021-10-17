@@ -11,6 +11,7 @@ import (
 	"github.com/meshplus/bitxhub-model/pb"
 	network "github.com/meshplus/go-lightp2p"
 	"github.com/meshplus/pier/internal/adapt/mock_adapt"
+	"github.com/meshplus/pier/internal/loggers"
 	"github.com/meshplus/pier/internal/peermgr"
 	"github.com/meshplus/pier/internal/peermgr/mock_peermgr"
 	"github.com/meshplus/pier/internal/repo"
@@ -18,22 +19,23 @@ import (
 )
 
 const (
-	fromHash   = "0x9f41dd84524bf8a42f8ab58ecfca6e1752d6fd93fe8dc00af4c71963c97db59f"
-	toHash     = "0xabc2s384524bf8a42f8ab58ecfca6e1752d6fd93fe8dc00af4c71963c97db60e"
-	appChainId = "testAppChain"
+	fromHash = "0x9f41dd84524bf8a42f8ab58ecfca6e1752d6fd93fe8dc00af4c71963c97db59f"
+	toHash   = "0xabc2s384524bf8a42f8ab58ecfca6e1752d6fd93fe8dc00af4c71963c97db60e"
+	bxhId    = "1356"
+	other    = "1358:chain2:0x3f9d18f7c3a6e5e4c0b877fe3e688ab08840b993"
 )
 
 func TestName(t *testing.T) {
 	adapter1, _, _, _ := prepare(t)
 	name := adapter1.Name()
-	require.Equal(t, fmt.Sprintf("union:%s", appChainId), name)
+	require.Equal(t, fmt.Sprintf("union:%s", bxhId), name)
 }
 
 func TestStart(t *testing.T) {
 	adapter, _, peerMgr, _ := prepare(t)
 
 	// start normal
-	peerMgr.EXPECT().RegisterMsgHandler(gomock.Any(), gomock.Any()).Return(nil).MaxTimes(3)
+	peerMgr.EXPECT().RegisterMsgHandler(gomock.Any(), gomock.Any()).Return(nil).MaxTimes(4)
 	peerMgr.EXPECT().Start().Return(nil).Times(1)
 	peerMgr.EXPECT().Stop().Return(nil).Times(1)
 	err := adapter.Start()
@@ -43,14 +45,21 @@ func TestStart(t *testing.T) {
 
 	// test register interchain error
 	interchainErr := fmt.Errorf("register query interchain msg handler")
-	peerMgr.EXPECT().RegisterMsgHandler(pb.Message_INTERCHAIN_META_GET, gomock.Any()).Return(interchainErr).Times(1)
+	peerMgr.EXPECT().RegisterMsgHandler(gomock.Eq(pb.Message_ROUTER_INTERCHAIN_GET), gomock.Any()).Return(interchainErr).Times(1)
+	peerMgr.EXPECT().RegisterMsgHandler(gomock.Not(pb.Message_ROUTER_INTERCHAIN_GET), gomock.Any()).Return(nil).Times(3)
 	err = adapter.Start()
 	require.Equal(t, true, strings.Contains(err.Error(), interchainErr.Error()))
 
+	// test register interchain error
+	interchainErr2 := fmt.Errorf("register router ibtp receipt get handler")
+	peerMgr.EXPECT().RegisterMsgHandler(gomock.Eq(pb.Message_ROUTER_IBTP_RECEIPT_GET), gomock.Any()).Return(interchainErr).Times(1)
+	peerMgr.EXPECT().RegisterMsgHandler(gomock.Not(pb.Message_ROUTER_IBTP_RECEIPT_GET), gomock.Any()).Return(nil).Times(3)
+	err = adapter.Start()
+	require.Equal(t, true, strings.Contains(err.Error(), interchainErr2.Error()))
+
 	// test peerMgr start error
 	startError := fmt.Errorf("start peerMgr err")
-	peerMgr.EXPECT().RegisterMsgHandler(gomock.Any(), gomock.Any()).Return(nil).MaxTimes(3)
-	peerMgr.EXPECT().RegisterMultiMsgHandler(gomock.Any(), gomock.Any()).Return(nil).Times(1)
+	peerMgr.EXPECT().RegisterMsgHandler(gomock.Any(), gomock.Any()).Return(nil).MaxTimes(4)
 	peerMgr.EXPECT().Start().Return(startError).Times(1)
 	err = adapter.Start()
 	require.NotNil(t, err)
@@ -66,24 +75,14 @@ func TestStart(t *testing.T) {
 }
 
 func TestSendIBTP(t *testing.T) {
-	adapter1, adapter2, peerMgr, _ := prepare(t)
-
+	adapter1, _, peerMgr, _ := prepare(t)
+	message := peermgr.Message(pb.Message_ACK, true, nil)
+	peerMgr.EXPECT().Send(gomock.Any(), gomock.Any()).Return(message, nil).AnyTimes()
 	ibtp1 := getIBTP(t, 1, pb.IBTP_INTERCHAIN)
 	receipt1 := getIBTP(t, 1, pb.IBTP_RECEIPT_SUCCESS)
 	ibtp2 := getIBTP(t, 2, pb.IBTP_INTERCHAIN)
 	ibtp4 := getIBTP(t, 4, pb.IBTP_INTERCHAIN)
 
-	fromPierId := "testappchain1"
-	toPierId := "testappchain2"
-	peerMgr.EXPECT().AsyncSend(gomock.Any(), gomock.Any()).Do(func(pierId string, msg *pb.Message) {
-		var stream network.Stream
-		if pierId == fromPierId {
-			adapter1.handleRouterSendIBTPMessage(stream, msg)
-		}
-		if pierId == toPierId {
-			adapter2.handleRouterSendIBTPMessage(stream, msg)
-		}
-	}).Return(nil).MaxTimes(5)
 	err := adapter1.SendIBTP(ibtp1)
 	require.Nil(t, err)
 	err = adapter1.SendIBTP(receipt1)
@@ -92,11 +91,6 @@ func TestSendIBTP(t *testing.T) {
 	require.Nil(t, err)
 	err = adapter1.SendIBTP(ibtp4)
 	require.Nil(t, err)
-
-	wrongTypeIbtp := getIBTP(t, 3, pb.IBTP_RECEIPT_ROLLBACK)
-	err = adapter1.SendIBTP(wrongTypeIbtp)
-	require.Equal(t, true, strings.Contains(err.Error(), "unsupport ibtp type"))
-
 	wrongIdIbtp := &pb.IBTP{
 		From:    fmt.Sprintf(":testappchain1:%s", fromHash),
 		To:      fmt.Sprintf("wrongType:%s", toHash),
@@ -133,34 +127,6 @@ func TestQueryIBTP(t *testing.T) {
 	wrongId2 := fmt.Sprintf("%s-%s-%d", "wrongServiceId", "wrongServiceId", 1)
 	_, err = adapter1.QueryIBTP(wrongId2, true)
 	require.Equal(t, true, strings.Contains(err.Error(), "wrongServiceId"))
-
-	// test qurey ibtp from ibtpCache firstly, If there is no ibtp in the cache, connect the network
-	ibtp2 := getIBTP(t, 2, pb.IBTP_INTERCHAIN)
-	id2 := ibtp2.ID()
-
-	ret2, err := adapter1.QueryIBTP(id2, true)
-	require.Nil(t, err)
-	require.Equal(t, ibtp2, ret2)
-
-	// test get wrong type from ibtpCache
-	wrongId3 := fmt.Sprintf("%s-%s-%d", "from", "to", 0)
-
-	ret3, err := adapter1.QueryIBTP(wrongId3, true)
-	require.Nil(t, ret3)
-	queryError := fmt.Errorf("get wrong type from ibtpCache")
-	require.Equal(t, err, queryError)
-
-	receipt1 := getIBTP(t, 1, pb.IBTP_RECEIPT_SUCCESS)
-	receiptId := receipt1.ID()
-	dataReceipt1, err := receipt1.Marshal()
-	require.Nil(t, err)
-	receiptMsg := peermgr.Message(pb.Message_ACK, true, dataReceipt1)
-	peerMgr.EXPECT().Send(gomock.Any(), gomock.Any()).Return(receiptMsg, nil).MaxTimes(1)
-
-	retReceipt, err := adapter1.QueryIBTP(receiptId, false)
-	require.Nil(t, err)
-	require.Equal(t, receipt1, retReceipt)
-
 }
 
 func TestQueryInterchain(t *testing.T) {
@@ -205,11 +171,16 @@ func TestHandleGetIBTPMessage(t *testing.T) {
 func prepare(t *testing.T) (*UnionAdapter, *UnionAdapter, *mock_peermgr.MockPeerManager, *mock_adapt.MockAdapt) {
 	mockCtl := gomock.NewController(t)
 	mockCtl.Finish()
-
+	loggers.InitializeLogger(repo.DefaultConfig())
 	config := &repo.Config{}
 	config.Mode.Type = repo.UnionMode
 	mockPeerMgr := mock_peermgr.NewMockPeerManager(mockCtl)
 	mockBxhChainAdapt := mock_adapt.NewMockAdapt(mockCtl)
+	mockBxhChainAdapt.EXPECT().ID().Return(bxhId).AnyTimes()
+	mockPeerMgr.EXPECT().FindProviders(gomock.Any()).Return(other, nil).AnyTimes()
+	mockPeerMgr.EXPECT().Connect(gomock.Any()).Return(other, nil).AnyTimes()
+	mockPeerMgr.EXPECT().ConnectedPeerIDs().Return([]string{""}).AnyTimes()
+	mockPeerMgr.EXPECT().Provider(gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
 	adapter1, err := New(mockPeerMgr, mockBxhChainAdapt, log.NewWithModule("union_adapter1"))
 	adapter2, err := New(mockPeerMgr, mockBxhChainAdapt, log.NewWithModule("union_adapter2"))
 	require.Nil(t, err)

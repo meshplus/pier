@@ -21,6 +21,9 @@ type PeerManager interface {
 	// AsyncSendWithStream sends message using existed stream
 	AsyncSendWithStream(network.Stream, *pb.Message) error
 
+	// ConnectedPeerIDs find connectedPeers
+	ConnectedPeerIDs() []string
+
 	// RegisterMsgHandler
 	RegisterMsgHandler(pb.Message_Type, MessageHandler) error
 
