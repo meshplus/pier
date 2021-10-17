@@ -111,7 +111,7 @@ func (ex *Exchanger) Start() error {
 	return nil
 }
 
-func initInterchain(serviceMeta map[string]*pb.Interchain, fullServiceId string) {
+func initInterchain(serviceMeta map[string]*pb.Interchain, fullServiceId string) *pb.Interchain {
 	serviceMeta[fullServiceId] = &pb.Interchain{
 		ID:                      fullServiceId,
 		InterchainCounter:       make(map[string]uint64),
@@ -119,6 +119,7 @@ func initInterchain(serviceMeta map[string]*pb.Interchain, fullServiceId string)
 		SourceInterchainCounter: make(map[string]uint64),
 		SourceReceiptCounter:    make(map[string]uint64),
 	}
+	return serviceMeta[fullServiceId]
 }
 
 func (ex *Exchanger) listenIBTPFromDestAdaptToServicePairCh() {
@@ -232,6 +233,48 @@ func (ex *Exchanger) listenIBTPFromSrcAdaptToServicePairCh() {
 		}
 	}
 }
+
+func (ex *Exchanger) getCurrentIndex(ibtp *pb.IBTP) uint64 {
+	var index uint64
+	var interchain *pb.Interchain
+	var err error
+	if ex.isIBTPBelongSrc(ibtp) {
+		_, ok := ex.srcServiceMeta[ibtp.From]
+		if !ok {
+			switch ex.mode {
+			case repo.DirectMode:
+				fallthrough
+			case repo.RelayMode:
+				interchain = initInterchain(ex.srcServiceMeta, ibtp.From)
+			case repo.UnionMode:
+				interchain, err = ex.srcAdapt.QueryInterchain(ibtp.From)
+				if err != nil {
+					ex.logger.Panic(ex.logger)
+				}
+			}
+			ex.srcServiceMeta[ibtp.From] = interchain
+		}
+		index = ex.srcServiceMeta[ibtp.From].InterchainCounter[ibtp.To]
+	} else {
+		_, ok := ex.srcServiceMeta[ibtp.To]
+		if !ok {
+			switch ex.mode {
+			case repo.DirectMode:
+				fallthrough
+			case repo.RelayMode:
+				interchain = initInterchain(ex.srcServiceMeta, ibtp.To)
+			case repo.UnionMode:
+				interchain, err = ex.srcAdapt.QueryInterchain(ibtp.To)
+				if err != nil {
+					ex.logger.Panic(ex.logger)
+				}
+			}
+			ex.srcServiceMeta[ibtp.To] = interchain
+		}
+		index = ex.srcServiceMeta[ibtp.To].SourceReceiptCounter[ibtp.From]
+	}
+	return index
+}
 func (ex *Exchanger) listenIBTPFromSrcAdapt(servicePair string) {
 	for {
 		select {
@@ -244,29 +287,7 @@ func (ex *Exchanger) listenIBTPFromSrcAdapt(servicePair string) {
 				return
 			}
 			ex.logger.WithFields(logrus.Fields{"index": ibtp.Index, "type": ibtp.Type, "ibtp_id": ibtp.ID()}).Info("Receive ibtp from :", ex.srcAdaptName)
-			var index uint64
-			if ex.isIBTPBelongSrc(ibtp) {
-				_, ok = ex.srcServiceMeta[ibtp.From]
-				if !ok {
-					interchain, err := ex.srcAdapt.QueryInterchain(ibtp.From)
-					if err != nil {
-						ex.logger.Panic(ex.logger)
-					}
-					ex.srcServiceMeta[ibtp.From] = interchain
-				}
-				index = ex.srcServiceMeta[ibtp.From].InterchainCounter[ibtp.To]
-			} else {
-				_, ok = ex.srcServiceMeta[ibtp.To]
-				if !ok {
-					interchain, err := ex.srcAdapt.QueryInterchain(ibtp.To)
-					if err != nil {
-						ex.logger.Panic(ex.logger)
-					}
-					ex.srcServiceMeta[ibtp.To] = interchain
-				}
-				index = ex.srcServiceMeta[ibtp.To].SourceReceiptCounter[ibtp.From]
-			}
-
+			index := ex.getCurrentIndex(ibtp)
 			if index >= ibtp.Index {
 				ex.logger.WithFields(logrus.Fields{"index": ibtp.Index, "to_counter": index, "ibtp_id": ibtp.ID()}).Info("Ignore ibtp")
 				continue
@@ -302,7 +323,6 @@ func (ex *Exchanger) listenIBTPFromSrcAdapt(servicePair string) {
 		}
 	}
 }
-
 func (ex *Exchanger) isIBTPBelongSrc(ibtp *pb.IBTP) bool {
 	var isIBTPBelongSrc = false
 	bxhID, chainID, _ := ibtp.ParseFrom()

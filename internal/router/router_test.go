@@ -27,12 +27,13 @@ func TestUnionRouter_Route(t *testing.T) {
 	mockPeerManager.EXPECT().FindProviders(gomock.Any()).Return(other, nil).AnyTimes()
 	mockPeerManager.EXPECT().Connect(gomock.Any()).Return(other, nil).AnyTimes()
 	mockPeerManager.EXPECT().Send(gomock.Any(), gomock.Any()).Return(message, nil).AnyTimes()
+	mockPeerManager.EXPECT().ConnectedPeerIDs().Return([]string{""}).AnyTimes()
 
 	//repoRoot, err := ioutil.TempDir("", "router_commit")
 	//assert.Nil(t, err)
 	//storage, err := leveldb.New(filepath.Join(repoRoot, "storage"))
 
-	router := New(mockPeerManager, log.NewWithModule("router"), []string{""})
+	router := New(mockPeerManager, log.NewWithModule("router"))
 	router.Start()
 
 	ibtp := mockIBTP(t, 1, pb.IBTP_INTERCHAIN)
