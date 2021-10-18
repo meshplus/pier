@@ -22,6 +22,7 @@ const (
 	Syncer      = "bxh_adapter"
 	Direct      = "direct_adapter"
 	Union       = "union_adapter"
+	Cryptor     = "cryptor"
 )
 
 var w *loggerWrapper
@@ -62,6 +63,8 @@ func InitializeLogger(config *repo.Config) {
 	m[Direct].Logger.SetLevel(log.ParseLevel(config.Log.Module.Direct))
 	m[Union] = log.NewWithModule(Union)
 	m[Union].Logger.SetLevel(log.ParseLevel(config.Log.Module.Union))
+	m[Cryptor] = log.NewWithModule(Cryptor)
+	m[Cryptor].Logger.SetLevel(log.ParseLevel(config.Log.Module.Cryptor))
 	w = &loggerWrapper{loggers: m}
 }
 
