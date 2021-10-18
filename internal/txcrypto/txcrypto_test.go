@@ -10,13 +10,15 @@ import (
 	"github.com/meshplus/bitxhub-model/pb"
 	rpcx "github.com/meshplus/go-bitxhub-client"
 	"github.com/meshplus/go-bitxhub-client/mock_client"
+	"github.com/meshplus/pier/internal/loggers"
+	"github.com/meshplus/pier/internal/repo"
 	"github.com/stretchr/testify/require"
 )
 
 func TestRelayCryptor(t *testing.T) {
 	c := gomock.NewController(t)
 	mockClient := mock_client.NewMockClient(c)
-
+	loggers.InitializeLogger(repo.DefaultConfig())
 	privKey1, err := asym.GenerateKeyPair(crypto.Secp256k1)
 	require.Nil(t, err)
 	privKey2, err := asym.GenerateKeyPair(crypto.Secp256k1)

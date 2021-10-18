@@ -155,7 +155,7 @@ func TestQueryInterchain(t *testing.T) {
 
 }
 
-func TestHandleGetIBTPMessage(t *testing.T) {
+func TestHandleRouterGetIBTPMessage(t *testing.T) {
 	adapter, _, peerMgr, appchainAdapt := prepare(t)
 	var stream network.Stream
 
@@ -163,9 +163,49 @@ func TestHandleGetIBTPMessage(t *testing.T) {
 	id := ibtp1.ID()
 	appchainAdapt.EXPECT().QueryIBTP(gomock.Any(), gomock.Any()).Return(ibtp1, nil).AnyTimes()
 	peerMgr.EXPECT().AsyncSendWithStream(gomock.Any(), gomock.Any()).Return(nil)
-	msg := peermgr.Message(pb.Message_IBTP_GET, true, []byte(id))
+	msg := peermgr.Message(pb.Message_ROUTER_IBTP_GET, true, []byte(id))
 	adapter.handleRouterGetIBTPMessage(stream, msg)
 
+}
+
+func TestHandleRouterGetIBTPReceiptMessage(t *testing.T) {
+	adapter, _, peerMgr, appchainAdapt := prepare(t)
+	var stream network.Stream
+
+	ibtp1 := getIBTP(t, 1, pb.IBTP_RECEIPT_SUCCESS)
+	id := ibtp1.ID()
+	appchainAdapt.EXPECT().QueryIBTP(gomock.Any(), gomock.Any()).Return(ibtp1, nil).AnyTimes()
+	peerMgr.EXPECT().AsyncSendWithStream(gomock.Any(), gomock.Any()).Return(nil)
+	msg := peermgr.Message(pb.Message_ROUTER_IBTP_RECEIPT_GET, true, []byte(id))
+	adapter.handleRouterGetIBTPReceiptMessage(stream, msg)
+
+}
+
+func TestHandleRouterSendIBTPMessage(t *testing.T) {
+	adapter, _, peerMgr, appchainAdapt := prepare(t)
+	var stream network.Stream
+
+	ibtp1 := getIBTP(t, 1, pb.IBTP_INTERCHAIN)
+	marshal, _ := ibtp1.Marshal()
+	appchainAdapt.EXPECT().QueryIBTP(gomock.Any(), gomock.Any()).Return(ibtp1, nil).AnyTimes()
+	peerMgr.EXPECT().AsyncSendWithStream(gomock.Any(), gomock.Any()).Return(nil)
+	msg := peermgr.Message(pb.Message_ROUTER_IBTP_SEND, true, marshal)
+	adapter.handleRouterSendIBTPMessage(stream, msg)
+}
+
+func TestHandleRouterInterchain(t *testing.T) {
+	adapter, _, peerMgr, bxhAdapt := prepare(t)
+	var stream network.Stream
+
+	interchainBegin := &pb.Interchain{ID: other,
+		SourceInterchainCounter: map[string]uint64{other: 1},
+		ReceiptCounter:          map[string]uint64{other: 1},
+		SourceReceiptCounter:    map[string]uint64{other: 1},
+		InterchainCounter:       map[string]uint64{other: 1}}
+	bxhAdapt.EXPECT().QueryInterchain(gomock.Any()).Return(interchainBegin, nil).AnyTimes()
+	peerMgr.EXPECT().AsyncSendWithStream(gomock.Any(), gomock.Any()).Return(nil)
+	msg := peermgr.Message(pb.Message_ROUTER_INTERCHAIN_GET, true, []byte(interchainBegin.ID))
+	adapter.handleRouterInterchain(stream, msg)
 }
 
 func prepare(t *testing.T) (*UnionAdapter, *UnionAdapter, *mock_peermgr.MockPeerManager, *mock_adapt.MockAdapt) {
