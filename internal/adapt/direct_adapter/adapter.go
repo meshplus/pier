@@ -33,9 +33,8 @@ type DirectAdapter struct {
 	appchainID    string
 }
 
-// TODO: return counterparty appchain ID
-func (d *DirectAdapter) GetChainID() string {
-	panic("implement me")
+func (d *DirectAdapter) ID() string {
+	return fmt.Sprintf("%s", d.appchainID)
 }
 
 func (d *DirectAdapter) MonitorUpdatedMeta() chan *[]byte {
@@ -56,7 +55,7 @@ func New(peerMgr peermgr.PeerManager, appchainAdapt adapt.Adapt, logger logrus.F
 		return nil, fmt.Errorf("ibtpCache initialize err: %w", err)
 	}
 
-	appchainID := appchainAdapt.GetChainID()
+	appchainID := appchainAdapt.ID()
 
 	da := &DirectAdapter{
 		logger:        logger,

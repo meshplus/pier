@@ -91,6 +91,9 @@ func (a *AppchainAdapter) Stop() error {
 	return nil
 }
 
+func (a *AppchainAdapter) ID() string {
+	return fmt.Sprintf("%s", a.appchainID)
+}
 func (a *AppchainAdapter) Name() string {
 	return fmt.Sprintf("appchain: %s", a.appchainID)
 }

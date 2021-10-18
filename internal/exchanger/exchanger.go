@@ -2,438 +2,374 @@ package exchanger
 
 import (
 	"context"
-	"errors"
 	"fmt"
-	"sync"
+	"strings"
 	"time"
 
 	"github.com/Rican7/retry"
 	"github.com/Rican7/retry/backoff"
 	"github.com/Rican7/retry/strategy"
-	"github.com/meshplus/bitxhub-kit/storage"
 	"github.com/meshplus/bitxhub-model/pb"
-	"github.com/meshplus/pier/api"
-	"github.com/meshplus/pier/internal/checker"
-	"github.com/meshplus/pier/internal/executor"
-	"github.com/meshplus/pier/internal/monitor"
-	"github.com/meshplus/pier/internal/peermgr"
+	"github.com/meshplus/pier/internal/adapt"
 	"github.com/meshplus/pier/internal/repo"
-	"github.com/meshplus/pier/internal/router"
-	"github.com/meshplus/pier/internal/syncer"
-	"github.com/meshplus/pier/pkg/model"
 	"github.com/sirupsen/logrus"
-	"go.uber.org/atomic"
 )
 
 type Exchanger struct {
-	mode         string
-	appchainDID  string
-	store        storage.Storage
-	mnt          monitor.Monitor
-	exec         executor.Executor
-	syncer       syncer.Syncer
-	router       router.Router
-	serviceMeta  map[string]*pb.Interchain
-	callbackMeta map[string]uint64
-	inMeta       map[string]uint64
-	bxhID        string
+	mode       string
+	srcChainId string
+	srcBxhId   string
+	// R: appchain -- hub
+	// D: appchain -- dPier
+	// U: hub 	   -- uPier
+	srcAdapt        adapt.Adapt
+	destAdapt       adapt.Adapt
+	srcAdaptName    string
+	destAdaptName   string
+	srcServiceMeta  map[string]*pb.Interchain
+	destServiceMeta map[string]*pb.Interchain
 
-	apiServer       *api.Server
-	peerMgr         peermgr.PeerManager
-	checker         checker.Checker
-	sendIBTPCounter atomic.Uint64
-	sendIBTPTimer   atomic.Duration
-	ch              chan struct{} //control the concurrent count
-	ibtps           sync.Map
-	receipts        sync.Map
-	rollbackCh      chan *pb.IBTP
+	srcIBTPMap  map[string]chan *pb.IBTP
+	destIBTPMap map[string]chan *pb.IBTP
 
 	logger logrus.FieldLogger
 	ctx    context.Context
 	cancel context.CancelFunc
 }
 
-func New(typ, appchainDID string, serviceMeta map[string]*pb.Interchain, opts ...Option) (*Exchanger, error) {
+func New(typ, srcChainId, srcBxhId string, opts ...Option) (*Exchanger, error) {
 	config := GenerateConfig(opts...)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	exchanger := &Exchanger{
-		//checker:   config.checker,
-		apiServer: config.apiServer,
-		mnt:       config.mnt,
-		peerMgr:   config.peerMgr,
-		//syncer:      config.syncer,
-		store:       config.store,
-		router:      config.router,
-		logger:      config.logger,
-		ch:          make(chan struct{}, 100),
-		serviceMeta: serviceMeta,
-		rollbackCh:  make(chan *pb.IBTP, 1024),
-		mode:        typ,
-		appchainDID: appchainDID,
-		ctx:         ctx,
-		cancel:      cancel,
+		srcChainId:      srcChainId,
+		srcBxhId:        srcBxhId,
+		srcAdapt:        config.srcAdapt,
+		destAdapt:       config.destAdapt,
+		logger:          config.logger,
+		srcServiceMeta:  make(map[string]*pb.Interchain),
+		destServiceMeta: make(map[string]*pb.Interchain),
+		srcIBTPMap:      make(map[string]chan *pb.IBTP),
+		destIBTPMap:     make(map[string]chan *pb.IBTP),
+		mode:            typ,
+		ctx:             ctx,
+		cancel:          cancel,
 	}
-
-	if typ != repo.UnionMode {
-		exchanger.exec = config.exec
-		exchanger.callbackMeta = config.exec.QueryCallbackMeta()
-		exchanger.inMeta = config.exec.QueryInterchainMeta()
-	}
-
 	return exchanger, nil
 }
 
 func (ex *Exchanger) Start() error {
-	if ex.mode != repo.UnionMode {
-		go ex.listenAndSendIBTPFromMnt()
-	}
-	if ex.mode != repo.DirectMode {
-		go ex.listenAndSendIBTPFromSyncer()
+	// init meta info
+	var (
+		serviceList []string
+		err         error
+	)
+
+	ex.srcAdaptName = ex.srcAdapt.Name()
+	ex.destAdaptName = ex.destAdapt.Name()
+
+	if err := retry.Retry(func(attempt uint) error {
+		if serviceList, err = ex.srcAdapt.GetServiceIDList(); err != nil {
+			ex.logger.Errorf("get serviceIdList from srcAdapt", "error", err.Error())
+			return err
+		}
+		return nil
+	}, strategy.Wait(3*time.Second)); err != nil {
+		return fmt.Errorf("retry error to get serviceIdList from srcAdapt: %w", err)
 	}
 
-	var err error
-	switch ex.mode {
-	case repo.DirectMode:
-		err = ex.startWithDirectMode()
-	case repo.RelayMode:
-		err = ex.startWithRelayMode()
-	case repo.UnionMode:
-		err = ex.startWithUnionMode()
+	for _, serviceId := range serviceList {
+		ex.srcServiceMeta[serviceId], err = ex.srcAdapt.QueryInterchain(serviceId)
+		if err != nil {
+			panic(fmt.Sprintf("queryInterchain from srcAdapt: %s", err.Error()))
+		}
+		ex.destServiceMeta[serviceId], err = ex.destAdapt.QueryInterchain(serviceId)
+		if err != nil {
+			panic(fmt.Sprintf("queryInterchain from destAdapt: %s", err.Error()))
+		}
 	}
 
-	if err != nil {
+	// start get ibtp to channel
+	if err := ex.srcAdapt.Start(); err != nil {
 		return err
 	}
+
+	if err := ex.destAdapt.Start(); err != nil {
+		return err
+	}
+	if repo.UnionMode == ex.mode {
+		ex.recover(ex.destServiceMeta, ex.srcServiceMeta)
+	} else {
+		ex.recover(ex.srcServiceMeta, ex.destServiceMeta)
+	}
+
+	// start consumer
+	go ex.listenIBTPFromSrcAdaptToServicePairCh()
+	go ex.listenIBTPFromDestAdaptToServicePairCh()
 
 	ex.logger.Info("Exchanger started")
 	return nil
 }
 
-func (ex *Exchanger) startWithDirectMode() error {
-	if err := ex.apiServer.Start(); err != nil {
-		return fmt.Errorf("peerMgr start: %w", err)
+func initInterchain(serviceMeta map[string]*pb.Interchain, fullServiceId string) *pb.Interchain {
+	serviceMeta[fullServiceId] = &pb.Interchain{
+		ID:                      fullServiceId,
+		InterchainCounter:       make(map[string]uint64),
+		ReceiptCounter:          make(map[string]uint64),
+		SourceInterchainCounter: make(map[string]uint64),
+		SourceReceiptCounter:    make(map[string]uint64),
 	}
-
-	if err := ex.peerMgr.RegisterConnectHandler(ex.handleNewConnection); err != nil {
-		return fmt.Errorf("register on connection handler: %w", err)
-	}
-
-	if err := ex.peerMgr.RegisterMsgHandler(pb.Message_INTERCHAIN_META_GET, ex.handleGetInterchainMessage); err != nil {
-		return fmt.Errorf("register query interchain msg handler: %w", err)
-	}
-
-	if err := ex.peerMgr.RegisterMsgHandler(pb.Message_IBTP_SEND, ex.handleSendIBTPMessage); err != nil {
-		return fmt.Errorf("register ibtp handler: %w", err)
-	}
-
-	if err := ex.peerMgr.RegisterMsgHandler(pb.Message_IBTP_RECEIPT_SEND, ex.handleSendIBTPReceiptMessage); err != nil {
-		return fmt.Errorf("register ibtp handler: %w", err)
-	}
-
-	if err := ex.peerMgr.RegisterMsgHandler(pb.Message_IBTP_GET, ex.handleGetIBTPMessage); err != nil {
-		return fmt.Errorf("register ibtp receipt handler: %w", err)
-	}
-
-	if err := ex.peerMgr.Start(); err != nil {
-		return fmt.Errorf("peerMgr start: %w", err)
-	}
-
-	go ex.analysisDirectTPS()
-	return nil
+	return serviceMeta[fullServiceId]
 }
 
-func (ex *Exchanger) startWithRelayMode() error {
-	if err := ex.syncer.RegisterRollbackHandler(ex.handleRollback); err != nil {
-		return fmt.Errorf("register router handler: %w", err)
-	}
-	// syncer should be started first in case to recover ibtp from monitor
-	if err := ex.syncer.Start(); err != nil {
-		return fmt.Errorf("syncer start: %w", err)
-	}
-
-	// recover exchanger before relay any interchain msgs
-	ex.recoverRelay()
-
-	go ex.sendRollbackedIBTP()
-
-	return nil
-}
-
-func (ex *Exchanger) startWithUnionMode() error {
-	if err := ex.peerMgr.Start(); err != nil {
-		return fmt.Errorf("peerMgr start: %w", err)
-	}
-
-	if err := ex.peerMgr.RegisterMsgHandler(pb.Message_ROUTER_IBTP_SEND, ex.handleRouterSendIBTPMessage); err != nil {
-		return fmt.Errorf("register router ibtp send handler: %w", err)
-	}
-
-	if err := ex.peerMgr.RegisterMsgHandler(pb.Message_ROUTER_IBTP_GET, ex.handleRouterGetIBTPMessage); err != nil {
-		return fmt.Errorf("register router ibtp get handler: %w", err)
-	}
-
-	if err := ex.peerMgr.RegisterMsgHandler(pb.Message_ROUTER_IBTP_RECEIPT_GET, ex.handleRouterGetIBTPMessage); err != nil {
-		return fmt.Errorf("register router ibtp get handler: %w", err)
-	}
-
-	if err := ex.peerMgr.RegisterMsgHandler(pb.Message_ROUTER_INTERCHAIN_GET, ex.handleRouterInterchain); err != nil {
-		return fmt.Errorf("register router interchain handler: %w", err)
-	}
-
-	if err := ex.recoverUnion(); err != nil {
-		return fmt.Errorf("recover union: %w", err)
-	}
-
-	if err := ex.router.Start(); err != nil {
-		return fmt.Errorf("router start: %w", err)
-	}
-
-	if err := ex.syncer.Start(); err != nil {
-		return fmt.Errorf("syncer start: %w", err)
-	}
-	return nil
-}
-
-func (ex *Exchanger) sendRollbackedIBTP() {
+func (ex *Exchanger) listenIBTPFromDestAdaptToServicePairCh() {
+	ex.logger.Infof("listenIBTPFromDestAdaptToServicePairCh %s Start!", ex.destAdaptName)
+	ch := ex.destAdapt.MonitorIBTP()
 	for {
 		select {
 		case <-ex.ctx.Done():
+			ex.logger.Info("listenIBTPFromDestAdaptToServicePairCh Stop!")
 			return
-		case ibtp, ok := <-ex.rollbackCh:
+		case ibtp, ok := <-ch:
 			if !ok {
 				ex.logger.Warn("Unexpected closed channel while listening on interchain ibtp")
 				return
 			}
-			//ibtp.Type = pb.IBTP_ROLLBACK
-			if err := ex.sendIBTP(ibtp); err != nil {
-				ex.logger.Infof("Send rollbacked ibtp: %s", err.Error())
+			key := ibtp.From + ibtp.To
+			_, ok2 := ex.destIBTPMap[key]
+			if !ok2 {
+				ex.destIBTPMap[key] = make(chan *pb.IBTP, 1024)
+				go ex.listenIBTPFromDestAdapt(key)
 			}
+			ex.destIBTPMap[key] <- ibtp
+
 		}
 	}
 }
-
-func (ex *Exchanger) listenAndSendIBTPFromMnt() {
-	ch := ex.mnt.ListenIBTP()
+func (ex *Exchanger) listenIBTPFromDestAdapt(servicePair string) {
 	for {
 		select {
 		case <-ex.ctx.Done():
+			ex.logger.Info("ListenIBTPFromDestAdapt Stop!")
 			return
-		case ibtp, ok := <-ch:
-			ex.logger.Info("Receive interchain ibtp from monitor")
+		case ibtp, ok := <-ex.destIBTPMap[servicePair]:
 			if !ok {
 				ex.logger.Warn("Unexpected closed channel while listening on interchain ibtp")
 				return
 			}
-			_, ok = ex.serviceMeta[ibtp.From]
-			if !ok {
-				ex.serviceMeta[ibtp.From] = &pb.Interchain{
-					ID:                      ibtp.From,
-					InterchainCounter:       make(map[string]uint64),
-					ReceiptCounter:          make(map[string]uint64),
-					SourceInterchainCounter: make(map[string]uint64),
-					SourceReceiptCounter:    make(map[string]uint64),
+			ex.logger.WithFields(logrus.Fields{"index": ibtp.Index, "type": ibtp.Type, "ibtp_id": ibtp.ID()}).Info("Receive ibtp from :", ex.destAdaptName)
+			var index uint64
+			if ex.isIBTPBelongSrc(ibtp) {
+				_, ok = ex.destServiceMeta[ibtp.From]
+				if !ok {
+					initInterchain(ex.destServiceMeta, ibtp.From)
 				}
+				index = ex.destServiceMeta[ibtp.From].ReceiptCounter[ibtp.To]
+			} else {
+				_, ok = ex.destServiceMeta[ibtp.To]
+				if !ok {
+					initInterchain(ex.destServiceMeta, ibtp.To)
+				}
+				index = ex.destServiceMeta[ibtp.To].SourceInterchainCounter[ibtp.From]
 			}
-			index := ex.serviceMeta[ibtp.From].InterchainCounter[ibtp.To]
+
 			if index >= ibtp.Index {
 				ex.logger.WithFields(logrus.Fields{"index": ibtp.Index, "to_counter": index, "ibtp_id": ibtp.ID()}).Info("Ignore ibtp")
-				return
+				continue
 			}
 
 			if index+1 < ibtp.Index {
 				ex.logger.WithFields(logrus.Fields{"index": ibtp.Index, "to": ibtp.To}).Info("Get missing ibtp")
-
-				servicePair := fmt.Sprintf("%s-%s", ibtp.From, ibtp.To)
-				if err := ex.handleMissingIBTPFromMnt(servicePair, index+1, ibtp.Index); err != nil {
-					ex.logger.WithFields(logrus.Fields{"index": ibtp.Index, "to": ibtp.To, "err": err.Error()}).Error("Handle missing ibtp")
-				}
+				ex.handleMissingIBTPByServicePair(index+1, ibtp.Index-1, ex.destAdapt, ex.srcAdapt, ibtp.From, ibtp.To, !ex.isIBTPBelongSrc(ibtp))
 			}
 
 			if err := retry.Retry(func(attempt uint) error {
-				if err := ex.sendIBTP(ibtp); err != nil {
-					ex.logger.Errorf("Send ibtp: %s", err.Error())
+				if err := ex.srcAdapt.SendIBTP(ibtp); err != nil {
 					// if err occurs, try to get new ibtp and resend
-					ibtpID := ibtp.ID()
-					if err := retry.Retry(func(attempt uint) error {
-						ibtp, err = ex.mnt.QueryIBTP(ibtpID)
-						if err != nil {
-							ex.logger.Errorf("Query ibtp %s from appchain: %s", ibtpID, err.Error())
-							return err
+					if err, ok := err.(*adapt.SendIbtpError); ok {
+						if err.NeedRetry() {
+							ex.logger.Errorf("send IBTP to Adapt:%s", ex.srcAdaptName, "error", err.Error())
+							// query to new ibtp
+							ibtp = ex.queryIBTP(ex.destAdapt, ibtp.ID(), !ex.isIBTPBelongSrc(ibtp))
+							return fmt.Errorf("retry sending ibtp")
 						}
-						return nil
-					}, strategy.Backoff(backoff.Fibonacci(500*time.Millisecond))); err != nil {
-						ex.logger.Panic(err)
 					}
-					return fmt.Errorf("retry sending ibtp")
 				}
 				return nil
 			}, strategy.Backoff(backoff.Fibonacci(500*time.Millisecond))); err != nil {
 				ex.logger.Panic(err)
 			}
 
-			ex.serviceMeta[ibtp.From].InterchainCounter[ibtp.To] = ibtp.Index
+			if ex.isIBTPBelongSrc(ibtp) {
+				ex.destServiceMeta[ibtp.From].ReceiptCounter[ibtp.To] = ibtp.Index
+			} else {
+				ex.destServiceMeta[ibtp.To].SourceInterchainCounter[ibtp.From] = ibtp.Index
+			}
 		}
 	}
 }
 
-func (ex *Exchanger) listenAndSendIBTPFromSyncer() {
-	ch := ex.syncer.ListenIBTP()
+func (ex *Exchanger) listenIBTPFromSrcAdaptToServicePairCh() {
+	ex.logger.Infof("listenIBTPFromSrcAdaptToServicePairCh %s Start!", ex.srcAdaptName)
+	ch := ex.srcAdapt.MonitorIBTP()
 	for {
 		select {
 		case <-ex.ctx.Done():
+			ex.logger.Info("listenIBTPFromSrcAdaptToServicePairCh Stop!")
 			return
-		case wIbtp, ok := <-ch:
+		case ibtp, ok := <-ch:
 			if !ok {
 				ex.logger.Warn("Unexpected closed channel while listening on interchain ibtp")
 				return
 			}
-			entry := ex.logger.WithFields(logrus.Fields{"type": wIbtp.Ibtp.Type, "id": wIbtp.Ibtp.ID()})
-			entry.Debugf("Exchanger receives ibtp from syncer")
-			if ex.mode == repo.UnionMode {
-				ex.handleUnionIBTPFromBitXHub(wIbtp)
-			} else {
-				switch wIbtp.Ibtp.Type {
-				case pb.IBTP_INTERCHAIN:
-					ex.applyInterchain(wIbtp, entry)
-				case pb.IBTP_RECEIPT_SUCCESS, pb.IBTP_RECEIPT_FAILURE, pb.IBTP_RECEIPT_ROLLBACK:
-					//ex.applyReceipt(wIbtp, entry)
-					ex.feedIBTPReceipt(wIbtp)
-				default:
-					entry.Errorf("wrong type of ibtp")
+			key := ibtp.From + ibtp.To
+			_, ok2 := ex.srcIBTPMap[key]
+			if !ok2 {
+				ex.srcIBTPMap[key] = make(chan *pb.IBTP, 1024)
+				go ex.listenIBTPFromSrcAdapt(key)
+			}
+			ex.srcIBTPMap[key] <- ibtp
+
+		}
+	}
+}
+
+func (ex *Exchanger) getCurrentIndex(ibtp *pb.IBTP) uint64 {
+	var index uint64
+	var interchain *pb.Interchain
+	var err error
+	if ex.isIBTPBelongSrc(ibtp) {
+		_, ok := ex.srcServiceMeta[ibtp.From]
+		if !ok {
+			switch ex.mode {
+			case repo.DirectMode:
+				fallthrough
+			case repo.RelayMode:
+				interchain = initInterchain(ex.srcServiceMeta, ibtp.From)
+			case repo.UnionMode:
+				interchain, err = ex.srcAdapt.QueryInterchain(ibtp.From)
+				if err != nil {
+					ex.logger.Panic(ex.logger)
 				}
+			}
+			ex.srcServiceMeta[ibtp.From] = interchain
+		}
+		index = ex.srcServiceMeta[ibtp.From].InterchainCounter[ibtp.To]
+	} else {
+		_, ok := ex.srcServiceMeta[ibtp.To]
+		if !ok {
+			switch ex.mode {
+			case repo.DirectMode:
+				fallthrough
+			case repo.RelayMode:
+				interchain = initInterchain(ex.srcServiceMeta, ibtp.To)
+			case repo.UnionMode:
+				interchain, err = ex.srcAdapt.QueryInterchain(ibtp.To)
+				if err != nil {
+					ex.logger.Panic(ex.logger)
+				}
+			}
+			ex.srcServiceMeta[ibtp.To] = interchain
+		}
+		index = ex.srcServiceMeta[ibtp.To].SourceReceiptCounter[ibtp.From]
+	}
+	return index
+}
+func (ex *Exchanger) listenIBTPFromSrcAdapt(servicePair string) {
+	for {
+		select {
+		case <-ex.ctx.Done():
+			ex.logger.Info("ListenIBTPFromSrcAdapt Stop!")
+			return
+		case ibtp, ok := <-ex.srcIBTPMap[servicePair]:
+			if !ok {
+				ex.logger.Warn("Unexpected closed channel while listening on interchain ibtp")
+				return
+			}
+			ex.logger.WithFields(logrus.Fields{"index": ibtp.Index, "type": ibtp.Type, "ibtp_id": ibtp.ID()}).Info("Receive ibtp from :", ex.srcAdaptName)
+			index := ex.getCurrentIndex(ibtp)
+			if index >= ibtp.Index {
+				ex.logger.WithFields(logrus.Fields{"index": ibtp.Index, "to_counter": index, "ibtp_id": ibtp.ID()}).Info("Ignore ibtp")
+				continue
+			}
+
+			if index+1 < ibtp.Index {
+				ex.logger.WithFields(logrus.Fields{"index": ibtp.Index, "to": ibtp.To}).Info("Get missing ibtp")
+				ex.handleMissingIBTPByServicePair(index+1, ibtp.Index-1, ex.srcAdapt, ex.destAdapt, ibtp.From, ibtp.To, ex.isIBTPBelongSrc(ibtp))
+			}
+
+			if err := retry.Retry(func(attempt uint) error {
+				if err := ex.destAdapt.SendIBTP(ibtp); err != nil {
+					// if err occurs, try to get new ibtp and resend
+					if err, ok := err.(*adapt.SendIbtpError); ok {
+						if err.NeedRetry() {
+							ex.logger.Errorf("send IBTP to Adapt:%s", ex.destAdaptName, "error", err.Error())
+							// query to new ibtp
+							ibtp = ex.queryIBTP(ex.srcAdapt, ibtp.ID(), ex.isIBTPBelongSrc(ibtp))
+							return fmt.Errorf("retry sending ibtp")
+						}
+					}
+				}
+				return nil
+			}, strategy.Backoff(backoff.Fibonacci(500*time.Millisecond))); err != nil {
+				ex.logger.Panic(err)
+			}
+
+			if ex.isIBTPBelongSrc(ibtp) {
+				ex.srcServiceMeta[ibtp.From].InterchainCounter[ibtp.To] = ibtp.Index
+			} else {
+				ex.srcServiceMeta[ibtp.To].SourceReceiptCounter[ibtp.From] = ibtp.Index
 			}
 		}
 	}
+}
+func (ex *Exchanger) isIBTPBelongSrc(ibtp *pb.IBTP) bool {
+	var isIBTPBelongSrc = false
+	bxhID, chainID, _ := ibtp.ParseFrom()
+
+	switch ex.mode {
+	case repo.DirectMode:
+		fallthrough
+	case repo.RelayMode:
+		if strings.EqualFold(ex.srcChainId, chainID) {
+			isIBTPBelongSrc = true
+		}
+	case repo.UnionMode:
+		if strings.EqualFold(ex.srcBxhId, bxhID) {
+			isIBTPBelongSrc = true
+		}
+	}
+	return isIBTPBelongSrc
+}
+
+func (ex *Exchanger) queryIBTP(destAdapt adapt.Adapt, ibtpID string, isReq bool) *pb.IBTP {
+	var (
+		ibtp *pb.IBTP
+		err  error
+	)
+	if err := retry.Retry(func(attempt uint) error {
+		ibtp, err = destAdapt.QueryIBTP(ibtpID, isReq)
+		if err != nil {
+			ex.logger.Errorf("queryIBTP from Adapt:%s", ex.destAdaptName, "error", err.Error())
+			return err
+		}
+		return nil
+	}, strategy.Wait(3*time.Second)); err != nil {
+		ex.logger.Panic(err)
+	}
+	return ibtp
 }
 
 func (ex *Exchanger) Stop() error {
 	ex.cancel()
 
-	switch ex.mode {
-	case repo.DirectMode:
-		if err := ex.apiServer.Stop(); err != nil {
-			return fmt.Errorf("gin service stop: %w", err)
-		}
-		if err := ex.peerMgr.Stop(); err != nil {
-			return fmt.Errorf("peerMgr stop: %w", err)
-		}
-	case repo.RelayMode:
-		if err := ex.syncer.Stop(); err != nil {
-			return fmt.Errorf("syncer stop: %w", err)
-		}
-	case repo.UnionMode:
-		if err := ex.syncer.Stop(); err != nil {
-			return fmt.Errorf("syncer stop: %w", err)
-		}
-		if err := ex.peerMgr.Stop(); err != nil {
-			return fmt.Errorf("peerMgr stop: %w", err)
-		}
-		if err := ex.router.Stop(); err != nil {
-			return fmt.Errorf("router stop:%w", err)
-		}
+	if err := ex.srcAdapt.Stop(); err != nil {
+		return fmt.Errorf("srcAdapt stop: %w", err)
 	}
-
+	if err := ex.destAdapt.Stop(); err != nil {
+		return fmt.Errorf("destAdapt stop: %w", err)
+	}
 	ex.logger.Info("Exchanger stopped")
 
 	return nil
-}
-
-func (ex *Exchanger) sendIBTP(ibtp *pb.IBTP) error {
-	entry := ex.logger.WithFields(logrus.Fields{"index": ibtp.Index, "type": ibtp.Type, "to": ibtp.To, "id": ibtp.ID()})
-
-	switch ex.mode {
-	case repo.UnionMode:
-		ex.syncer.SendIBTPWithRetry(ibtp)
-	case repo.RelayMode:
-		err := ex.syncer.SendIBTP(ibtp)
-		if err != nil {
-			entry.Errorf("Send ibtp to bitxhub: %s", err.Error())
-			if errors.Is(err, syncer.ErrMetaOutOfDate) {
-				ex.updateInterchainMeta(ibtp.From)
-				return nil
-			}
-			ex.handleRollback(ibtp, "")
-			ex.rollbackCh <- ibtp
-		}
-	case repo.DirectMode:
-		// send ibtp to another pier
-		if err := retry.Retry(func(attempt uint) error {
-			data, err := ibtp.Marshal()
-			if err != nil {
-				panic(fmt.Sprintf("marshal ibtp: %s", err.Error()))
-			}
-			msg := peermgr.Message(pb.Message_IBTP_SEND, true, data)
-
-			var dst string
-			if ibtp.Type == pb.IBTP_INTERCHAIN {
-				dst = ibtp.To
-			} else {
-				dst = ibtp.From
-			}
-
-			if err := ex.peerMgr.AsyncSend(dst, msg); err != nil {
-				ex.logger.Errorf("Send ibtp to pier %s: %s", ibtp.ID(), err.Error())
-				return err
-			}
-
-			return nil
-		}, strategy.Wait(1*time.Second)); err != nil {
-			ex.logger.Panic(err)
-		}
-	}
-	entry.Info("Send ibtp success from monitor")
-	return nil
-}
-
-func (ex *Exchanger) queryIBTP(id, target string, isReq bool) (*pb.IBTP, bool, error) {
-	verifiedTx := &pb.VerifiedTx{}
-	v := ex.store.Get(model.IBTPKey(id))
-	if v != nil {
-		if err := verifiedTx.Unmarshal(v); err != nil {
-			return nil, false, err
-		}
-		return verifiedTx.Tx.GetIBTP(), verifiedTx.Valid, nil
-	}
-
-	// query ibtp from counterpart chain
-	var (
-		ibtp    *pb.IBTP
-		isValid bool
-		err     error
-	)
-	switch ex.mode {
-	case repo.RelayMode:
-		ibtp, isValid, err = ex.syncer.QueryIBTP(id, isReq)
-		if err != nil {
-			if errors.Is(err, syncer.ErrIBTPNotFound) {
-				ex.logger.Panicf("query ibtp by id %s from bitxhub: %s", id, err.Error())
-			}
-			return nil, false, fmt.Errorf("query ibtp from bitxhub: %s", err.Error())
-		}
-	case repo.DirectMode:
-		// query ibtp from another pier
-		msg := peermgr.Message(pb.Message_IBTP_GET, true, []byte(id))
-		result, err := ex.peerMgr.Send(target, msg)
-		if err != nil {
-			return nil, false, err
-		}
-
-		ibtp = &pb.IBTP{}
-		if err := ibtp.Unmarshal(peermgr.DataToPayload(result).Data); err != nil {
-			return nil, false, err
-		}
-	default:
-		return nil, false, fmt.Errorf("unsupported pier mode")
-	}
-
-	return ibtp, isValid, nil
-}
-
-func copyCounterMap(original map[string]uint64) map[string]uint64 {
-	ret := make(map[string]uint64, len(original))
-	for id, idx := range original {
-		ret[id] = idx
-	}
-	return ret
 }
