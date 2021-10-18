@@ -2,40 +2,26 @@ package app
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"path/filepath"
-	"time"
 
-	"github.com/meshplus/pier/internal/adapt/appchain_adapter"
-	"github.com/meshplus/pier/internal/adapt/direct_adapter"
-	"path/filepath"
-	"time"
-
-	"github.com/meshplus/pier/internal/adapt/bxh_adapter"
-
-	"github.com/Rican7/retry"
-	"github.com/Rican7/retry/strategy"
 	"github.com/hashicorp/go-plugin"
 	"github.com/meshplus/bitxhub-core/agency"
 	appchainmgr "github.com/meshplus/bitxhub-core/appchain-mgr"
 	"github.com/meshplus/bitxhub-kit/crypto"
 	"github.com/meshplus/bitxhub-kit/log"
 	"github.com/meshplus/bitxhub-kit/storage"
-	"github.com/meshplus/bitxhub-kit/storage/leveldb"
 	"github.com/meshplus/bitxhub-model/pb"
 	rpcx "github.com/meshplus/go-bitxhub-client"
-	"github.com/meshplus/pier/api"
 	_ "github.com/meshplus/pier/imports"
-	"github.com/meshplus/pier/internal/agent"
-	"github.com/meshplus/pier/internal/appchain"
-	"github.com/meshplus/pier/internal/checker"
-	"github.com/meshplus/pier/internal/exchanger"
+	"github.com/meshplus/pier/internal/adapt/appchain_adapter"
+	"github.com/meshplus/pier/internal/adapt/bxh_adapter"
+	"github.com/meshplus/pier/internal/adapt/direct_adapter"
+	"github.com/meshplus/pier/internal/adapt/union_adapter"
 	exchanger2 "github.com/meshplus/pier/internal/exchanger2"
 	"github.com/meshplus/pier/internal/loggers"
 	"github.com/meshplus/pier/internal/peermgr"
 	"github.com/meshplus/pier/internal/repo"
-	"github.com/meshplus/pier/internal/rulemgr"
 	"github.com/meshplus/pier/internal/txcrypto"
 	"github.com/meshplus/pier/pkg/plugins"
 	_ "github.com/meshplus/pier/pkg/single"
@@ -184,7 +170,7 @@ func NewPier2(repoRoot string, config *repo.Config) (*Pier, error) {
 			return nil, fmt.Errorf("new appchain adapter: %w", err)
 		}
 
-		bxhAdapter, err := bxh_adapter.New(repo.RelayMode, client, loggers.Logger(loggers.Syncer))
+		bxhAdapter, err := bxh_adapter.New(repo.RelayMode, appchainAdapter.ID(), client, loggers.Logger(loggers.Syncer))
 
 		pierHAConstructor, err := agency.GetPierHAConstructor(config.HA.Mode)
 		if err != nil {

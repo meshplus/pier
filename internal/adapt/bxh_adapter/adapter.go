@@ -45,11 +45,6 @@ type BxhAdapter struct {
 	cancel     context.CancelFunc
 }
 
-// TODO: return bitxhub ID
-func (b *BxhAdapter) GetChainID() string {
-	return ""
-}
-
 func (b *BxhAdapter) MonitorUpdatedMeta() chan *[]byte {
 	panic("implement me")
 }
