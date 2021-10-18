@@ -3,29 +3,39 @@ package txcrypto
 import (
 	"fmt"
 
-	"github.com/meshplus/bitxhub-model/pb"
-	"github.com/meshplus/pier/internal/peermgr"
-
 	"github.com/btcsuite/btcd/btcec"
 	"github.com/meshplus/bitxhub-kit/crypto"
 	"github.com/meshplus/bitxhub-kit/crypto/ecdh"
 	"github.com/meshplus/bitxhub-kit/crypto/sym"
+	"github.com/meshplus/bitxhub-model/pb"
+	network "github.com/meshplus/go-lightp2p"
+	"github.com/meshplus/pier/internal/loggers"
+	"github.com/meshplus/pier/internal/peermgr"
+	"github.com/sirupsen/logrus"
 )
 
 type DirectCryptor struct {
 	peerMgr peermgr.PeerManager
 	privKey crypto.PrivateKey
 	keyMap  map[string][]byte
+	logger  logrus.FieldLogger
 }
 
 func NewDirectCryptor(peerMgr peermgr.PeerManager, privKey crypto.PrivateKey) (Cryptor, error) {
 	keyMap := make(map[string][]byte)
 
-	return &DirectCryptor{
+	d := &DirectCryptor{
 		peerMgr: peerMgr,
 		privKey: privKey,
 		keyMap:  keyMap,
-	}, nil
+		logger:  loggers.Logger(loggers.Cryptor),
+	}
+
+	if err := peerMgr.RegisterMsgHandler(pb.Message_PUBKEY_GET, d.handleGetPublicKey); err != nil {
+		return nil, err
+	}
+
+	return d, nil
 }
 
 func (d *DirectCryptor) Encrypt(content []byte, address string) ([]byte, error) {
@@ -80,4 +90,22 @@ func (d *DirectCryptor) getPubKeyByChainID(chainID string) ([]byte, error) {
 	}
 
 	return msg.Data, nil
+}
+
+func (d *DirectCryptor) handleGetPublicKey(stream network.Stream, message *pb.Message) {
+	pubkey, err := d.privKey.PublicKey().Bytes()
+	if err != nil {
+		d.logger.Warnf("fail to get public key data from private key: %v", err)
+		return
+	}
+
+	msg := &pb.Message{
+		Type:    pb.Message_PUBKEY_GET_ACK,
+		Data:    pubkey,
+		Version: nil,
+	}
+
+	if err := d.peerMgr.AsyncSendWithStream(stream, msg); err != nil {
+		d.logger.Warnf("fail to send public key data: %v", err)
+	}
 }
