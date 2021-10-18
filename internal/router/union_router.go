@@ -223,6 +223,6 @@ func (u *UnionRouter) QueryIBTP(id string, isReq bool) (*pb.IBTP, error) {
 	return ibtp, nil
 }
 
-func RouteIBTPKey(id string) []byte {
-	return []byte(fmt.Sprintf("route-ibtp-%s", id))
-}
+//func RouteIBTPKey(id string) []byte {
+//	return []byte(fmt.Sprintf("route-ibtp-%s", id))
+//}
