@@ -100,6 +100,7 @@ type LogModule struct {
 	Syncer      string `toml:"bxh_adapter" json:"bxh_adapter"`
 	Direct      string `toml:"direct_adapter" json:"direct_adapter"`
 	Union       string `toml:"union_adapter" json:"union_adapter"`
+	Cryptor     string `toml:"cryptor" json:"cryptor"`
 }
 
 // Appchain are configs about appchain
