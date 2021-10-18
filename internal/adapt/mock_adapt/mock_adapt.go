@@ -34,20 +34,6 @@ func (m *MockAdapt) EXPECT() *MockAdaptMockRecorder {
 	return m.recorder
 }
 
-// GetChainID mocks base method.
-func (m *MockAdapt) GetChainID() string {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetChainID")
-	ret0, _ := ret[0].(string)
-	return ret0
-}
-
-// GetChainID indicates an expected call of GetChainID.
-func (mr *MockAdaptMockRecorder) GetChainID() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetChainID", reflect.TypeOf((*MockAdapt)(nil).GetChainID))
-}
-
 // GetServiceIDList mocks base method.
 func (m *MockAdapt) GetServiceIDList() ([]string, error) {
 	m.ctrl.T.Helper()

@@ -2,40 +2,26 @@ package app
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"path/filepath"
-	"time"
 
-	"github.com/meshplus/pier/internal/adapt/appchain_adapter"
-	"github.com/meshplus/pier/internal/adapt/direct_adapter"
-	"path/filepath"
-	"time"
-
-	"github.com/meshplus/pier/internal/adapt/bxh_adapter"
-
-	"github.com/Rican7/retry"
-	"github.com/Rican7/retry/strategy"
 	"github.com/hashicorp/go-plugin"
 	"github.com/meshplus/bitxhub-core/agency"
 	appchainmgr "github.com/meshplus/bitxhub-core/appchain-mgr"
 	"github.com/meshplus/bitxhub-kit/crypto"
 	"github.com/meshplus/bitxhub-kit/log"
 	"github.com/meshplus/bitxhub-kit/storage"
-	"github.com/meshplus/bitxhub-kit/storage/leveldb"
 	"github.com/meshplus/bitxhub-model/pb"
 	rpcx "github.com/meshplus/go-bitxhub-client"
-	"github.com/meshplus/pier/api"
 	_ "github.com/meshplus/pier/imports"
-	"github.com/meshplus/pier/internal/agent"
-	"github.com/meshplus/pier/internal/appchain"
-	"github.com/meshplus/pier/internal/checker"
+	"github.com/meshplus/pier/internal/adapt/appchain_adapter"
+	"github.com/meshplus/pier/internal/adapt/bxh_adapter"
+	"github.com/meshplus/pier/internal/adapt/direct_adapter"
+	"github.com/meshplus/pier/internal/adapt/union_adapter"
 	"github.com/meshplus/pier/internal/exchanger"
-	exchanger2 "github.com/meshplus/pier/internal/exchanger2"
 	"github.com/meshplus/pier/internal/loggers"
 	"github.com/meshplus/pier/internal/peermgr"
 	"github.com/meshplus/pier/internal/repo"
-	"github.com/meshplus/pier/internal/rulemgr"
 	"github.com/meshplus/pier/internal/txcrypto"
 	"github.com/meshplus/pier/pkg/plugins"
 	_ "github.com/meshplus/pier/pkg/single"
@@ -52,7 +38,7 @@ type Pier struct {
 	grpcPlugin  *plugin.Client
 	pierHA      agency.PierHA
 	storage     storage.Storage
-	exchanger   exchanger2.IExchanger
+	exchanger   exchanger.IExchanger
 	ctx         context.Context
 	cancel      context.CancelFunc
 	appchain    *appchainmgr.Appchain
@@ -93,10 +79,10 @@ func NewUnionPier(repoRoot string, config *repo.Config) (*Pier, error) {
 		return nil, fmt.Errorf("new union adapter: %w", err)
 	}
 
-	ex, err := exchanger2.New(repo.UnionMode, "", bxhAdapter.ID(),
-		exchanger2.WithSrcAdapt(bxhAdapter),
-		exchanger2.WithDestAdapt(unionAdapt),
-		exchanger2.WithLogger(loggers.Logger(loggers.Exchanger)))
+	ex, err := exchanger.New(repo.UnionMode, "", bxhAdapter.ID(),
+		exchanger.WithSrcAdapt(bxhAdapter),
+		exchanger.WithDestAdapt(unionAdapt),
+		exchanger.WithLogger(loggers.Logger(loggers.Exchanger)))
 	if err != nil {
 		return nil, fmt.Errorf("exchanger create: %w", err)
 	}
@@ -130,7 +116,7 @@ func (pier *Pier) Start() error {
 
 func NewPier2(repoRoot string, config *repo.Config) (*Pier, error) {
 	var (
-		ex          exchanger2.IExchanger
+		ex          exchanger.IExchanger
 		pierHA      agency.PierHA
 		peerManager peermgr.PeerManager
 	)
@@ -163,10 +149,10 @@ func NewPier2(repoRoot string, config *repo.Config) (*Pier, error) {
 			return nil, fmt.Errorf("new direct adapter: %w", err)
 		}
 
-		ex, err = exchanger2.New(repo.DirectMode, config.Appchain.ID, "",
-			exchanger2.WithSrcAdapt(appchainAdapter),
-			exchanger2.WithDestAdapt(directAdapter),
-			exchanger2.WithLogger(log.NewWithModule("exchanger")))
+		ex, err = exchanger.New(repo.DirectMode, config.Appchain.ID, "",
+			exchanger.WithSrcAdapt(appchainAdapter),
+			exchanger.WithDestAdapt(directAdapter),
+			exchanger.WithLogger(log.NewWithModule("exchanger")))
 		if err != nil {
 			return nil, fmt.Errorf("exchanger create: %w", err)
 		}
@@ -184,7 +170,7 @@ func NewPier2(repoRoot string, config *repo.Config) (*Pier, error) {
 			return nil, fmt.Errorf("new appchain adapter: %w", err)
 		}
 
-		bxhAdapter, err := bxh_adapter.New(repo.RelayMode, client, loggers.Logger(loggers.Syncer))
+		bxhAdapter, err := bxh_adapter.New(repo.RelayMode, appchainAdapter.ID(), client, loggers.Logger(loggers.Syncer))
 
 		pierHAConstructor, err := agency.GetPierHAConstructor(config.HA.Mode)
 		if err != nil {
@@ -193,10 +179,10 @@ func NewPier2(repoRoot string, config *repo.Config) (*Pier, error) {
 
 		pierHA = pierHAConstructor(client, config.Appchain.ID)
 
-		ex, err = exchanger2.New(repo.RelayMode, config.Appchain.ID, config.Mode.Relay.BitXHubID,
-			exchanger2.WithSrcAdapt(appchainAdapter),
-			exchanger2.WithDestAdapt(bxhAdapter),
-			exchanger2.WithLogger(log.NewWithModule("exchanger")))
+		ex, err = exchanger.New(repo.RelayMode, config.Appchain.ID, config.Mode.Relay.BitXHubID,
+			exchanger.WithSrcAdapt(appchainAdapter),
+			exchanger.WithDestAdapt(bxhAdapter),
+			exchanger.WithLogger(log.NewWithModule("exchanger")))
 		if err != nil {
 			return nil, fmt.Errorf("exchanger create: %w", err)
 		}

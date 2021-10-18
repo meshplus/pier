@@ -34,7 +34,7 @@ const (
 func TestAppchainAdapter_GetAppchainID(t *testing.T) {
 	appchainAdapter, _, _, _ := mockAppchainAdapter(t)
 
-	appchainID := appchainAdapter.GetChainID()
+	appchainID := appchainAdapter.ID()
 	require.Equal(t, appchain, appchainID)
 }
 

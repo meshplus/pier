@@ -18,7 +18,7 @@ require (
 	github.com/hashicorp/golang-lru v0.5.5-0.20210104140557-80c98217689d
 	github.com/ipfs/go-cid v0.0.7
 	github.com/libp2p/go-libp2p-core v0.6.1
-	github.com/meshplus/bitxhub-core v1.3.1-0.20211012092228-4ee8410ba2de
+	github.com/meshplus/bitxhub-core v1.3.1-0.20211015044526-39e8bbfefa99
 	github.com/meshplus/bitxhub-kit v1.2.1-0.20210902085548-07f4fa85bfc9
 	github.com/meshplus/bitxhub-model v1.2.1-0.20211015075232-7f8f7caceb7f
 	github.com/meshplus/go-bitxhub-client v1.4.1-0.20210902103117-4a8dcc2e8c18
