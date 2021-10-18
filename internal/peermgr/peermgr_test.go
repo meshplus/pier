@@ -242,6 +242,9 @@ func TestSwarm_ConnectedPeerIDs(t *testing.T) {
 	_, _, mockSwarm, _, _, _ := prepare(t)
 	ids := mockSwarm.ConnectedPeerIDs()
 	require.NotNil(t, ids)
+
+	count := mockSwarm.CountConnectedPeers()
+	require.NotNil(t, count)
 }
 
 func prepare(t *testing.T) (*Swarm, []string, *Swarm, *pb.Message, string, string) {
