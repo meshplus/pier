@@ -9,7 +9,6 @@ import (
 	"github.com/meshplus/bitxhub-kit/crypto/sym"
 	"github.com/meshplus/bitxhub-model/pb"
 	network "github.com/meshplus/go-lightp2p"
-	"github.com/meshplus/pier/internal/loggers"
 	"github.com/meshplus/pier/internal/peermgr"
 	"github.com/sirupsen/logrus"
 )
@@ -21,14 +20,14 @@ type DirectCryptor struct {
 	logger  logrus.FieldLogger
 }
 
-func NewDirectCryptor(peerMgr peermgr.PeerManager, privKey crypto.PrivateKey) (Cryptor, error) {
+func NewDirectCryptor(peerMgr peermgr.PeerManager, privKey crypto.PrivateKey, logger logrus.FieldLogger) (Cryptor, error) {
 	keyMap := make(map[string][]byte)
 
 	d := &DirectCryptor{
 		peerMgr: peerMgr,
 		privKey: privKey,
 		keyMap:  keyMap,
-		logger:  loggers.Logger(loggers.Cryptor),
+		logger:  logger,
 	}
 
 	if err := peerMgr.RegisterMsgHandler(pb.Message_PUBKEY_GET, d.handleGetPublicKey); err != nil {
@@ -56,8 +55,9 @@ func (d *DirectCryptor) Decrypt(content []byte, address string) ([]byte, error) 
 
 func (d *DirectCryptor) getDesKey(chainID string) (crypto.SymmetricKey, error) {
 	pubKey, ok := d.keyMap[chainID]
+	var err error
 	if !ok {
-		pubKey, err := d.getPubKeyByChainID(chainID)
+		pubKey, err = d.getPubKeyByChainID(chainID)
 		if err != nil {
 			return nil, fmt.Errorf("cannot find the public key of chain ID %s: %w", chainID, err)
 		}

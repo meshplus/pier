@@ -138,7 +138,7 @@ func NewPier2(repoRoot string, config *repo.Config) (*Pier, error) {
 		if err != nil {
 			return nil, fmt.Errorf("peerMgr create: %w", err)
 		}
-		cryptor, err := txcrypto.NewDirectCryptor(peerManager, privateKey)
+		cryptor, err := txcrypto.NewDirectCryptor(peerManager, privateKey, loggers.Logger(loggers.Cryptor))
 		appchainAdapter, err := appchain_adapter.NewAppchainAdapter(config, loggers.Logger(loggers.Appchain), cryptor)
 		if err != nil {
 			return nil, fmt.Errorf("new appchain adapter: %w", err)
@@ -164,7 +164,7 @@ func NewPier2(repoRoot string, config *repo.Config) (*Pier, error) {
 			return nil, fmt.Errorf("create bitxhub client: %w", err)
 		}
 
-		cryptor, err := txcrypto.NewRelayCryptor(client, privateKey)
+		cryptor, err := txcrypto.NewRelayCryptor(client, privateKey, loggers.Logger(loggers.Cryptor))
 		appchainAdapter, err := appchain_adapter.NewAppchainAdapter(config, loggers.Logger(loggers.Appchain), cryptor)
 		if err != nil {
 			return nil, fmt.Errorf("new appchain adapter: %w", err)
