@@ -95,7 +95,7 @@ func (a *AppchainAdapter) ID() string {
 	return fmt.Sprintf("%s", a.appchainID)
 }
 func (a *AppchainAdapter) Name() string {
-	return fmt.Sprintf("appchain: %s", a.appchainID)
+	return fmt.Sprintf("appchain:%s", a.appchainID)
 }
 
 func (a *AppchainAdapter) MonitorIBTP() chan *pb.IBTP {
