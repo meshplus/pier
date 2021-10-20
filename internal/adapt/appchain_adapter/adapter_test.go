@@ -68,7 +68,7 @@ func TestAppchainAdapter_Name(t *testing.T) {
 	appchainAdapter, _, _, _ := mockAppchainAdapter(t)
 
 	name := appchainAdapter.Name()
-	require.Equal(t, fmt.Sprintf("appchain: %s", appchain), name)
+	require.Equal(t, fmt.Sprintf("appchain:%s", appchain), name)
 }
 
 func TestAppchainAdapter_QueryIBTP(t *testing.T) {

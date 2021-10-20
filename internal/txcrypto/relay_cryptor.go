@@ -7,7 +7,6 @@ import (
 	"github.com/meshplus/bitxhub-kit/crypto/sym"
 	"github.com/meshplus/bitxhub-model/constant"
 	rpcx "github.com/meshplus/go-bitxhub-client"
-	"github.com/meshplus/pier/internal/loggers"
 	"github.com/sirupsen/logrus"
 )
 
@@ -18,14 +17,14 @@ type RelayCryptor struct {
 	logger  logrus.FieldLogger
 }
 
-func NewRelayCryptor(client rpcx.Client, privKey crypto.PrivateKey) (Cryptor, error) {
+func NewRelayCryptor(client rpcx.Client, privKey crypto.PrivateKey, logger logrus.FieldLogger) (Cryptor, error) {
 	keyMap := make(map[string][]byte)
 
 	return &RelayCryptor{
 		client:  client,
 		privKey: privKey,
 		keyMap:  keyMap,
-		logger:  loggers.Logger(loggers.Cryptor),
+		logger:  logger,
 	}, nil
 }
 

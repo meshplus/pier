@@ -304,6 +304,9 @@ func (b *BxhAdapter) SendIBTP(ibtp *pb.IBTP) error {
 }
 
 func (b *BxhAdapter) GetServiceIDList() ([]string, error) {
+	if b.mode == repo.RelayMode {
+		return nil, nil
+	}
 	tx, err := b.client.GenerateContractTx(pb.TransactionData_BVM, constant.InterchainContractAddr.Address(),
 		"GetAllServiceIDs")
 	if err != nil {
@@ -333,7 +336,7 @@ func (b *BxhAdapter) GetServiceIDList() ([]string, error) {
 		if bxh, _, _, err = pb.ParseFullServiceID(service); err != nil {
 			return nil, err
 		}
-		if b.mode == repo.UnionMode && bxh != b.ID() {
+		if bxh != b.ID() {
 			_, ok := bitXHubChainIDsMap[bxh]
 			if ok {
 				ids = append(ids, service)
