@@ -37,7 +37,7 @@ func (ex *Exchanger) feedIBTPReceipt(receipt *model.WrappedIBTP) {
 					// if this is a failed receipt, try to rollback
 					// else handle it in normal way
 					if wIbtp.IsValid {
-						ex.handleIBTP(wIbtp, entry)
+						ex.handleIBTP(wIbtp)
 					} else {
 						ex.exec.Rollback(ibtp, true)
 					}
@@ -49,7 +49,7 @@ func (ex *Exchanger) feedIBTPReceipt(receipt *model.WrappedIBTP) {
 					for wIbtp != nil {
 						ibtp := wIbtp.Ibtp
 						if wIbtp.IsValid {
-							ex.handleIBTP(wIbtp, entry)
+							ex.handleIBTP(wIbtp)
 						} else {
 							ex.exec.Rollback(ibtp, true)
 						}

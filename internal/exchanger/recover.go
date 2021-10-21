@@ -160,8 +160,7 @@ func (ex *Exchanger) handleMissingIBTPFromSyncer(from string, begin, end uint64)
 			}
 			return nil
 		}, strategy.Wait(1*time.Second))
-		entry := ex.logger.WithFields(logrus.Fields{"type": ibtp.Type, "id": ibtp.ID()})
-		ex.handleIBTP(&model.WrappedIBTP{Ibtp: ibtp, IsValid: isValid}, entry)
+		ex.handleIBTP(&model.WrappedIBTP{Ibtp: ibtp, IsValid: isValid})
 		ex.executorCounter[ibtp.From] = ibtp.Index
 	}
 
