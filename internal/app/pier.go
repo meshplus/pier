@@ -24,6 +24,7 @@ import (
 	"github.com/meshplus/pier/internal/repo"
 	"github.com/meshplus/pier/internal/txcrypto"
 	"github.com/meshplus/pier/pkg/plugins"
+	"github.com/meshplus/pier/pkg/single"
 	_ "github.com/meshplus/pier/pkg/single"
 	"github.com/sirupsen/logrus"
 	"github.com/wonderivan/logger"
@@ -100,13 +101,6 @@ func NewUnionPier(repoRoot string, config *repo.Config) (*Pier, error) {
 
 // Start starts three main components of pier app
 func (pier *Pier) Start() error {
-	if pier.config.Mode.Type == repo.UnionMode {
-		if err := pier.exchanger.Start(); err != nil {
-			pier.logger.Errorf("exchanger start: %w", err)
-			return err
-		}
-		return nil
-	}
 	if err := pier.pierHA.Start(); err != nil {
 		return fmt.Errorf("pier ha start fail")
 	}
@@ -114,7 +108,7 @@ func (pier *Pier) Start() error {
 	return nil
 }
 
-func NewPier2(repoRoot string, config *repo.Config) (*Pier, error) {
+func NewPier(repoRoot string, config *repo.Config) (*Pier, error) {
 	var (
 		ex          exchanger.IExchanger
 		pierHA      agency.PierHA
@@ -157,7 +151,7 @@ func NewPier2(repoRoot string, config *repo.Config) (*Pier, error) {
 			return nil, fmt.Errorf("exchanger create: %w", err)
 		}
 
-		return nil, fmt.Errorf("direct mode is unsupported yet")
+		pierHA = single.New(nil, config.Appchain.ID)
 	case repo.RelayMode:
 		client, err := newBitXHubClient(logger, privateKey, config)
 		if err != nil {
@@ -186,6 +180,36 @@ func NewPier2(repoRoot string, config *repo.Config) (*Pier, error) {
 		if err != nil {
 			return nil, fmt.Errorf("exchanger create: %w", err)
 		}
+	case repo.UnionMode:
+		client, err := newBitXHubClient(logger, privateKey, config)
+		if err != nil {
+			return nil, fmt.Errorf("create bitxhub client: %w", err)
+		}
+
+		bxhAdapter, err := bxh_adapter.New(repo.UnionMode, DEFAULT_UNION_PIER_ID, client, loggers.Logger(loggers.Syncer))
+		if err != nil {
+			return nil, fmt.Errorf("new bitxhub adapter: %w", err)
+		}
+
+		peerManager, err := peermgr.New(config, nodePrivKey, privateKey, config.Mode.Union.Providers, loggers.Logger(loggers.PeerMgr))
+		if err != nil {
+			return nil, fmt.Errorf("peerMgr create: %w", err)
+		}
+
+		unionAdapt, err := union_adapter.New(peerManager, bxhAdapter, loggers.Logger(loggers.Union))
+		if err != nil {
+			return nil, fmt.Errorf("new union adapter: %w", err)
+		}
+
+		ex, err = exchanger.New(repo.UnionMode, "", bxhAdapter.ID(),
+			exchanger.WithSrcAdapt(bxhAdapter),
+			exchanger.WithDestAdapt(unionAdapt),
+			exchanger.WithLogger(loggers.Logger(loggers.Exchanger)))
+		if err != nil {
+			return nil, fmt.Errorf("exchanger create: %w", err)
+		}
+
+		pierHA = single.New(nil, DEFAULT_UNION_PIER_ID)
 	default:
 		return nil, fmt.Errorf("unsupported mode")
 	}
@@ -231,24 +255,22 @@ func (pier *Pier) startPierHA() {
 				if !status {
 					continue
 				}
-				if err := pier.Stop(true); err != nil {
+				if err := pier.Stop(); err != nil {
 					pier.logger.Errorf("pier stop: %w", err)
 					return
 				}
 				status = false
 			}
+		case <-pier.ctx.Done():
+			pier.logger.Infof("receiving done signal, exit pier HA...")
+			return
 		}
 	}
 }
 
 // Stop stops three main components of pier app
-func (pier *Pier) Stop(isAux bool) error {
-	if pier.config.Mode.Type != repo.UnionMode {
-		if !isAux {
-			// stop appchain plugin first and kill plugin process
-			pier.grpcPlugin.Kill()
-		}
-	}
+func (pier *Pier) Stop() error {
+	pier.cancel()
 
 	if err := pier.exchanger.Stop(); err != nil {
 		return fmt.Errorf("exchanger stop: %w", err)
