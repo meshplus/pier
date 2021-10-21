@@ -58,7 +58,8 @@ func (ex *Exchanger) applyReceipt(wIbtp *model.WrappedIBTP, entry logrus.FieldLo
 
 func (ex *Exchanger) applyInterchain(wIbtp *model.WrappedIBTP, entry logrus.FieldLogger) {
 	ibtp := wIbtp.Ibtp
-	index := ex.executorCounter[ibtp.From]
+	from := ibtp.From
+	index := ex.executorCounter[from]
 	if index >= ibtp.Index {
 		entry.Infof("Ignore ibtp, expected %d", index+1)
 		return
@@ -77,7 +78,7 @@ func (ex *Exchanger) applyInterchain(wIbtp *model.WrappedIBTP, entry logrus.Fiel
 	} else {
 		ex.handleIBTP(wIbtp)
 	}
-	ex.executorCounter[ibtp.From] = ibtp.Index
+	ex.executorCounter[from] = ibtp.Index
 }
 
 func (ex *Exchanger) handleRollback(ibtp *pb.IBTP) {
@@ -105,8 +106,8 @@ func (ex *Exchanger) handleUnionIBTP(wIbtp *model.WrappedIBTP) {
 		}).Infof("Handle union ibtp sent to executor")
 		return
 	}
-
-	ibtp.From = ex.appchainDID + "-" + ibtp.From // for inter-relay they're the same
+	appchainDID := fmt.Sprintf("%s:%s:.", "did:bitxhub", "appchain"+ex.appchainDID)
+	ibtp.From = appchainDID + "-" + ibtp.From // for inter-relay they're the same
 	var signs []byte
 	if err := retry.Retry(func(attempt uint) error {
 		var err error
@@ -144,11 +145,10 @@ func (ex *Exchanger) handleProviderAppchains() error {
 //handleRouterSendIBTPMessage handles IBTP from union interchain network
 func (ex *Exchanger) handleRouterSendIBTPMessage(stream network.Stream, msg *peerMsg.Message) {
 	handle := func() error {
-		wIbtp := &model.WrappedIBTP{}
-		if err := json.Unmarshal(msg.Payload.Data, wIbtp); err != nil {
+		ibtp := &pb.IBTP{}
+		if err := ibtp.Unmarshal(msg.Payload.Data); err != nil {
 			return fmt.Errorf("unmarshal ibtp: %w", err)
 		}
-		ibtp := wIbtp.Ibtp
 		entry := ex.logger.WithFields(logrus.Fields{
 			"index": ibtp.Index,
 			"type":  ibtp.Type,
