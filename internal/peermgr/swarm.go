@@ -14,6 +14,7 @@ import (
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/meshplus/bitxhub-kit/crypto"
 	"github.com/meshplus/bitxhub-kit/crypto/asym/ecdsa"
+	"github.com/meshplus/bitxid"
 	network "github.com/meshplus/go-lightp2p"
 	peermgr "github.com/meshplus/pier/internal/peermgr/proto"
 	"github.com/meshplus/pier/internal/repo"
@@ -296,6 +297,9 @@ func (swarm *Swarm) RegisterMultiMsgHandler(messageTypes []peermgr.Message_Type,
 }
 
 func (swarm *Swarm) getAddrInfo(id string) (*peer.AddrInfo, error) {
+	if bitxid.DID(id).IsValidFormat() {
+		id = strings.TrimPrefix(bitxid.DID(id).GetSubMethod(), "appchain")
+	}
 	addr, ok := swarm.connectedPeers.Load(id)
 	if !ok {
 		return nil, fmt.Errorf("wrong id: %s", id)

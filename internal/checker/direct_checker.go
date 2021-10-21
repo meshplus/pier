@@ -1,15 +1,16 @@
 package checker
 
 import (
-	"crypto/sha256"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"sync"
 
 	appchainmgr "github.com/meshplus/bitxhub-core/appchain-mgr"
 	"github.com/meshplus/bitxhub-core/validator"
 	"github.com/meshplus/bitxhub-kit/types"
 	"github.com/meshplus/bitxhub-model/pb"
+	"github.com/meshplus/bitxid"
 	"github.com/meshplus/pier/internal/appchain"
 	"github.com/meshplus/pier/internal/rulemgr"
 )
@@ -33,10 +34,12 @@ func NewDirectChecker(ruleMgr *rulemgr.RuleMgr, appchainMgr *appchain.Manager) C
 }
 
 func (c *DirectChecker) Check(ibtp *pb.IBTP) error {
-	chainID := ibtp.From
+	chainDID := ibtp.From
 	if ibtp.Type == pb.IBTP_RECEIPT_SUCCESS || ibtp.Type == pb.IBTP_RECEIPT_FAILURE {
-		chainID = ibtp.To
+		chainDID = ibtp.To
 	}
+
+	chainID := strings.TrimPrefix(bitxid.DID(chainDID).GetSubMethod(), "appchain")
 
 	appchainLoad, ok := c.appchainCache.Load(chainID)
 	var appchain *appchainmgr.Appchain
@@ -49,7 +52,7 @@ func (c *DirectChecker) Check(ibtp *pb.IBTP) error {
 
 		appchain = &appchainmgr.Appchain{}
 		if err := json.Unmarshal(appchainByte, appchain); err != nil {
-			return fmt.Errorf("unmarshal appchain: %w", err)
+			return fmt.Errorf("unmarshal appchain: %s, %w", string(appchainByte), err)
 		}
 
 		chainAddr := types.NewAddressByStr(chainID)
@@ -61,8 +64,7 @@ func (c *DirectChecker) Check(ibtp *pb.IBTP) error {
 				return fmt.Errorf("not found rule address from appchain:%s", appchain.ID)
 			}
 		} else {
-			codeHash := sha256.Sum256(code)
-			validatorAddr = types.NewAddress(codeHash[:]).String()
+			validatorAddr = chainID
 		}
 
 		c.appchainCache.Store(chainID, &appchainRule{
