@@ -57,7 +57,7 @@ func (e *ChannelExecutor) Stop() error {
 
 func (e *ChannelExecutor) QueryInterchainMeta() map[string]uint64 {
 	execMeta, err := e.client.GetInMeta()
-	if err != nil {
+	if execMeta == nil || err != nil {
 		return map[string]uint64{}
 	}
 	return execMeta
@@ -65,7 +65,7 @@ func (e *ChannelExecutor) QueryInterchainMeta() map[string]uint64 {
 
 func (e *ChannelExecutor) QueryCallbackMeta() map[string]uint64 {
 	callbackMeta, err := e.client.GetCallbackMeta()
-	if err != nil {
+	if callbackMeta == nil || err != nil {
 		return map[string]uint64{}
 	}
 	return callbackMeta

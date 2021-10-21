@@ -253,7 +253,7 @@ func (ex *Exchanger) handleSendIBTPMessage(stream network.Stream, msg *peerMsg.M
 		ex.logger.Errorf("Unmarshal ibtp: %s", err.Error())
 		return
 	}
-	ex.logger.Infof("handleSendIBTPMessage: %s", ibtp.ID())
+	ex.logger.Infof("handleSendIBTPMessage: %s, %v", ibtp.ID(), ibtp.Category())
 	defer ex.timeCost()()
 	err := ex.checker.Check(ibtp)
 	if err != nil {

@@ -131,6 +131,10 @@ func (m *AppchainMonitor) QueryOuterMeta() map[string]uint64 {
 		panic(err)
 	}
 
+	if meta == nil {
+		return make(map[string]uint64)
+	}
+
 	return meta
 }
 
