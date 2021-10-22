@@ -140,7 +140,6 @@ func registerPier(ctx *cli.Context) error {
 		}
 	}
 
-	brokerData := []byte(broker)
 	if strings.Contains(strings.ToLower(typ), "fabric") {
 		fabricBroker := &appchainmgr.FabricBroker{
 			ChannelID:     channelID,
@@ -151,7 +150,7 @@ func registerPier(ctx *cli.Context) error {
 		if err != nil {
 			return err
 		}
-		brokerData = fabricBrokerData
+		broker = string(fabricBrokerData)
 	}
 
 	caller, err := getAddr(keyPath)
@@ -170,7 +169,7 @@ func registerPier(ctx *cli.Context) error {
 		rpcx.String(name),
 		rpcx.String(typ),
 		rpcx.Bytes(trustrootData),
-		rpcx.Bytes(brokerData),
+		rpcx.String(broker),
 		rpcx.String(desc),
 		rpcx.String(masterRule),
 		rpcx.String(ruleUrl),
