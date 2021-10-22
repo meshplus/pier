@@ -195,7 +195,10 @@ func (ex *Exchanger) handleMissingReceipt(from string, begin uint64, end uint64)
 			}
 
 			// send receipt back to counterpart chain
-			ex.postHandleIBTP(receipt.From, receipt)
+			if err := ex.sendIBTP(receipt); err != nil {
+				entry.WithField("error", err).Error("Send execution receipt to counterpart chain")
+				return err
+			}
 			ex.sourceReceiptCounter[from] = receipt.Index
 			return nil
 		}, strategy.Wait(1*time.Second))
