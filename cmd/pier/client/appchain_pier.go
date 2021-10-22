@@ -219,18 +219,21 @@ func savePierAppchain(ctx *cli.Context, path string) error {
 	validatorsPath := ctx.String("validators")
 	consensusType := ctx.String("consensus-type")
 
-	url, err := getURL(ctx, fmt.Sprintf("%s?pier_id=%s", path, pier))
-	if err != nil {
-		return err
-	}
-	res, err := httpGet(url)
-	if err != nil {
-		return err
-	}
-
 	appchainInfo := appchainmgr.Appchain{}
-	if err = json.Unmarshal(res, &appchainInfo); err != nil {
-		return err
+
+	if path == UpdateAppchainUrl {
+		url, err := getURL(ctx, fmt.Sprintf("%s?pier_id=%s", path, pier))
+		if err != nil {
+			return err
+		}
+		res, err := httpGet(url)
+		if err != nil {
+			return err
+		}
+
+		if err = json.Unmarshal(res, &appchainInfo); err != nil {
+			return err
+		}
 	}
 	if name == "" {
 		name = appchainInfo.Name
@@ -285,12 +288,13 @@ func savePierAppchain(ctx *cli.Context, path string) error {
 		return fmt.Errorf("marshal appchain error: %w", err)
 	}
 
-	url, err = getURL(ctx, fmt.Sprintf("%s?pier_id=%s", path, pier))
+	url, err := getURL(ctx, fmt.Sprintf("%s?pier_id=%s", path, pier))
 	if err != nil {
 		return err
 	}
 	resp, err := httpPost(url, data)
 	if err != nil {
+		fmt.Println("httpPost:", err.Error())
 		return err
 	}
 

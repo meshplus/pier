@@ -51,23 +51,27 @@ func (ex *Exchanger) recoverRelay() {
 	}
 }
 
-func (ex *Exchanger) recoverDirect(dstPierID string, interchainIndex uint64, receiptIndex uint64) {
+func (ex *Exchanger) recoverDirect(dstChainDID string, interchainIndex uint64, receiptIndex uint64) {
+	ex.logger.WithFields(logrus.Fields{
+		"dstChainDID":     dstChainDID,
+		"interchainIndex": interchainIndex,
+		"receiptIndex":    receiptIndex,
+	}).Info("recover direct")
+
 	// recover unsent interchain ibtp
 	mntMeta := ex.mnt.QueryOuterMeta()
-	index, ok := mntMeta[dstPierID]
-	if !ok {
-		ex.logger.Infof("Appchain %s not exist", dstPierID)
-		return
-	}
-	if err := ex.handleMissingIBTPFromMnt(dstPierID, interchainIndex+1, index+1); err != nil {
-		ex.logger.WithFields(logrus.Fields{"address": dstPierID, "error": err.Error()}).Error("Handle missing ibtp")
+	index := mntMeta[dstChainDID]
+	ex.logger.Infof("handleMissingIBTPFromMnt for %s from %d to %d", dstChainDID, interchainIndex+1, index)
+	if err := ex.handleMissingIBTPFromMnt(dstChainDID, interchainIndex+1, index+1); err != nil {
+		ex.logger.WithFields(logrus.Fields{"address": dstChainDID, "error": err.Error()}).Error("Handle missing ibtp")
 	}
 
 	// recoverDirect unsent receipt to counterpart chain
 	execMeta := ex.exec.QueryInterchainMeta()
-	idx := execMeta[dstPierID]
-	if err := ex.handleMissingReceipt(dstPierID, receiptIndex+1, idx+1); err != nil {
-		ex.logger.WithFields(logrus.Fields{"address": dstPierID, "error": err.Error()}).Panic("Get missing receipt from contract")
+	idx := execMeta[dstChainDID]
+	ex.logger.Infof("handleMissingReceipt for %s from %d to %d", dstChainDID, receiptIndex+1, idx)
+	if err := ex.handleMissingReceipt(dstChainDID, receiptIndex+1, idx+1); err != nil {
+		ex.logger.WithFields(logrus.Fields{"address": dstChainDID, "error": err.Error()}).Panic("Get missing receipt from contract")
 	}
 }
 
@@ -156,8 +160,7 @@ func (ex *Exchanger) handleMissingIBTPFromSyncer(from string, begin, end uint64)
 			}
 			return nil
 		}, strategy.Wait(1*time.Second))
-		entry := ex.logger.WithFields(logrus.Fields{"type": ibtp.Type, "id": ibtp.ID()})
-		ex.handleIBTP(&model.WrappedIBTP{Ibtp: ibtp, IsValid: isValid}, entry)
+		ex.handleIBTP(&model.WrappedIBTP{Ibtp: ibtp, IsValid: isValid})
 		ex.executorCounter[ibtp.From] = ibtp.Index
 	}
 
@@ -177,7 +180,7 @@ func (ex *Exchanger) handleMissingReceipt(from string, begin uint64, end uint64)
 		entry = entry.WithFields(logrus.Fields{
 			"index": begin,
 		})
-		entry.Info("Send missing receipt to bitxhub")
+		entry.Info("Send missing receipt")
 
 		retry.Retry(func(attempt uint) error {
 			original, _, err := ex.queryIBTP(fmt.Sprintf("%s-%s-%d", from, ex.appchainDID, begin), from)

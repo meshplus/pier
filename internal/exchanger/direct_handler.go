@@ -49,15 +49,16 @@ func (ex *Exchanger) feedIBTP(wIbtp *model.WrappedIBTP) {
 	pool.feed(wIbtp)
 
 	if !loaded {
-		go func(pool *Pool) {
+		go func(pool *Pool, wIbtp *model.WrappedIBTP) {
 			defer func() {
 				if e := recover(); e != nil {
 					ex.logger.Error(fmt.Errorf("%v", e))
 				}
 			}()
 			inMeta := ex.exec.QueryInterchainMeta()
-			idx := inMeta[wIbtp.Ibtp.From]
 			for wIbtp := range pool.ch {
+				idx := inMeta[wIbtp.Ibtp.From]
+				ex.logger.Infof("get ibtp %s from pool,  exp idx %d", wIbtp.Ibtp.ID(), idx+1)
 				if wIbtp.Ibtp.Index <= idx {
 					pool.delete(wIbtp.Ibtp.Index)
 					ex.logger.Warnf("ignore ibtp with invalid index: %d", wIbtp.Ibtp.Index)
@@ -66,9 +67,11 @@ func (ex *Exchanger) feedIBTP(wIbtp *model.WrappedIBTP) {
 				if idx+1 == wIbtp.Ibtp.Index {
 					ex.processIBTP(wIbtp, pool)
 					index := wIbtp.Ibtp.Index + 1
+					inMeta[wIbtp.Ibtp.From] += 1
 					wIbtp := pool.get(index)
 					for wIbtp != nil {
 						ex.processIBTP(wIbtp, pool)
+						inMeta[wIbtp.Ibtp.From] += 1
 						index++
 						wIbtp = pool.get(index)
 					}
@@ -78,7 +81,7 @@ func (ex *Exchanger) feedIBTP(wIbtp *model.WrappedIBTP) {
 				}
 
 			}
-		}(pool)
+		}(pool, wIbtp)
 	}
 }
 
@@ -94,34 +97,37 @@ func (ex *Exchanger) processIBTP(wIbtp *model.WrappedIBTP, pool *Pool) {
 }
 
 func (ex *Exchanger) feedReceipt(ibtp *pb.IBTP) {
-	act, loaded := ex.ibtps.LoadOrStore(ibtp.From, NewPool())
+	act, loaded := ex.receipts.LoadOrStore(ibtp.To, NewPool())
 	pool := act.(*Pool)
 	pool.feed(&model.WrappedIBTP{Ibtp: ibtp, IsValid: true})
 
 	if !loaded {
-		go func(pool *Pool) {
+		go func(pool *Pool, ibtp *pb.IBTP) {
 			defer func() {
 				if e := recover(); e != nil {
 					ex.logger.Error(fmt.Errorf("%v", e))
 				}
 			}()
 			callbackMeta := ex.exec.QueryCallbackMeta()
-			idx := callbackMeta[ibtp.To]
 			for wIbtp := range pool.ch {
-				if ibtp.Index <= idx {
+				idx := callbackMeta[ibtp.To]
+				ex.logger.Infof("get ibtp receipt %s from pool,  exp idx %d", wIbtp.Ibtp.ID(), idx+1)
+				if wIbtp.Ibtp.Index <= idx {
 					pool.delete(wIbtp.Ibtp.Index)
 					ex.logger.Warn("ignore ibtp with invalid index")
 					continue
 				}
-				if idx+1 == ibtp.Index {
+				if idx+1 == wIbtp.Ibtp.Index {
 					ex.processIBTP(wIbtp, pool)
 					index := ibtp.Index + 1
+					callbackMeta[ibtp.To] += 1
 					wIbtp := pool.get(index)
 					for wIbtp != nil {
 						receipt, _ := ex.exec.ExecuteIBTP(wIbtp)
 						ex.postHandleIBTP(wIbtp.Ibtp.From, receipt)
 						pool.delete(wIbtp.Ibtp.Index)
 						index++
+						callbackMeta[ibtp.To] += 1
 						wIbtp = pool.get(index)
 					}
 					idx = index - 1
@@ -129,7 +135,7 @@ func (ex *Exchanger) feedReceipt(ibtp *pb.IBTP) {
 					pool.put(wIbtp)
 				}
 			}
-		}(pool)
+		}(pool, ibtp)
 	}
 }
 

@@ -323,10 +323,11 @@ func (ex *Exchanger) sendIBTP(ibtp *pb.IBTP) error {
 				dst = ibtp.To
 			} else {
 				dst = ibtp.From
+				msg = peermgr.Message(peerMsg.Message_IBTP_RECEIPT_SEND, true, data)
 			}
 
 			if err := ex.peerMgr.AsyncSend(dst, msg); err != nil {
-				ex.logger.Errorf("Send ibtp to pier %s: %s", ibtp.ID(), err.Error())
+				ex.logger.Errorf("Send ibtp %s type %v to %s: %w", ibtp.ID(), ibtp.Type, dst, err)
 				return err
 			}
 
