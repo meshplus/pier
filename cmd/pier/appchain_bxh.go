@@ -27,6 +27,7 @@ var appchainBxhCMD = cli.Command{
 			Name:  "register",
 			Usage: "Register appchain to bitxhub",
 			Flags: []cli.Flag{
+				appchainIdFlag,
 				appchainNameFlag,
 				appchainTypeFlag,
 				appchainTrustRootFlag,
@@ -102,6 +103,7 @@ var appchainBxhCMD = cli.Command{
 }
 
 func registerPier(ctx *cli.Context) error {
+	id := ctx.String("appchain-id")
 	name := ctx.String("name")
 	typ := ctx.String("type")
 	trustrootPath := ctx.String("trustroot")
@@ -166,6 +168,7 @@ func registerPier(ctx *cli.Context) error {
 	receipt, err := client.InvokeBVMContract(
 		constant.AppchainMgrContractAddr.Address(),
 		"RegisterAppchain", nil,
+		rpcx.String(id),
 		rpcx.String(name),
 		rpcx.String(typ),
 		rpcx.Bytes(trustrootData),
