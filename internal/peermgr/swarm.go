@@ -46,8 +46,12 @@ type Swarm struct {
 
 func (swarm *Swarm) Peers() map[string]*peer.AddrInfo {
 	m := make(map[string]*peer.AddrInfo)
-	for id, addr := range swarm.peers {
-		m[id] = addr
+	for _, addr := range swarm.peers {
+		pierID, err := swarm.getRemotePierID(addr.ID)
+		if err != nil {
+			return nil
+		}
+		m[pierID] = addr
 	}
 
 	return m

@@ -2,8 +2,6 @@ package direct_adapter
 
 import (
 	"fmt"
-	"sync"
-
 	lru "github.com/hashicorp/golang-lru"
 	"github.com/meshplus/bitxhub-model/pb"
 	"github.com/meshplus/pier/internal/adapt"
@@ -11,6 +9,7 @@ import (
 	"github.com/meshplus/pier/internal/utils"
 	"github.com/sirupsen/logrus"
 	"go.uber.org/atomic"
+	"sync"
 )
 
 var _ adapt.Adapt = (*DirectAdapter)(nil)
@@ -31,6 +30,7 @@ type DirectAdapter struct {
 	lock          *sync.Mutex //control the concurrent count
 	sendIBTPTimer atomic.Duration
 	appchainID    string
+	remotePierID  string
 }
 
 func (d *DirectAdapter) ID() string {
@@ -95,6 +95,17 @@ func (d *DirectAdapter) Start() error {
 	if err := d.peerMgr.Start(); err != nil {
 		return fmt.Errorf("peerMgr start: %w", err)
 	}
+
+	// todo: support multi peers
+	connectedNum := d.peerMgr.CountConnectedPeers()
+	if connectedNum != 1 {
+		return fmt.Errorf("direct adapter connect just 1 remote pier, the actual remote num is : %d",
+			connectedNum)
+	}
+	for pierID, _ := range d.peerMgr.Peers() {
+		d.remotePierID = pierID
+	}
+
 	return nil
 }
 
@@ -121,7 +132,7 @@ func (d *DirectAdapter) MonitorIBTP() chan *pb.IBTP {
 
 // QueryIBTP query ibtp from another pier
 func (d *DirectAdapter) QueryIBTP(id string, isReq bool) (*pb.IBTP, error) {
-	srcServiceID, destServiceID, index, err := utils.ParseIBTPID(id)
+	_, _, index, err := utils.ParseIBTPID(id)
 	if err != nil {
 		return nil, err
 	}
@@ -136,22 +147,9 @@ func (d *DirectAdapter) QueryIBTP(id string, isReq bool) (*pb.IBTP, error) {
 		return ibtp, nil
 	}
 
-	var (
-		serviceID string
-		result    *pb.Message
-	)
-	// if isReq, targetPier is ibtpID filed From, the message type is Message_IBTP_GET
-	if isReq {
-		serviceID = srcServiceID
-	} else {
-		serviceID = destServiceID
-	}
-	pierID, err := utils.GetPierID(serviceID)
-	if err != nil {
-		return nil, err
-	}
+	var result *pb.Message
 	msg := peermgr.Message(pb.Message_IBTP_GET, true, []byte(id))
-	result, err = d.peerMgr.Send(pierID, msg)
+	result, err = d.peerMgr.Send(d.remotePierID, msg)
 	if err != nil {
 		return nil, err
 	}
@@ -164,7 +162,7 @@ func (d *DirectAdapter) QueryIBTP(id string, isReq bool) (*pb.IBTP, error) {
 
 // SendIBTP send ibtp to another pier
 func (d *DirectAdapter) SendIBTP(ibtp *pb.IBTP) error {
-	if ibtp.Type > 2 {
+	if ibtp.Type != pb.IBTP_INTERCHAIN && ibtp.Type != pb.IBTP_RECEIPT_SUCCESS && ibtp.Type != pb.IBTP_RECEIPT_FAILURE {
 		return fmt.Errorf("unsupport ibtp type:%s", ibtp.Type)
 	}
 	data, err := ibtp.Marshal()
@@ -173,20 +171,7 @@ func (d *DirectAdapter) SendIBTP(ibtp *pb.IBTP) error {
 	}
 	msg := peermgr.Message(pb.Message_IBTP_SEND, true, data)
 
-	var serviceID string
-	// if ibtp type is not interchain, target adr is From
-	if ibtp.Type == pb.IBTP_INTERCHAIN {
-		serviceID = ibtp.To
-	} else {
-		serviceID = ibtp.From
-	}
-	pierID, err := utils.GetPierID(serviceID)
-	if err != nil {
-		d.logger.Errorf("get pierID from ibtp err: %s", err.Error())
-		return err
-	}
-
-	if err := d.peerMgr.AsyncSend(pierID, msg); err != nil {
+	if err := d.peerMgr.AsyncSend(d.remotePierID, msg); err != nil {
 		d.logger.Errorf("Send ibtp to pier %s: %s", ibtp.ID(), err.Error())
 		return err
 	}
@@ -195,12 +180,8 @@ func (d *DirectAdapter) SendIBTP(ibtp *pb.IBTP) error {
 }
 
 func (d *DirectAdapter) QueryInterchain(serviceID string) (*pb.Interchain, error) {
-	pierID, err := utils.GetPierID(serviceID)
-	if err != nil {
-		return nil, err
-	}
 	msg := peermgr.Message(pb.Message_INTERCHAIN_META_GET, true, []byte(serviceID))
-	result, err := d.peerMgr.Send(pierID, msg)
+	result, err := d.peerMgr.Send(d.remotePierID, msg)
 	if err != nil {
 		return nil, err
 	}

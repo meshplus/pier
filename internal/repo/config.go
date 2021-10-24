@@ -88,7 +88,6 @@ type Log struct {
 type LogModule struct {
 	ApiServer   string `mapstructure:"api_server" toml:"api_server" json:"api_server"`
 	AppchainMgr string `mapstructure:"appchain_mgr" toml:"appchain_mgr" json:"appchain_mgr"`
-	Appchain    string `toml:"Appchain" json:"Appchain"`
 	BxhLite     string `mapstructure:"bxh_lite" toml:"bxh_lite" json:"bxh_lite"`
 	Exchanger   string `toml:"exchanger" json:"exchanger"`
 	Executor    string `toml:"executor" json:"executor"`
@@ -97,6 +96,7 @@ type LogModule struct {
 	Router      string `toml:"router" json:"router"`
 	RuleMgr     string `mapstructure:"rule_mgr" toml:"rule_mgr" json:"rule_mgr"`
 	Swarm       string `toml:"swarm" json:"swarm"`
+	Appchain    string `toml:"appchain_adapter" json:"appchain_adapter"`
 	Syncer      string `toml:"bxh_adapter" json:"bxh_adapter"`
 	Direct      string `toml:"direct_adapter" json:"direct_adapter"`
 	Union       string `toml:"union_adapter" json:"union_adapter"`
