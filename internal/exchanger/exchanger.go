@@ -65,6 +65,15 @@ func (ex *Exchanger) Start() error {
 		err         error
 	)
 
+	// start get ibtp to channel
+	if err := ex.srcAdapt.Start(); err != nil {
+		return err
+	}
+
+	if err := ex.destAdapt.Start(); err != nil {
+		return err
+	}
+
 	ex.srcAdaptName = ex.srcAdapt.Name()
 	ex.destAdaptName = ex.destAdapt.Name()
 
@@ -83,20 +92,18 @@ func (ex *Exchanger) Start() error {
 		if err != nil {
 			panic(fmt.Sprintf("queryInterchain from srcAdapt: %s", err.Error()))
 		}
-		ex.destServiceMeta[serviceId], err = ex.destAdapt.QueryInterchain(serviceId)
-		if err != nil {
-			panic(fmt.Sprintf("queryInterchain from destAdapt: %s", err.Error()))
+
+		if err := retry.Retry(func(attempt uint) error {
+			if ex.destServiceMeta[serviceId], err = ex.destAdapt.QueryInterchain(serviceId); err != nil {
+				// maybe peerMgr err cause QueryInterchain err, so retry it
+				ex.logger.Errorf("queryInterchain from destAdapt: %w", err)
+			}
+			return err
+		}, strategy.Backoff(backoff.Fibonacci(1*time.Second))); err != nil {
+			ex.logger.Errorf("retry err with queryInterchain: %w", err)
 		}
 	}
 
-	// start get ibtp to channel
-	if err := ex.srcAdapt.Start(); err != nil {
-		return err
-	}
-
-	if err := ex.destAdapt.Start(); err != nil {
-		return err
-	}
 	if repo.UnionMode == ex.mode {
 		ex.recover(ex.destServiceMeta, ex.srcServiceMeta)
 	} else {
@@ -184,6 +191,7 @@ func (ex *Exchanger) listenIBTPFromDestAdapt(servicePair string) {
 			}
 
 			if err := retry.Retry(func(attempt uint) error {
+				ex.logger.Infof("start sendIBTP to adapter: %s", ex.srcAdapt.Name())
 				if err := ex.srcAdapt.SendIBTP(ibtp); err != nil {
 					// if err occurs, try to get new ibtp and resend
 					if err, ok := err.(*adapt.SendIbtpError); ok {
