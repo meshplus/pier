@@ -24,6 +24,12 @@ const (
 	appChainId = "testAppChain"
 )
 
+func TestID(t *testing.T) {
+	adapter, _, _, _ := prepare(t)
+	id := adapter.ID()
+	require.Equal(t, appChainId, id)
+}
+
 func TestName(t *testing.T) {
 	adapter1, _, _, _ := prepare(t)
 	name := adapter1.Name()
