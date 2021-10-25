@@ -2,6 +2,7 @@ package appchain_adapter
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/Rican7/retry"
@@ -171,10 +172,13 @@ func (a *AppchainAdapter) SendIBTP(ibtp *pb.IBTP) error {
 	}
 
 	if !res.Status {
-		return &adapt.SendIbtpError{
-			Err:    fmt.Sprintf("fail to send ibtp %s with type %v: %s", ibtp.ID(), ibtp.Type, res.Message),
-			Status: adapt.Other_Error,
+		err := &adapt.SendIbtpError{Err: fmt.Sprintf("fail to send ibtp %s with type %v: %s", ibtp.ID(), ibtp.Type, res.Message)}
+		if strings.Contains(res.Message, "invalid multi-signature") {
+			err.Status = adapt.Proof_Invalid
+		} else {
+			err.Status = adapt.Other_Error
 		}
+		return err
 	}
 
 	return nil

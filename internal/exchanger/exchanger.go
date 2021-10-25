@@ -223,10 +223,10 @@ func (ex *Exchanger) listenIBTPFromDestAdapt(servicePair string) {
 			if err := retry.Retry(func(attempt uint) error {
 				ex.logger.Infof("start sendIBTP to adapter: %s", ex.srcAdaptName)
 				if err := ex.srcAdapt.SendIBTP(ibtp); err != nil {
+					ex.logger.Errorf("send IBTP to Adapt:%s", ex.srcAdaptName, "error", err.Error())
 					// if err occurs, try to get new ibtp and resend
 					if err, ok := err.(*adapt.SendIbtpError); ok {
 						if err.NeedRetry() {
-							ex.logger.Errorf("send IBTP to Adapt:%s", ex.srcAdaptName, "error", err.Error())
 							// query to new ibtp
 							ibtp = ex.queryIBTP(ex.destAdapt, ibtp.ID(), !ex.isIBTPBelongSrc(ibtp))
 							return fmt.Errorf("retry sending ibtp")
@@ -387,7 +387,7 @@ func (ex *Exchanger) queryIBTP(destAdapt adapt.Adapt, ibtpID string, isReq bool)
 	if err := retry.Retry(func(attempt uint) error {
 		ibtp, err = destAdapt.QueryIBTP(ibtpID, isReq)
 		if err != nil {
-			ex.logger.Errorf("queryIBTP from Adapt:%s", destAdapt.Name(), "error", err.Error())
+			ex.logger.Errorf("queryIBTP from Adapt:%s, error: %v", destAdapt.Name(), err.Error())
 			return err
 		}
 		return nil

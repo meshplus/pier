@@ -6,6 +6,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/meshplus/bitxhub-kit/hexutil"
+
 	"github.com/golang/mock/gomock"
 	"github.com/meshplus/bitxhub-kit/log"
 	"github.com/meshplus/bitxhub-model/pb"
@@ -281,5 +283,27 @@ func TestUnionMode(t *testing.T) {
 }
 
 func TestDirectMode(t *testing.T) {
+	fmt.Println(hexutil.Encode([]byte("world")))
+}
 
+func TestGenerateConfig(t *testing.T) {
+	s0 := []string{"0xdabf70772fbf4a13f3152f66eed09075e2b95f40be1f6fcf3f3a3f6b08069c705ac2ef9dbc5d50a58d5c9cef0d078e0afae8b70e3d0a313b81a5107dcc2ec27f00",
+		"0xce589509b78b2121eaabf553d434903d39dc38ac7824f1fb411cc9b7bb068d23593f650b0fda688b9625b82246ac694f636c66136bb0963f24ca16e745950d7c00",
+		"0x1a1e1dfbb19cd086a84fc9805076f41c2387560ff6305c6ab6f94f6e1c04d2c15d8cc5f527bd5ebde320dfe6abf6175adfadc6519aec357f24278496810b122d01"}
+
+	var sigs []byte
+	for _, s := range s0 {
+		sig := hexutil.Decode(s)
+		sigs = append(sigs, sig...)
+	}
+
+	fmt.Print("[")
+	for i, b := range sigs {
+		fmt.Printf("\"0x%02x\"", b)
+		if i != len(sigs)-1 {
+			fmt.Print(",")
+		}
+	}
+
+	fmt.Println("]")
 }

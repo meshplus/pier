@@ -110,36 +110,27 @@ func (b *BxhAdapter) MonitorIBTP() chan *pb.IBTP {
 }
 
 func (b *BxhAdapter) QueryIBTP(id string, isReq bool) (*pb.IBTP, error) {
-	queryTx, err := b.client.GenerateContractTx(pb.TransactionData_BVM, constant.InterchainContractAddr.Address(),
-		"GetIBTPByID", rpcx.String(id), rpcx.Bool(isReq))
+	ibtp, err := b.getIBTPByID(id, isReq)
 	if err != nil {
-		return nil, err
-	}
-	queryTx.Nonce = 1
-	receipt, err := b.client.SendView(queryTx)
-	if err != nil {
-		return nil, err
+		if isReq == true {
+			return nil, err
+		}
+		txStatus, err := b.getTxStatus(id)
+		if err != nil {
+			return nil, err
+		}
+
+		if txStatus != pb.TransactionStatus_BEGIN {
+			ibtp, err = b.getIBTPByID(id, true)
+			if err != nil {
+				return nil, err
+			}
+		} else {
+			return nil, fmt.Errorf("cannot get IBTP %s with isReq %v, txStatus %v", id, isReq, txStatus)
+		}
 	}
 
-	if !receipt.IsSuccess() {
-		return nil, fmt.Errorf("query IBTP %s, isReq %v failed", id, isReq)
-	}
-
-	hash := types.NewHash(receipt.Ret)
-	response, err := b.client.GetTransaction(hash.String())
-	if err != nil {
-		return nil, err
-	}
-
-	retIBTP := response.Tx.GetIBTP()
-	proof, err := b.getMultiSign(retIBTP, isReq)
-	if err != nil {
-		return nil, err
-	}
-	// get ibtp proof from bxh
-	retIBTP.Proof = proof
-
-	return retIBTP, nil
+	return ibtp, nil
 }
 
 func (b *BxhAdapter) SendIBTP(ibtp *pb.IBTP) error {
@@ -290,8 +281,22 @@ func (b *BxhAdapter) SendIBTP(ibtp *pb.IBTP) error {
 				return nil
 			}
 
-			if strings.Contains(errMsg, "has been rollback") {
-				b.logger.WithField("id", ibtp.ID()).Warnf("Tx has been rollback")
+			if strings.Contains(errMsg, ibtpRollback) {
+				b.logger.WithFields(logrus.Fields{
+					"id":  ibtp.ID(),
+					"err": errMsg,
+				}).Warn("IBTP has rollback")
+				if err := retry.Retry(func(attempt uint) error {
+					ibtp, err := b.QueryIBTP(ibtp.ID(), true)
+					if err != nil {
+						b.logger.Warnf("query IBTP %s with isReq true", ibtp.ID())
+					} else {
+						b.ibtpC <- ibtp
+					}
+					return err
+				}, strategy.Wait(time.Second*3)); err != nil {
+					b.logger.Panicf("retry query IBTP %s with isReq true", ibtp.ID())
+				}
 				return nil
 			}
 			return fmt.Errorf("unknown error, retry for %s anyway", ibtp.ID())
@@ -496,6 +501,34 @@ func (b *BxhAdapter) handleInterchainTxWrapper(w *pb.InterchainTxWrapper, i int)
 		b.ibtpC <- ibtp
 	}
 
+	for _, id := range w.TimeoutIbtps {
+		if err := retry.Retry(func(attempt uint) error {
+			ibtp, err := b.QueryIBTP(id, true)
+			if err != nil {
+				b.logger.Warnf("query timeout ibtp %s: %v", id, err)
+			} else {
+				b.ibtpC <- ibtp
+			}
+			return err
+		}, strategy.Wait(time.Second*3)); err != nil {
+			b.logger.Panicf("retry query timeout ibtp %s failed: %v", id, err)
+		}
+	}
+
+	for _, id := range w.MultiTxIbtps {
+		if err := retry.Retry(func(attempt uint) error {
+			ibtp, err := b.QueryIBTP(id, true)
+			if err != nil {
+				b.logger.Warnf("query multitx ibtop %s: %v", ibtp, err)
+			} else {
+				b.ibtpC <- ibtp
+			}
+			return err
+		}, strategy.Wait(time.Second*3)); err != nil {
+			b.logger.Panicf("retry query timeout ibtp %s failed: %v", id, err)
+		}
+	}
+
 	b.logger.WithFields(logrus.Fields{
 		"height":      w.Height,
 		"count":       len(w.Transactions),
@@ -584,4 +617,108 @@ func (b *BxhAdapter) restartCh() {
 	if b.wrappersC == nil {
 		b.wrappersC = make(chan *pb.InterchainTxWrappers, maxChSize)
 	}
+}
+
+func (b *BxhAdapter) getIBTPByID(id string, isReq bool) (*pb.IBTP, error) {
+	queryTx, err := b.client.GenerateContractTx(pb.TransactionData_BVM, constant.InterchainContractAddr.Address(),
+		"GetIBTPByID", rpcx.String(id), rpcx.Bool(isReq))
+	if err != nil {
+		return nil, err
+	}
+	queryTx.Nonce = 1
+	receipt, err := b.client.SendView(queryTx)
+	if err != nil {
+		return nil, err
+	}
+
+	if !receipt.IsSuccess() {
+		return nil, fmt.Errorf("get IBTP by ID %s, isReq %v failed", id, isReq)
+	}
+
+	hash := types.NewHash(receipt.Ret)
+	response, err := b.client.GetTransaction(hash.String())
+	if err != nil {
+		return nil, err
+	}
+
+	retIBTP := response.Tx.GetIBTP()
+	proof, err := b.getMultiSign(retIBTP, isReq)
+	if err != nil {
+		return nil, err
+	}
+	// get ibtp proof from bxh
+	retIBTP.Proof = proof
+
+	return retIBTP, nil
+}
+
+// srcServiceMeta: service meta from appchain
+// destServiceMeta: service meta from bitxhub
+func (b *BxhAdapter) Recover(srcServiceMeta, destServiceMata map[string]*pb.Interchain) {
+	for serviceID, interchain := range destServiceMata {
+		// deal with source appchain rollback
+		for k, interchainCounter := range interchain.InterchainCounter {
+			receiptCounter := srcServiceMeta[serviceID].ReceiptCounter[k]
+
+			b.logger.Infof("deal with rollback ibtp for service pair %s-%s from %d to %d", serviceID, k, receiptCounter+1, interchainCounter)
+			for i := receiptCounter + 1; i <= interchainCounter; i++ {
+				id := fmt.Sprintf("%s-%s-%d", serviceID, k, i)
+				txStatus := b.getTxStatusWithRetry(id)
+
+				if txStatus == pb.TransactionStatus_BEGIN_FAILURE || txStatus == pb.TransactionStatus_BEGIN_ROLLBACK {
+					ibtp := b.queryIBTPWithRetry(id, true)
+					b.ibtpC <- ibtp
+				}
+			}
+		}
+
+		// deal with dst appchain rollback
+		for k, sourceInterchainCounter := range interchain.SourceInterchainCounter {
+			sourceReceiptCounter := interchain.SourceReceiptCounter[k]
+
+			for i := sourceReceiptCounter + 1; i <= sourceInterchainCounter; i++ {
+				id := fmt.Sprintf("%s-%s-%d", k, serviceID, i)
+				txStatus := b.getTxStatusWithRetry(id)
+
+				if txStatus == pb.TransactionStatus_BEGIN_FAILURE || txStatus == pb.TransactionStatus_BEGIN_ROLLBACK {
+					ibtp := b.queryIBTPWithRetry(id, true)
+					b.ibtpC <- ibtp
+				}
+			}
+		}
+	}
+}
+
+func (b *BxhAdapter) queryIBTPWithRetry(id string, isReq bool) *pb.IBTP {
+	var ret *pb.IBTP
+	if err := retry.Retry(func(attempt uint) error {
+		ibtp, err := b.QueryIBTP(id, true)
+		if err != nil {
+			b.logger.Warnf("query rollback ibtp %s: %v", id, err)
+		}
+		ret = ibtp
+
+		return err
+	}, strategy.Wait(time.Second*3)); err != nil {
+		b.logger.Panicf("retry query rollback ibtp %s failed: %v", id, err)
+	}
+
+	return ret
+}
+
+func (b *BxhAdapter) getTxStatusWithRetry(id string) pb.TransactionStatus {
+	var ret pb.TransactionStatus
+	if err := retry.Retry(func(attempt uint) error {
+		status, err := b.getTxStatus(id)
+		if err != nil {
+			b.logger.Warnf("fail to get ibtp %s status: %v", id, err)
+		}
+		ret = status
+
+		return err
+	}, strategy.Wait(time.Second*3)); err != nil {
+		b.logger.Panicf("retry query rollback ibtp %s failed: %v", id, err)
+	}
+
+	return ret
 }
