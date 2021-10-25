@@ -9,6 +9,8 @@ import (
 	"github.com/Rican7/retry/strategy"
 	"github.com/meshplus/bitxhub-model/pb"
 	"github.com/meshplus/pier/internal/adapt"
+	"github.com/meshplus/pier/internal/adapt/bxh_adapter"
+	"github.com/meshplus/pier/internal/repo"
 	"github.com/sirupsen/logrus"
 )
 
@@ -53,10 +55,11 @@ func (ex *Exchanger) recover(srcServiceMeta map[string]*pb.Interchain, destServi
 				destCount = 0
 			}
 			// handle unsentIBTP : query IBTP -> sendIBTP
-			var begin = destCount + 1
-			ex.handleMissingIBTPByServicePair(begin, count, ex.srcAdapt, ex.destAdapt, interchain.ID, k, true)
-			// success then equal index
-			destServiceMeta[interchain.ID].InterchainCounter[k] = count
+			if destCount < count {
+				ex.handleMissingIBTPByServicePair(destCount+1, count, ex.srcAdapt, ex.destAdapt, interchain.ID, k, true)
+				// success then equal index
+				destServiceMeta[interchain.ID].InterchainCounter[k] = count
+			}
 		}
 		for k, count := range interchain.SourceReceiptCounter {
 			destCount, ok := destServiceMeta[interchain.ID].SourceReceiptCounter[k]
@@ -64,38 +67,40 @@ func (ex *Exchanger) recover(srcServiceMeta map[string]*pb.Interchain, destServi
 				destCount = 0
 			}
 			// handle unsentIBTP : query IBTP -> sendIBTP
-			var begin = destCount + 1
-			ex.handleMissingIBTPByServicePair(begin, count, ex.srcAdapt, ex.destAdapt, k, interchain.ID, false)
-			destServiceMeta[interchain.ID].SourceReceiptCounter[k] = count
+			if destCount < count {
+				ex.handleMissingIBTPByServicePair(destCount+1, count, ex.srcAdapt, ex.destAdapt, k, interchain.ID, false)
+				destServiceMeta[interchain.ID].SourceReceiptCounter[k] = count
+			}
 		}
 	}
 
 	// handle dest -> src
 	for _, interchain := range destServiceMeta {
 		for k, count := range interchain.SourceInterchainCounter {
-			destCount, ok := srcServiceMeta[interchain.ID].SourceInterchainCounter[k]
-			if !ok {
-				destCount = 0
-			}
+			destCount := srcServiceMeta[interchain.ID].SourceInterchainCounter[k]
 
 			// handle unsentIBTP : query IBTP -> sendIBTP
-			var begin = destCount + 1
-			ex.handleMissingIBTPByServicePair(begin, count, ex.destAdapt, ex.srcAdapt, k, interchain.ID, true)
-			srcServiceMeta[interchain.ID].SourceInterchainCounter[k] = count
+			if destCount < count {
+				ex.handleMissingIBTPByServicePair(destCount+1, count, ex.destAdapt, ex.srcAdapt, k, interchain.ID, true)
+				srcServiceMeta[interchain.ID].SourceInterchainCounter[k] = count
+			}
 		}
 
 		for k, count := range interchain.ReceiptCounter {
-			destCount, ok := srcServiceMeta[interchain.ID].ReceiptCounter[k]
-			if !ok {
-				destCount = 0
-			}
+			destCount := srcServiceMeta[interchain.ID].ReceiptCounter[k]
 
 			// handle unsentIBTP : query IBTP -> sendIBTP
-			var begin = destCount + 1
-			ex.handleMissingIBTPByServicePair(begin, count, ex.destAdapt, ex.srcAdapt, interchain.ID, k, false)
-			srcServiceMeta[interchain.ID].ReceiptCounter[k] = count
+			if destCount < count {
+				ex.handleMissingIBTPByServicePair(destCount+1, count, ex.destAdapt, ex.srcAdapt, interchain.ID, k, false)
+				srcServiceMeta[interchain.ID].ReceiptCounter[k] = count
+			}
 		}
 	}
+
+	if ex.mode == repo.RelayMode {
+		ex.destAdapt.(*bxh_adapter.BxhAdapter).Recover(srcServiceMeta, destServiceMeta)
+	}
+
 	ex.logger.Info("End To Recover IBTPs!")
 }
 
