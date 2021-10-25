@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/golang/mock/gomock"
+	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/meshplus/bitxhub-kit/log"
 	"github.com/meshplus/bitxhub-model/pb"
 	network "github.com/meshplus/go-lightp2p"
@@ -23,6 +24,12 @@ const (
 	appChainId = "testAppChain"
 )
 
+func TestID(t *testing.T) {
+	adapter, _, _, _ := prepare(t)
+	id := adapter.ID()
+	require.Equal(t, appChainId, id)
+}
+
 func TestName(t *testing.T) {
 	adapter1, _, _, _ := prepare(t)
 	name := adapter1.Name()
@@ -36,6 +43,11 @@ func TestStart(t *testing.T) {
 	peerMgr.EXPECT().RegisterMsgHandler(gomock.Any(), gomock.Any()).Return(nil).MaxTimes(3)
 	peerMgr.EXPECT().RegisterMultiMsgHandler(gomock.Any(), gomock.Any()).Return(nil).Times(1)
 	peerMgr.EXPECT().Start().Return(nil).Times(1)
+	peerMgr.EXPECT().CountConnectedPeers().Return(uint64(1)).Times(1)
+	peers := make(map[string]*peer.AddrInfo, 1)
+	peers[appChainId] = &peer.AddrInfo{}
+	peerMgr.EXPECT().Peers().Return(peers).AnyTimes()
+
 	peerMgr.EXPECT().Stop().Return(nil).Times(1)
 	err := adapter.Start()
 	require.Nil(t, err)
@@ -51,11 +63,19 @@ func TestStart(t *testing.T) {
 	// test peerMgr start error
 	startError := fmt.Errorf("start peerMgr err")
 	peerMgr.EXPECT().RegisterMsgHandler(gomock.Any(), gomock.Any()).Return(nil).MaxTimes(3)
-	peerMgr.EXPECT().RegisterMultiMsgHandler(gomock.Any(), gomock.Any()).Return(nil).Times(1)
-	peerMgr.EXPECT().Start().Return(startError).Times(1)
+	peerMgr.EXPECT().RegisterMultiMsgHandler(gomock.Any(), gomock.Any()).Return(nil).MaxTimes(1)
+	peerMgr.EXPECT().Start().Return(startError).MaxTimes(1)
 	err = adapter.Start()
 	require.NotNil(t, err)
 	require.Equal(t, true, strings.Contains(err.Error(), startError.Error()))
+
+	// test connceted peer num error
+	peerMgr.EXPECT().RegisterMsgHandler(gomock.Any(), gomock.Any()).Return(nil).MaxTimes(3)
+	peerMgr.EXPECT().RegisterMultiMsgHandler(gomock.Any(), gomock.Any()).Return(nil).MaxTimes(1)
+	peerMgr.EXPECT().Start().Return(nil).MaxTimes(1)
+	peerMgr.EXPECT().CountConnectedPeers().Return(uint64(2)).MaxTimes(1)
+	err = adapter.Start()
+	require.NotNil(t, err)
 
 	// test peerMgr stop err
 	stopError := fmt.Errorf("stop peerMgr err")
@@ -84,39 +104,56 @@ func TestSendIBTP(t *testing.T) {
 		if pierId == toPierId {
 			adapter2.handleSendIBTPMessage(stream, msg)
 		}
-	}).Return(nil).MaxTimes(5)
-	err := adapter1.SendIBTP(ibtp1)
+	}).Return(nil).MaxTimes(3)
+
+	peerMgr.EXPECT().RegisterMsgHandler(gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
+	peerMgr.EXPECT().RegisterMultiMsgHandler(gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
+	peerMgr.EXPECT().Start().Return(nil).AnyTimes()
+	peerMgr.EXPECT().CountConnectedPeers().Return(uint64(1)).AnyTimes()
+	peers1 := make(map[string]*peer.AddrInfo, 1)
+	peers1[toPierId] = &peer.AddrInfo{}
+	peerMgr.EXPECT().Peers().Return(peers1).MaxTimes(1)
+	err := adapter1.Start()
 	require.Nil(t, err)
-	err = adapter1.SendIBTP(receipt1)
+
+	peers2 := make(map[string]*peer.AddrInfo, 1)
+	peers2[fromPierId] = &peer.AddrInfo{}
+	peerMgr.EXPECT().Peers().Return(peers2).MaxTimes(1)
+	err = adapter2.Start()
+	require.Nil(t, err)
+
+	err = adapter1.SendIBTP(ibtp1)
 	require.Nil(t, err)
 	err = adapter1.SendIBTP(ibtp2)
 	require.Nil(t, err)
-	err = adapter1.SendIBTP(ibtp4)
+
+	err = adapter2.SendIBTP(receipt1)
 	require.Nil(t, err)
 
-	wrongTypeIbtp := getIBTP(t, 3, pb.IBTP_RECEIPT_ROLLBACK)
+	time.Sleep(2 * time.Second)
+	revCh2 := adapter2.MonitorIBTP()
+	require.Equal(t, 2, len(revCh2)+adapter2.ibtpCache.Len())
+
+	//todo： why not alway equal 4 ?
+	require.Equal(t, uint64(2), adapter2.maxIndex)
+	require.Equal(t, uint64(1), adapter1.maxIndex)
+
+	wrongTypeIbtp := getIBTP(t, 1, pb.IBTP_RECEIPT_ROLLBACK)
 	err = adapter1.SendIBTP(wrongTypeIbtp)
 	require.Equal(t, true, strings.Contains(err.Error(), "unsupport ibtp type"))
 
-	wrongIdIbtp := &pb.IBTP{
-		From:    fmt.Sprintf(":testappchain1:%s", fromHash),
-		To:      fmt.Sprintf("wrongType:%s", toHash),
-		Payload: nil,
-		Index:   5,
-		Type:    pb.IBTP_INTERCHAIN,
-	}
-	err = adapter1.SendIBTP(wrongIdIbtp)
-	require.Equal(t, true, strings.Contains(err.Error(), "invalid service ID"))
-	time.Sleep(1 * time.Second)
-
-	revCh2 := adapter2.MonitorIBTP()
-	require.Equal(t, 3, len(revCh2)+adapter2.ibtpCache.Len())
-
-	//todo： why not alway equal 4 ?
-	require.Equal(t, uint64(4), adapter2.maxIndex)
-	require.Equal(t, uint64(1), adapter1.maxIndex)
+	// test AsyncSend err
+	asyncSendErr := fmt.Errorf("send ibtp to pier err")
+	peerMgr.EXPECT().AsyncSend(gomock.Any(), gomock.Any()).Return(asyncSendErr).MaxTimes(1)
+	err = adapter1.SendIBTP(ibtp4)
+	require.NotNil(t, err)
+	require.Equal(t, true, strings.Contains(err.Error(), asyncSendErr.Error()))
 
 	peerMgr.EXPECT().Stop().Return(nil).AnyTimes()
+	err = adapter1.Stop()
+	require.Nil(t, err)
+	err = adapter2.Stop()
+	require.Nil(t, err)
 
 }
 
@@ -138,9 +175,6 @@ func TestQueryIBTP(t *testing.T) {
 	wrongId1 := "wrongIBTPId"
 	_, err = adapter1.QueryIBTP(wrongId1, true)
 	require.Equal(t, true, strings.Contains(err.Error(), wrongId1))
-	wrongId2 := fmt.Sprintf("%s-%s-%d", "wrongServiceId", "wrongServiceId", 1)
-	_, err = adapter1.QueryIBTP(wrongId2, true)
-	require.Equal(t, true, strings.Contains(err.Error(), "wrongServiceId"))
 
 	// test qurey ibtp from ibtpCache firstly, If there is no ibtp in the cache, connect the network
 	ibtp2 := getIBTP(t, 2, pb.IBTP_INTERCHAIN)
@@ -189,12 +223,6 @@ func TestQueryInterchain(t *testing.T) {
 	ret1, err := adapter1.QueryInterchain(id1)
 	require.Nil(t, err)
 	require.Equal(t, interchain, ret1)
-
-	// test wrong service id
-	wrongServiceId := "wrongServiceId"
-	ret2, err := adapter1.QueryInterchain(wrongServiceId)
-	require.Nil(t, ret2)
-	require.Equal(t, true, strings.Contains(err.Error(), "wrongServiceId"))
 
 }
 

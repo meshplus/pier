@@ -89,7 +89,7 @@ var initCMD = cli.Command{
 				cli.StringSliceFlag{
 					Name:     "addPier",
 					Usage:    "Specify counter party piers to connect, input looks like: [ip]:[port]#[Pid]",
-					Required: true,
+					Required: false,
 				},
 			},
 			Action: initPier,
