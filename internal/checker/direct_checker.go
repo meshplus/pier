@@ -2,18 +2,14 @@ package checker
 
 import (
 	"fmt"
+	"strings"
 	"sync"
 
-	"github.com/meshplus/bitxhub-kit/types"
-	"github.com/sirupsen/logrus"
-
 	"github.com/meshplus/bitxhub-core/validator"
-
-	"github.com/meshplus/pier/pkg/plugins"
-
-	//"github.com/meshplus/bitxhub-core/validator"
-	//"github.com/meshplus/bitxhub-kit/types"
+	"github.com/meshplus/bitxhub-kit/types"
 	"github.com/meshplus/bitxhub-model/pb"
+	"github.com/meshplus/pier/pkg/plugins"
+	"github.com/sirupsen/logrus"
 )
 
 var _ Checker = (*DirectChecker)(nil)
@@ -85,21 +81,19 @@ func (c *DirectChecker) CheckProof(ibtp *pb.IBTP) error {
 		appchainInfo = &AppchainInfo{
 			broker:    broker,
 			trustRoot: trustRoot,
-			ruleAddr:  ruleAddr,
+			ruleAddr:  strings.ToLower(ruleAddr),
 		}
 		c.chainInfoM[chainID] = appchainInfo
 	}
 
 	// todo: need validate direct mode
-	//ok, _, err := c.ve.Validate(appchainInfo.ruleAddr, chainID, ibtp.Proof, ibtp.Payload, string(appchainInfo.trustRoot))
-	//if err != nil {
-	//	return err
-	//}
-	ok = true
+	ok, _, err := c.ve.Validate(appchainInfo.ruleAddr, chainID, ibtp.Proof, ibtp.Payload, string(appchainInfo.trustRoot))
+	if err != nil {
+		return err
+	}
 	if !ok {
 		return fmt.Errorf("validate ibtp %s failed", ibtp.ID())
 	}
-	fmt.Println("check proof success")
 	return nil
 }
 

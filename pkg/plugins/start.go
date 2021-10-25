@@ -37,13 +37,13 @@ func CreateClient(appchainConfig *repo.Appchain, extra []byte) (Client, *plugin.
 	// Connect via RPC
 	rpcClient, err := client.Client()
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, fmt.Errorf("connect via rpc: %w", err)
 	}
 
 	// Request the plugin
 	raw, err := rpcClient.Dispense(PluginName)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, fmt.Errorf("dispense plugin %s: %w", PluginName, err)
 	}
 
 	var appchain Client
@@ -57,7 +57,7 @@ func CreateClient(appchainConfig *repo.Appchain, extra []byte) (Client, *plugin.
 	// initialize our client plugin
 	err = appchain.Initialize(pluginConfigPath, extra)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, fmt.Errorf("initialize plugin %s: %w", pluginConfigPath, err)
 	}
 
 	return appchain, client, nil
