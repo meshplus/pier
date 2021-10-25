@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"path/filepath"
+	"strings"
 
 	"github.com/hashicorp/go-plugin"
 	"github.com/meshplus/bitxhub-core/agency"
@@ -165,7 +166,9 @@ func NewPier(repoRoot string, config *repo.Config) (*Pier, error) {
 		}
 
 		bxhAdapter, err := bxh_adapter.New(repo.RelayMode, appchainAdapter.ID(), client, loggers.Logger(loggers.Syncer))
-
+		if err != nil {
+			return nil, fmt.Errorf("new bxh adapter: %w", err)
+		}
 		pierHAConstructor, err := agency.GetPierHAConstructor(config.HA.Mode)
 		if err != nil {
 			return nil, fmt.Errorf("pier ha constructor not found")
@@ -247,7 +250,7 @@ func (pier *Pier) startPierHA() {
 					}).Infof("Pier information of service %s", serviceID)
 				}
 				if err := pier.exchanger.Start(); err != nil {
-					pier.logger.Errorf("exchanger start: %w", err)
+					pier.logger.Errorf("exchanger start: %s", err.Error())
 					return
 				}
 				status = true
@@ -312,8 +315,14 @@ func newBitXHubClient(logger logrus.FieldLogger, privateKey crypto.PrivateKey, c
 		rpcx.WithLogger(logger),
 		rpcx.WithPrivateKey(privateKey),
 	}
-	nodesInfo := make([]*rpcx.NodeInfo, 0, len(config.Mode.Relay.Addrs))
-	for index, addr := range config.Mode.Relay.Addrs {
+	addrs := make([]string, 0)
+	if strings.EqualFold(repo.RelayMode, config.Mode.Type) {
+		addrs = config.Mode.Relay.Addrs
+	} else if strings.EqualFold(repo.UnionMode, config.Mode.Type) {
+		addrs = config.Mode.Union.Addrs
+	}
+	nodesInfo := make([]*rpcx.NodeInfo, 0, len(addrs))
+	for index, addr := range addrs {
 		nodeInfo := &rpcx.NodeInfo{Addr: addr}
 		if config.Security.EnableTLS {
 			nodeInfo.CertPath = filepath.Join(config.RepoRoot, config.Security.Tlsca)
@@ -326,4 +335,5 @@ func newBitXHubClient(logger logrus.FieldLogger, privateKey crypto.PrivateKey, c
 	}
 	opts = append(opts, rpcx.WithNodesInfo(nodesInfo...), rpcx.WithTimeoutLimit(config.Mode.Relay.TimeoutLimit))
 	return rpcx.New(opts...)
+
 }

@@ -334,7 +334,8 @@ func (b *BxhAdapter) GetServiceIDList() ([]string, error) {
 		var bxh string
 		var err error
 		if bxh, _, _, err = pb.ParseFullServiceID(service); err != nil {
-			return nil, err
+			b.logger.WithField("service", service).Warnf("ParseFullServiceID err:%s", err.Error())
+			continue
 		}
 		if bxh != b.ID() {
 			_, ok := bitXHubChainIDsMap[bxh]

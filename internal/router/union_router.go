@@ -78,7 +78,7 @@ func (u *UnionRouter) Route(ibtp *pb.IBTP) error {
 		return nil
 	}
 
-	//find target union pier by local cache
+	//find target union pier
 	if unionPierId, ok := u.pbTable.Load(target); ok {
 		res, err := u.peermgr.Send(unionPierId.(string), message)
 		if err == nil && res.Type == pb.Message_ACK && peermgr.DataToPayload(res).Ok {
@@ -108,10 +108,10 @@ func (u *UnionRouter) Broadcast(bxhID string) error {
 	if err := u.peermgr.Provider(idCid.String(), true); err != nil {
 		return fmt.Errorf("broadcast %s error:%w", bxhID, err)
 	}
-	u.logger.WithFields(logrus.Fields{
-		"bxhID": bxhID,
-		"cid":   idCid.String(),
-	}).Info("provide cid to network")
+	//u.logger.WithFields(logrus.Fields{
+	//	"bxhID": bxhID,
+	//	"cid":   idCid.String(),
+	//}).Info("provide cid to network")
 
 	return nil
 }
