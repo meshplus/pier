@@ -81,6 +81,10 @@ func (u *UnionAdapter) Start() error {
 		return fmt.Errorf("register router ibtp get handler: %w", err)
 	}
 
+	if err := u.peerMgr.RegisterMsgHandler(pb.Message_ADDRESS_GET, u.handleGetAddressMessage); err != nil {
+		return fmt.Errorf("register get address msg handler: %w", err)
+	}
+
 	if err := u.peerMgr.RegisterMsgHandler(pb.Message_ROUTER_IBTP_RECEIPT_GET, u.handleRouterGetIBTPMessage); err != nil {
 		return fmt.Errorf("register router ibtp receipt get handler: %w", err)
 	}
@@ -134,6 +138,7 @@ func (b *UnionAdapter) SendIBTP(ibtp *pb.IBTP) error {
 		"type": ibtp.Type,
 		"id":   ibtp.ID(),
 	})
+	// todo get multiSigns from bxhAdapt
 	//ibtp.Proof = signs
 
 	err := b.router.Route(ibtp)
@@ -155,10 +160,10 @@ func (b *UnionAdapter) QueryIBTP(id string, isReq bool) (*pb.IBTP, error) {
 }
 
 func (b *UnionAdapter) QueryInterchain(fullServiceId string) (*pb.Interchain, error) {
-	bxhId, _, serviceID, err := pb.ParseFullServiceID(fullServiceId)
+	bxhId, _, _, err := pb.ParseFullServiceID(fullServiceId)
 	if err != nil {
 		return nil, err
 	}
-	interchain, err := b.router.QueryInterchain(bxhId, serviceID)
+	interchain, err := b.router.QueryInterchain(bxhId, fullServiceId)
 	return interchain, err
 }

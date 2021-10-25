@@ -25,6 +25,18 @@ func (ex *UnionAdapter) handleRouterInterchain(s network.Stream, msg *pb.Message
 	}
 }
 
+func (ex *UnionAdapter) handleGetAddressMessage(stream network.Stream, message *pb.Message) {
+	addr := ex.bxhId
+
+	retMsg := peermgr.Message(pb.Message_ACK, true, []byte(addr))
+
+	err := ex.peerMgr.AsyncSendWithStream(stream, retMsg)
+	if err != nil {
+		ex.logger.Error(err)
+		return
+	}
+}
+
 //handleRouterSendIBTPMessage handles IBTP from union interchain network
 func (ex *UnionAdapter) handleRouterSendIBTPMessage(stream network.Stream, msg *pb.Message) {
 	handle := func() error {
@@ -57,14 +69,14 @@ func (ex *UnionAdapter) handleRouterSendIBTPMessage(stream network.Stream, msg *
 
 //handleRouterSendIBTPMessage handles get IBTP request from union interchain network
 func (ex *UnionAdapter) handleRouterGetIBTPMessage(stream network.Stream, msg *pb.Message) {
-	if err := ex.queryIBTPFromBitXHubAndSend(stream, string(peermgr.DataToPayload(msg).Data), false); err != nil {
+	if err := ex.queryIBTPFromBitXHubAndSend(stream, string(peermgr.DataToPayload(msg).Data), true); err != nil {
 		ex.logger.Error(err)
 	}
 }
 
 //handleRouterGetIBTPReceiptMessage handles get IBTP receipt request from union interchain network
 func (ex *UnionAdapter) handleRouterGetIBTPReceiptMessage(stream network.Stream, msg *pb.Message) {
-	if err := ex.queryIBTPFromBitXHubAndSend(stream, string(peermgr.DataToPayload(msg).Data), true); err != nil {
+	if err := ex.queryIBTPFromBitXHubAndSend(stream, string(peermgr.DataToPayload(msg).Data), false); err != nil {
 		ex.logger.Error(err)
 	}
 }
@@ -72,7 +84,7 @@ func (ex *UnionAdapter) handleRouterGetIBTPReceiptMessage(stream network.Stream,
 func (ex *UnionAdapter) queryIBTPFromBitXHubAndSend(stream network.Stream, id string, isReq bool) error {
 	ibtp, err := ex.bxhAdapter.QueryIBTP(id, isReq)
 	if err != nil {
-		return fmt.Errorf("bxhAdapter queryIBTP %s: %w", ibtp.ID(), err)
+		return fmt.Errorf("bxhAdapter queryIBTP %s: %w", id, err)
 	}
 	data, err := ibtp.Marshal()
 	if err != nil {

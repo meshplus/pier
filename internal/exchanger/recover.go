@@ -98,3 +98,59 @@ func (ex *Exchanger) recover(srcServiceMeta map[string]*pb.Interchain, destServi
 	}
 	ex.logger.Info("End To Recover IBTPs!")
 }
+
+func (ex *Exchanger) recoverUnion(srcServiceMeta map[string]*pb.Interchain, destServiceMeta map[string]*pb.Interchain) {
+	// handle src -> dest
+	ex.logger.Info("Start To Recover IBTPs!")
+	for _, interchain := range destServiceMeta {
+		for k, count := range interchain.InterchainCounter {
+			destCount, ok := srcServiceMeta[interchain.ID].InterchainCounter[k]
+			if !ok {
+				destCount = 0
+			}
+			// handle unsentIBTP : query IBTP -> sendIBTP
+			var begin = destCount + 1
+			ex.handleMissingIBTPByServicePair(begin, count, ex.destAdapt, ex.srcAdapt, interchain.ID, k, true)
+			// success then equal index
+			srcServiceMeta[interchain.ID].InterchainCounter[k] = count
+		}
+		for k, count := range interchain.SourceReceiptCounter {
+			destCount, ok := srcServiceMeta[interchain.ID].SourceReceiptCounter[k]
+			if !ok {
+				destCount = 0
+			}
+			// handle unsentIBTP : query IBTP -> sendIBTP
+			var begin = destCount + 1
+			ex.handleMissingIBTPByServicePair(begin, count, ex.destAdapt, ex.srcAdapt, k, interchain.ID, false)
+			srcServiceMeta[interchain.ID].SourceReceiptCounter[k] = count
+		}
+	}
+
+	// handle dest -> src
+	for _, interchain := range srcServiceMeta {
+		for k, count := range interchain.SourceInterchainCounter {
+			destCount, ok := destServiceMeta[interchain.ID].SourceInterchainCounter[k]
+			if !ok {
+				destCount = 0
+			}
+
+			// handle unsentIBTP : query IBTP -> sendIBTP
+			var begin = destCount + 1
+			ex.handleMissingIBTPByServicePair(begin, count, ex.srcAdapt, ex.destAdapt, k, interchain.ID, true)
+			destServiceMeta[interchain.ID].SourceInterchainCounter[k] = count
+		}
+
+		for k, count := range interchain.ReceiptCounter {
+			destCount, ok := destServiceMeta[interchain.ID].ReceiptCounter[k]
+			if !ok {
+				destCount = 0
+			}
+
+			// handle unsentIBTP : query IBTP -> sendIBTP
+			var begin = destCount + 1
+			ex.handleMissingIBTPByServicePair(begin, count, ex.srcAdapt, ex.destAdapt, interchain.ID, k, false)
+			destServiceMeta[interchain.ID].ReceiptCounter[k] = count
+		}
+	}
+	ex.logger.Info("End To Recover IBTPs!")
+}

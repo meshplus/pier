@@ -44,7 +44,8 @@ func getTxView(client rpcx.Client, tx *pb.BxhTransaction) []byte {
 		} else {
 			if !receipt.IsSuccess() {
 				logger.Errorf("get tx view receipt: %s", string(receipt.Ret))
-				if strings.Contains(string(receipt.Ret), "this service does not exist") {
+				if strings.Contains(string(receipt.Ret), "this service does not exist") ||
+					strings.Contains(string(receipt.Ret), "interchain info does not exist") {
 					emptyResult = true
 					return nil
 				}
