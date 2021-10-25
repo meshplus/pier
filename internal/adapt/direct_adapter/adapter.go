@@ -106,6 +106,8 @@ func (d *DirectAdapter) Start() error {
 		d.remotePierID = pierID
 	}
 
+	d.logger.Info("direct adapter start")
+
 	return nil
 }
 
@@ -118,7 +120,7 @@ func (d *DirectAdapter) Stop() error {
 	close(d.ibtpC)
 	d.ibtpC = nil
 
-	d.logger.Info("DirectAdapter stopped")
+	d.logger.Info("direct adapter stopped")
 	return nil
 }
 
@@ -172,10 +174,15 @@ func (d *DirectAdapter) SendIBTP(ibtp *pb.IBTP) error {
 	msg := peermgr.Message(pb.Message_IBTP_SEND, true, data)
 
 	if err := d.peerMgr.AsyncSend(d.remotePierID, msg); err != nil {
-		d.logger.Errorf("Send ibtp to pier %s: %s", ibtp.ID(), err.Error())
+		d.logger.WithFields(logrus.Fields{
+			"ibtpID": ibtp.ID(),
+			"error":  err.Error(),
+		}).Errorf("Direct adapter peerMgr send ibtp to remote pier err")
 		return err
 	}
-	d.logger.Debugf("Send ibtp success from DirectAdapter")
+	d.logger.WithFields(logrus.Fields{
+		"ibypID": ibtp.ID(),
+	}).Info("Direct adapter Send ibtp success")
 	return nil
 }
 

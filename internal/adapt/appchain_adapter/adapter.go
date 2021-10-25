@@ -76,6 +76,8 @@ func (a *AppchainAdapter) Start() error {
 		close(a.ibtpC)
 	}()
 
+	a.logger.Info("appchain adapter start")
+
 	return nil
 }
 
@@ -87,7 +89,7 @@ func (a *AppchainAdapter) Stop() error {
 	a.pluginClient.Kill()
 	a.client = nil
 	a.pluginClient = nil
-
+	a.logger.Info("appchain adapter stopped")
 	return nil
 }
 

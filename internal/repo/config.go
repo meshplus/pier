@@ -96,9 +96,9 @@ type LogModule struct {
 	Router      string `toml:"router" json:"router"`
 	RuleMgr     string `mapstructure:"rule_mgr" toml:"rule_mgr" json:"rule_mgr"`
 	Swarm       string `toml:"swarm" json:"swarm"`
-	Appchain    string `toml:"appchain_adapter" json:"appchain_adapter"`
-	Syncer      string `toml:"bxh_adapter" json:"bxh_adapter"`
-	Direct      string `toml:"direct_adapter" json:"direct_adapter"`
+	Appchain    string `mapstructure:"appchain_adapter" toml:"appchain_adapter" json:"appchain_adapter"`
+	Syncer      string `mapstructure:"bxh_adapter" toml:"bxh_adapter" json:"bxh_adapter"`
+	Direct      string `mapstructure:"direct_adapter" toml:"direct_adapter" json:"direct_adapter"`
 	Union       string `toml:"union_adapter" json:"union_adapter"`
 	Cryptor     string `toml:"cryptor" json:"cryptor"`
 }
@@ -153,6 +153,7 @@ func DefaultConfig() *Config {
 				ApiServer:   "info",
 				Direct:      "info",
 				Union:       "info",
+				Appchain:    "info",
 			},
 		},
 		Security: Security{
