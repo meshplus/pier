@@ -44,6 +44,7 @@ type Swarm struct {
 	cancel context.CancelFunc
 }
 
+// Peers maps remote peer's pierID to addrInfo, pierID indicate the appchainID for remote pier request from appchain
 func (swarm *Swarm) Peers() map[string]*peer.AddrInfo {
 	m := make(map[string]*peer.AddrInfo)
 	for _, addr := range swarm.peers {
