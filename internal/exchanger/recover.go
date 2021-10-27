@@ -7,9 +7,9 @@ import (
 	"github.com/Rican7/retry"
 	"github.com/Rican7/retry/backoff"
 	"github.com/Rican7/retry/strategy"
+	"github.com/meshplus/bitxhub-kit/hexutil"
 	"github.com/meshplus/bitxhub-model/pb"
 	"github.com/meshplus/pier/internal/adapt"
-	"github.com/meshplus/pier/internal/adapt/bxh_adapter"
 	"github.com/meshplus/pier/internal/repo"
 	"github.com/sirupsen/logrus"
 )
@@ -23,17 +23,18 @@ func (ex *Exchanger) handleMissingIBTPByServicePair(begin, end uint64, fromAdapt
 			"isReq":        isReq,
 		}).Info("handle missing event from:" + adaptName)
 		ibtp := ex.queryIBTP(fromAdapt, fmt.Sprintf("%s-%s-%d", srcService, targetService, begin), isReq)
-		sendIBTP(ex, toAdapt, ibtp)
+		ex.sendIBTP(fromAdapt, toAdapt, ibtp)
 	}
 }
 
-func sendIBTP(ex *Exchanger, destAdapt adapt.Adapt, ibtp *pb.IBTP) {
+func (ex *Exchanger) sendIBTP(srcAdapt, destAdapt adapt.Adapt, ibtp *pb.IBTP) {
 	adaptName := destAdapt.Name()
 	if err := retry.Retry(func(attempt uint) error {
 		if err := destAdapt.SendIBTP(ibtp); err != nil {
+			ex.logger.Warnf("send IBTP %s to Adapt %s: %s", ibtp.ID(), adaptName, err.Error())
 			if err, ok := err.(*adapt.SendIbtpError); ok {
 				if err.NeedRetry() {
-					ex.logger.Errorf("send IBTP to Adapt:%s", adaptName, "error", err.Error())
+					ibtp = ex.queryIBTP(srcAdapt, ibtp.ID(), ibtp.Category() == pb.IBTP_REQUEST)
 					return fmt.Errorf("retry sending ibtp")
 				}
 			}
@@ -98,7 +99,27 @@ func (ex *Exchanger) recover(srcServiceMeta map[string]*pb.Interchain, destServi
 	}
 
 	if ex.mode == repo.RelayMode {
-		ex.destAdapt.(*bxh_adapter.BxhAdapter).Recover(srcServiceMeta, destServiceMeta)
+		for serviceID, interchain := range destServiceMeta {
+			// deal with source appchain rollback
+			for k, interchainCounter := range interchain.InterchainCounter {
+				receiptCounter := srcServiceMeta[serviceID].ReceiptCounter[k]
+
+				ex.logger.Infof("check txStatus for service pair %s-%s from %d to %d for rollback", serviceID, k, receiptCounter+1, interchainCounter)
+				for i := receiptCounter + 1; i <= interchainCounter; i++ {
+					id := fmt.Sprintf("%s-%s-%d", serviceID, k, i)
+					ibtp := ex.queryIBTP(ex.destAdapt, id, true)
+					bxhProof := &pb.BxhProof{}
+					if err := bxhProof.Unmarshal(ibtp.Proof); err != nil {
+						ex.logger.Panicf("fail to unmarshal proof %s for ibtp %s", hexutil.Encode(ibtp.Proof), ibtp.ID())
+					}
+
+					if bxhProof.TxStatus == pb.TransactionStatus_BEGIN_FAILURE || bxhProof.TxStatus == pb.TransactionStatus_BEGIN_ROLLBACK {
+						ex.logger.Infof("ibtp %s txStatus is %v, will rollback", ibtp.ID(), bxhProof.TxStatus)
+						ex.sendIBTP(ex.destAdapt, ex.srcAdapt, ibtp)
+					}
+				}
+			}
+		}
 	}
 
 	ex.logger.Info("End To Recover IBTPs!")

@@ -379,15 +379,15 @@ func (ex *Exchanger) isIBTPBelongSrc(ibtp *pb.IBTP) bool {
 	return isIBTPBelongSrc
 }
 
-func (ex *Exchanger) queryIBTP(destAdapt adapt.Adapt, ibtpID string, isReq bool) *pb.IBTP {
+func (ex *Exchanger) queryIBTP(adapt adapt.Adapt, ibtpID string, isReq bool) *pb.IBTP {
 	var (
 		ibtp *pb.IBTP
 		err  error
 	)
 	if err := retry.Retry(func(attempt uint) error {
-		ibtp, err = destAdapt.QueryIBTP(ibtpID, isReq)
+		ibtp, err = adapt.QueryIBTP(ibtpID, isReq)
 		if err != nil {
-			ex.logger.Errorf("queryIBTP from Adapt:%s, error: %v", destAdapt.Name(), err.Error())
+			ex.logger.Errorf("queryIBTP from Adapt:%s, error: %v", adapt.Name(), err.Error())
 			return err
 		}
 		return nil
