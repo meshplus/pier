@@ -121,10 +121,8 @@ func (a *AppchainAdapter) QueryIBTP(id string, isReq bool) (*pb.IBTP, error) {
 }
 
 func (a *AppchainAdapter) SendIBTP(ibtp *pb.IBTP) error {
-	var (
-		res   *pb.SubmitIBTPResponse
-		proof *pb.BxhProof
-	)
+	var res *pb.SubmitIBTPResponse
+	proof := &pb.BxhProof{}
 
 	isReq, err := a.checker.BasicCheck(ibtp)
 	if err != nil {
@@ -141,7 +139,6 @@ func (a *AppchainAdapter) SendIBTP(ibtp *pb.IBTP) error {
 	}
 
 	if a.config.Mode.Type == repo.RelayMode {
-		proof = &pb.BxhProof{}
 		if err := proof.Unmarshal(ibtp.Proof); err != nil {
 			return fmt.Errorf("fail to unmarshal proof of ibtp %s: %w", ibtp.ID(), err)
 		}
@@ -153,14 +150,24 @@ func (a *AppchainAdapter) SendIBTP(ibtp *pb.IBTP) error {
 			return fmt.Errorf("unmarshal content of ibtp %s: %w", ibtp.ID(), err)
 		}
 		_, _, serviceID := ibtp.ParseTo()
+		a.logger.WithFields(logrus.Fields{
+			"ibtp": ibtp.ID(),
+			"typ":  ibtp.Type,
+		}).Info("start submit ibtp")
 		res, err = a.client.SubmitIBTP(ibtp.From, ibtp.Index, serviceID, ibtp.Type, content, proof, pd.Encrypted)
+		a.logger.Info("appchain adapter submit ibtp success")
 	} else {
 		result := &pb.Result{}
 		if err := result.Unmarshal(pd.Content); err != nil {
 			return fmt.Errorf("unmarshal result of ibtp %s: %w", ibtp.ID(), err)
 		}
 		_, _, serviceID := ibtp.ParseFrom()
+		a.logger.WithFields(logrus.Fields{
+			"ibtp": ibtp.ID(),
+			"typ":  ibtp.Type,
+		}).Info("start submit receipt")
 		res, err = a.client.SubmitReceipt(ibtp.To, ibtp.Index, serviceID, ibtp.Type, result, proof)
+		a.logger.Debug("appchain adapter submit receipt success")
 	}
 
 	if err != nil {
