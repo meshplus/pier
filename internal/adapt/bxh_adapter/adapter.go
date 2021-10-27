@@ -134,10 +134,12 @@ func (b *BxhAdapter) QueryIBTP(id string, isReq bool) (*pb.IBTP, error) {
 }
 
 func (b *BxhAdapter) SendIBTP(ibtp *pb.IBTP) error {
-
 	proof := ibtp.GetProof()
 	proofHash := sha256.Sum256(proof)
 	ibtp.Proof = proofHash[:]
+	if b.mode == repo.UnionMode {
+		ibtp.Extra = proof
+	}
 
 	tx, _ := b.client.GenerateIBTPTx(ibtp)
 	tx.Extra = proof
@@ -660,12 +662,13 @@ func (b *BxhAdapter) Recover(srcServiceMeta, destServiceMata map[string]*pb.Inte
 		for k, interchainCounter := range interchain.InterchainCounter {
 			receiptCounter := srcServiceMeta[serviceID].ReceiptCounter[k]
 
-			b.logger.Infof("deal with rollback ibtp for service pair %s-%s from %d to %d", serviceID, k, receiptCounter+1, interchainCounter)
+			b.logger.Infof("check txStatus for service pair %s-%s from %d to %d for rollback", serviceID, k, receiptCounter+1, interchainCounter)
 			for i := receiptCounter + 1; i <= interchainCounter; i++ {
 				id := fmt.Sprintf("%s-%s-%d", serviceID, k, i)
 				txStatus := b.getTxStatusWithRetry(id)
 
 				if txStatus == pb.TransactionStatus_BEGIN_FAILURE || txStatus == pb.TransactionStatus_BEGIN_ROLLBACK {
+					b.logger.Infof("ibtp %s-%s-%d txStatus is %v, will rollback", serviceID, k, i, txStatus)
 					ibtp := b.queryIBTPWithRetry(id, true)
 					b.ibtpC <- ibtp
 				}
@@ -673,19 +676,20 @@ func (b *BxhAdapter) Recover(srcServiceMeta, destServiceMata map[string]*pb.Inte
 		}
 
 		// deal with dst appchain rollback
-		for k, sourceInterchainCounter := range interchain.SourceInterchainCounter {
-			sourceReceiptCounter := interchain.SourceReceiptCounter[k]
-
-			for i := sourceReceiptCounter + 1; i <= sourceInterchainCounter; i++ {
-				id := fmt.Sprintf("%s-%s-%d", k, serviceID, i)
-				txStatus := b.getTxStatusWithRetry(id)
-
-				if txStatus == pb.TransactionStatus_BEGIN_FAILURE || txStatus == pb.TransactionStatus_BEGIN_ROLLBACK {
-					ibtp := b.queryIBTPWithRetry(id, true)
-					b.ibtpC <- ibtp
-				}
-			}
-		}
+		//for k, sourceInterchainCounter := range interchain.SourceInterchainCounter {
+		//	sourceReceiptCounter := interchain.SourceReceiptCounter[k]
+		//
+		//	b.logger.Infof("check txStatus for service pair %s-%s from %d to %d for rollback", k, serviceID, sourceReceiptCounter+1, sourceInterchainCounter)
+		//	for i := sourceReceiptCounter + 1; i <= sourceInterchainCounter; i++ {
+		//		id := fmt.Sprintf("%s-%s-%d", k, serviceID, i)
+		//		txStatus := b.getTxStatusWithRetry(id)
+		//
+		//		if txStatus == pb.TransactionStatus_BEGIN_FAILURE || txStatus == pb.TransactionStatus_BEGIN_ROLLBACK {
+		//			ibtp := b.queryIBTPWithRetry(id, true)
+		//			b.ibtpC <- ibtp
+		//		}
+		//	}
+		//}
 	}
 }
 
