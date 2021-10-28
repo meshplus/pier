@@ -120,6 +120,7 @@ func (b *BxhAdapter) QueryIBTP(id string, isReq bool) (*pb.IBTP, error) {
 			return nil, err
 		}
 
+		// TODO: figure out what scenes will trigger
 		if txStatus != pb.TransactionStatus_BEGIN {
 			ibtp, err = b.getIBTPByID(id, true)
 			if err != nil {
@@ -283,6 +284,14 @@ func (b *BxhAdapter) SendIBTP(ibtp *pb.IBTP) error {
 				return nil
 			}
 
+			// when bxh trigger timeout rollback, destPier's bxhAdapter want to send receipt to bxh.
+			// bxhAdapter will receive ibtpRollback error from bxh, bxhAdapter processing steps are as follows:
+			// step1: bxhAdapter QueryIBTP() from bxh, return the ibtp which receive same ibtp sending from srcAppchain to bxh.
+			// step2: bxh give a multiSign field with txStatus.
+			// if the ibtp will rollback, the proof filed txStatus wii be modified to TransactionStatus_BEGIN_ROLLBACK.
+			// step3: bxh send ibtp with TransactionStatus_BEGIN_ROLLBACK to bxhAdapter ibtpCh, then send to destAppchain.
+			// step4: destAppchain receive the ibtp, will rollback according to the txStatus.
+			// step5: desAppchain rollback finished, send receipt ibtp with TransactionStatus_ROLLBACK to bxh.
 			if strings.Contains(errMsg, ibtpRollback) {
 				b.logger.WithFields(logrus.Fields{
 					"id":  ibtp.ID(),
@@ -552,10 +561,7 @@ func (b *BxhAdapter) getTxStatus(id string) (pb.TransactionStatus, error) {
 		receipt = bxhReceipt
 		return nil
 	}, strategy.Wait(1*time.Second)); err != nil {
-		b.logger.WithFields(logrus.Fields{
-			"id":    id,
-			"error": err,
-		}).Errorf("Retry to get tx status")
+		b.logger.Errorf("Retry to get tx status")
 	}
 
 	if !receipt.IsSuccess() {
@@ -652,77 +658,4 @@ func (b *BxhAdapter) getIBTPByID(id string, isReq bool) (*pb.IBTP, error) {
 	retIBTP.Proof = proof
 
 	return retIBTP, nil
-}
-
-// srcServiceMeta: service meta from appchain
-// destServiceMeta: service meta from bitxhub
-func (b *BxhAdapter) Recover(srcServiceMeta, destServiceMata map[string]*pb.Interchain) {
-	for serviceID, interchain := range destServiceMata {
-		// deal with source appchain rollback
-		for k, interchainCounter := range interchain.InterchainCounter {
-			receiptCounter := srcServiceMeta[serviceID].ReceiptCounter[k]
-
-			b.logger.Infof("check txStatus for service pair %s-%s from %d to %d for rollback", serviceID, k, receiptCounter+1, interchainCounter)
-			for i := receiptCounter + 1; i <= interchainCounter; i++ {
-				id := fmt.Sprintf("%s-%s-%d", serviceID, k, i)
-				txStatus := b.getTxStatusWithRetry(id)
-
-				if txStatus == pb.TransactionStatus_BEGIN_FAILURE || txStatus == pb.TransactionStatus_BEGIN_ROLLBACK {
-					b.logger.Infof("ibtp %s-%s-%d txStatus is %v, will rollback", serviceID, k, i, txStatus)
-					ibtp := b.queryIBTPWithRetry(id, true)
-					b.ibtpC <- ibtp
-				}
-			}
-		}
-
-		// deal with dst appchain rollback
-		//for k, sourceInterchainCounter := range interchain.SourceInterchainCounter {
-		//	sourceReceiptCounter := interchain.SourceReceiptCounter[k]
-		//
-		//	b.logger.Infof("check txStatus for service pair %s-%s from %d to %d for rollback", k, serviceID, sourceReceiptCounter+1, sourceInterchainCounter)
-		//	for i := sourceReceiptCounter + 1; i <= sourceInterchainCounter; i++ {
-		//		id := fmt.Sprintf("%s-%s-%d", k, serviceID, i)
-		//		txStatus := b.getTxStatusWithRetry(id)
-		//
-		//		if txStatus == pb.TransactionStatus_BEGIN_FAILURE || txStatus == pb.TransactionStatus_BEGIN_ROLLBACK {
-		//			ibtp := b.queryIBTPWithRetry(id, true)
-		//			b.ibtpC <- ibtp
-		//		}
-		//	}
-		//}
-	}
-}
-
-func (b *BxhAdapter) queryIBTPWithRetry(id string, isReq bool) *pb.IBTP {
-	var ret *pb.IBTP
-	if err := retry.Retry(func(attempt uint) error {
-		ibtp, err := b.QueryIBTP(id, true)
-		if err != nil {
-			b.logger.Warnf("query rollback ibtp %s: %v", id, err)
-		}
-		ret = ibtp
-
-		return err
-	}, strategy.Wait(time.Second*3)); err != nil {
-		b.logger.Panicf("retry query rollback ibtp %s failed: %v", id, err)
-	}
-
-	return ret
-}
-
-func (b *BxhAdapter) getTxStatusWithRetry(id string) pb.TransactionStatus {
-	var ret pb.TransactionStatus
-	if err := retry.Retry(func(attempt uint) error {
-		status, err := b.getTxStatus(id)
-		if err != nil {
-			b.logger.Warnf("fail to get ibtp %s status: %v", id, err)
-		}
-		ret = status
-
-		return err
-	}, strategy.Wait(time.Second*3)); err != nil {
-		b.logger.Panicf("retry query rollback ibtp %s failed: %v", id, err)
-	}
-
-	return ret
 }
