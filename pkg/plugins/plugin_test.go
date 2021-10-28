@@ -168,7 +168,7 @@ func TestGRPCClient(t *testing.T) {
 	_, err = grpcClient.GetReceiptMessage(servicePair, uint64(1))
 	require.Nil(t, err)
 	_, err = grpcClient.GetReceiptMessage(servicePair, uint64(2))
-	require.NotNil(t, err)
+	require.Nil(t, err)
 
 	_, err = grpcClient.GetInMeta()
 	require.Nil(t, err)
