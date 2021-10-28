@@ -178,7 +178,11 @@ func (d *DirectAdapter) SendIBTP(ibtp *pb.IBTP) error {
 			"ibtpID": ibtp.ID(),
 			"error":  err.Error(),
 		}).Errorf("Direct adapter peerMgr send ibtp to remote pier err")
-		return err
+
+		return &adapt.SendIbtpError{
+			Err:    fmt.Sprintf("fail to send ibtp %s with type %v: %v", ibtp.ID(), ibtp.Type, err),
+			Status: adapt.PierConnect_Error,
+		}
 	}
 	d.logger.WithFields(logrus.Fields{
 		"ibypID": ibtp.ID(),
