@@ -118,7 +118,7 @@ func TestQueryIBTP(t *testing.T) {
 		Payload: data,
 	}
 	badReceipt := &pb.Receipt{
-		Ret:    []byte("this is a test"),
+		Ret:    []byte("this is a rollback ibtp"),
 		Status: pb.Receipt_SUCCESS,
 	}
 	badReceipt1 := &pb.Receipt{
@@ -131,12 +131,12 @@ func TestQueryIBTP(t *testing.T) {
 	//badResponse := &pb.GetTransactionResponse{
 	//	Tx: tx,
 	//}
-	client.EXPECT().GetMultiSigns(gomock.Any(), gomock.Any()).Return(&pb.SignResponse{Sign: make(map[string][]byte)}, nil).AnyTimes()
+	client.EXPECT().GetMultiSigns(gomock.Any(), gomock.Any()).Return(&pb.SignResponse{Sign: make(map[string][]byte)}, nil).MaxTimes(3)
 	client.EXPECT().GenerateContractTx(gomock.Any(), gomock.Any(), "GetIBTPByID", gomock.Any()).Return(tx, nil).AnyTimes()
 	// test for normal receipt
-	client.EXPECT().SendView(tx).Return(normalReceipt, nil)
-	client.EXPECT().GetTransaction(gomock.Any()).Return(normalResponse, nil)
-	client.EXPECT().GetReceipt(gomock.Any()).Return(normalReceipt, nil)
+	client.EXPECT().SendView(tx).Return(normalReceipt, nil).MaxTimes(1)
+	client.EXPECT().GetTransaction(gomock.Any()).Return(normalResponse, nil).MaxTimes(1)
+	client.EXPECT().GetReceipt(gomock.Any()).Return(normalReceipt, nil).MaxTimes(1)
 
 	receipt := &pb.Receipt{
 		Ret:    []byte(strconv.Itoa(int(pb.TransactionStatus_SUCCESS))),
@@ -148,16 +148,16 @@ func TestQueryIBTP(t *testing.T) {
 	require.Equal(t, origin, ibtp)
 
 	// test for abnormal receipt
-	client.EXPECT().SendView(tx).Return(badReceipt, nil)
-	client.EXPECT().GetTransaction(gomock.Any()).Return(nil, fmt.Errorf("bad ibtp 1"))
+	client.EXPECT().SendView(tx).Return(badReceipt, nil).MaxTimes(1)
+	client.EXPECT().GetTransaction(gomock.Any()).Return(nil, fmt.Errorf("bad ibtp 1")).MaxTimes(1)
 	ibtp, err = adapter.QueryIBTP(from, true)
 	require.NotNil(t, err)
 	require.Nil(t, ibtp)
 
-	client.EXPECT().SendView(tx).Return(badReceipt1, nil)
-	client.EXPECT().GetTransaction(gomock.Any()).Return(normalResponse, nil)
-	client.EXPECT().GetReceipt(gomock.Any()).Return(nil, fmt.Errorf("bad ibtp 2"))
-	ibtp, err = adapter.QueryIBTP(from, true)
+	client.EXPECT().SendView(tx).Return(badReceipt1, nil).MaxTimes(2)
+	client.EXPECT().GetTransaction(gomock.Any()).Return(normalResponse, nil).MaxTimes(2)
+	client.EXPECT().GetReceipt(gomock.Any()).Return(nil, fmt.Errorf("bad ibtp 2")).MaxTimes(1)
+	ibtp, err = adapter.QueryIBTP(from, false)
 	require.NotNil(t, err)
 	require.Nil(t, ibtp)
 }
@@ -226,7 +226,7 @@ func TestSendIBTP(t *testing.T) {
 	errMsg9 := fmt.Sprintf("%s: ibtp index is too high", ibtpIndexWrong)
 	errMsg10 := fmt.Sprintf("%s: ibtp verify error", invalidIBTP)
 	errMsg11 := fmt.Sprintf("%s: ibtp verify failed", proofFailed)
-	errMsg12 := fmt.Sprintf("has been rollback")
+	errMsg12 := fmt.Sprintf("state BEGIN_ROLLBACK get unexpected receipt")
 	failReceipt := &pb.Receipt{
 		Ret:    []byte(errMsg1),
 		Status: pb.Receipt_FAILED,
@@ -291,7 +291,62 @@ func TestSendIBTP(t *testing.T) {
 	require.Equal(t, true, ok)
 	require.Equal(t, adapt.Proof_Invalid, ibtpErr11.Status)
 
+	// test rollback IBTP
+	tmpPd := &pb.InvokePayload{
+		Method: "set",
+		Args:   []*pb.Arg{{Value: []byte("Alice,10")}},
+	}
+	pd, err := tmpPd.Marshal()
+	require.Nil(t, err)
+
+	td := &pb.TransactionData{
+		Payload: pd,
+	}
+	data, err := td.Marshal()
+	require.Nil(t, err)
+
+	bxhProof := &pb.BxhProof{
+		TxStatus:  pb.TransactionStatus_BEGIN_ROLLBACK,
+		MultiSign: make([][]byte, 0),
+	}
+	proof, err := bxhProof.Marshal()
+	require.Nil(t, err)
+
+	response := make(map[string][]byte)
+	response[hash] = proof
+
+	signResponse := &pb.SignResponse{
+		Sign: response,
+	}
+
+	ibtp := &pb.IBTP{
+		From:    from,
+		Index:   1,
+		Type:    pb.IBTP_INTERCHAIN,
+		Payload: data,
+	}
+	receiptData, err := ibtp.Marshal()
+	require.Nil(t, err)
+
+	rollReceipt := &pb.Receipt{
+		Ret:    receiptData,
+		Status: pb.Receipt_SUCCESS,
+	}
+
 	failReceipt.Ret = []byte(errMsg12)
+	rollbackTx := &pb.BxhTransaction{
+		From: b,
+		IBTP: ibtp,
+	}
+	rollbackResponse := &pb.GetTransactionResponse{
+		Tx: rollbackTx,
+	}
+
+	client.EXPECT().GetMultiSigns(gomock.Any(), gomock.Any()).Return(signResponse, nil).MaxTimes(1)
+	client.EXPECT().GenerateContractTx(gomock.Any(), gomock.Any(), "GetIBTPByID", gomock.Any(), gomock.Any()).Return(tx, nil).AnyTimes()
+	client.EXPECT().SendView(gomock.Any()).Return(rollReceipt, nil).MaxTimes(1)
+	client.EXPECT().GetTransaction(gomock.Any()).Return(rollbackResponse, nil).MaxTimes(1)
+
 	err = adapter.SendIBTP(&pb.IBTP{})
 	require.Nil(t, err)
 }

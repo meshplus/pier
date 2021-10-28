@@ -226,6 +226,7 @@ func TestQueryInterchain(t *testing.T) {
 
 }
 
+// todo: mock swarm, refactor the unit test in the next version
 func TestHandleGetIBTPMessage(t *testing.T) {
 	adapter, _, peerMgr, appchainAdapt := prepare(t)
 	var stream network.Stream
@@ -236,7 +237,21 @@ func TestHandleGetIBTPMessage(t *testing.T) {
 	peerMgr.EXPECT().AsyncSendWithStream(gomock.Any(), gomock.Any()).Return(nil)
 	msg := peermgr.Message(pb.Message_IBTP_GET, true, []byte(id))
 	adapter.handleGetIBTPMessage(stream, msg)
+}
 
+func TestHandleGetInterchainMessage(t *testing.T) {
+	adapter, _, peerMgr, appchainAdapt := prepare(t)
+	var stream network.Stream
+	serviceID := fmt.Sprintf(":%s:%s", appChainId, toHash)
+	msg := peermgr.Message(pb.Message_INTERCHAIN_META_GET, true, []byte(serviceID))
+	peerMgr.EXPECT().AsyncSendWithStream(gomock.Any(), gomock.Any()).Return(nil)
+	appchainAdapt.EXPECT().QueryInterchain(serviceID).Return(&pb.Interchain{
+		InterchainCounter:       map[string]uint64{},
+		ReceiptCounter:          map[string]uint64{},
+		SourceInterchainCounter: map[string]uint64{},
+		SourceReceiptCounter:    map[string]uint64{},
+	}, nil)
+	adapter.handleGetInterchainMessage(stream, msg)
 }
 
 func prepare(t *testing.T) (*DirectAdapter, *DirectAdapter, *mock_peermgr.MockPeerManager, *mock_adapt.MockAdapt) {
