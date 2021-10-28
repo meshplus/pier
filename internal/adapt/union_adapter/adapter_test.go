@@ -35,7 +35,7 @@ func TestStart(t *testing.T) {
 	adapter, _, peerMgr, _ := prepare(t)
 
 	// start normal
-	peerMgr.EXPECT().RegisterMsgHandler(gomock.Any(), gomock.Any()).Return(nil).MaxTimes(4)
+	peerMgr.EXPECT().RegisterMsgHandler(gomock.Any(), gomock.Any()).Return(nil).MaxTimes(5)
 	peerMgr.EXPECT().Start().Return(nil).Times(1)
 	peerMgr.EXPECT().Stop().Return(nil).Times(1)
 	err := adapter.Start()
@@ -46,14 +46,14 @@ func TestStart(t *testing.T) {
 	// test register interchain error
 	interchainErr := fmt.Errorf("register query interchain msg handler")
 	peerMgr.EXPECT().RegisterMsgHandler(gomock.Eq(pb.Message_ROUTER_INTERCHAIN_GET), gomock.Any()).Return(interchainErr).Times(1)
-	peerMgr.EXPECT().RegisterMsgHandler(gomock.Not(pb.Message_ROUTER_INTERCHAIN_GET), gomock.Any()).Return(nil).Times(3)
+	peerMgr.EXPECT().RegisterMsgHandler(gomock.Not(pb.Message_ROUTER_INTERCHAIN_GET), gomock.Any()).Return(nil).Times(4)
 	err = adapter.Start()
 	require.Equal(t, true, strings.Contains(err.Error(), interchainErr.Error()))
 
 	// test register interchain error
 	interchainErr2 := fmt.Errorf("register router ibtp receipt get handler")
 	peerMgr.EXPECT().RegisterMsgHandler(gomock.Eq(pb.Message_ROUTER_IBTP_RECEIPT_GET), gomock.Any()).Return(interchainErr).Times(1)
-	peerMgr.EXPECT().RegisterMsgHandler(gomock.Not(pb.Message_ROUTER_IBTP_RECEIPT_GET), gomock.Any()).Return(nil).Times(3)
+	peerMgr.EXPECT().RegisterMsgHandler(gomock.Not(pb.Message_ROUTER_IBTP_RECEIPT_GET), gomock.Any()).Return(nil).Times(4)
 	err = adapter.Start()
 	require.Equal(t, true, strings.Contains(err.Error(), interchainErr2.Error()))
 
