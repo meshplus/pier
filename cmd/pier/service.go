@@ -357,6 +357,10 @@ func registerService(ctx *cli.Context) error {
 		return err
 	}
 	// init method registry with this admin key
+	orderedTmp := 0
+	if ordered {
+		orderedTmp = 1
+	}
 	receipt, err := client.InvokeBVMContract(
 		constant.ServiceMgrContractAddr.Address(),
 		"RegisterService", nil,
@@ -365,7 +369,7 @@ func registerService(ctx *cli.Context) error {
 		rpcx.String(name),
 		rpcx.String(typ),
 		rpcx.String(intro),
-		rpcx.Bool(ordered),
+		rpcx.Uint64(uint64(orderedTmp)),
 		rpcx.String(permit),
 		rpcx.String(details),
 		rpcx.String(reason),
