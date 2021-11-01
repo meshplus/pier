@@ -88,7 +88,6 @@ type Log struct {
 type LogModule struct {
 	ApiServer   string `mapstructure:"api_server" toml:"api_server" json:"api_server"`
 	AppchainMgr string `mapstructure:"appchain_mgr" toml:"appchain_mgr" json:"appchain_mgr"`
-	Appchain    string `toml:"Appchain" json:"Appchain"`
 	BxhLite     string `mapstructure:"bxh_lite" toml:"bxh_lite" json:"bxh_lite"`
 	Exchanger   string `toml:"exchanger" json:"exchanger"`
 	Executor    string `toml:"executor" json:"executor"`
@@ -97,7 +96,11 @@ type LogModule struct {
 	Router      string `toml:"router" json:"router"`
 	RuleMgr     string `mapstructure:"rule_mgr" toml:"rule_mgr" json:"rule_mgr"`
 	Swarm       string `toml:"swarm" json:"swarm"`
-	Syncer      string `toml:"bxh_adapter" json:"bxh_adapter"`
+	Appchain    string `mapstructure:"appchain_adapter" toml:"appchain_adapter" json:"appchain_adapter"`
+	Syncer      string `mapstructure:"bxh_adapter" toml:"bxh_adapter" json:"bxh_adapter"`
+	Direct      string `mapstructure:"direct_adapter" toml:"direct_adapter" json:"direct_adapter"`
+	Union       string `toml:"union_adapter" json:"union_adapter"`
+	Cryptor     string `toml:"cryptor" json:"cryptor"`
 }
 
 // Appchain are configs about appchain
@@ -148,6 +151,9 @@ func DefaultConfig() *Config {
 				PeerMgr:     "info",
 				Router:      "info",
 				ApiServer:   "info",
+				Direct:      "info",
+				Union:       "info",
+				Appchain:    "info",
 			},
 		},
 		Security: Security{

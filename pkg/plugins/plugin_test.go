@@ -168,7 +168,7 @@ func TestGRPCClient(t *testing.T) {
 	_, err = grpcClient.GetReceiptMessage(servicePair, uint64(1))
 	require.Nil(t, err)
 	_, err = grpcClient.GetReceiptMessage(servicePair, uint64(2))
-	require.NotNil(t, err)
+	require.Nil(t, err)
 
 	_, err = grpcClient.GetInMeta()
 	require.Nil(t, err)
@@ -398,6 +398,10 @@ func (mc *mockAppchainPluginClient) GetReceipt(ctx context.Context, in *pb.IBTP,
 		}, nil
 	}
 	return nil, fmt.Errorf("mockAppchainPluginClient get receipt error")
+}
+
+func (mc *mockAppchainPluginClient) GetAppchainInfo(ctx context.Context, in *pb.ChainInfoRequest, opts ...grpc.CallOption) (*pb.ChainInfoResponse, error) {
+	panic("implement me")
 }
 
 func (mc *mockAppchainPluginClient) Name(ctx context.Context, in *pb.Empty, opts ...grpc.CallOption) (*pb.NameResponse, error) {

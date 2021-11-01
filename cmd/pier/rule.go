@@ -26,11 +26,18 @@ var ruleCMD = cli.Command{
 					Usage:    "Specify rule path",
 					Required: true,
 				},
-
-				appchainIdFlag,
-				appchainRuleUrlFlag,
 			},
 			Action: deployRule,
+		},
+		{
+			Name:  "register",
+			Usage: "Register validation rule",
+			Flags: []cli.Flag{
+				appchainIdFlag,
+				appchainRuleFlag,
+				appchainRuleUrlFlag,
+			},
+			Action: registerRule,
 		},
 		{
 			Name:  "update",
@@ -68,8 +75,6 @@ func deployRule(ctx *cli.Context) error {
 		return err
 	}
 	rulePath := ctx.String("path")
-	appchainID := ctx.String("appchain-id")
-	rule_url := ctx.String("rule-url")
 
 	keyPath := filepath.Join(repoRoot, "key.json")
 	client, _, err := initClientWithKeyPath(ctx, keyPath)
@@ -82,31 +87,44 @@ func deployRule(ctx *cli.Context) error {
 		return err
 	}
 
-	// 1. deploy
 	contractAddr, err := client.DeployContract(contract, nil)
 	if err != nil {
-		color.Red("Deploy rule error: %w", err)
-		return nil
+		return fmt.Errorf("Deploy rule error: %w", err)
 	} else {
-		color.Green(fmt.Sprintf("Deploy rule to bitxhub for appchain %s successfully: %s", appchainID, contractAddr.String()))
+		color.Green(fmt.Sprintf("Deploy rule successfully: %s", contractAddr.String()))
+		return nil
+	}
+}
+
+func registerRule(ctx *cli.Context) error {
+	repoRoot, err := repo.PathRootWithDefault(ctx.GlobalString("repo"))
+	if err != nil {
+		return err
+	}
+	appchainID := ctx.String("appchain-id")
+	rule_addr := ctx.String("rule")
+	rule_url := ctx.String("rule-url")
+
+	keyPath := filepath.Join(repoRoot, "key.json")
+	client, _, err := initClientWithKeyPath(ctx, keyPath)
+	if err != nil {
+		return fmt.Errorf("Load client: %w", err)
 	}
 
-	// 2. register
 	receipt, err := client.InvokeBVMContract(
 		constant.RuleManagerContractAddr.Address(),
 		"RegisterRule", nil,
-		rpcx.String(appchainID), rpcx.String(contractAddr.String()), rpcx.String(rule_url))
+		rpcx.String(appchainID), rpcx.String(rule_addr), rpcx.String(rule_url))
 	if err != nil {
 		return fmt.Errorf("Register rule: %w", err)
 	}
 
 	if !receipt.IsSuccess() {
-		color.Red(fmt.Sprintf("Register rule to bitxhub for appchain %s error: %s", appchainID, string(receipt.Ret)))
+		return fmt.Errorf("Register rule to bitxhub for appchain %s error: %s", appchainID, string(receipt.Ret))
 	} else {
 		color.Green(fmt.Sprintf("Register rule to bitxhub for appchain %s successfully.", appchainID))
+		return nil
 	}
-
-	return nil
 }
 
 func updateMasterRule(ctx *cli.Context) error {
@@ -133,13 +151,12 @@ func updateMasterRule(ctx *cli.Context) error {
 	}
 
 	if !receipt.IsSuccess() {
-		color.Red(fmt.Sprintf("Update master rule to bitxhub for appchain %s error: %s", appchainID, string(receipt.Ret)))
+		return fmt.Errorf("Update master rule to bitxhub for appchain %s error: %s", appchainID, string(receipt.Ret))
 	} else {
 		proposalId := gjson.Get(string(receipt.Ret), "proposal_id").String()
 		color.Green(fmt.Sprintf("Update master rule to bitxhub for appchain %s successfully, wait for proposal %s to finish.", appchainID, proposalId))
+		return nil
 	}
-
-	return nil
 }
 func logoutRule(ctx *cli.Context) error {
 	ruleAddr := ctx.String("addr")
@@ -164,10 +181,9 @@ func logoutRule(ctx *cli.Context) error {
 	}
 
 	if !receipt.IsSuccess() {
-		color.Red(fmt.Sprintf("Logout rule to bitxhub for appchain %s error: %s", appchainID, string(receipt.Ret)))
+		return fmt.Errorf("Logout rule to bitxhub for appchain %s error: %s", appchainID, string(receipt.Ret))
 	} else {
 		color.Green("The logout request was submitted successfully\n")
+		return nil
 	}
-
-	return nil
 }

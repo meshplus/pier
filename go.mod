@@ -9,17 +9,17 @@ require (
 	github.com/cbergoon/merkletree v0.2.0
 	github.com/fatih/color v1.9.0
 	github.com/fsnotify/fsnotify v1.4.9
-	github.com/gin-gonic/gin v1.6.3
 	github.com/gobuffalo/packd v1.0.0
 	github.com/gobuffalo/packr v1.30.1
 	github.com/golang/mock v1.5.0
 	github.com/hashicorp/go-hclog v0.0.0-20180709165350-ff2cf002a8dd
 	github.com/hashicorp/go-plugin v1.3.0
+	github.com/hashicorp/golang-lru v0.5.5-0.20210104140557-80c98217689d
 	github.com/ipfs/go-cid v0.0.7
 	github.com/libp2p/go-libp2p-core v0.6.1
-	github.com/meshplus/bitxhub-core v1.3.1-0.20210918105020-399b319d967f
+	github.com/meshplus/bitxhub-core v1.3.1-0.20211015044526-39e8bbfefa99
 	github.com/meshplus/bitxhub-kit v1.2.1-0.20210902085548-07f4fa85bfc9
-	github.com/meshplus/bitxhub-model v1.2.1-0.20210929032626-e9a7f829028f
+	github.com/meshplus/bitxhub-model v1.2.1-0.20211015075232-7f8f7caceb7f
 	github.com/meshplus/go-bitxhub-client v1.4.1-0.20210902103117-4a8dcc2e8c18
 	github.com/meshplus/go-lightp2p v0.0.0-20200817105923-6b3aee40fa54
 	github.com/mitchellh/go-homedir v1.1.0

@@ -6,8 +6,6 @@ import (
 	"sync"
 
 	"github.com/ipfs/go-cid"
-	appchainmgr "github.com/meshplus/bitxhub-core/appchain-mgr"
-	"github.com/meshplus/bitxhub-kit/storage"
 	"github.com/meshplus/bitxhub-model/pb"
 	"github.com/meshplus/pier/internal/peermgr"
 	"github.com/meshplus/pier/internal/utils"
@@ -19,8 +17,6 @@ var _ Router = (*UnionRouter)(nil)
 type UnionRouter struct {
 	peermgr          peermgr.PeerManager
 	logger           logrus.FieldLogger
-	store            storage.Storage
-	appchains        map[string]*appchainmgr.Appchain
 	pbTable          sync.Map
 	connectedPierIDs []string
 
@@ -28,16 +24,14 @@ type UnionRouter struct {
 	cancel context.CancelFunc
 }
 
-func New(peermgr peermgr.PeerManager, store storage.Storage, logger logrus.FieldLogger, connectedPierIDs []string) *UnionRouter {
+func New(peermgr peermgr.PeerManager, logger logrus.FieldLogger) *UnionRouter {
 	ctx, cancel := context.WithCancel(context.Background())
 	return &UnionRouter{
 		peermgr:          peermgr,
-		store:            store,
-		appchains:        make(map[string]*appchainmgr.Appchain),
 		logger:           logger,
 		ctx:              ctx,
 		cancel:           cancel,
-		connectedPierIDs: connectedPierIDs,
+		connectedPierIDs: peermgr.ConnectedPeerIDs(),
 	}
 }
 
@@ -80,16 +74,14 @@ func (u *UnionRouter) Route(ibtp *pb.IBTP) error {
 			return err
 		}
 		u.pbTable.Store(target, pierId)
-		u.store.Put(RouteIBTPKey(ibtp.ID()), []byte(""))
 		u.logger.WithField("ibtp", ibtp.ID()).Infof("send ibtp successfully from %s to %s", ibtp.From, ibtp.To)
 		return nil
 	}
 
-	//find target union pier by local cache
+	//find target union pier
 	if unionPierId, ok := u.pbTable.Load(target); ok {
 		res, err := u.peermgr.Send(unionPierId.(string), message)
 		if err == nil && res.Type == pb.Message_ACK && peermgr.DataToPayload(res).Ok {
-			u.store.Put(RouteIBTPKey(ibtp.ID()), []byte(""))
 			u.logger.WithField("ibtp", ibtp.ID()).Infof("send ibtp successfully from %s to %s", ibtp.From, ibtp.To)
 			return nil
 		}
@@ -100,7 +92,6 @@ func (u *UnionRouter) Route(ibtp *pb.IBTP) error {
 		u.logger.Errorf("send ibtp %s with category %s error: %v", ibtp.ID(), ibtp.Category().String(), err)
 		return err
 	}
-	u.store.Put(RouteIBTPKey(ibtp.ID()), []byte(""))
 
 	return nil
 }
@@ -117,10 +108,10 @@ func (u *UnionRouter) Broadcast(bxhID string) error {
 	if err := u.peermgr.Provider(idCid.String(), true); err != nil {
 		return fmt.Errorf("broadcast %s error:%w", bxhID, err)
 	}
-	u.logger.WithFields(logrus.Fields{
-		"bxhID": bxhID,
-		"cid":   idCid.String(),
-	}).Info("provide cid to network")
+	//u.logger.WithFields(logrus.Fields{
+	//	"bxhID": bxhID,
+	//	"cid":   idCid.String(),
+	//}).Info("provide cid to network")
 
 	return nil
 }
@@ -232,6 +223,6 @@ func (u *UnionRouter) QueryIBTP(id string, isReq bool) (*pb.IBTP, error) {
 	return ibtp, nil
 }
 
-func RouteIBTPKey(id string) []byte {
-	return []byte(fmt.Sprintf("route-ibtp-%s", id))
-}
+//func RouteIBTPKey(id string) []byte {
+//	return []byte(fmt.Sprintf("route-ibtp-%s", id))
+//}

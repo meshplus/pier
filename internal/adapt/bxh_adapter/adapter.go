@@ -12,7 +12,6 @@ import (
 
 	"github.com/Rican7/retry"
 	"github.com/Rican7/retry/strategy"
-	service_mgr "github.com/meshplus/bitxhub-core/service-mgr"
 	"github.com/meshplus/bitxhub-kit/types"
 	"github.com/meshplus/bitxhub-model/constant"
 	"github.com/meshplus/bitxhub-model/pb"
@@ -21,6 +20,8 @@ import (
 	"github.com/meshplus/pier/internal/repo"
 	"github.com/sirupsen/logrus"
 )
+
+var _ adapt.Adapt = (*BxhAdapter)(nil)
 
 var (
 	_                adapt.Adapt = (*BxhAdapter)(nil)
@@ -38,40 +39,48 @@ type BxhAdapter struct {
 	ibtpC     chan *pb.IBTP
 
 	mode       string
-	pierID     string
-	appchainID string
+	appchainId string
+	bxhID      uint64
 	ctx        context.Context
 	cancel     context.CancelFunc
 }
 
-func (b *BxhAdapter) Name() (string, error) {
-	bxhId, err := b.client.GetChainID()
-	if err != nil {
-		return "", err
-	}
-	return strconv.Itoa(int(bxhId)), nil
+func (b *BxhAdapter) MonitorUpdatedMeta() chan *[]byte {
+	panic("implement me")
+}
+
+func (b *BxhAdapter) SendUpdatedMeta(byte []byte) error {
+	panic("implement me")
 }
 
 // New creates instance of WrapperSyncer given agent interacting with bitxhub,
 // validators addresses of bitxhub and local storage
-func New(appchainID string, mode string, client rpcx.Client, logger logrus.FieldLogger) (*BxhAdapter, error) {
-
+func New(mode, appchainId string, client rpcx.Client, logger logrus.FieldLogger) (*BxhAdapter, error) {
+	bxhID, err := client.GetChainID()
+	if err != nil {
+		return nil, fmt.Errorf("new bxh adapter err: %w", err)
+	}
 	ctx, cancel := context.WithCancel(context.Background())
+
 	ba := &BxhAdapter{
 		wrappersC:  make(chan *pb.InterchainTxWrappers, maxChSize),
 		ibtpC:      make(chan *pb.IBTP, maxChSize),
 		client:     client,
+		appchainId: appchainId,
 		logger:     logger,
 		ctx:        ctx,
 		cancel:     cancel,
 		mode:       mode,
-		appchainID: appchainID,
+		bxhID:      bxhID,
 	}
 
 	return ba, nil
 }
 
 func (b *BxhAdapter) Start() error {
+	if b.ibtpC == nil || b.wrappersC == nil {
+		b.restartCh()
+	}
 	go b.run()
 	go b.listenInterchainTxWrappers()
 
@@ -82,8 +91,18 @@ func (b *BxhAdapter) Start() error {
 
 func (b *BxhAdapter) Stop() error {
 	b.cancel()
+	close(b.ibtpC)
+	b.ibtpC = nil
 	b.logger.Info("BxhAdapter stopped")
 	return nil
+}
+
+func (b *BxhAdapter) ID() string {
+	return fmt.Sprintf("%d", b.bxhID)
+}
+
+func (b *BxhAdapter) Name() string {
+	return fmt.Sprintf("bitxhub:%d", b.bxhID)
 }
 
 func (b *BxhAdapter) MonitorIBTP() chan *pb.IBTP {
@@ -91,43 +110,37 @@ func (b *BxhAdapter) MonitorIBTP() chan *pb.IBTP {
 }
 
 func (b *BxhAdapter) QueryIBTP(id string, isReq bool) (*pb.IBTP, error) {
-	queryTx, err := b.client.GenerateContractTx(pb.TransactionData_BVM, constant.InterchainContractAddr.Address(),
-		"GetIBTPByID", rpcx.String(id), rpcx.Bool(isReq))
+	ibtp, err := b.getIBTPByID(id, isReq)
 	if err != nil {
-		return nil, err
-	}
-	queryTx.Nonce = 1
-	receipt, err := b.client.SendView(queryTx)
-	if err != nil {
-		return nil, err
+		if isReq == true {
+			return nil, err
+		}
+		txStatus, err := b.getTxStatus(id)
+		if err != nil {
+			return nil, err
+		}
+
+		// TODO: figure out what scenes will trigger
+		if txStatus != pb.TransactionStatus_BEGIN {
+			ibtp, err = b.getIBTPByID(id, true)
+			if err != nil {
+				return nil, err
+			}
+		} else {
+			return nil, fmt.Errorf("cannot get IBTP %s with isReq %v, txStatus %v", id, isReq, txStatus)
+		}
 	}
 
-	if !receipt.IsSuccess() {
-		return nil, fmt.Errorf("query IBTP %s, isReq %v failed", id, isReq)
-	}
-
-	hash := types.NewHash(receipt.Ret)
-	response, err := b.client.GetTransaction(hash.String())
-	if err != nil {
-		return nil, err
-	}
-
-	retIBTP := response.Tx.GetIBTP()
-	proof, err := b.getMultiSign(retIBTP, isReq)
-	if err != nil {
-		return nil, err
-	}
-	// get ibtp proof from bxh
-	retIBTP.Proof = proof
-
-	return retIBTP, nil
+	return ibtp, nil
 }
 
 func (b *BxhAdapter) SendIBTP(ibtp *pb.IBTP) error {
-
 	proof := ibtp.GetProof()
 	proofHash := sha256.Sum256(proof)
 	ibtp.Proof = proofHash[:]
+	if b.mode == repo.UnionMode {
+		ibtp.Extra = proof
+	}
 
 	tx, _ := b.client.GenerateIBTPTx(ibtp)
 	tx.Extra = proof
@@ -271,8 +284,30 @@ func (b *BxhAdapter) SendIBTP(ibtp *pb.IBTP) error {
 				return nil
 			}
 
-			if strings.Contains(errMsg, "has been rollback") {
-				b.logger.WithField("id", ibtp.ID()).Warnf("Tx has been rollback")
+			// when bxh trigger timeout rollback, destPier's bxhAdapter want to send receipt to bxh.
+			// bxhAdapter will receive ibtpRollback error from bxh, bxhAdapter processing steps are as follows:
+			// step1: bxhAdapter QueryIBTP() from bxh, return the ibtp which receive same ibtp sending from srcAppchain to bxh.
+			// step2: bxh give a multiSign field with txStatus.
+			// if the ibtp will rollback, the proof filed txStatus wii be modified to TransactionStatus_BEGIN_ROLLBACK.
+			// step3: bxh send ibtp with TransactionStatus_BEGIN_ROLLBACK to bxhAdapter ibtpCh, then send to destAppchain.
+			// step4: destAppchain receive the ibtp, will rollback according to the txStatus.
+			// step5: desAppchain rollback finished, send receipt ibtp with TransactionStatus_ROLLBACK to bxh.
+			if strings.Contains(errMsg, ibtpRollback) {
+				b.logger.WithFields(logrus.Fields{
+					"id":  ibtp.ID(),
+					"err": errMsg,
+				}).Warn("IBTP has rollback")
+				if err := retry.Retry(func(attempt uint) error {
+					ibtp, err := b.QueryIBTP(ibtp.ID(), true)
+					if err != nil {
+						b.logger.Warnf("query IBTP %s with isReq true", ibtp.ID())
+					} else {
+						b.ibtpC <- ibtp
+					}
+					return err
+				}, strategy.Wait(time.Second*3)); err != nil {
+					b.logger.Panicf("retry query IBTP %s with isReq true", ibtp.ID())
+				}
 				return nil
 			}
 			return fmt.Errorf("unknown error, retry for %s anyway", ibtp.ID())
@@ -285,28 +320,45 @@ func (b *BxhAdapter) SendIBTP(ibtp *pb.IBTP) error {
 }
 
 func (b *BxhAdapter) GetServiceIDList() ([]string, error) {
-	tx, err := b.client.GenerateContractTx(pb.TransactionData_BVM, constant.ServiceMgrContractAddr.Address(),
-		"GetAllServices")
+	if b.mode == repo.RelayMode {
+		return nil, nil
+	}
+	tx, err := b.client.GenerateContractTx(pb.TransactionData_BVM, constant.InterchainContractAddr.Address(),
+		"GetAllServiceIDs")
 	if err != nil {
 		panic(err)
 	}
 
 	ret := getTxView(b.client, tx)
 
-	services := make([]*service_mgr.Service, 0)
+	services := make([]string, 0)
 	if err := json.Unmarshal(ret, &services); err != nil {
 		panic(err)
 	}
 
 	ids := make([]string, 0)
 
-	bxhID, err := b.client.GetChainID()
+	bitXHubChainIDs, err := b.getBitXHubChainIDs()
 	if err != nil {
 		return nil, err
 	}
-
+	bitXHubChainIDsMap := make(map[string]interface{})
+	for _, v := range bitXHubChainIDs {
+		bitXHubChainIDsMap[v] = ""
+	}
 	for _, service := range services {
-		ids = append(ids, fmt.Sprintf("%d:%s:%s", bxhID, service.ChainID, service.ServiceID))
+		var bxh string
+		var err error
+		if bxh, _, _, err = pb.ParseFullServiceID(service); err != nil {
+			b.logger.WithField("service", service).Warnf("ParseFullServiceID err:%s", err.Error())
+			continue
+		}
+		if bxh != b.ID() {
+			_, ok := bitXHubChainIDsMap[bxh]
+			if ok {
+				ids = append(ids, service)
+			}
+		}
 	}
 
 	return ids, nil
@@ -338,6 +390,22 @@ func (b *BxhAdapter) QueryInterchain(serviceID string) (*pb.Interchain, error) {
 	return interchain, nil
 }
 
+func (b *BxhAdapter) getBitXHubChainIDs() ([]string, error) {
+	tx, err := b.client.GenerateContractTx(pb.TransactionData_BVM, constant.AppchainMgrContractAddr.Address(),
+		"GetBitXHubChainIDs")
+	if err != nil {
+		return nil, err
+	}
+
+	ret := getTxView(b.client, tx)
+
+	bitXHubChainIDs := make([]string, 0)
+	if err := json.Unmarshal(ret, &bitXHubChainIDs); err != nil {
+		return nil, err
+	}
+	return bitXHubChainIDs, nil
+}
+
 //  move interchainWrapper into wrappers channel
 func (b *BxhAdapter) run() {
 	var (
@@ -352,7 +420,7 @@ func (b *BxhAdapter) run() {
 	}
 	// retry for network reason
 	if err := retry.Retry(func(attempt uint) error {
-		rawCh, err = b.client.Subscribe(b.ctx, subscriptType, []byte(b.appchainID))
+		rawCh, err = b.client.Subscribe(b.ctx, subscriptType, []byte(b.appchainId))
 		if err != nil {
 			return err
 		}
@@ -364,6 +432,8 @@ func (b *BxhAdapter) run() {
 	for {
 		select {
 		case <-b.ctx.Done():
+			close(b.wrappersC)
+			b.wrappersC = nil
 			return
 		case h, ok := <-rawCh:
 			if !ok {
@@ -408,10 +478,6 @@ func (b *BxhAdapter) handleInterchainTxWrapper(w *pb.InterchainTxWrapper, i int)
 		b.logger.Error("empty interchain tx wrapper")
 		return false
 	}
-	//todo how to solve timeoutIbtp
-	//for _, ibtpId := range w.TimeoutIbtps {
-	//	b.rollbackHandler(nil, ibtpId)
-	//}
 
 	for _, tx := range w.Transactions {
 		// if ibtp is failed
@@ -446,6 +512,34 @@ func (b *BxhAdapter) handleInterchainTxWrapper(w *pb.InterchainTxWrapper, i int)
 		b.ibtpC <- ibtp
 	}
 
+	for _, id := range w.TimeoutIbtps {
+		if err := retry.Retry(func(attempt uint) error {
+			ibtp, err := b.QueryIBTP(id, true)
+			if err != nil {
+				b.logger.Warnf("query timeout ibtp %s: %v", id, err)
+			} else {
+				b.ibtpC <- ibtp
+			}
+			return err
+		}, strategy.Wait(time.Second*3)); err != nil {
+			b.logger.Panicf("retry query timeout ibtp %s failed: %v", id, err)
+		}
+	}
+
+	for _, id := range w.MultiTxIbtps {
+		if err := retry.Retry(func(attempt uint) error {
+			ibtp, err := b.QueryIBTP(id, true)
+			if err != nil {
+				b.logger.Warnf("query multitx ibtop %s: %v", ibtp, err)
+			} else {
+				b.ibtpC <- ibtp
+			}
+			return err
+		}, strategy.Wait(time.Second*3)); err != nil {
+			b.logger.Panicf("retry query timeout ibtp %s failed: %v", id, err)
+		}
+	}
+
 	b.logger.WithFields(logrus.Fields{
 		"height":      w.Height,
 		"count":       len(w.Transactions),
@@ -467,10 +561,7 @@ func (b *BxhAdapter) getTxStatus(id string) (pb.TransactionStatus, error) {
 		receipt = bxhReceipt
 		return nil
 	}, strategy.Wait(1*time.Second)); err != nil {
-		b.logger.WithFields(logrus.Fields{
-			"id":    id,
-			"error": err,
-		}).Errorf("Retry to get tx status")
+		b.logger.Errorf("Retry to get tx status")
 	}
 
 	if !receipt.IsSuccess() {
@@ -525,4 +616,46 @@ func (b *BxhAdapter) getMultiSign(ibtp *pb.IBTP, isReq bool) ([]byte, error) {
 		return nil, err
 	}
 	return retProof, nil
+}
+
+func (b *BxhAdapter) restartCh() {
+	if b.ibtpC == nil {
+		b.ibtpC = make(chan *pb.IBTP, maxChSize)
+	}
+	if b.wrappersC == nil {
+		b.wrappersC = make(chan *pb.InterchainTxWrappers, maxChSize)
+	}
+}
+
+func (b *BxhAdapter) getIBTPByID(id string, isReq bool) (*pb.IBTP, error) {
+	queryTx, err := b.client.GenerateContractTx(pb.TransactionData_BVM, constant.InterchainContractAddr.Address(),
+		"GetIBTPByID", rpcx.String(id), rpcx.Bool(isReq))
+	if err != nil {
+		return nil, err
+	}
+	queryTx.Nonce = 1
+	receipt, err := b.client.SendView(queryTx)
+	if err != nil {
+		return nil, err
+	}
+
+	if !receipt.IsSuccess() {
+		return nil, fmt.Errorf("get IBTP by ID %s, isReq %v failed", id, isReq)
+	}
+
+	hash := types.NewHash(receipt.Ret)
+	response, err := b.client.GetTransaction(hash.String())
+	if err != nil {
+		return nil, err
+	}
+
+	retIBTP := response.Tx.GetIBTP()
+	proof, err := b.getMultiSign(retIBTP, isReq)
+	if err != nil {
+		return nil, err
+	}
+	// get ibtp proof from bxh
+	retIBTP.Proof = proof
+
+	return retIBTP, nil
 }

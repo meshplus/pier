@@ -1,29 +1,30 @@
 package txcrypto
 
 import (
-	"fmt"
-
 	"github.com/meshplus/bitxhub-kit/crypto"
 	"github.com/meshplus/bitxhub-kit/crypto/asym/ecdsa"
 	"github.com/meshplus/bitxhub-kit/crypto/ecdh"
 	"github.com/meshplus/bitxhub-kit/crypto/sym"
 	"github.com/meshplus/bitxhub-model/constant"
 	rpcx "github.com/meshplus/go-bitxhub-client"
+	"github.com/sirupsen/logrus"
 )
 
 type RelayCryptor struct {
 	client  rpcx.Client
 	privKey crypto.PrivateKey
 	keyMap  map[string][]byte
+	logger  logrus.FieldLogger
 }
 
-func NewRelayCryptor(client rpcx.Client, privKey crypto.PrivateKey) (Cryptor, error) {
+func NewRelayCryptor(client rpcx.Client, privKey crypto.PrivateKey, logger logrus.FieldLogger) (Cryptor, error) {
 	keyMap := make(map[string][]byte)
 
 	return &RelayCryptor{
 		client:  client,
 		privKey: privKey,
 		keyMap:  keyMap,
+		logger:  logger,
 	}, nil
 }
 
@@ -57,11 +58,9 @@ func (c *RelayCryptor) getDesKey(address string) (crypto.SymmetricKey, error) {
 	if err != nil {
 		return nil, err
 	}
-	fmt.Println("99")
 	secret, err := ke.ComputeSecret(c.privKey, pubKey)
 	if err != nil {
 		return nil, err
 	}
-	fmt.Println("888")
 	return sym.GenerateSymKey(crypto.ThirdDES, secret)
 }

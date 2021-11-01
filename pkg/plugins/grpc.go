@@ -2,7 +2,6 @@ package plugins
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	"github.com/Rican7/retry"
@@ -136,6 +135,19 @@ func (s *GRPCServer) GetServices(ctx context.Context, empty *pb.Empty) (*pb.Serv
 
 	return &pb.ServicesResponse{
 		Service: services,
+	}, nil
+}
+
+func (s *GRPCServer) GetAppchainInfo(ctx context.Context, request *pb.ChainInfoRequest) (*pb.ChainInfoResponse, error) {
+	broker, trustedRoot, ruleAddr, err := s.Impl.GetAppchainInfo(request.ChainID)
+	if err != nil {
+		return nil, err
+	}
+
+	return &pb.ChainInfoResponse{
+		Broker:      broker,
+		TrustedRoot: trustedRoot,
+		RuleAddr:    ruleAddr,
 	}, nil
 }
 
@@ -333,9 +345,6 @@ func (g *GRPCClient) GetOutMessage(servicePair string, idx uint64) (*pb.IBTP, er
 }
 
 func (g *GRPCClient) GetReceiptMessage(servicePair string, idx uint64) (*pb.IBTP, error) {
-	if idx != 1 {
-		return nil, fmt.Errorf("not found")
-	}
 	return g.client.GetReceiptMessage(g.doneContext, &pb.GetMessageRequest{
 		ServicePair: servicePair,
 		Idx:         idx,
@@ -388,6 +397,15 @@ func (g *GRPCClient) GetServices() ([]string, error) {
 	}
 
 	return response.GetService(), nil
+}
+
+func (g *GRPCClient) GetAppchainInfo(chainID string) (string, []byte, string, error) {
+	response, err := g.client.GetAppchainInfo(g.doneContext, &pb.ChainInfoRequest{ChainID: chainID})
+	if err != nil {
+		return "", nil, "", err
+	}
+
+	return response.Broker, response.TrustedRoot, response.RuleAddr, nil
 }
 
 func (g *GRPCClient) GetChainID() (string, string, error) {

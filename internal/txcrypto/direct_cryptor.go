@@ -1,27 +1,40 @@
 package txcrypto
 
 import (
+	"fmt"
+
 	"github.com/btcsuite/btcd/btcec"
 	"github.com/meshplus/bitxhub-kit/crypto"
 	"github.com/meshplus/bitxhub-kit/crypto/ecdh"
 	"github.com/meshplus/bitxhub-kit/crypto/sym"
-	"github.com/meshplus/pier/internal/appchain"
+	"github.com/meshplus/bitxhub-model/pb"
+	network "github.com/meshplus/go-lightp2p"
+	"github.com/meshplus/pier/internal/peermgr"
+	"github.com/sirupsen/logrus"
 )
 
 type DirectCryptor struct {
-	appchainMgr *appchain.Manager
-	privKey     crypto.PrivateKey
-	keyMap      map[string][]byte
+	peerMgr peermgr.PeerManager
+	privKey crypto.PrivateKey
+	keyMap  map[string][]byte
+	logger  logrus.FieldLogger
 }
 
-func NewDirectCryptor(appchainMgr *appchain.Manager, privKey crypto.PrivateKey) (Cryptor, error) {
+func NewDirectCryptor(peerMgr peermgr.PeerManager, privKey crypto.PrivateKey, logger logrus.FieldLogger) (Cryptor, error) {
 	keyMap := make(map[string][]byte)
 
-	return &DirectCryptor{
-		appchainMgr: appchainMgr,
-		privKey:     privKey,
-		keyMap:      keyMap,
-	}, nil
+	d := &DirectCryptor{
+		peerMgr: peerMgr,
+		privKey: privKey,
+		keyMap:  keyMap,
+		logger:  logger,
+	}
+
+	if err := peerMgr.RegisterMsgHandler(pb.Message_PUBKEY_GET, d.handleGetPublicKey); err != nil {
+		return nil, err
+	}
+
+	return d, nil
 }
 
 func (d *DirectCryptor) Encrypt(content []byte, address string) ([]byte, error) {
@@ -40,16 +53,15 @@ func (d *DirectCryptor) Decrypt(content []byte, address string) ([]byte, error) 
 	return des.Decrypt(content)
 }
 
-func (d *DirectCryptor) getDesKey(address string) (crypto.SymmetricKey, error) {
-	pubKey, ok := d.keyMap[address]
+func (d *DirectCryptor) getDesKey(chainID string) (crypto.SymmetricKey, error) {
+	pubKey, ok := d.keyMap[chainID]
+	var err error
 	if !ok {
-		// todo check err
-		//get, ret := d.appchainMgr.Mgr.GetPubKeyByChainID(address)
-		//if !get {
-		//	return nil, fmt.Errorf("cannot find the public key")
-		//}
-		//d.keyMap[address] = ret
-		//pubKey = ret
+		pubKey, err = d.getPubKeyByChainID(chainID)
+		if err != nil {
+			return nil, fmt.Errorf("cannot find the public key of chain ID %s: %w", chainID, err)
+		}
+		d.keyMap[chainID] = pubKey
 	}
 	ke, err := ecdh.NewEllipticECDH(btcec.S256())
 	if err != nil {
@@ -60,4 +72,40 @@ func (d *DirectCryptor) getDesKey(address string) (crypto.SymmetricKey, error) {
 		return nil, err
 	}
 	return sym.GenerateSymKey(crypto.ThirdDES, secret)
+}
+
+func (d *DirectCryptor) getPubKeyByChainID(chainID string) ([]byte, error) {
+	msg, err := d.peerMgr.Send(chainID, &pb.Message{
+		Type:    pb.Message_PUBKEY_GET,
+		Data:    nil,
+		Version: nil,
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	if msg.Type != pb.Message_PUBKEY_GET_ACK {
+		return nil, fmt.Errorf("invalid response message type: %v, expected %v", msg.Type, pb.Message_PUBKEY_GET_ACK)
+	}
+
+	return msg.Data, nil
+}
+
+func (d *DirectCryptor) handleGetPublicKey(stream network.Stream, message *pb.Message) {
+	pubkey, err := d.privKey.PublicKey().Bytes()
+	if err != nil {
+		d.logger.Warnf("fail to get public key data from private key: %v", err)
+		return
+	}
+
+	msg := &pb.Message{
+		Type:    pb.Message_PUBKEY_GET_ACK,
+		Data:    pubkey,
+		Version: nil,
+	}
+
+	if err := d.peerMgr.AsyncSendWithStream(stream, msg); err != nil {
+		d.logger.Warnf("fail to send public key data: %v", err)
+	}
 }

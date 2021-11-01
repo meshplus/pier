@@ -49,6 +49,20 @@ func (mr *MockAdaptMockRecorder) GetServiceIDList() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetServiceIDList", reflect.TypeOf((*MockAdapt)(nil).GetServiceIDList))
 }
 
+// ID mocks base method.
+func (m *MockAdapt) ID() string {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ID")
+	ret0, _ := ret[0].(string)
+	return ret0
+}
+
+// ID indicates an expected call of ID.
+func (mr *MockAdaptMockRecorder) ID() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ID", reflect.TypeOf((*MockAdapt)(nil).ID))
+}
+
 // MonitorIBTP mocks base method.
 func (m *MockAdapt) MonitorIBTP() chan *pb.IBTP {
 	m.ctrl.T.Helper()
@@ -63,13 +77,26 @@ func (mr *MockAdaptMockRecorder) MonitorIBTP() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "MonitorIBTP", reflect.TypeOf((*MockAdapt)(nil).MonitorIBTP))
 }
 
+// MonitorUpdatedMeta mocks base method.
+func (m *MockAdapt) MonitorUpdatedMeta() chan *[]byte {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "MonitorUpdatedMeta")
+	ret0, _ := ret[0].(chan *[]byte)
+	return ret0
+}
+
+// MonitorUpdatedMeta indicates an expected call of MonitorUpdatedMeta.
+func (mr *MockAdaptMockRecorder) MonitorUpdatedMeta() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "MonitorUpdatedMeta", reflect.TypeOf((*MockAdapt)(nil).MonitorUpdatedMeta))
+}
+
 // Name mocks base method.
-func (m *MockAdapt) Name() (string, error) {
+func (m *MockAdapt) Name() string {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Name")
 	ret0, _ := ret[0].(string)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
+	return ret0
 }
 
 // Name indicates an expected call of Name.
@@ -120,6 +147,20 @@ func (m *MockAdapt) SendIBTP(ibtp *pb.IBTP) error {
 func (mr *MockAdaptMockRecorder) SendIBTP(ibtp interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SendIBTP", reflect.TypeOf((*MockAdapt)(nil).SendIBTP), ibtp)
+}
+
+// SendUpdatedMeta mocks base method.
+func (m *MockAdapt) SendUpdatedMeta(byte []byte) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SendUpdatedMeta", byte)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// SendUpdatedMeta indicates an expected call of SendUpdatedMeta.
+func (mr *MockAdaptMockRecorder) SendUpdatedMeta(byte interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SendUpdatedMeta", reflect.TypeOf((*MockAdapt)(nil).SendUpdatedMeta), byte)
 }
 
 // Start mocks base method.

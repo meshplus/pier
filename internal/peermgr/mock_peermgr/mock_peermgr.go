@@ -81,6 +81,20 @@ func (mr *MockPeerManagerMockRecorder) Connect(info interface{}) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Connect", reflect.TypeOf((*MockPeerManager)(nil).Connect), info)
 }
 
+// ConnectedPeerIDs mocks base method.
+func (m *MockPeerManager) ConnectedPeerIDs() []string {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ConnectedPeerIDs")
+	ret0, _ := ret[0].([]string)
+	return ret0
+}
+
+// ConnectedPeerIDs indicates an expected call of ConnectedPeerIDs.
+func (mr *MockPeerManagerMockRecorder) ConnectedPeerIDs() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ConnectedPeerIDs", reflect.TypeOf((*MockPeerManager)(nil).ConnectedPeerIDs))
+}
+
 // CountConnectedPeers mocks base method.
 func (m *MockPeerManager) CountConnectedPeers() uint64 {
 	m.ctrl.T.Helper()
@@ -111,10 +125,10 @@ func (mr *MockPeerManagerMockRecorder) FindProviders(id interface{}) *gomock.Cal
 }
 
 // Peers mocks base method.
-func (m *MockPeerManager) Peers() map[uint64]*peer.AddrInfo {
+func (m *MockPeerManager) Peers() map[string]*peer.AddrInfo {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Peers")
-	ret0, _ := ret[0].(map[uint64]*peer.AddrInfo)
+	ret0, _ := ret[0].(map[string]*peer.AddrInfo)
 	return ret0
 }
 

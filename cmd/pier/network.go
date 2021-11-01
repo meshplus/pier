@@ -232,7 +232,7 @@ func updateNetworkAddrs(ctx *cli.Context, oldConfig *repo.NetworkConfig, repoRoo
 				return fmt.Errorf("illegal type of ipv4: %s", host[0])
 			}
 			port := host[1]
-			peer := fmt.Sprintf("/ip4/%s/tcp/%s/p2p", ip, port)
+			peer := fmt.Sprintf("/ip4/%s/tcp/%s/p2p/", ip, port)
 			hosts = append(hosts, peer)
 		}
 		// input new Pier to pierMap.

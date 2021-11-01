@@ -100,10 +100,6 @@ var serviceCommand = cli.Command{
 					Required: false,
 				},
 				governanceReasonFlag,
-				cli.BoolFlag{
-					Name:  "ordered",
-					Usage: "Specify if the service should be ordered",
-				},
 			},
 			Action: updateService,
 		},
@@ -264,7 +260,6 @@ func updateService(ctx *cli.Context) error {
 	serviceID := ctx.String("service-id")
 	name := ctx.String("name")
 	intro := ctx.String("intro")
-	ordered := ctx.Bool("ordered")
 	permit := ctx.String("permit")
 	details := ctx.String("details")
 	reason := ctx.String("reason")
@@ -295,7 +290,7 @@ func updateService(ctx *cli.Context) error {
 		return err
 	}
 
-	if name == "" && intro == "" && ordered == serviceInfo.Ordered && permit == "" && details == "" {
+	if name == "" && intro == "" && permit == "" && details == "" {
 		fmt.Printf("Please specify at least one arg for %s.\n", fmt.Sprintf("%s:%s", chainID, serviceID))
 		return nil
 	}
@@ -319,7 +314,6 @@ func updateService(ctx *cli.Context) error {
 		rpcx.String(fmt.Sprintf("%s:%s", chainID, serviceID)),
 		rpcx.String(ct(serviceInfo.Name, name)),
 		rpcx.String(ct(serviceInfo.Intro, intro)),
-		rpcx.Bool(ordered),
 		rpcx.String(ct(oldPermit, permit)),
 		rpcx.String(ct(serviceInfo.Details, details)),
 		rpcx.String(reason),

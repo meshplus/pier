@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"path/filepath"
+	"strings"
 
 	appchainmgr "github.com/meshplus/bitxhub-core/appchain-mgr"
 	"github.com/meshplus/bitxhub-core/governance"
@@ -27,10 +28,17 @@ var appchainBxhCMD = cli.Command{
 			Usage: "Register appchain to bitxhub",
 			Flags: []cli.Flag{
 				appchainIdFlag,
+				appchainNameFlag,
+				appchainTypeFlag,
 				appchainTrustRootFlag,
 				appchainBrokerFlag,
+				fabricBrokerChannelIDFlag,
+				fabricBrokerChaincodeIDFlag,
+				fabricBrokerVersionFlag,
 				appchainDescFlag,
 				appchainMasterRuleFlag,
+				appchainMasterRuleUrlFlag,
+				appchainAdminFlag,
 				governanceReasonFlag,
 				bxhAddrFlag,
 			},
@@ -42,10 +50,26 @@ var appchainBxhCMD = cli.Command{
 			Flags: []cli.Flag{
 				appchainIdFlag,
 				cli.StringFlag{
+					Name:     "name",
+					Usage:    "Specify appchain name",
+					Required: false,
+				},
+				cli.StringFlag{
+					Name:     "trustroot",
+					Usage:    "Specify appchain trustroot path",
+					Required: false,
+				},
+				cli.StringFlag{
 					Name:     "desc",
 					Usage:    "Specify appchain description",
 					Required: false,
 				},
+				cli.StringFlag{
+					Name:     "admin",
+					Usage:    "Specify appchain admin addr list, multiple addresses are separated by \",\". The current user is included by default.",
+					Required: false,
+				},
+				governanceReasonFlag,
 			},
 			Action: updateAppchain,
 		},
@@ -80,10 +104,17 @@ var appchainBxhCMD = cli.Command{
 
 func registerPier(ctx *cli.Context) error {
 	id := ctx.String("appchain-id")
+	name := ctx.String("name")
+	typ := ctx.String("type")
 	trustrootPath := ctx.String("trustroot")
 	broker := ctx.String("broker")
+	channelID := ctx.String("broker-cid")
+	chaincodeID := ctx.String("broker-ccid")
+	brokerVersion := ctx.String("broker-v")
 	desc := ctx.String("desc")
 	masterRule := ctx.String("master-rule")
+	ruleUrl := ctx.String("rule-url")
+	admins := ctx.String("admin")
 	reason := ctx.String("reason")
 	addrs := ctx.StringSlice("addr")
 
@@ -111,14 +142,41 @@ func registerPier(ctx *cli.Context) error {
 		}
 	}
 
+	if strings.Contains(strings.ToLower(typ), "fabric") {
+		fabricBroker := &appchainmgr.FabricBroker{
+			ChannelID:     channelID,
+			ChaincodeID:   chaincodeID,
+			BrokerVersion: brokerVersion,
+		}
+		fabricBrokerData, err := json.Marshal(fabricBroker)
+		if err != nil {
+			return err
+		}
+		broker = string(fabricBrokerData)
+	}
+
+	caller, err := getAddr(keyPath)
+	if err != nil {
+		return err
+	}
+	if admins == "" {
+		admins = caller
+	} else if !strings.Contains(admins, caller) {
+		admins = fmt.Sprintf("%s,%s", admins, caller)
+	}
+
 	receipt, err := client.InvokeBVMContract(
 		constant.AppchainMgrContractAddr.Address(),
 		"RegisterAppchain", nil,
 		rpcx.String(id),
+		rpcx.String(name),
+		rpcx.String(typ),
 		rpcx.Bytes(trustrootData),
 		rpcx.String(broker),
 		rpcx.String(desc),
 		rpcx.String(masterRule),
+		rpcx.String(ruleUrl),
+		rpcx.String(strings.Trim(admins, " ")),
 		rpcx.String(reason),
 	)
 	if err != nil {
@@ -131,7 +189,7 @@ func registerPier(ctx *cli.Context) error {
 	if err := json.Unmarshal(receipt.Ret, ret); err != nil {
 		return err
 	}
-	fmt.Printf("Register appchain  for %s successfully, wait for proposal %s to finish.\n", string(ret.Extra), ret.ProposalID)
+	fmt.Printf("Register appchain successfully, wait for proposal %s to finish.\n", ret.ProposalID)
 	return nil
 }
 
@@ -141,17 +199,18 @@ func updateAppchain(ctx *cli.Context) error {
 		return err
 	}
 	id := ctx.String("appchain-id")
+	name := ctx.String("name")
+	trustrootPath := ctx.String("trustroot")
 	desc := ctx.String("desc")
+	admins := ctx.String("admin")
+	reason := ctx.String("reason")
 
 	keyPath := filepath.Join(repoRoot, "key.json")
 	client, _, err := initClientWithKeyPath(ctx, keyPath)
 	if err != nil {
 		return fmt.Errorf("init client: %w", err)
 	}
-	if desc == "" {
-		fmt.Printf("Please specify at least one arg for %s.\n", fmt.Sprintf("%s", id))
-		return nil
-	}
+
 	receipt, err := client.InvokeBVMContract(
 		constant.AppchainMgrContractAddr.Address(),
 		"GetAppchain", nil, rpcx.String(id),
@@ -169,11 +228,42 @@ func updateAppchain(ctx *cli.Context) error {
 		return err
 	}
 
+	if name == "" {
+		name = appchainInfo.ChainName
+	}
+
+	trustrootData := appchainInfo.TrustRoot
+	if trustrootPath != "" {
+		tmpData, err := ioutil.ReadFile(trustrootPath)
+		if err != nil {
+			return fmt.Errorf("read validators file: %w", err)
+		}
+		trustrootData = tmpData
+	}
+
+	if desc == "" {
+		desc = appchainInfo.Desc
+	}
+
+	caller, err := getAddr(keyPath)
+	if err != nil {
+		return err
+	}
+	if admins == "" {
+		admins = caller
+	} else if !strings.Contains(admins, caller) {
+		admins = fmt.Sprintf("%s,%s", admins, caller)
+	}
+
 	receipt, err = client.InvokeBVMContract(
 		constant.AppchainMgrContractAddr.Address(),
 		"UpdateAppchain", nil,
 		rpcx.String(id),
+		rpcx.String(name),
 		rpcx.String(desc),
+		rpcx.Bytes(trustrootData),
+		rpcx.String(admins),
+		rpcx.String(reason),
 	)
 	if err != nil {
 		return fmt.Errorf("invoke bvm contract: %w", err)

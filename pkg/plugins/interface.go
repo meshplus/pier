@@ -56,6 +56,9 @@ type Client interface {
 	// GetChainID gets BitXHub and appchain ID
 	GetChainID() (string, string, error)
 
+	// GetAppchainInfo gets appchain information by appchain ID
+	GetAppchainInfo(chainID string) (string, []byte, string, error)
+
 	// Name gets name of blockchain from plugin
 	Name() string
 

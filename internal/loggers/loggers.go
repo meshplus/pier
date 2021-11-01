@@ -10,7 +10,6 @@ const (
 	ApiServer   = "api_server"
 	App         = "app"
 	AppchainMgr = "appchain_mgr"
-	Appchain    = "appchain"
 	BxhLite     = "bxh_lite"
 	Executor    = "executor"
 	Exchanger   = "exchanger"
@@ -20,6 +19,10 @@ const (
 	RuleMgr     = "rule_mgr"
 	Swarm       = "swarm"
 	Syncer      = "bxh_adapter"
+	Appchain    = "appchain_adapter"
+	Direct      = "direct_adapter"
+	Union       = "union_adapter"
+	Cryptor     = "cryptor"
 )
 
 var w *loggerWrapper
@@ -56,6 +59,12 @@ func InitializeLogger(config *repo.Config) {
 	m[Syncer].Logger.SetLevel(log.ParseLevel(config.Log.Module.Syncer))
 	m[PeerMgr] = log.NewWithModule(PeerMgr)
 	m[PeerMgr].Logger.SetLevel(log.ParseLevel(config.Log.Module.PeerMgr))
+	m[Direct] = log.NewWithModule(Direct)
+	m[Direct].Logger.SetLevel(log.ParseLevel(config.Log.Module.Direct))
+	m[Union] = log.NewWithModule(Union)
+	m[Union].Logger.SetLevel(log.ParseLevel(config.Log.Module.Union))
+	m[Cryptor] = log.NewWithModule(Cryptor)
+	m[Cryptor].Logger.SetLevel(log.ParseLevel(config.Log.Module.Cryptor))
 	w = &loggerWrapper{loggers: m}
 }
 

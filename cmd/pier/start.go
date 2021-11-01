@@ -56,25 +56,15 @@ func start(ctx *cli.Context) error {
 	// init loggers map for pier
 	loggers.InitializeLogger(config)
 
-	var pier *app.Pier
-
-	switch config.Mode.Type {
-	case repo.RelayMode:
-		fallthrough
-	case repo.DirectMode:
+	if config.Mode.Type != repo.UnionMode {
 		if err := checkPlugin(config.Appchain.Plugin); err != nil {
 			return fmt.Errorf("check plugin: %w", err)
 		}
+	}
 
-		pier, err = app.NewPier2(repoRoot, config)
-		if err != nil {
-			return err
-		}
-	case repo.UnionMode:
-		pier, err = app.NewUnionPier(repoRoot, config)
-		if err != nil {
-			return err
-		}
+	pier, err := app.NewPier(repoRoot, config)
+	if err != nil {
+		return err
 	}
 
 	//fmt.Printf("Client Type: %s\n", pier.Type())
@@ -102,7 +92,7 @@ func handleShutdown(pier *app.Pier, wg *sync.WaitGroup) {
 	go func() {
 		<-stop
 		fmt.Println("received interrupt signal, shutting down...")
-		if err := pier.Stop(false); err != nil {
+		if err := pier.Stop(); err != nil {
 			logger.Error("pier stop: ", err)
 		}
 
