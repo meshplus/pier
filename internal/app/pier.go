@@ -120,7 +120,7 @@ func NewPier(repoRoot string, config *repo.Config) (*Pier, error) {
 
 		ck = checker.NewDirectChecker(ruleMgr, appchainMgr)
 
-		cryptor, err = txcrypto.NewDirectCryptor(appchainMgr, privateKey)
+		cryptor, err = txcrypto.NewDirectCryptor(appchainMgr, privateKey, config.Security.Privacy)
 		if err != nil {
 			return nil, fmt.Errorf("cryptor create: %w", err)
 		}
@@ -168,7 +168,7 @@ func NewPier(repoRoot string, config *repo.Config) (*Pier, error) {
 		//	return nil, err
 		//}
 
-		cryptor, err = txcrypto.NewRelayCryptor(client, privateKey)
+		cryptor, err = txcrypto.NewRelayCryptor(client, privateKey, config.Security.Privacy)
 		if err != nil {
 			return nil, fmt.Errorf("cryptor create: %w", err)
 		}

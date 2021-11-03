@@ -26,6 +26,7 @@ type Config struct {
 // Security are certs used to setup connection with tls
 type Security struct {
 	EnableTLS  bool   `mapstructure:"enable_tls"`
+	Privacy    bool   `mapstructure:"privacy"`
 	Tlsca      string `toml:"tlsca" json:"tlsca"`
 	CommonName string `mapstructure:"common_name" json:"common_name"`
 }
@@ -161,6 +162,7 @@ func DefaultConfig() *Config {
 		},
 		Security: Security{
 			EnableTLS:  false,
+			Privacy:    false,
 			Tlsca:      "certs/ca.pem",
 			CommonName: "localhost",
 		},

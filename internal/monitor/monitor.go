@@ -156,7 +156,7 @@ func (m *AppchainMonitor) encryption(ibtp *pb.IBTP) error {
 	if err := pld.Unmarshal(ibtp.Payload); err != nil {
 		return err
 	}
-	if !pld.Encrypted {
+	if !m.cryptor.IsPrivacy() {
 		return nil
 	}
 
@@ -165,6 +165,7 @@ func (m *AppchainMonitor) encryption(ibtp *pb.IBTP) error {
 		return err
 	}
 	pld.Content = ctb
+	pld.Encrypted = true
 	payload, err := pld.Marshal()
 	if err != nil {
 		return err

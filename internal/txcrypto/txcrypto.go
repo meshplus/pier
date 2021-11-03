@@ -7,4 +7,6 @@ type Cryptor interface {
 
 	// decrypt can decrypt the content in IBTP
 	Decrypt(content []byte, address string) ([]byte, error)
+
+	IsPrivacy() bool
 }

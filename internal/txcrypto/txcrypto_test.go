@@ -33,7 +33,7 @@ func TestRelayCryptor(t *testing.T) {
 		Ret: pubBytes2,
 	}
 
-	rc1, err := NewRelayCryptor(mockClient, privKey1)
+	rc1, err := NewRelayCryptor(mockClient, privKey1, false)
 	require.Nil(t, err)
 
 	address1, err := privKey1.PublicKey().Address()
@@ -89,7 +89,7 @@ func TestDirectCryptor(t *testing.T) {
 	mgr := &appchain.Manager{
 		Mgr: mockAppchainMgr,
 	}
-	rc1, err := NewDirectCryptor(mgr, privKey1)
+	rc1, err := NewDirectCryptor(mgr, privKey1, false)
 	require.Nil(t, err)
 
 	address1, err := privKey1.PublicKey().Address()

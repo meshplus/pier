@@ -46,6 +46,7 @@ providers = 1
 enable_tls = false
 tlsca = "certs/ca.pem"
 common_name = "localhost"
+privacy = false
 
 [HA]
 mode = "single"

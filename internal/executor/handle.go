@@ -57,6 +57,32 @@ func (e *ChannelExecutor) applyInterchainIBTP(wIbtp *model.WrappedIBTP) (*pb.IBT
 		// if this ibtp is invalid, just increase the inCounter index, cause source chain will rollback if this ibtp is failed
 		return e.client.IncreaseInMeta(wIbtp.Ibtp)
 	}
+
+	pd := &pb.Payload{}
+	if err := pd.Unmarshal(ibtp.Payload); err != nil {
+		return nil, fmt.Errorf("unmarshal receipt type ibtp payload: %w", err)
+	}
+
+	ct := &pb.Content{}
+	contentByte := pd.Content
+
+	var err error
+	if pd.Encrypted {
+		contentByte, err = e.cryptor.Decrypt(contentByte, ibtp.From)
+		if err != nil {
+			return nil, fmt.Errorf("decrypt ibtp payload content: %w", err)
+		}
+	}
+
+	if err := ct.Unmarshal(contentByte); err != nil {
+		return nil, fmt.Errorf("unmarshal payload content: %w", err)
+	}
+	pd.Content = contentByte
+	ibtp.Payload, err = pd.Marshal()
+	if err != nil {
+		return nil, fmt.Errorf("marshal payload content: %w", err)
+	}
+
 	// todo: deal with plugin returned error
 	// execute interchain tx, and if execution failed, try to rollback
 	response, err := e.client.SubmitIBTP(ibtp)
@@ -78,6 +104,10 @@ func (e *ChannelExecutor) applyInterchainIBTP(wIbtp *model.WrappedIBTP) (*pb.IBT
 			"result":  response.Message,
 			"payload": pd,
 		}).Warn("Get wrong response, need rollback on source chain")
+	}
+
+	if e.cryptor.IsPrivacy() {
+		e.encryption(response.Result)
 	}
 
 	return response.Result, nil
@@ -108,6 +138,11 @@ func (e *ChannelExecutor) applyReceiptIBTP(wIbtp *model.WrappedIBTP) error {
 	// if this ibtp receipt fail, no need to rollback
 	if !wIbtp.IsValid {
 		return nil
+	}
+	pd.Content = contentByte
+	ibtp.Payload, err = pd.Marshal()
+	if err != nil {
+		return fmt.Errorf("marshal payload content: %w", err)
 	}
 	// if this is a callback ibtp, retry it until it worked
 	// because it might be rollback in asset
@@ -172,5 +207,29 @@ func (e *ChannelExecutor) execRollback(ibtp *pb.IBTP, isSrcChain bool) error {
 		"status": resp.Status,
 		"msg":    resp.Message,
 	}).Info("Executed rollbcak")
+	return nil
+}
+
+func (e *ChannelExecutor) encryption(ibtp *pb.IBTP) error {
+	pld := &pb.Payload{}
+	if err := pld.Unmarshal(ibtp.Payload); err != nil {
+		return err
+	}
+	if !e.cryptor.IsPrivacy() {
+		return nil
+	}
+
+	ctb, err := e.cryptor.Encrypt(pld.Content, ibtp.From)
+	if err != nil {
+		return err
+	}
+	pld.Content = ctb
+	pld.Encrypted = true
+	payload, err := pld.Marshal()
+	if err != nil {
+		return err
+	}
+	ibtp.Payload = payload
+
 	return nil
 }

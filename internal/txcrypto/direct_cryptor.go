@@ -14,15 +14,17 @@ type DirectCryptor struct {
 	appchainMgr *appchain.Manager
 	privKey     crypto.PrivateKey
 	keyMap      map[string][]byte
+	isEncrypted bool
 }
 
-func NewDirectCryptor(appchainMgr *appchain.Manager, privKey crypto.PrivateKey) (Cryptor, error) {
+func NewDirectCryptor(appchainMgr *appchain.Manager, privKey crypto.PrivateKey, isEncrypted bool) (Cryptor, error) {
 	keyMap := make(map[string][]byte)
 
 	return &DirectCryptor{
 		appchainMgr: appchainMgr,
 		privKey:     privKey,
 		keyMap:      keyMap,
+		isEncrypted: isEncrypted,
 	}, nil
 }
 
@@ -40,6 +42,10 @@ func (d *DirectCryptor) Decrypt(content []byte, address string) ([]byte, error) 
 		return nil, err
 	}
 	return des.Decrypt(content)
+}
+
+func (c *DirectCryptor) IsPrivacy() bool {
+	return c.isEncrypted
 }
 
 func (d *DirectCryptor) getDesKey(address string) (crypto.SymmetricKey, error) {

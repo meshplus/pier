@@ -123,7 +123,7 @@ func testNormalStartRelay(t *testing.T) {
 	mockExchanger.handleIBTP(&model.WrappedIBTP{
 		Ibtp:    assetExchangeIBTP,
 		IsValid: true,
-	}, log.NewWithModule("exchanger"))
+	})
 
 	time.Sleep(500 * time.Microsecond)
 	close(outCh)

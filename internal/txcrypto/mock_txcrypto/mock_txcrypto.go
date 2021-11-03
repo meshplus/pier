@@ -62,3 +62,17 @@ func (mr *MockCryptorMockRecorder) Encrypt(content, address interface{}) *gomock
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Encrypt", reflect.TypeOf((*MockCryptor)(nil).Encrypt), content, address)
 }
+
+// IsPrivacy mocks base method.
+func (m *MockCryptor) IsPrivacy() bool {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "IsPrivacy")
+	ret0, _ := ret[0].(bool)
+	return ret0
+}
+
+// IsPrivacy indicates an expected call of IsPrivacy.
+func (mr *MockCryptorMockRecorder) IsPrivacy() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsPrivacy", reflect.TypeOf((*MockCryptor)(nil).IsPrivacy))
+}

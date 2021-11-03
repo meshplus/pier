@@ -76,5 +76,31 @@ func (e *ChannelExecutor) QueryIBTPReceipt(originalIBTP *pb.IBTP) (*pb.IBTP, err
 	if originalIBTP == nil {
 		return nil, fmt.Errorf("empty original ibtp")
 	}
+
+	pd := &pb.Payload{}
+	if err := pd.Unmarshal(originalIBTP.Payload); err != nil {
+		return nil, fmt.Errorf("unmarshal receipt type ibtp payload: %w", err)
+	}
+
+	ct := &pb.Content{}
+	contentByte := pd.Content
+
+	var err error
+	if pd.Encrypted {
+		contentByte, err = e.cryptor.Decrypt(contentByte, originalIBTP.From)
+		if err != nil {
+			return nil, fmt.Errorf("decrypt ibtp payload content: %w", err)
+		}
+	}
+
+	if err := ct.Unmarshal(contentByte); err != nil {
+		return nil, fmt.Errorf("unmarshal payload content: %w", err)
+	}
+	pd.Content = contentByte
+	originalIBTP.Payload, err = pd.Marshal()
+	if err != nil {
+		return nil, fmt.Errorf("marshal payload content: %w", err)
+	}
+
 	return e.client.GetReceipt(originalIBTP)
 }
