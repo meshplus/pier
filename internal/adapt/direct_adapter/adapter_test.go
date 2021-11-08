@@ -135,8 +135,8 @@ func TestSendIBTP(t *testing.T) {
 	require.Equal(t, 2, len(revCh2)+adapter2.ibtpCache.Len())
 
 	//todo： why not alway equal 4 ?
-	require.Equal(t, uint64(2), adapter2.maxIndex)
-	require.Equal(t, uint64(1), adapter1.maxIndex)
+	require.Equal(t, uint64(2), adapter2.maxIndexMap[toHash])
+	require.Equal(t, uint64(1), adapter1.maxIndexMap[toHash])
 
 	wrongTypeIbtp := getIBTP(t, 1, pb.IBTP_RECEIPT_ROLLBACK)
 	err = adapter1.SendIBTP(wrongTypeIbtp)

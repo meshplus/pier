@@ -2,14 +2,16 @@ package direct_adapter
 
 import (
 	"fmt"
+	"sync"
+
 	lru "github.com/hashicorp/golang-lru"
 	"github.com/meshplus/bitxhub-model/pb"
 	"github.com/meshplus/pier/internal/adapt"
+	"github.com/meshplus/pier/internal/adapt/appchain_adapter"
 	"github.com/meshplus/pier/internal/peermgr"
 	"github.com/meshplus/pier/internal/utils"
 	"github.com/sirupsen/logrus"
 	"go.uber.org/atomic"
-	"sync"
 )
 
 var _ adapt.Adapt = (*DirectAdapter)(nil)
@@ -20,8 +22,8 @@ const (
 )
 
 type DirectAdapter struct {
-	ibtpCache *lru.Cache
-	maxIndex  uint64
+	ibtpCache   *lru.Cache
+	maxIndexMap map[string]uint64
 
 	logger        logrus.FieldLogger
 	ibtpC         chan *pb.IBTP
@@ -62,7 +64,7 @@ func New(peerMgr peermgr.PeerManager, appchainAdapt adapt.Adapt, logger logrus.F
 		peerMgr:       peerMgr,
 		appchainadapt: appchainAdapt,
 		ibtpCache:     ibtpCache,
-		maxIndex:      0,
+		maxIndexMap:   make(map[string]uint64),
 		lock:          &sync.Mutex{},
 		ibtpC:         make(chan *pb.IBTP, maxChSize),
 		appchainID:    appchainID,
@@ -167,6 +169,23 @@ func (d *DirectAdapter) SendIBTP(ibtp *pb.IBTP) error {
 	if ibtp.Type != pb.IBTP_INTERCHAIN && ibtp.Type != pb.IBTP_RECEIPT_SUCCESS && ibtp.Type != pb.IBTP_RECEIPT_FAILURE {
 		return fmt.Errorf("unsupport ibtp type:%s", ibtp.Type)
 	}
+
+	var targetChainID string
+	if ibtp.Category() == pb.IBTP_REQUEST {
+		_, targetChainID, _ = ibtp.ParseTo()
+	} else {
+		_, targetChainID, _ = ibtp.ParseFrom()
+	}
+	if d.remotePierID != targetChainID {
+		d.logger.Warnf("get IBTP with invalid target chain ID %s", ibtp.ID())
+		if err := d.appchainadapt.(*appchain_adapter.AppchainAdapter).RollbackInDirectMode(ibtp); err != nil {
+			d.logger.Errorf("fail to rollback ibtp %s: %v", ibtp.ID(), err)
+			return err
+		}
+
+		return nil
+	}
+
 	data, err := ibtp.Marshal()
 	if err != nil {
 		panic(fmt.Sprintf("marshal ibtp: %s", err.Error()))
