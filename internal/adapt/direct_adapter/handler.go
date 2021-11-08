@@ -47,9 +47,10 @@ func (d *DirectAdapter) handleSendIBTPMessage(stream network.Stream, msg *pb.Mes
 
 		d.lock.Lock()
 		// make sure the ibtpC's index is incremented
-		if ibtp.Index > d.maxIndex {
+		_, _, srviceID := ibtp.ParseTo()
+		if ibtp.Index > d.maxIndexMap[srviceID] {
 			d.ibtpC <- ibtp
-			d.maxIndex = ibtp.Index
+			d.maxIndexMap[srviceID] = ibtp.Index
 		} else {
 			// if receive smaller index, put it in the ibtpCache
 			d.ibtpCache.Add(ibtp.Index, ibtp)

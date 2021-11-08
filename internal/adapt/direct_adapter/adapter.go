@@ -22,8 +22,8 @@ const (
 )
 
 type DirectAdapter struct {
-	ibtpCache *lru.Cache
-	maxIndex  uint64
+	ibtpCache   *lru.Cache
+	maxIndexMap map[string]uint64
 
 	logger        logrus.FieldLogger
 	ibtpC         chan *pb.IBTP
@@ -64,7 +64,7 @@ func New(peerMgr peermgr.PeerManager, appchainAdapt adapt.Adapt, logger logrus.F
 		peerMgr:       peerMgr,
 		appchainadapt: appchainAdapt,
 		ibtpCache:     ibtpCache,
-		maxIndex:      0,
+		maxIndexMap:   make(map[string]uint64),
 		lock:          &sync.Mutex{},
 		ibtpC:         make(chan *pb.IBTP, maxChSize),
 		appchainID:    appchainID,
