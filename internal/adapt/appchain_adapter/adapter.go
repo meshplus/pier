@@ -64,9 +64,20 @@ func (a *AppchainAdapter) Start() error {
 		ibtpC := a.client.GetIBTPCh()
 		if ibtpC != nil {
 			for ibtp := range ibtpC {
+				ok, err := a.checkIBTPInDirectMode(ibtp)
+				if err != nil {
+					a.logger.Errorf("check IBTP %s in direct mode: %v", ibtp.ID(), err)
+					continue
+				}
+
+				if !ok {
+					a.logger.Warnf("omit invalid IBTP %s in direct mode", ibtp.ID())
+					continue
+				}
+
 				ibtp, _, err := a.handlePayload(ibtp, true)
 				if err != nil {
-					a.logger.Warnf("fail to encrypt monitored ibtp: %v", err)
+					a.logger.Warnf("fail to encrypt monitored IBTP: %v", err)
 					continue
 				}
 
@@ -182,6 +193,12 @@ func (a *AppchainAdapter) SendIBTP(ibtp *pb.IBTP) error {
 		err := &adapt.SendIbtpError{Err: fmt.Sprintf("fail to send ibtp %s with type %v: %s", ibtp.ID(), ibtp.Type, res.Message)}
 		if strings.Contains(res.Message, "invalid multi-signature") {
 			err.Status = adapt.Proof_Invalid
+		} else if a.config.Mode.Type == repo.DirectMode && (strings.Contains(res.Message, "dest address is not in local white list") ||
+			strings.Contains(res.Message, "remote service is not registered") ||
+			strings.Contains(res.Message, "remote service is not allowed to call dest address")) {
+			ibtp.Type = pb.IBTP_RECEIPT_FAILURE
+			a.ibtpC <- ibtp
+			err.Status = adapt.Other_Error
 		} else {
 			err.Status = adapt.Other_Error
 		}
@@ -348,4 +365,38 @@ func filterMap(meta map[string]uint64, serviceID string, isSrc bool) (map[string
 	}
 
 	return counterM, nil
+}
+
+func (a *AppchainAdapter) RollbackInDirectMode(ibtp *pb.IBTP) error {
+	_, _, serviceID := ibtp.ParseFrom()
+	_, err := a.client.SubmitReceipt(ibtp.To, ibtp.Index, serviceID, pb.IBTP_RECEIPT_FAILURE, &pb.Result{}, &pb.BxhProof{})
+
+	return err
+}
+
+func (a *AppchainAdapter) checkIBTPInDirectMode(ibtp *pb.IBTP) (bool, error) {
+	if a.config.Mode.Type != repo.DirectMode || ibtp.Type != pb.IBTP_INTERCHAIN {
+		return true, nil
+	}
+
+	if err := ibtp.CheckServiceID(); err != nil {
+		if err := a.RollbackInDirectMode(ibtp); err != nil {
+			a.logger.Errorf("rollback in direct mode for IBTP %s: %v", ibtp.ID(), err)
+			return false, err
+		} else {
+			return false, nil
+		}
+	}
+
+	bxhID, chainID, serviceID := ibtp.ParseTo()
+	if bxhID != "" || chainID == "" || serviceID == "" {
+		if err := a.RollbackInDirectMode(ibtp); err != nil {
+			a.logger.Errorf("rollback in direct mode for IBTP %s: %v", ibtp.ID(), err)
+			return false, err
+		} else {
+			return false, nil
+		}
+	}
+
+	return true, nil
 }
