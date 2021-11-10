@@ -451,6 +451,9 @@ func (b *BxhAdapter) listenInterchainTxWrappers() {
 	for {
 		select {
 		case wrappers := <-b.wrappersC:
+			if nil == wrappers {
+				continue
+			}
 			if len(wrappers.InterchainTxWrappers) == 0 {
 				b.logger.WithField("interchain_tx_wrappers", 0).Errorf("InterchainTxWrappers")
 				continue
