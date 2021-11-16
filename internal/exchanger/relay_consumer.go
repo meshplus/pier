@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/Rican7/retry"
-	"github.com/Rican7/retry/backoff"
 	"github.com/Rican7/retry/strategy"
 	"github.com/meshplus/pier/internal/adapt"
 	"github.com/sirupsen/logrus"
@@ -36,7 +35,7 @@ func (ex *Exchanger) listenIBTPFromSrcAdaptForRelay(servicePair string) {
 					}
 				}
 				return nil
-			}, strategy.Backoff(backoff.Fibonacci(500*time.Millisecond))); err != nil {
+			}, strategy.Wait(5*time.Second)); err != nil {
 				ex.logger.Panic(err)
 			}
 		}
@@ -67,7 +66,7 @@ func (ex *Exchanger) listenIBTPFromDestAdaptForRelay(servicePair string) {
 					}
 				}
 				return nil
-			}, strategy.Backoff(backoff.Fibonacci(500*time.Millisecond))); err != nil {
+			}, strategy.Wait(5*time.Second)); err != nil {
 				ex.logger.Panic(err)
 			}
 		}
