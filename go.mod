@@ -38,3 +38,5 @@ require (
 replace github.com/libp2p/go-libp2p-core => github.com/libp2p/go-libp2p-core v0.5.6
 
 replace github.com/hyperledger/fabric => github.com/hyperledger/fabric v2.0.1+incompatible
+
+replace golang.org/x/net => golang.org/x/net v0.0.0-20210405180319-a5a99cb37ef4
