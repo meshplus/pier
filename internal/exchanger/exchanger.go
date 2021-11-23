@@ -90,7 +90,7 @@ func (ex *Exchanger) Start() error {
 	for _, serviceId := range serviceList {
 		ex.srcServiceMeta[serviceId], err = ex.srcAdapt.QueryInterchain(serviceId)
 		if err != nil {
-			panic(fmt.Sprintf("queryInterchain from srcAdapt: %s", err.Error()))
+			return fmt.Errorf("queryInterchain from srcAdapt: %w", err)
 		}
 
 		if err := retry.Retry(func(attempt uint) error {
