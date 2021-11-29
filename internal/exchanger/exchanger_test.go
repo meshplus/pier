@@ -123,7 +123,7 @@ func testNormalStartRelay(t *testing.T) {
 	mockExchanger.handleIBTP(&model.WrappedIBTP{
 		Ibtp:    assetExchangeIBTP,
 		IsValid: true,
-	}, log.NewWithModule("exchanger"))
+	})
 
 	time.Sleep(500 * time.Microsecond)
 	close(outCh)
@@ -224,7 +224,7 @@ func testApplyInterchain(t *testing.T) {
 	mockSyncer.EXPECT().SendIBTP(gomock.Any()).Return(fmt.Errorf("send ibtp error"))
 	mockSyncer.EXPECT().SendIBTP(gomock.Any()).Return(nil)
 	mockExecutor.EXPECT().ExecuteIBTP(gomock.Any()).Return(&pb.IBTP{}, nil).AnyTimes()
-	mockExecutor.EXPECT().QueryIBTPReceipt(gomock.Any()).Return(&pb.IBTP{}, nil)
+	//mockExecutor.EXPECT().QueryIBTPReceipt(gomock.Any()).Return(&pb.IBTP{}, nil)
 	inCh <- &model.WrappedIBTP{Ibtp: interchainIBTP3, IsValid: true}
 
 	// test for update source receipt meta
@@ -236,6 +236,7 @@ func testApplyInterchain(t *testing.T) {
 	mockSyncer.EXPECT().SendIBTP(gomock.Any()).Return(syncer.ErrMetaOutOfDate)
 	mockSyncer.EXPECT().SendIBTP(gomock.Any()).Return(nil).AnyTimes()
 	mockSyncer.EXPECT().QueryInterchainMeta().Return(updatedInterchainMeta).AnyTimes()
+	mockExchanger.updateSourceReceiptMeta()
 	interchainIBTP4 := getIBTP(t, 4, pb.IBTP_INTERCHAIN)
 	inCh <- &model.WrappedIBTP{Ibtp: interchainIBTP4, IsValid: true}
 
@@ -274,16 +275,18 @@ func testApplyReceipt(t *testing.T) {
 	mockExchanger.callbackCounter[to] = 1
 	inCh <- &model.WrappedIBTP{Ibtp: receiptIBTP1, IsValid: true}
 	receiptIBTP3 := getIBTP(t, 3, pb.IBTP_RECEIPT_SUCCESS)
+	wReceiptIBTP3 := &model.WrappedIBTP{Ibtp: receiptIBTP3, IsValid: true}
 	inCh <- &model.WrappedIBTP{Ibtp: receiptIBTP3, IsValid: true}
 	receiptIBTP2 := getIBTP(t, 2, pb.IBTP_RECEIPT_SUCCESS)
 	receiptIBTP2.Extra = []byte(assetTxID)
 	wReceiptIBTP2 := &model.WrappedIBTP{Ibtp: receiptIBTP2, IsValid: true}
 	//mockSyncer.EXPECT().GetAssetExchangeSigns(assetTxID).Return(nil, fmt.Errorf("get signs error"))
 	//mockSyncer.EXPECT().GetAssetExchangeSigns(gomock.Any()).Return(signs, nil)
-	mockExecutor.EXPECT().ExecuteIBTP(wReceiptIBTP2).Return(nil, nil)
+	mockExecutor.EXPECT().ExecuteIBTP(wReceiptIBTP2).Return(nil, nil).MaxTimes(1)
+	mockExecutor.EXPECT().ExecuteIBTP(wReceiptIBTP3).Return(nil, nil).MaxTimes(1)
 	inCh <- wReceiptIBTP2
-	time.Sleep(2 * time.Millisecond)
-	require.Equal(t, uint64(2), mockExchanger.callbackCounter[from])
+	time.Sleep(2 * time.Second)
+	require.Equal(t, uint64(3), mockExchanger.callbackCounter[from])
 }
 
 func testRollback(t *testing.T) {
