@@ -41,13 +41,11 @@ help: Makefile
 ## make test: Run go unittest
 test:
 	go generate ./...
-	@$(GO) mod tidy
 	@$(GO) test ${TEST_PKGS} -count=1
 
 ## make test-coverage: Test project with cover
 test-coverage:
 	go generate ./...
-	@$(GO) mod tidy
 	@go test -short -coverprofile cover.out -covermode=atomic ${TEST_PKGS}
 	@cat cover.out >> coverage.txt
 
