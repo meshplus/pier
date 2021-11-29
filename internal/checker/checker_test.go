@@ -2,6 +2,7 @@ package checker
 
 import (
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"testing"
 	"time"
@@ -120,7 +121,7 @@ func getAppchain(id, chainType string) (*appchainmgr.Appchain, error) {
 	return app, nil
 }
 
-func getIBTP(t *testing.T, index uint64, typ pb.IBTP_Type, fid, tid, proofPath string) *pb.IBTP {
+func getIBTP(t *testing.T, index uint64, typ pb.IBTP_Type, from, to, proofPath string) *pb.IBTP {
 	ct := &pb.Content{
 		SrcContractId: "mychannel&transfer",
 		DstContractId: "mychannel&transfer",
@@ -141,6 +142,8 @@ func getIBTP(t *testing.T, index uint64, typ pb.IBTP_Type, fid, tid, proofPath s
 	proof, err := ioutil.ReadFile(proofPath)
 	require.Nil(t, err)
 
+	fid := fmt.Sprintf("did:bitxhub:appchain%s:.", from)
+	tid := fmt.Sprintf("did:bitxhub:appchain%s:.", to)
 	return &pb.IBTP{
 		From:      fid,
 		To:        tid,
