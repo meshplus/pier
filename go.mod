@@ -38,3 +38,5 @@ require (
 replace github.com/libp2p/go-libp2p-core => github.com/libp2p/go-libp2p-core v0.5.6
 
 replace google.golang.org/grpc => google.golang.org/grpc v1.33.1
+
+replace golang.org/x/net => golang.org/x/net v0.0.0-20201021035429-f5854403a974
