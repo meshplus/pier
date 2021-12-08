@@ -836,8 +836,6 @@ github.com/mattn/go-sqlite3 v1.11.0/go.mod h1:FPy6KqzDD04eiIsT53CuJW3U88zkxoIYsO
 github.com/mattn/go-tty v0.0.0-20180907095812-13ff1204f104/go.mod h1:XPvLUNfbS4fJH25nqRHfWLMa1ONC8Amw+mIA639KxkE=
 github.com/mattn/goveralls v0.0.2/go.mod h1:8d1ZMHsd7fW6IRPKQh46F2WRpyib5/X4FOpevwGNQEw=
 github.com/matttproud/golang_protobuf_extensions v1.0.1/go.mod h1:D8He9yQNgCq6Z5Ld7szi9bcBfOoFv/3dc6xSMkL2PC0=
-github.com/meshplus/bitxhub-core v1.3.1-0.20210524064857-2e0679c10970 h1:MrgZPs8xx/9ODaKcNimGzUTHwGPrnBIux1EuJAATFCM=
-github.com/meshplus/bitxhub-core v1.3.1-0.20210524064857-2e0679c10970/go.mod h1:3jozBvAkL1+asOJPvhCouIZoedWnhr79LgDAdX9o95I=
 github.com/meshplus/bitxhub-core v1.3.1-0.20210524071255-789fd9ab501c h1:GsE5/atAVjElM7oAWKZatpR2wh4nG9tj2YtZrcgChg4=
 github.com/meshplus/bitxhub-core v1.3.1-0.20210524071255-789fd9ab501c/go.mod h1:3jozBvAkL1+asOJPvhCouIZoedWnhr79LgDAdX9o95I=
 github.com/meshplus/bitxhub-kit v1.0.0-rc1 h1:gNi8IFU5CMHT3KE2I4ACj5alMW9h/4cV8xOxn7wSmtA=
