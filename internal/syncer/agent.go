@@ -71,13 +71,13 @@ func (syncer *WrapperSyncer) GetIBTPSigns(ibtp *pb.IBTP) ([]byte, error) {
 }
 
 func (syncer *WrapperSyncer) GetAppchains() ([]*appchainmgr.Appchain, error) {
-	tx, err := syncer.client.GenerateContractTx(pb.TransactionData_BVM, constant.AppchainMgrContractAddr.Address(), "Appchains")
-	if err != nil {
-		return nil, err
-	}
-	tx.Nonce = 1
 	var receipt *pb.Receipt
 	if err := syncer.retryFunc(func(attempt uint) error {
+		tx, err := syncer.client.GenerateContractTx(pb.TransactionData_BVM, constant.AppchainMgrContractAddr.Address(), "Appchains")
+		if err != nil {
+			return err
+		}
+		tx.Nonce = 1
 		receipt, err = syncer.client.SendView(tx)
 		if err != nil {
 			return err

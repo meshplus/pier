@@ -15,16 +15,16 @@ import (
 )
 
 func getInterchainMeta(client rpcx.Client, appchainID string) (*pb.Interchain, error) {
-	tx, err := client.GenerateContractTx(pb.TransactionData_BVM, constant.InterchainContractAddr.Address(),
-		"Interchain", rpcx.String(appchainID))
-	if err != nil {
-		return nil, err
-	}
-	tx.Nonce = 1
-
 	ret := &pb.Interchain{}
 	logger := loggers.Logger(loggers.App)
-	if err = retry.Retry(func(attempt uint) error {
+
+	if err := retry.Retry(func(attempt uint) error {
+		tx, err := client.GenerateContractTx(pb.TransactionData_BVM, constant.InterchainContractAddr.Address(),
+			"Interchain", rpcx.String(appchainID))
+		if err != nil {
+			return err
+		}
+		tx.Nonce = 1
 		receipt, err := client.SendView(tx)
 		if err != nil {
 			logger.Errorf("Send view to get interchain meta error: %w ... retry later", err)
