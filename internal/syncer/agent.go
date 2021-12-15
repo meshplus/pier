@@ -66,13 +66,13 @@ func (syncer *WrapperSyncer) GetIBTPSigns(ibtp *pb.IBTP) ([]byte, error) {
 }
 
 func (syncer *WrapperSyncer) GetAppchains() ([]*rpcx.Appchain, error) {
-	tx, err := syncer.client.GenerateContractTx(pb.TransactionData_BVM, constant.AppchainMgrContractAddr.Address(), "Appchains")
-	if err != nil {
-		return nil, err
-	}
-	tx.Nonce = 1
 	var receipt *pb.Receipt
 	if err := syncer.retryFunc(func(attempt uint) error {
+		tx, err := syncer.client.GenerateContractTx(pb.TransactionData_BVM, constant.AppchainMgrContractAddr.Address(), "Appchains")
+		if err != nil {
+			return err
+		}
+		tx.Nonce = 1
 		receipt, err = syncer.client.SendView(tx)
 		if err != nil {
 			return err
@@ -182,17 +182,17 @@ func (syncer *WrapperSyncer) ListenIBTP() <-chan *model.WrappedIBTP {
 }
 
 func (syncer *WrapperSyncer) SendIBTP(ibtp *pb.IBTP) error {
-	proof := ibtp.GetProof()
-	proofHash := sha256.Sum256(proof)
-	ibtp.Proof = proofHash[:]
-
-	tx, err := syncer.client.GenerateIBTPTx(ibtp)
-	if err != nil {
-		return fmt.Errorf("generate ibtp tx error:%v", err)
-	}
-	tx.Extra = proof
 	var receipt *pb.Receipt
 	syncer.retryFunc(func(attempt uint) error {
+		proof := ibtp.GetProof()
+		proofHash := sha256.Sum256(proof)
+		ibtp.Proof = proofHash[:]
+
+		tx, err := syncer.client.GenerateIBTPTx(ibtp)
+		if err != nil {
+			return fmt.Errorf("generate ibtp tx error:%v", err)
+		}
+		tx.Extra = proof
 		hash, err := syncer.client.SendTransaction(tx, nil)
 		if err != nil {
 			syncer.logger.Errorf("Send ibtp error: %s", err.Error())
