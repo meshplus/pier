@@ -423,7 +423,7 @@ func TestGetAppchains(t *testing.T) {
 	getAppchainsTx := getTx(t)
 
 	// test for normal flow
-	client.EXPECT().GenerateContractTx(pb.TransactionData_BVM, constant.AppchainMgrContractAddr.Address(), gomock.Any()).Return(getAppchainsTx, nil)
+	client.EXPECT().GenerateContractTx(pb.TransactionData_BVM, constant.AppchainMgrContractAddr.Address(), gomock.Any()).Return(getAppchainsTx, nil).Times(1)
 	client.EXPECT().SendView(getAppchainsTx).Return(chainsReceipt, nil)
 	chains, err := syncer.GetAppchains()
 	require.Nil(t, err)
@@ -431,23 +431,25 @@ func TestGetAppchains(t *testing.T) {
 
 	// test for abnormal flow: nil return bytes in receipt
 	chainsReceipt.Ret = nil
-	client.EXPECT().GenerateContractTx(pb.TransactionData_BVM, constant.AppchainMgrContractAddr.Address(), gomock.Any()).Return(getAppchainsTx, nil)
+	client.EXPECT().GenerateContractTx(pb.TransactionData_BVM, constant.AppchainMgrContractAddr.Address(), gomock.Any()).Return(getAppchainsTx, nil).Times(1)
 	client.EXPECT().SendView(getAppchainsTx).Return(chainsReceipt, nil)
 	chains, err = syncer.GetAppchains()
 	require.Nil(t, err)
 	require.Equal(t, 0, len(chains))
 
 	// test for abnormal flow: error when invoke contract
-	client.EXPECT().GenerateContractTx(pb.TransactionData_BVM, constant.AppchainMgrContractAddr.Address(), gomock.Any()).Return(nil, fmt.Errorf("test error"))
+	client.EXPECT().GenerateContractTx(pb.TransactionData_BVM, constant.AppchainMgrContractAddr.Address(), gomock.Any()).Return(nil, fmt.Errorf("test error")).Times(1)
+	client.EXPECT().GenerateContractTx(pb.TransactionData_BVM, constant.AppchainMgrContractAddr.Address(), gomock.Any()).Return(getAppchainsTx, nil).Times(1)
+	client.EXPECT().SendView(getAppchainsTx).Return(chainsReceipt, nil)
 	chains, err = syncer.GetAppchains()
-	require.NotNil(t, err)
+	require.Nil(t, err)
 	require.Nil(t, nil)
 
 	// test for abnormal flow: invalid receipt ret bytes
-	client.EXPECT().GenerateContractTx(pb.TransactionData_BVM, constant.AppchainMgrContractAddr.Address(), gomock.Any()).Return(getAppchainsTx, nil)
-	client.EXPECT().SendView(getAppchainsTx).Return(nil, fmt.Errorf("test error"))
+	client.EXPECT().GenerateContractTx(pb.TransactionData_BVM, constant.AppchainMgrContractAddr.Address(), gomock.Any()).Return(getAppchainsTx, nil).Times(2)
+	client.EXPECT().SendView(getAppchainsTx).Return(nil, fmt.Errorf("test error")).Times(1)
 	chainsReceipt.Ret = []byte("test for abnormal flow")
-	client.EXPECT().SendView(getAppchainsTx).Return(chainsReceipt, nil)
+	client.EXPECT().SendView(getAppchainsTx).Return(chainsReceipt, nil).Times(1)
 	chains, err = syncer.GetAppchains()
 	require.NotNil(t, err)
 	require.Nil(t, chains)
