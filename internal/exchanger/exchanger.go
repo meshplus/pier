@@ -13,6 +13,7 @@ import (
 	"github.com/meshplus/pier/internal/adapt"
 	"github.com/meshplus/pier/internal/repo"
 	"github.com/sirupsen/logrus"
+	"go.uber.org/atomic"
 )
 
 type Exchanger struct {
@@ -32,9 +33,11 @@ type Exchanger struct {
 	srcIBTPMap  map[string]chan *pb.IBTP
 	destIBTPMap map[string]chan *pb.IBTP
 
-	logger logrus.FieldLogger
-	ctx    context.Context
-	cancel context.CancelFunc
+	sendIBTPCounter atomic.Uint64
+	sendIBTPTimer   atomic.Duration
+	logger          logrus.FieldLogger
+	ctx             context.Context
+	cancel          context.CancelFunc
 }
 
 func New(typ, srcChainId, srcBxhId string, opts ...Option) (*Exchanger, error) {
@@ -310,6 +313,7 @@ func (ex *Exchanger) listenIBTPFromSrcAdapt(servicePair string) {
 						}
 					}
 				}
+				ex.sendIBTPCounter.Inc()
 				return nil
 			}, strategy.Backoff(backoff.Fibonacci(500*time.Millisecond))); err != nil {
 				ex.logger.Panic(err)
@@ -409,4 +413,32 @@ func (ex *Exchanger) Stop() error {
 	ex.logger.Info("Exchanger stopped")
 
 	return nil
+}
+
+func (ex *Exchanger) analysisDirectTPS() {
+	ticker := time.NewTicker(time.Second)
+	defer ticker.Stop()
+
+	current := time.Now()
+	counter := ex.sendIBTPCounter.Load()
+	for {
+		select {
+		case <-ticker.C:
+			tps := ex.sendIBTPCounter.Load() - counter
+			counter = ex.sendIBTPCounter.Load()
+			totalTimer := ex.sendIBTPTimer.Load()
+
+			if tps != 0 {
+				ex.logger.WithFields(logrus.Fields{
+					"tps":      tps,
+					"tps_sum":  counter,
+					"tps_time": totalTimer.Milliseconds() / int64(counter),
+					"tps_avg":  float64(counter) / time.Since(current).Seconds(),
+				}).Info("analysis")
+			}
+
+		case <-ex.ctx.Done():
+			return
+		}
+	}
 }
