@@ -10,7 +10,6 @@ import (
 	"github.com/meshplus/bitxhub-core/agency"
 	appchainmgr "github.com/meshplus/bitxhub-core/appchain-mgr"
 	"github.com/meshplus/bitxhub-kit/crypto"
-	"github.com/meshplus/bitxhub-kit/log"
 	"github.com/meshplus/bitxhub-kit/storage"
 	"github.com/meshplus/bitxhub-model/pb"
 	rpcx "github.com/meshplus/go-bitxhub-client"
@@ -147,7 +146,7 @@ func NewPier(repoRoot string, config *repo.Config) (*Pier, error) {
 		ex, err = exchanger.New(repo.DirectMode, config.Appchain.ID, "",
 			exchanger.WithSrcAdapt(appchainAdapter),
 			exchanger.WithDestAdapt(directAdapter),
-			exchanger.WithLogger(log.NewWithModule("exchanger")))
+			exchanger.WithLogger(loggers.Logger(loggers.Exchanger)))
 		if err != nil {
 			return nil, fmt.Errorf("exchanger create: %w", err)
 		}
@@ -179,7 +178,7 @@ func NewPier(repoRoot string, config *repo.Config) (*Pier, error) {
 		ex, err = exchanger.New(repo.RelayMode, config.Appchain.ID, config.Mode.Relay.BitXHubID,
 			exchanger.WithSrcAdapt(appchainAdapter),
 			exchanger.WithDestAdapt(bxhAdapter),
-			exchanger.WithLogger(log.NewWithModule("exchanger")))
+			exchanger.WithLogger(loggers.Logger(loggers.Exchanger)))
 		if err != nil {
 			return nil, fmt.Errorf("exchanger create: %w", err)
 		}

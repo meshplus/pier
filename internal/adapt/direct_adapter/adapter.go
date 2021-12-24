@@ -2,14 +2,14 @@ package direct_adapter
 
 import (
 	"fmt"
+	"runtime"
 	"sync"
+	"time"
 
-	lru "github.com/hashicorp/golang-lru"
 	"github.com/meshplus/bitxhub-model/pb"
 	"github.com/meshplus/pier/internal/adapt"
 	"github.com/meshplus/pier/internal/adapt/appchain_adapter"
 	"github.com/meshplus/pier/internal/peermgr"
-	"github.com/meshplus/pier/internal/utils"
 	"github.com/sirupsen/logrus"
 	"go.uber.org/atomic"
 )
@@ -17,22 +17,24 @@ import (
 var _ adapt.Adapt = (*DirectAdapter)(nil)
 
 const (
-	maxChSize    = 1 << 10
-	maxCacheSize = 10000
+	maxChSize = 1 << 10
 )
 
 type DirectAdapter struct {
-	ibtpCache   *lru.Cache
-	maxIndexMap map[string]uint64
+	maxIndexMap        sync.Map
+	maxIndexReceiptMap sync.Map
 
-	logger        logrus.FieldLogger
-	ibtpC         chan *pb.IBTP
-	peerMgr       peermgr.PeerManager
-	appchainadapt adapt.Adapt
-	lock          *sync.Mutex //control the concurrent count
-	sendIBTPTimer atomic.Duration
-	appchainID    string
-	remotePierID  string
+	logger          logrus.FieldLogger
+	ibtpC           chan *pb.IBTP
+	peerMgr         peermgr.PeerManager
+	appchainadapt   adapt.Adapt
+	lock            *sync.Mutex //control the concurrent count
+	sendIBTPCounter atomic.Uint64
+	sendIBTPTimer   atomic.Duration
+	ibtps           sync.Map
+	appchainID      string
+	remotePierID    string
+	gopool          *pool
 }
 
 func (d *DirectAdapter) ID() string {
@@ -52,10 +54,6 @@ func (d *DirectAdapter) GetServiceIDList() ([]string, error) {
 }
 
 func New(peerMgr peermgr.PeerManager, appchainAdapt adapt.Adapt, logger logrus.FieldLogger) (*DirectAdapter, error) {
-	ibtpCache, err := lru.New(maxCacheSize)
-	if err != nil {
-		return nil, fmt.Errorf("ibtpCache initialize err: %w", err)
-	}
 
 	appchainID := appchainAdapt.ID()
 
@@ -63,11 +61,10 @@ func New(peerMgr peermgr.PeerManager, appchainAdapt adapt.Adapt, logger logrus.F
 		logger:        logger,
 		peerMgr:       peerMgr,
 		appchainadapt: appchainAdapt,
-		ibtpCache:     ibtpCache,
-		maxIndexMap:   make(map[string]uint64),
 		lock:          &sync.Mutex{},
 		ibtpC:         make(chan *pb.IBTP, maxChSize),
 		appchainID:    appchainID,
+		gopool:        NewGoPool(runtime.GOMAXPROCS(runtime.NumCPU())),
 	}
 
 	return da, nil
@@ -136,24 +133,10 @@ func (d *DirectAdapter) MonitorIBTP() chan *pb.IBTP {
 
 // QueryIBTP query ibtp from another pier
 func (d *DirectAdapter) QueryIBTP(id string, isReq bool) (*pb.IBTP, error) {
-	_, _, index, err := utils.ParseIBTPID(id)
-	if err != nil {
-		return nil, err
-	}
-	if value, ok := d.ibtpCache.Get(index); ok {
-		ibtp, ok := value.(*pb.IBTP)
-		if !ok {
-			d.ibtpCache.Remove(index)
-			return nil, fmt.Errorf("get wrong type from ibtpCache")
-		}
-		// todo: Is it necessary to remove?
-		d.ibtpCache.Remove(index)
-		return ibtp, nil
-	}
 
 	var result *pb.Message
 	msg := peermgr.Message(pb.Message_IBTP_GET, true, []byte(id))
-	result, err = d.peerMgr.Send(d.remotePierID, msg)
+	result, err := d.peerMgr.Send(d.remotePierID, msg)
 	if err != nil {
 		return nil, err
 	}
@@ -221,4 +204,30 @@ func (d *DirectAdapter) QueryInterchain(serviceID string) (*pb.Interchain, error
 		return nil, err
 	}
 	return interChain, nil
+}
+
+func (d *DirectAdapter) analysisDirectTPS() {
+	ticker := time.NewTicker(time.Second)
+	defer ticker.Stop()
+
+	current := time.Now()
+	counter := d.sendIBTPCounter.Load()
+	for {
+		select {
+		case <-ticker.C:
+			tps := d.sendIBTPCounter.Load() - counter
+			counter = d.sendIBTPCounter.Load()
+			totalTimer := d.sendIBTPTimer.Load()
+
+			if tps != 0 {
+				d.logger.WithFields(logrus.Fields{
+					"tps":      tps,
+					"tps_sum":  counter,
+					"tps_time": totalTimer.Milliseconds() / int64(counter),
+					"tps_avg":  float64(counter) / time.Since(current).Seconds(),
+				}).Warn("analysis")
+			}
+
+		}
+	}
 }
