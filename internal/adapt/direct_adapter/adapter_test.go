@@ -131,12 +131,6 @@ func TestSendIBTP(t *testing.T) {
 	require.Nil(t, err)
 
 	time.Sleep(2 * time.Second)
-	revCh2 := adapter2.MonitorIBTP()
-	require.Equal(t, 2, len(revCh2)+adapter2.ibtpCache.Len())
-
-	//todo： why not alway equal 4 ?
-	require.Equal(t, uint64(2), adapter2.maxIndexMap[toHash])
-	require.Equal(t, uint64(1), adapter1.maxIndexMap[toHash])
 
 	wrongTypeIbtp := getIBTP(t, 1, pb.IBTP_RECEIPT_ROLLBACK)
 	err = adapter1.SendIBTP(wrongTypeIbtp)
@@ -165,33 +159,12 @@ func TestQueryIBTP(t *testing.T) {
 	data, err := ibtp1.Marshal()
 	require.Nil(t, err)
 	retMsg := peermgr.Message(pb.Message_ACK, true, data)
-	peerMgr.EXPECT().Send(gomock.Any(), gomock.Any()).Return(retMsg, nil).MaxTimes(1)
+	msg := peermgr.Message(pb.Message_IBTP_GET, true, []byte(id1))
+	peerMgr.EXPECT().Send(gomock.Any(), msg).Return(retMsg, nil).Times(1)
 
 	ret1, err := adapter1.QueryIBTP(id1, true)
 	require.Nil(t, err)
 	require.Equal(t, ibtp1, ret1)
-
-	// test wrong ibtpId and serviceId
-	wrongId1 := "wrongIBTPId"
-	_, err = adapter1.QueryIBTP(wrongId1, true)
-	require.Equal(t, true, strings.Contains(err.Error(), wrongId1))
-
-	// test qurey ibtp from ibtpCache firstly, If there is no ibtp in the cache, connect the network
-	ibtp2 := getIBTP(t, 2, pb.IBTP_INTERCHAIN)
-	id2 := ibtp2.ID()
-	adapter1.ibtpCache.Add(ibtp2.Index, ibtp2)
-	ret2, err := adapter1.QueryIBTP(id2, true)
-	require.Nil(t, err)
-	require.Equal(t, ibtp2, ret2)
-
-	// test get wrong type from ibtpCache
-	wrongType := &pb.Message{}
-	wrongId3 := fmt.Sprintf("%s-%s-%d", "from", "to", 0)
-	adapter1.ibtpCache.Add(uint64(0), wrongType)
-	ret3, err := adapter1.QueryIBTP(wrongId3, true)
-	require.Nil(t, ret3)
-	queryError := fmt.Errorf("get wrong type from ibtpCache")
-	require.Equal(t, err, queryError)
 
 	receipt1 := getIBTP(t, 1, pb.IBTP_RECEIPT_SUCCESS)
 	receiptId := receipt1.ID()
