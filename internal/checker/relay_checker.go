@@ -37,11 +37,11 @@ func (c *RelayChecker) BasicCheck(ibtp *pb.IBTP) (bool, error) {
 		return false, fmt.Errorf("invalid IBTP ID %s", ibtp.ID())
 	}
 
-	if bxhID0 == c.bxhID && chainID0 == c.appchainID {
+	if (bxhID0 == c.bxhID || bxhID0 == "did:bitxhub") && chainID0 == c.appchainID {
 		return false, nil
 	}
 
-	if bxhID1 == c.bxhID && chainID1 == c.appchainID {
+	if (bxhID1 == c.bxhID || bxhID1 == "did:bitxhub") && chainID1 == c.appchainID {
 		return true, nil
 	}
 
