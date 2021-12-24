@@ -43,6 +43,7 @@ func main() {
 		startCMD,
 		versionCMD,
 		governanceCMD,
+		keyCommand,
 	}
 
 	err := app.Run(os.Args)
