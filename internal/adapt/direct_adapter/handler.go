@@ -3,7 +3,6 @@ package direct_adapter
 import (
 	"fmt"
 	"sync"
-	"time"
 
 	"github.com/meshplus/bitxhub-model/pb"
 	network "github.com/meshplus/go-lightp2p"
@@ -53,7 +52,7 @@ func NewPool() *Pool {
 
 func (d *DirectAdapter) handleSendIBTPMessage(stream network.Stream, msg *pb.Message) {
 	//defer d.timeCost()()
-	d.gopool.Add(1)
+	d.gopool.Add()
 	go func() {
 		ibtp := &pb.IBTP{}
 		if err := ibtp.Unmarshal(peermgr.DataToPayload(msg).Data); err != nil {
@@ -73,12 +72,12 @@ func (d *DirectAdapter) handleSendIBTPMessage(stream network.Stream, msg *pb.Mes
 					}
 				}()
 				for ibtp := range pool.ch {
-					ibtp.Category()
 					if ibtp.Category() == pb.IBTP_REQUEST {
 						load, _ := d.maxIndexMap.LoadOrStore(servicePair, uint64(0))
 						if ibtp.Index == load.(uint64)+1 {
 							d.ibtpC <- ibtp
 							d.maxIndexMap.Store(servicePair, ibtp.Index)
+							pool.req_ibtps.LoadAndDelete(ibtp.Index)
 						}
 
 						if ibtp.Index < load.(uint64)+1 {
@@ -102,6 +101,7 @@ func (d *DirectAdapter) handleSendIBTPMessage(stream network.Stream, msg *pb.Mes
 						if ibtp.Index == load.(uint64)+1 {
 							d.ibtpC <- ibtp
 							d.maxIndexReceiptMap.Store(servicePair, ibtp.Index)
+							pool.resp_ibtps.LoadAndDelete(ibtp.Index)
 						}
 
 						if ibtp.Index < load.(uint64)+1 {
@@ -144,14 +144,6 @@ func (d *DirectAdapter) handleGetInterchainMessage(stream network.Stream, msg *p
 	if err := d.peerMgr.AsyncSendWithStream(stream, retMsg); err != nil {
 		d.logger.Error(err)
 		return
-	}
-}
-
-func (d *DirectAdapter) timeCost() func() {
-	start := time.Now()
-	return func() {
-		tc := time.Since(start)
-		d.sendIBTPTimer.Add(tc)
 	}
 }
 

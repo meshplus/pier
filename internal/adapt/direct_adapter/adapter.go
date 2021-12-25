@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"runtime"
 	"sync"
-	"time"
 
 	"github.com/meshplus/bitxhub-model/pb"
 	"github.com/meshplus/pier/internal/adapt"
@@ -204,30 +203,4 @@ func (d *DirectAdapter) QueryInterchain(serviceID string) (*pb.Interchain, error
 		return nil, err
 	}
 	return interChain, nil
-}
-
-func (d *DirectAdapter) analysisDirectTPS() {
-	ticker := time.NewTicker(time.Second)
-	defer ticker.Stop()
-
-	current := time.Now()
-	counter := d.sendIBTPCounter.Load()
-	for {
-		select {
-		case <-ticker.C:
-			tps := d.sendIBTPCounter.Load() - counter
-			counter = d.sendIBTPCounter.Load()
-			totalTimer := d.sendIBTPTimer.Load()
-
-			if tps != 0 {
-				d.logger.WithFields(logrus.Fields{
-					"tps":      tps,
-					"tps_sum":  counter,
-					"tps_time": totalTimer.Milliseconds() / int64(counter),
-					"tps_avg":  float64(counter) / time.Since(current).Seconds(),
-				}).Warn("analysis")
-			}
-
-		}
-	}
 }
