@@ -412,33 +412,34 @@ func (ex *Exchanger) Stop() error {
 	return nil
 }
 
-func (ex *Exchanger) analysisDirectTPS() {
-	ticker := time.NewTicker(time.Second)
-	defer ticker.Stop()
-
-	current := time.Now()
-	counter := ex.sendIBTPCounter.Load()
-	for {
-		select {
-		case <-ticker.C:
-			tps := ex.sendIBTPCounter.Load() - counter
-			counter = ex.sendIBTPCounter.Load()
-			totalTimer := ex.sendIBTPTimer.Load()
-
-			if tps != 0 {
-				ex.logger.WithFields(logrus.Fields{
-					"tps":      tps,
-					"tps_sum":  counter,
-					"tps_time": totalTimer.Milliseconds() / int64(counter),
-					"tps_avg":  float64(counter) / time.Since(current).Seconds(),
-				}).Info("analysis")
-			}
-
-		case <-ex.ctx.Done():
-			return
-		}
-	}
-}
+//
+//func (ex *Exchanger) analysisDirectTPS() {
+//	ticker := time.NewTicker(time.Second)
+//	defer ticker.Stop()
+//
+//	current := time.Now()
+//	counter := ex.sendIBTPCounter.Load()
+//	for {
+//		select {
+//		case <-ticker.C:
+//			tps := ex.sendIBTPCounter.Load() - counter
+//			counter = ex.sendIBTPCounter.Load()
+//			totalTimer := ex.sendIBTPTimer.Load()
+//
+//			if tps != 0 {
+//				ex.logger.WithFields(logrus.Fields{
+//					"tps":      tps,
+//					"tps_sum":  counter,
+//					"tps_time": totalTimer.Milliseconds() / int64(counter),
+//					"tps_avg":  float64(counter) / time.Since(current).Seconds(),
+//				}).Info("analysis")
+//			}
+//
+//		case <-ex.ctx.Done():
+//			return
+//		}
+//	}
+//}
 
 //func (ex *Exchanger) timeCost() func() {
 //	start := time.Now()

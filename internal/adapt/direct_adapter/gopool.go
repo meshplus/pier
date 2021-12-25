@@ -5,7 +5,7 @@ import (
 )
 
 type pool struct {
-	queue chan int
+	queue chan struct{}
 	wg    *sync.WaitGroup
 }
 
@@ -14,19 +14,14 @@ func NewGoPool(size int) *pool {
 		size = 1
 	}
 	return &pool{
-		queue: make(chan int, size),
+		queue: make(chan struct{}, size),
 		wg:    &sync.WaitGroup{},
 	}
 }
 
-func (p *pool) Add(delta int) {
-	for i := 0; i < delta; i++ {
-		p.queue <- 1
-	}
-	for i := 0; i > delta; i-- {
-		<-p.queue
-	}
-	p.wg.Add(delta)
+func (p *pool) Add() {
+	p.queue <- struct{}{}
+	p.wg.Add(1)
 }
 
 func (p *pool) Done() {
