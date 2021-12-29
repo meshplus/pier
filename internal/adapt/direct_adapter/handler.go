@@ -3,16 +3,27 @@ package direct_adapter
 import (
 	"fmt"
 	"sync"
+	"time"
 
+	"github.com/google/btree"
 	"github.com/meshplus/bitxhub-model/pb"
 	network "github.com/meshplus/go-lightp2p"
 	"github.com/meshplus/pier/internal/peermgr"
 )
 
 type Pool struct {
-	req_ibtps  *sync.Map
-	resp_ibtps *sync.Map
-	ch         chan *pb.IBTP
+	ibtps *btree.BTree
+	lock  *sync.Mutex
+	time  time.Time
+}
+
+type MyTree struct {
+	ibtp  *pb.IBTP
+	index uint64
+}
+
+func (m *MyTree) Less(item btree.Item) bool {
+	return m.index < (item.(*MyTree)).index
 }
 
 func (d *DirectAdapter) handleGetIBTPMessage(stream network.Stream, msg *pb.Message) {
@@ -44,14 +55,13 @@ func (d *DirectAdapter) handleGetIBTPMessage(stream network.Stream, msg *pb.Mess
 
 func NewPool() *Pool {
 	return &Pool{
-		req_ibtps:  &sync.Map{},
-		resp_ibtps: &sync.Map{},
-		ch:         make(chan *pb.IBTP, 40960),
+		ibtps: btree.New(4),
+		lock:  &sync.Mutex{},
+		time:  time.Now(),
 	}
 }
 
 func (d *DirectAdapter) handleSendIBTPMessage(stream network.Stream, msg *pb.Message) {
-	//defer d.timeCost()()
 	d.gopool.Add()
 	go func() {
 		ibtp := &pb.IBTP{}
@@ -59,73 +69,52 @@ func (d *DirectAdapter) handleSendIBTPMessage(stream network.Stream, msg *pb.Mes
 			d.logger.Errorf("Unmarshal ibtp: %s", err.Error())
 			return
 		}
-		servicePair := ibtp.From + ibtp.To
+		servicePair := ibtp.From + ibtp.To + ibtp.Category().String()
 		act, loaded := d.ibtps.LoadOrStore(servicePair, NewPool())
 		pool := act.(*Pool)
-		pool.ch <- ibtp
 
 		if !loaded {
-			go func(pool *Pool, ibtp *pb.IBTP, servicePair string) {
+			go func(pool *Pool, ibtp *pb.IBTP) {
 				defer func() {
 					if e := recover(); e != nil {
 						d.logger.Error(fmt.Errorf("%v", e))
 					}
 				}()
-				for ibtp := range pool.ch {
-					if ibtp.Category() == pb.IBTP_REQUEST {
-						load, _ := d.maxIndexMap.LoadOrStore(servicePair, uint64(0))
-						if ibtp.Index == load.(uint64)+1 {
-							d.ibtpC <- ibtp
-							d.maxIndexMap.Store(servicePair, ibtp.Index)
-							pool.req_ibtps.LoadAndDelete(ibtp.Index)
+				d.ibtpC <- ibtp
+				index := ibtp.Index
+				for {
+					pool.lock.Lock()
+					if item := pool.ibtps.Min(); item != nil {
+						if item.(*MyTree).index < index+1 {
+							pool.ibtps.DeleteMin()
 						}
 
-						if ibtp.Index < load.(uint64)+1 {
-							continue
+						if item.(*MyTree).index == index+1 {
+							d.ibtpC <- item.(*MyTree).ibtp
+							pool.ibtps.DeleteMin()
+							index++
+							pool.time = time.Now()
 						}
 
-						if ibtp.Index > load.(uint64)+1 {
-							pool.req_ibtps.Store(ibtp.Index, ibtp)
-							for i := load.(uint64) + 1; i <= ibtp.Index; i++ {
-								req_ibtp, ok := pool.req_ibtps.LoadAndDelete(i)
-								if !ok {
-									break
-								}
-								d.ibtpC <- req_ibtp.(*pb.IBTP)
-								d.maxIndexMap.Store(servicePair, i)
-							}
-						}
-
-					} else {
-						load, _ := d.maxIndexReceiptMap.LoadOrStore(servicePair, uint64(0))
-						if ibtp.Index == load.(uint64)+1 {
-							d.ibtpC <- ibtp
-							d.maxIndexReceiptMap.Store(servicePair, ibtp.Index)
-							pool.resp_ibtps.LoadAndDelete(ibtp.Index)
-						}
-
-						if ibtp.Index < load.(uint64)+1 {
-							continue
-						}
-
-						if ibtp.Index > load.(uint64)+1 {
-							pool.resp_ibtps.Store(ibtp.Index, ibtp)
-							for i := load.(uint64) + 1; i <= ibtp.Index; i++ {
-								resp_ibtp, ok := pool.resp_ibtps.LoadAndDelete(i)
-								if !ok {
-									break
-								}
-								d.ibtpC <- resp_ibtp.(*pb.IBTP)
-								d.maxIndexReceiptMap.Store(servicePair, i)
-							}
+						// By default, the index will be equalized after 5 seconds
+						if time.Now().Sub(pool.time).Seconds() > 5.0 {
+							d.ibtpC <- item.(*MyTree).ibtp
+							pool.ibtps.DeleteMin()
+							index = item.(*MyTree).index
+							pool.time = time.Now()
 						}
 					}
+					pool.lock.Unlock()
 				}
-			}(pool, ibtp, servicePair)
+
+			}(pool, ibtp)
+		} else {
+			pool.lock.Lock()
+			pool.ibtps.ReplaceOrInsert(&MyTree{ibtp: ibtp, index: ibtp.Index})
+			pool.lock.Unlock()
 		}
 		d.gopool.Done()
 	}()
-	//d.sendIBTPCounter.Inc()
 }
 
 func (d *DirectAdapter) handleGetInterchainMessage(stream network.Stream, msg *pb.Message) {
