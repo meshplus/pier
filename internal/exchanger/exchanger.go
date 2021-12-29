@@ -412,7 +412,6 @@ func (ex *Exchanger) Stop() error {
 	return nil
 }
 
-//
 //func (ex *Exchanger) analysisDirectTPS() {
 //	ticker := time.NewTicker(time.Second)
 //	defer ticker.Stop()
@@ -432,7 +431,7 @@ func (ex *Exchanger) Stop() error {
 //					"tps_sum":  counter,
 //					"tps_time": totalTimer.Milliseconds() / int64(counter),
 //					"tps_avg":  float64(counter) / time.Since(current).Seconds(),
-//				}).Info("analysis")
+//				}).Warn("analysis")
 //			}
 //
 //		case <-ex.ctx.Done():
@@ -440,7 +439,7 @@ func (ex *Exchanger) Stop() error {
 //		}
 //	}
 //}
-
+//
 //func (ex *Exchanger) timeCost() func() {
 //	start := time.Now()
 //	return func() {
