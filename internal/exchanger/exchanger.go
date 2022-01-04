@@ -2,6 +2,7 @@ package exchanger
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -106,6 +107,13 @@ func (ex *Exchanger) Start() error {
 			ex.logger.Errorf("retry err with queryInterchain: %w", err)
 		}
 	}
+
+	srcServiceMetaJson, _ := json.Marshal(ex.srcServiceMeta)
+	destServiceMetaJson, _ := json.Marshal(ex.destServiceMeta)
+	ex.logger.WithFields(logrus.Fields{
+		"srcServiceMeta":  string(srcServiceMetaJson),
+		"destServiceMeta": string(destServiceMetaJson),
+	}).Info("Current ServiceMeta")
 
 	if repo.UnionMode == ex.mode {
 		ex.recoverUnion(ex.srcServiceMeta, ex.destServiceMeta)

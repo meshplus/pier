@@ -162,8 +162,9 @@ func (a *AppchainAdapter) SendIBTP(ibtp *pb.IBTP) error {
 		}
 		_, _, serviceID := ibtp.ParseTo()
 		a.logger.WithFields(logrus.Fields{
-			"ibtp": ibtp.ID(),
-			"typ":  ibtp.Type,
+			"ibtp":    ibtp.ID(),
+			"typ":     ibtp.Type,
+			"content": content.String(),
 		}).Info("start submit ibtp")
 		res, err = a.client.SubmitIBTP(ibtp.From, ibtp.Index, serviceID, ibtp.Type, content, proof, pd.Encrypted)
 		a.logger.Info("appchain adapter submit ibtp success")
