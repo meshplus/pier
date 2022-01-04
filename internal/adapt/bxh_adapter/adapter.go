@@ -142,6 +142,22 @@ func (b *BxhAdapter) SendIBTP(ibtp *pb.IBTP) error {
 		ibtp.Extra = proof
 	}
 
+	pd := pb.Payload{}
+	if err := pd.Unmarshal(ibtp.Payload); err != nil {
+		return err
+	}
+
+	content := &pb.Content{}
+	if err := content.Unmarshal(pd.Content); err != nil {
+		return fmt.Errorf("unmarshal content of ibtp %s: %w", ibtp.ID(), err)
+	}
+	b.logger.WithFields(logrus.Fields{
+		"ibtp":    ibtp.ID(),
+		"typ":     ibtp.Type,
+		"content": content.String(),
+	}).Info("start submit ibtp to bitxhub")
+	b.logger.Info()
+
 	tx, _ := b.client.GenerateIBTPTx(ibtp)
 	tx.Extra = proof
 
