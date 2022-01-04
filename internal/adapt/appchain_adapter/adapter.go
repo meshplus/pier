@@ -163,6 +163,8 @@ func (a *AppchainAdapter) SendIBTP(ibtp *pb.IBTP) error {
 		_, _, serviceID := ibtp.ParseTo()
 		a.logger.WithFields(logrus.Fields{
 			"ibtp":    ibtp.ID(),
+			"from":    ibtp.From,
+			"to":      ibtp.To,
 			"typ":     ibtp.Type,
 			"content": content.String(),
 		}).Info("start submit ibtp")

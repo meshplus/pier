@@ -153,6 +153,8 @@ func (b *BxhAdapter) SendIBTP(ibtp *pb.IBTP) error {
 	}
 	b.logger.WithFields(logrus.Fields{
 		"ibtp":    ibtp.ID(),
+		"from":    ibtp.From,
+		"to":      ibtp.To,
 		"typ":     ibtp.Type,
 		"content": content.String(),
 	}).Info("start submit ibtp to bitxhub")
