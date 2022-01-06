@@ -222,7 +222,7 @@ func savePierAppchain(ctx *cli.Context, path string) error {
 	appchainInfo := appchainmgr.Appchain{}
 
 	if path == UpdateAppchainUrl {
-		url, err := getURL(ctx, fmt.Sprintf("%s?pier_id=%s", path, pier))
+		url, err := getURL(ctx, fmt.Sprintf("%s?pier_id=%s", GetAppchainUrl, pier))
 		if err != nil {
 			return err
 		}

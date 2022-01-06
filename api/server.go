@@ -163,19 +163,27 @@ func (g *Server) getAppchain(c *gin.Context) {
 }
 
 func (g *Server) handleAckAppchain(c *gin.Context, msg *peerproto.Message) {
+	res := &response{}
+	// the function of Update in server return nil when direct mode
+	if msg.Type == peerproto.Message_APPCHAIN_UPDATE {
+		if msg.Payload.Ok != true {
+			g.logger.Error(fmt.Errorf("update appchain error"))
+			return
+		}
+		res.Data = []byte(fmt.Sprintf("appchain update successfully.\n"))
+		c.JSON(http.StatusOK, res)
+		return
+	}
+
 	app := appchainmgr.Appchain{}
 	if err := json.Unmarshal(msg.Payload.Data, &app); err != nil {
 		g.logger.Error(err)
 		return
 	}
 
-	res := &response{}
-
 	switch msg.Type {
 	case peerproto.Message_APPCHAIN_REGISTER:
 		res.Data = []byte(fmt.Sprintf("appchain register successfully, id is %s\n", app.ID))
-	case peerproto.Message_APPCHAIN_UPDATE:
-		res.Data = []byte(fmt.Sprintf("appchain update successfully, id is %s\n", app.ID))
 	case peerproto.Message_APPCHAIN_GET:
 		res.Data = msg.Payload.Data
 	}

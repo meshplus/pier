@@ -17,7 +17,14 @@ func (mgr *Manager) handleMessage(s network.Stream, msg *peerproto.Message) {
 	case peerproto.Message_APPCHAIN_REGISTER:
 		ok, res = mgr.Mgr.Register(msg.Payload.Data)
 	case peerproto.Message_APPCHAIN_UPDATE:
-		ok, res = mgr.Mgr.Update(msg.Payload.Data)
+		ok, _ = mgr.Mgr.Update(msg.Payload.Data)
+		ackMsg := peermgr.Message(msg.Type, ok, nil)
+		err := mgr.PeerManager.AsyncSendWithStream(s, ackMsg)
+		if err != nil {
+			mgr.logger.Error(err)
+			return
+		}
+		return
 	case peerproto.Message_APPCHAIN_GET:
 		app := &appchainmgr.Appchain{}
 		if err := json.Unmarshal(msg.Payload.Data, app); err != nil {
