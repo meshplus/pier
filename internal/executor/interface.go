@@ -17,6 +17,10 @@ type Executor interface {
 	// and return the receipt ibtp for ack or callback
 	ExecuteIBTP(wIbtp *model.WrappedIBTP) (*pb.IBTP, error)
 
+	GetData(req *pb.GetDataRequest) (*pb.GetDataResponse, error)
+
+	SubmitData(response *pb.GetDataResponse) error
+
 	// Rollback rollbacks ibtp on appchain
 	Rollback(ibtp *pb.IBTP, isSrcChain bool)
 

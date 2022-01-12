@@ -17,6 +17,7 @@ message Message {
         ADDRESS_GET = 10;
         ROUTER_INTERCHAIN_SEND = 11;
         ACK = 12;
+        DATA_GET = 13;
     }
     Type type = 1;
     Payload payload = 2;

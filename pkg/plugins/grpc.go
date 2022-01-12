@@ -29,6 +29,40 @@ func (s *GRPCServer) Stop(context.Context, *pb.Empty) (*pb.Empty, error) {
 	return &pb.Empty{}, err
 }
 
+func (s *GRPCServer) GetData(ctx context.Context, req *pb.GetDataRequest) (*pb.GetDataResponse, error) {
+	return s.Impl.GetData(req)
+}
+
+func (s *GRPCServer) GetDataReq(_ *pb.Empty, conn pb.AppchainPlugin_GetDataReqServer) error {
+	ctx := conn.Context()
+	c := s.Impl.GetDataReq()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return nil
+		case req, ok := <-c:
+			if !ok {
+				logger.Error("get data request channel has closed")
+				return nil
+			}
+			if err := retry.Retry(func(attempt uint) error {
+				if err := conn.Send(req); err != nil {
+					logger.Error("plugin send data req err", "error", err)
+					return err
+				}
+				return nil
+			}, strategy.Wait(1*time.Second)); err != nil {
+				logger.Error("Execution of plugin server sending data request failed", "error", err)
+			}
+		}
+	}
+}
+
+func (s *GRPCServer) SubmitData(_ context.Context, res *pb.GetDataResponse) error {
+	return s.Impl.SubmitData(res)
+}
+
 func (s *GRPCServer) GetIBTP(_ *pb.Empty, conn pb.AppchainPlugin_GetIBTPServer) error {
 	ctx := conn.Context()
 	ibtpC := s.Impl.GetIBTP()
@@ -169,6 +203,25 @@ func (g *GRPCClient) Stop() error {
 	return nil
 }
 
+func (g *GRPCClient) GetData(request *pb.GetDataRequest) (*pb.GetDataResponse, error) {
+	return g.client.GetData(g.doneContext, request)
+}
+
+func (g *GRPCClient) GetDataReq() chan *pb.GetDataRequest {
+	conn, err := g.client.GetDataReq(g.doneContext, &pb.Empty{})
+	if err != nil {
+		panic(err)
+	}
+	dataReq := make(chan *pb.GetDataRequest)
+	go g.handleDataReqStream(conn, dataReq)
+	return dataReq
+}
+
+func (g *GRPCClient) SubmitData(response *pb.GetDataResponse) error {
+	_, err := g.client.SubmitData(g.doneContext, response)
+	return err
+}
+
 func (g *GRPCClient) GetIBTP() chan *pb.IBTP {
 	conn, err := g.client.GetIBTP(g.doneContext, &pb.Empty{})
 	if err != nil {
@@ -206,6 +259,34 @@ func (g *GRPCClient) handleIBTPStream(conn pb.AppchainPlugin_GetIBTPClient, ibtp
 		case <-g.doneContext.Done():
 			return
 		case ibtpQ <- ibtp:
+		}
+	}
+}
+
+func (g *GRPCClient) handleDataReqStream(conn pb.AppchainPlugin_GetDataReqClient, dataReq chan *pb.GetDataRequest) {
+	defer close(dataReq)
+
+	for {
+		var (
+			req *pb.GetDataRequest
+			err error
+		)
+		if err := retry.Retry(func(attempt uint) error {
+			req, err = conn.Recv()
+			if err != nil {
+				logger.Error("Plugin grpc client recv data request", "error", err)
+				// End the stream
+				return err
+			}
+			return nil
+		}, strategy.Wait(1*time.Second)); err != nil {
+			logger.Error("Execution of client recv failed", "error", err)
+		}
+
+		select {
+		case <-g.doneContext.Done():
+			return
+		case dataReq <- req:
 		}
 	}
 }

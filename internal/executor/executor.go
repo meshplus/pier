@@ -87,3 +87,11 @@ func (e *ChannelExecutor) QueryIBTPReceipt(originalIBTP *pb.IBTP) (*pb.IBTP, err
 	}
 	return e.client.GetReceipt(originalIBTP)
 }
+
+func (e *ChannelExecutor) GetData(req *pb.GetDataRequest) (*pb.GetDataResponse, error) {
+	return e.client.GetData(req)
+}
+
+func (e *ChannelExecutor) SubmitData(response *pb.GetDataResponse) error {
+	return e.client.SubmitData(response)
+}

@@ -10,6 +10,9 @@ type Monitor interface {
 	Stop() error
 	// listen on interchain ibtp from appchain
 	ListenIBTP() <-chan *pb.IBTP
+
+	ListenDataReq() <-chan *pb.GetDataRequest
+
 	// query historical ibtp by its id
 	QueryIBTP(id string) (*pb.IBTP, error)
 	// QueryLatestMeta queries latest index map of ibtps threw on appchain

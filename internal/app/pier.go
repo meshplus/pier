@@ -132,6 +132,10 @@ func NewPier(repoRoot string, config *repo.Config) (*Pier, error) {
 		meta = &pb.Interchain{}
 		lite = &direct_lite.MockLite{}
 	case repo.RelayMode:
+		peerManager, err = peermgr.New(config, nodePrivKey, privateKey, 1, loggers.Logger(loggers.PeerMgr))
+		if err != nil {
+			return nil, fmt.Errorf("peerMgr create: %w", err)
+		}
 		ck = &checker.MockChecker{}
 
 		// pier register to bitxhub and got meta infos about its related

@@ -271,6 +271,36 @@ func (ex *Exchanger) handleGetIBTPMessage(stream network.Stream, msg *peerMsg.Me
 	}
 }
 
+func (ex *Exchanger) handleGetDataMessage(stream network.Stream, msg *peerMsg.Message) {
+	var req *pb.GetDataRequest
+	if err := req.Unmarshal(msg.Payload.Data); err != nil {
+		ex.logger.Error(err)
+		return
+	}
+	entry := ex.logger.WithFields(logrus.Fields{
+		"index": req.Idx,
+		"to":    req.To,
+		"from":  req.From,
+	})
+
+	res, err := ex.exec.GetData(req)
+	if err != nil {
+		entry.Error(err)
+		retMsg := peermgr.Message(peerMsg.Message_ACK, false, nil)
+		err = ex.peerMgr.AsyncSendWithStream(stream, retMsg)
+		if err != nil {
+			ex.logger.Error(err)
+			return
+		}
+	}
+	data, _ := res.Marshal()
+	retMsg := peermgr.Message(peerMsg.Message_ACK, true, data)
+	err = ex.peerMgr.AsyncSendWithStream(stream, retMsg)
+	if err != nil {
+		ex.logger.Error(err)
+	}
+}
+
 func (ex *Exchanger) handleNewConnection(dstPierID string) {
 	pierID := []byte(ex.pierID)
 	msg := peermgr.Message(peerMsg.Message_INTERCHAIN_META_GET, true, pierID)

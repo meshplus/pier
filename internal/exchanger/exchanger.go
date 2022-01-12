@@ -140,6 +140,14 @@ func (ex *Exchanger) startWithDirectMode() error {
 }
 
 func (ex *Exchanger) startWithRelayMode() error {
+	if err := ex.peerMgr.RegisterMsgHandler(peerMsg.Message_DATA_GET, ex.handleGetDataMessage); err != nil {
+		return fmt.Errorf("register data  handler: %w", err)
+	}
+
+	if err := ex.peerMgr.Start(); err != nil {
+		return fmt.Errorf("peerMgr start: %w", err)
+	}
+
 	if err := ex.syncer.RegisterRollbackHandler(ex.handleRollback); err != nil {
 		return fmt.Errorf("register router handler: %w", err)
 	}
@@ -229,6 +237,55 @@ func (ex *Exchanger) listenAndSendIBTPFromMnt() {
 				ex.interchainCounter[ibtp.To] = ibtp.Index
 				return nil
 			}, strategy.Backoff(backoff.Fibonacci(500*time.Millisecond))); err != nil {
+				ex.logger.Panic(err)
+			}
+		}
+	}
+}
+
+func (ex *Exchanger) listenDataReq() {
+	ch := ex.mnt.ListenDataReq()
+	for {
+		select {
+		case <-ex.ctx.Done():
+			return
+		case req := <-ch:
+			if err := retry.Retry(func(attempt uint) error {
+				data, err := req.Marshal()
+				if err != nil {
+					panic(fmt.Sprintf("marshal data req: %s", err.Error()))
+				}
+				entry := ex.logger.WithFields(logrus.Fields{
+					"index": req.Idx,
+					"to":    req.To,
+					"from":  req.From,
+				})
+				msg := peermgr.Message(peerMsg.Message_DATA_GET, true, data)
+				res, err := ex.peerMgr.Send(req.To, msg)
+				if err != nil {
+					entry.Error(err)
+					return err
+				}
+				entry.Info("send data request success")
+				var dataRes *pb.GetDataResponse
+				if res.Payload.Ok {
+					if err := dataRes.Unmarshal(res.Payload.Data); err != nil {
+						return err
+					}
+				} else {
+					dataRes.Idx = req.Idx
+					dataRes.From = req.From
+					dataRes.To = req.To
+					dataRes.Result = res.Payload.Data
+				}
+
+				if err := ex.exec.SubmitData(dataRes); err != nil {
+					entry.Error(err)
+					return err
+				}
+
+				return nil
+			}, strategy.Wait(10*time.Second)); err != nil {
 				ex.logger.Panic(err)
 			}
 		}

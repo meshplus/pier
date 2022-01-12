@@ -22,6 +22,21 @@ type BxhClient struct {
 	rpcx.Appchain
 }
 
+func (client *BxhClient) GetData(request *pb.GetDataRequest) (*pb.GetDataResponse, error) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (client *BxhClient) GetDataReq() chan *pb.GetDataRequest {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (client *BxhClient) SubmitData(response *pb.GetDataResponse) error {
+	//TODO implement me
+	panic("implement me")
+}
+
 var _ plugins.Client = (*BxhClient)(nil)
 
 // CreateClient creates plugin client from agent
