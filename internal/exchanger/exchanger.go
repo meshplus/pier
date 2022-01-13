@@ -120,7 +120,7 @@ func (ex *Exchanger) Start() error {
 	go ex.listenIBTPFromDestAdaptToServicePairCh()
 
 	ex.logger.Info("Exchanger started")
-	//go ex.analysisDirectTPS()
+	go ex.analysisDirectTPS()
 	return nil
 }
 
@@ -212,6 +212,8 @@ func (ex *Exchanger) listenIBTPFromDestAdapt(servicePair string) {
 				ex.logger.Warn("Unexpected closed channel while listening on interchain ibtp")
 				return
 			}
+
+			cc := ex.timeCost()
 			ex.logger.WithFields(logrus.Fields{"index": ibtp.Index, "type": ibtp.Type, "ibtp_id": ibtp.ID()}).Info("Receive ibtp from :", ex.destAdaptName)
 			index := ex.getCurrentIndexFromDest(ibtp)
 			if index >= ibtp.Index {
@@ -223,28 +225,30 @@ func (ex *Exchanger) listenIBTPFromDestAdapt(servicePair string) {
 				ex.logger.WithFields(logrus.Fields{"index": ibtp.Index, "to": ibtp.To}).Info("Get missing ibtp")
 				ex.handleMissingIBTPByServicePair(index+1, ibtp.Index-1, ex.destAdapt, ex.srcAdapt, ibtp.From, ibtp.To, !ex.isIBTPBelongSrc(ibtp))
 			}
-			if err := retry.Retry(func(attempt uint) error {
-				ex.logger.Infof("start sendIBTP to adapter: %s", ex.srcAdaptName)
-				if err := ex.srcAdapt.SendIBTP(ibtp); err != nil {
-					ex.logger.Errorf("send IBTP to Adapt:%s", ex.srcAdaptName, "error", err.Error())
-					// if err occurs, try to get new ibtp and resend
-					if err, ok := err.(*adapt.SendIbtpError); ok {
-						if err.NeedRetry() {
-							// query to new ibtp
-							ibtp = ex.queryIBTP(ex.destAdapt, ibtp.ID(), !ex.isIBTPBelongSrc(ibtp))
-							return fmt.Errorf("retry sending ibtp")
-						}
-					}
-				}
-				return nil
-			}, strategy.Backoff(backoff.Fibonacci(500*time.Millisecond))); err != nil {
-				ex.logger.Panic(err)
-			}
+			//if err := retry.Retry(func(attempt uint) error {
+			//	ex.logger.Infof("start sendIBTP to adapter: %s", ex.srcAdaptName)
+			//	if err := ex.srcAdapt.SendIBTP(ibtp); err != nil {
+			//		ex.logger.Errorf("send IBTP to Adapt:%s", ex.srcAdaptName, "error", err.Error())
+			//		// if err occurs, try to get new ibtp and resend
+			//		if err, ok := err.(*adapt.SendIbtpError); ok {
+			//			if err.NeedRetry() {
+			//				// query to new ibtp
+			//				ibtp = ex.queryIBTP(ex.destAdapt, ibtp.ID(), !ex.isIBTPBelongSrc(ibtp))
+			//				return fmt.Errorf("retry sending ibtp")
+			//			}
+			//		}
+			//	}
+			//	return nil
+			//}, strategy.Backoff(backoff.Fibonacci(500*time.Millisecond))); err != nil {
+			//	ex.logger.Panic(err)
+			//}
 			if ex.isIBTPBelongSrc(ibtp) {
 				ex.destServiceMeta[ibtp.From].ReceiptCounter[ibtp.To] = ibtp.Index
 			} else {
 				ex.destServiceMeta[ibtp.To].SourceInterchainCounter[ibtp.From] = ibtp.Index
 			}
+			ex.sendIBTPCounter.Inc()
+			cc()
 		}
 	}
 }
@@ -412,38 +416,38 @@ func (ex *Exchanger) Stop() error {
 	return nil
 }
 
-//func (ex *Exchanger) analysisDirectTPS() {
-//	ticker := time.NewTicker(time.Second)
-//	defer ticker.Stop()
-//
-//	current := time.Now()
-//	counter := ex.sendIBTPCounter.Load()
-//	for {
-//		select {
-//		case <-ticker.C:
-//			tps := ex.sendIBTPCounter.Load() - counter
-//			counter = ex.sendIBTPCounter.Load()
-//			totalTimer := ex.sendIBTPTimer.Load()
-//
-//			if tps != 0 {
-//				ex.logger.WithFields(logrus.Fields{
-//					"tps":      tps,
-//					"tps_sum":  counter,
-//					"tps_time": totalTimer.Milliseconds() / int64(counter),
-//					"tps_avg":  float64(counter) / time.Since(current).Seconds(),
-//				}).Warn("analysis")
-//			}
-//
-//		case <-ex.ctx.Done():
-//			return
-//		}
-//	}
-//}
-//
-//func (ex *Exchanger) timeCost() func() {
-//	start := time.Now()
-//	return func() {
-//		tc := time.Since(start)
-//		ex.sendIBTPTimer.Add(tc)
-//	}
-//}
+func (ex *Exchanger) analysisDirectTPS() {
+	ticker := time.NewTicker(time.Second)
+	defer ticker.Stop()
+
+	current := time.Now()
+	counter := ex.sendIBTPCounter.Load()
+	for {
+		select {
+		case <-ticker.C:
+			tps := ex.sendIBTPCounter.Load() - counter
+			counter = ex.sendIBTPCounter.Load()
+			totalTimer := ex.sendIBTPTimer.Load()
+
+			//if tps != 0 {
+			ex.logger.WithFields(logrus.Fields{
+				"tps":      tps,
+				"tps_sum":  counter,
+				"tps_time": totalTimer.Milliseconds() / int64(counter),
+				"tps_avg":  float64(counter) / time.Since(current).Seconds(),
+			}).Warn("analysis")
+			//}
+
+		case <-ex.ctx.Done():
+			return
+		}
+	}
+}
+
+func (ex *Exchanger) timeCost() func() {
+	start := time.Now()
+	return func() {
+		tc := time.Since(start)
+		ex.sendIBTPTimer.Add(tc)
+	}
+}

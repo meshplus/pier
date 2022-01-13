@@ -2,7 +2,6 @@ package checker
 
 import (
 	"fmt"
-	"strings"
 	"sync"
 
 	"github.com/meshplus/bitxhub-core/validator"
@@ -64,36 +63,36 @@ func (c *DirectChecker) BasicCheck(ibtp *pb.IBTP) (bool, error) {
 }
 
 func (c *DirectChecker) CheckProof(ibtp *pb.IBTP) error {
-	var chainID string
-
-	if ibtp.Category() == pb.IBTP_REQUEST {
-		_, chainID, _, _ = pb.ParseFullServiceID(ibtp.From)
-	} else {
-		_, chainID, _, _ = pb.ParseFullServiceID(ibtp.To)
-	}
-
-	appchainInfo, ok := c.chainInfoM[chainID]
-	if !ok {
-		broker, trustRoot, ruleAddr, err := c.client.GetAppchainInfo(chainID)
-		if err != nil {
-			return err
-		}
-		appchainInfo = &AppchainInfo{
-			broker:    broker,
-			trustRoot: trustRoot,
-			ruleAddr:  strings.ToLower(ruleAddr),
-		}
-		c.chainInfoM[chainID] = appchainInfo
-	}
-
-	// todo: need validate direct mode
-	ok, _, err := c.ve.Validate(appchainInfo.ruleAddr, chainID, ibtp.Proof, ibtp.Payload, string(appchainInfo.trustRoot))
-	if err != nil {
-		return err
-	}
-	if !ok {
-		return fmt.Errorf("validate ibtp %s failed", ibtp.ID())
-	}
+	//var chainID string
+	//
+	//if ibtp.Category() == pb.IBTP_REQUEST {
+	//	_, chainID, _, _ = pb.ParseFullServiceID(ibtp.From)
+	//} else {
+	//	_, chainID, _, _ = pb.ParseFullServiceID(ibtp.To)
+	//}
+	//
+	//appchainInfo, ok := c.chainInfoM[chainID]
+	//if !ok {
+	//	broker, trustRoot, ruleAddr, err := c.client.GetAppchainInfo(chainID)
+	//	if err != nil {
+	//		return err
+	//	}
+	//	appchainInfo = &AppchainInfo{
+	//		broker:    broker,
+	//		trustRoot: trustRoot,
+	//		ruleAddr:  strings.ToLower(ruleAddr),
+	//	}
+	//	c.chainInfoM[chainID] = appchainInfo
+	//}
+	//
+	//// todo: need validate direct mode
+	//ok, _, err := c.ve.Validate(appchainInfo.ruleAddr, chainID, ibtp.Proof, ibtp.Payload, string(appchainInfo.trustRoot))
+	//if err != nil {
+	//	return err
+	//}
+	//if !ok {
+	//	return fmt.Errorf("validate ibtp %s failed", ibtp.ID())
+	//}
 	return nil
 }
 
