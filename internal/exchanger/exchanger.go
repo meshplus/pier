@@ -13,6 +13,7 @@ import (
 	"github.com/meshplus/pier/internal/adapt"
 	"github.com/meshplus/pier/internal/repo"
 	"github.com/sirupsen/logrus"
+	"go.uber.org/atomic"
 )
 
 type Exchanger struct {
@@ -32,9 +33,11 @@ type Exchanger struct {
 	srcIBTPMap  map[string]chan *pb.IBTP
 	destIBTPMap map[string]chan *pb.IBTP
 
-	logger logrus.FieldLogger
-	ctx    context.Context
-	cancel context.CancelFunc
+	sendIBTPCounter atomic.Uint64
+	sendIBTPTimer   atomic.Duration
+	logger          logrus.FieldLogger
+	ctx             context.Context
+	cancel          context.CancelFunc
 }
 
 func New(typ, srcChainId, srcBxhId string, opts ...Option) (*Exchanger, error) {
@@ -117,6 +120,7 @@ func (ex *Exchanger) Start() error {
 	go ex.listenIBTPFromDestAdaptToServicePairCh()
 
 	ex.logger.Info("Exchanger started")
+	//go ex.analysisDirectTPS()
 	return nil
 }
 
@@ -185,7 +189,7 @@ func (ex *Exchanger) listenIBTPFromDestAdaptToServicePairCh() {
 			key := ibtp.From + ibtp.To
 			_, ok2 := ex.destIBTPMap[key]
 			if !ok2 {
-				ex.destIBTPMap[key] = make(chan *pb.IBTP, 1024)
+				ex.destIBTPMap[key] = make(chan *pb.IBTP, 40960)
 				if strings.EqualFold(repo.RelayMode, ex.mode) {
 					go ex.listenIBTPFromDestAdaptForRelay(key)
 				} else {
@@ -219,7 +223,6 @@ func (ex *Exchanger) listenIBTPFromDestAdapt(servicePair string) {
 				ex.logger.WithFields(logrus.Fields{"index": ibtp.Index, "to": ibtp.To}).Info("Get missing ibtp")
 				ex.handleMissingIBTPByServicePair(index+1, ibtp.Index-1, ex.destAdapt, ex.srcAdapt, ibtp.From, ibtp.To, !ex.isIBTPBelongSrc(ibtp))
 			}
-
 			if err := retry.Retry(func(attempt uint) error {
 				ex.logger.Infof("start sendIBTP to adapter: %s", ex.srcAdaptName)
 				if err := ex.srcAdapt.SendIBTP(ibtp); err != nil {
@@ -237,7 +240,6 @@ func (ex *Exchanger) listenIBTPFromDestAdapt(servicePair string) {
 			}, strategy.Backoff(backoff.Fibonacci(500*time.Millisecond))); err != nil {
 				ex.logger.Panic(err)
 			}
-
 			if ex.isIBTPBelongSrc(ibtp) {
 				ex.destServiceMeta[ibtp.From].ReceiptCounter[ibtp.To] = ibtp.Index
 			} else {
@@ -263,7 +265,7 @@ func (ex *Exchanger) listenIBTPFromSrcAdaptToServicePairCh() {
 			key := ibtp.From + ibtp.To
 			_, ok2 := ex.srcIBTPMap[key]
 			if !ok2 {
-				ex.srcIBTPMap[key] = make(chan *pb.IBTP, 1024)
+				ex.srcIBTPMap[key] = make(chan *pb.IBTP, 40960)
 				if strings.EqualFold(repo.RelayMode, ex.mode) {
 					go ex.listenIBTPFromSrcAdaptForRelay(key)
 				} else {
@@ -297,7 +299,6 @@ func (ex *Exchanger) listenIBTPFromSrcAdapt(servicePair string) {
 				ex.logger.WithFields(logrus.Fields{"index": ibtp.Index, "to": ibtp.To}).Info("Get missing ibtp")
 				ex.handleMissingIBTPByServicePair(index+1, ibtp.Index-1, ex.srcAdapt, ex.destAdapt, ibtp.From, ibtp.To, ex.isIBTPBelongSrc(ibtp))
 			}
-
 			if err := retry.Retry(func(attempt uint) error {
 				if err := ex.destAdapt.SendIBTP(ibtp); err != nil {
 					// if err occurs, try to get new ibtp and resend
@@ -410,3 +411,39 @@ func (ex *Exchanger) Stop() error {
 
 	return nil
 }
+
+//func (ex *Exchanger) analysisDirectTPS() {
+//	ticker := time.NewTicker(time.Second)
+//	defer ticker.Stop()
+//
+//	current := time.Now()
+//	counter := ex.sendIBTPCounter.Load()
+//	for {
+//		select {
+//		case <-ticker.C:
+//			tps := ex.sendIBTPCounter.Load() - counter
+//			counter = ex.sendIBTPCounter.Load()
+//			totalTimer := ex.sendIBTPTimer.Load()
+//
+//			if tps != 0 {
+//				ex.logger.WithFields(logrus.Fields{
+//					"tps":      tps,
+//					"tps_sum":  counter,
+//					"tps_time": totalTimer.Milliseconds() / int64(counter),
+//					"tps_avg":  float64(counter) / time.Since(current).Seconds(),
+//				}).Warn("analysis")
+//			}
+//
+//		case <-ex.ctx.Done():
+//			return
+//		}
+//	}
+//}
+//
+//func (ex *Exchanger) timeCost() func() {
+//	start := time.Now()
+//	return func() {
+//		tc := time.Since(start)
+//		ex.sendIBTPTimer.Add(tc)
+//	}
+//}

@@ -15,10 +15,10 @@ jobs:
     name: Run golanci-lint
     runs-on: ubuntu-latest
     steps:
-      - name: Set up Go 1.13
+      - name: Set up Go 1.15
         uses: actions/setup-go@v1
         with:
-          go-version: 1.13
+          go-version: 1.15
 
       - name: Check out code into the Go module directory
         uses: actions/checkout@v2
@@ -33,7 +33,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v1
         with:
-          go-version: 1.13
+          go-version: 1.15
 
       - name: Check out code
         uses: actions/checkout@v1
@@ -55,10 +55,10 @@ jobs:
     runs-on: ubuntu-latest
     needs: [lint, test]
     steps:
-      - name: Set up Go 1.13
+      - name: Set up Go 1.15
         uses: actions/setup-go@v1
         with:
-          go-version: 1.13
+          go-version: 1.15
 
       - name: Check out code into the Go module directory
         uses: actions/checkout@v2
