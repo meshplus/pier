@@ -166,6 +166,11 @@ func (g *FjsServer) count(startDate, endDate int64) (int64, int64, int64, int64)
 		fmt.Printf("sql open filed:%s", err.Error())
 		return 0, 0, 0, 0
 	}
+	defer func() {
+		if e := recover(); e != nil {
+			fmt.Errorf("%v", e)
+		}
+	}()
 	defer db.Close()
 	// insert
 	CoWorkTrans1, err := db.Query("SELECT COUNT (1) from ibtp")

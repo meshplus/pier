@@ -143,7 +143,7 @@ func (e *ChannelExecutor) execCallback(ibtp *pb.IBTP) error {
 		"status": resp.Status,
 		"msg":    resp.Message,
 	}).Info("Execute callback")
-	e.writeDBSuccessType(ibtp)
+	e.writeDB(ibtp, "ibtp_crsChnTxProc")
 
 	return nil
 }
@@ -175,11 +175,11 @@ func (e *ChannelExecutor) execRollback(ibtp *pb.IBTP, isSrcChain bool) error {
 		"status": resp.Status,
 		"msg":    resp.Message,
 	}).Info("Executed rollbcak")
-	e.writeDBFailedType(ibtp)
+	e.writeDB(ibtp, "ibtp_crsChnTxFail")
 	return nil
 }
 
-func (e *ChannelExecutor) writeDBSuccessType(ibtp *pb.IBTP) {
+func (e *ChannelExecutor) writeDB(ibtp *pb.IBTP, tableName string) {
 	// 记录ibtp
 	db, err := sql.Open("sqlite3", "./fjs.db")
 	if err != nil {
@@ -187,27 +187,7 @@ func (e *ChannelExecutor) writeDBSuccessType(ibtp *pb.IBTP) {
 		return
 	}
 	defer db.Close()
-	stmt, err := db.Prepare("INSERT INTO ibtp_crsChnTxProc(ibtpid,created) values(?,?)")
-	if err != nil {
-		fmt.Printf("sql filed:%s", err.Error())
-		return
-	}
-	_, err = stmt.Exec(fmt.Sprintf("%s-%s-%d", ibtp.From, ibtp.To, ibtp.Index), time.Now().UnixNano()/1e6)
-	if err != nil {
-		fmt.Printf("sql filed:%s", err.Error())
-		return
-	}
-}
-
-func (e *ChannelExecutor) writeDBFailedType(ibtp *pb.IBTP) {
-	// 记录ibtp
-	db, err := sql.Open("sqlite3", "./fjs.db")
-	if err != nil {
-		fmt.Printf("sql open filed:%s", err.Error())
-		return
-	}
-	defer db.Close()
-	stmt, err := db.Prepare("INSERT INTO ibtp_crsChnTxFail(ibtpid,created) values(?,?)")
+	stmt, err := db.Prepare("INSERT INTO " + tableName + "(ibtpid,created) values(?,?)")
 	if err != nil {
 		fmt.Printf("sql filed:%s", err.Error())
 		return
