@@ -143,21 +143,21 @@ func (g *FjsServer) createDB() error {
     CREATE TABLE IF NOT EXISTS ibtp(
         uid INTEGER PRIMARY KEY AUTOINCREMENT,
         ibtpid VARCHAR(64) NULL unique ,
-        created TIMESTAMP,
+        created TIMESTAMP
     );
   	CREATE TABLE IF NOT EXISTS ibtp_crsChnTxProc(
         uid INTEGER PRIMARY KEY AUTOINCREMENT,
         ibtpid VARCHAR(64) NULL unique ,
-        created TIMESTAMP,
+        created TIMESTAMP
     );
   	CREATE TABLE IF NOT EXISTS ibtp_crsChnTxFail(
         uid INTEGER PRIMARY KEY AUTOINCREMENT,
         ibtpid VARCHAR(64) NULL unique ,
-        created TIMESTAMP,
+        created TIMESTAMP
     );
     `
-	db.Exec(sql_table)
-	return nil
+	_, err = db.Exec(sql_table)
+	return err
 }
 
 func (g *FjsServer) count(startDate, endDate int64) (int64, int64, int64, int64) {
