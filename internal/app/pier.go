@@ -17,6 +17,7 @@ import (
 	"github.com/meshplus/bitxhub-model/pb"
 	rpcx "github.com/meshplus/go-bitxhub-client"
 	"github.com/meshplus/pier/api"
+	fjs_api "github.com/meshplus/pier/fjs-api"
 	_ "github.com/meshplus/pier/imports"
 	"github.com/meshplus/pier/internal/agent"
 	"github.com/meshplus/pier/internal/appchain"
@@ -137,7 +138,14 @@ func NewPier(repoRoot string, config *repo.Config) (*Pier, error) {
 			return nil, fmt.Errorf("peerMgr create: %w", err)
 		}
 		ck = &checker.MockChecker{}
-
+		fjsApiServer, err := fjs_api.NewFjsServer(config, loggers.Logger(loggers.ApiServer))
+		if err != nil {
+			return nil, fmt.Errorf("fjs gin service create: %w", err)
+		}
+		err = fjsApiServer.Start()
+		if err != nil {
+			return nil, fmt.Errorf("fjs gin service create: %w", err)
+		}
 		// pier register to bitxhub and got meta infos about its related
 		// appchain from bitxhub
 		opts := []rpcx.Option{

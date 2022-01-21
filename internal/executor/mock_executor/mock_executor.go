@@ -17,6 +17,16 @@ type MockExecutor struct {
 	recorder *MockExecutorMockRecorder
 }
 
+func (m *MockExecutor) GetData(req *pb.GetDataRequest) (*pb.GetDataResponse, error) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (m *MockExecutor) SubmitData(response *pb.GetDataResponse) error {
+	//TODO implement me
+	panic("implement me")
+}
+
 // MockExecutorMockRecorder is the mock recorder for MockExecutor
 type MockExecutorMockRecorder struct {
 	mock *MockExecutor

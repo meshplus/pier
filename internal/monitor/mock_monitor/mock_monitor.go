@@ -16,6 +16,11 @@ type MockMonitor struct {
 	recorder *MockMonitorMockRecorder
 }
 
+func (m *MockMonitor) ListenDataReq() <-chan *pb.GetDataRequest {
+	//TODO implement me
+	panic("implement me")
+}
+
 // MockMonitorMockRecorder is the mock recorder for MockMonitor
 type MockMonitorMockRecorder struct {
 	mock *MockMonitor

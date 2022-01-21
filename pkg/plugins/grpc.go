@@ -59,8 +59,8 @@ func (s *GRPCServer) GetDataReq(_ *pb.Empty, conn pb.AppchainPlugin_GetDataReqSe
 	}
 }
 
-func (s *GRPCServer) SubmitData(_ context.Context, res *pb.GetDataResponse) error {
-	return s.Impl.SubmitData(res)
+func (s *GRPCServer) SubmitData(_ context.Context, res *pb.GetDataResponse) (*pb.Empty, error) {
+	return &pb.Empty{}, s.Impl.SubmitData(res)
 }
 
 func (s *GRPCServer) GetIBTP(_ *pb.Empty, conn pb.AppchainPlugin_GetIBTPServer) error {

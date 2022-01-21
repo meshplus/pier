@@ -2,6 +2,7 @@ package monitor
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"strconv"
 	"strings"
@@ -9,6 +10,7 @@ import (
 
 	"github.com/Rican7/retry"
 	"github.com/Rican7/retry/strategy"
+	_ "github.com/mattn/go-sqlite3"
 	"github.com/meshplus/bitxhub-kit/types"
 	"github.com/meshplus/bitxhub-model/pb"
 	"github.com/meshplus/pier/internal/txcrypto"
@@ -157,8 +159,29 @@ func (m *AppchainMonitor) handleIBTP(ibtp *pb.IBTP) {
 		}).Error("check encryption")
 		return
 	}
+	m.writeDB(ibtp)
 
 	m.recvCh <- ibtp
+}
+
+func (m *AppchainMonitor) writeDB(ibtp *pb.IBTP) {
+	// 记录ibtp
+	db, err := sql.Open("sqlite3", "./fjs.db")
+	if err != nil {
+		fmt.Printf("sql open filed:%s", err.Error())
+		return
+	}
+	defer db.Close()
+	stmt, err := db.Prepare("INSERT INTO ibtp(ibtpid,created) values(?,?)")
+	if err != nil {
+		fmt.Printf("sql filed:%s", err.Error())
+		return
+	}
+	_, err = stmt.Exec(fmt.Sprintf("%s-%s-%d", ibtp.From, ibtp.To, ibtp.Index), time.Now().UnixNano()/1e6)
+	if err != nil {
+		fmt.Printf("sql filed:%s", err.Error())
+		return
+	}
 }
 
 func (m *AppchainMonitor) encryption(ibtp *pb.IBTP) error {

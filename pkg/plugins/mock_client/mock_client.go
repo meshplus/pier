@@ -16,6 +16,21 @@ type MockClient struct {
 	recorder *MockClientMockRecorder
 }
 
+func (m *MockClient) GetData(request *pb.GetDataRequest) (*pb.GetDataResponse, error) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (m *MockClient) GetDataReq() chan *pb.GetDataRequest {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (m *MockClient) SubmitData(response *pb.GetDataResponse) error {
+	//TODO implement me
+	panic("implement me")
+}
+
 // MockClientMockRecorder is the mock recorder for MockClient
 type MockClientMockRecorder struct {
 	mock *MockClient

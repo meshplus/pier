@@ -18,6 +18,7 @@ const (
 	GetAppchainUrl      = "appchain/get"
 
 	RegisterRuleUrl = "rule/register"
+	AnalysisForFJS  = "fjs/analysis"
 )
 
 func httpGet(url string) ([]byte, error) {
