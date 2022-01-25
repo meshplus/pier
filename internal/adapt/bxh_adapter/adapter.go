@@ -138,6 +138,9 @@ func (b *BxhAdapter) SendIBTP(ibtp *pb.IBTP) error {
 	proof := ibtp.GetProof()
 	proofHash := sha256.Sum256(proof)
 	ibtp.Proof = proofHash[:]
+	if err := ibtp.SetExtra(); err != nil {
+		return fmt.Errorf("set extra failed: %w", err)
+	}
 	if b.mode == repo.UnionMode {
 		ibtp.Extra = proof
 	}
