@@ -22,15 +22,16 @@ var appchainBxhCMD = cli.Command{
 	Usage: "Command about appchain in bitxhub",
 	Subcommands: []cli.Command{
 		methodCommand,
-		didCommand,
-		{
-			Name:  "register",
-			Usage: "Register pier to bitxhub",
-			Flags: []cli.Flag{
-				methodFlag,
-			},
-			Action: registerPier,
-		},
+		//abandon didCommand
+		//didCommand,
+		//{
+		//	Name:  "register",
+		//	Usage: "Register pier to bitxhub",
+		//	Flags: []cli.Flag{
+		//		methodFlag,
+		//	},
+		//	Action: registerPier,
+		//},
 		{
 			Name:  "update",
 			Usage: "update appchain in bitxhub",
@@ -129,10 +130,10 @@ var appchainBxhCMD = cli.Command{
 	},
 }
 
-func registerPier(ctx *cli.Context) error {
-	// todo: add register pier logic
-	return nil
-}
+//func registerPier(ctx *cli.Context) error {
+//	// todo: add register pier logic
+//	return nil
+//}
 
 func updateAppchain(ctx *cli.Context) error {
 	chainAdminKeyPath := ctx.String("admin-key")
