@@ -77,8 +77,8 @@ func (m Persister) Query(prefix string) (bool, [][]byte) {
 	return len(ret) != 0, ret
 }
 
-func (m Persister) GetAccount(_ string) (bool, interface{}) {
-	return false, nil
+func (m Persister) GetAccount(_ string) interface{} {
+	return nil
 }
 
 func NewManager(addr string, storage storage.Storage, pm peermgr.PeerManager, logger logrus.FieldLogger) (*Manager, error) {
