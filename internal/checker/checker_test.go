@@ -9,6 +9,7 @@ import (
 
 	"github.com/golang/mock/gomock"
 	appchainmgr "github.com/meshplus/bitxhub-core/appchain-mgr"
+	"github.com/meshplus/bitxhub-core/governance"
 	"github.com/meshplus/bitxhub-core/validator"
 	"github.com/meshplus/bitxhub-kit/log"
 	"github.com/meshplus/bitxhub-kit/storage/leveldb"
@@ -58,20 +59,24 @@ func TestDirectChecker_Check(t *testing.T) {
 	// ethereum with nil code
 	err = dc.Check(ibtp4)
 	require.NotNil(t, err)
-	// fabric with nil code
+	// fabric verify false
 	err = dc.Check(ibtp5)
-	require.Nil(t, err)
+	require.NotNil(t, err)
 
 	// check with load ok
 	app, err := getAppchain(from, "fabric")
 	require.Nil(t, err)
 	dc.appchainCache.Store(from, &appchainRule{
 		appchain:    app,
-		codeAddress: validator.SimFabricRuleAddr,
+		codeAddress: validator.HappyRuleAddr,
 	})
 	// check successfully
 	err = dc.Check(ibtp1)
 	require.Nil(t, err)
+	dc.appchainCache.Store(from, &appchainRule{
+		appchain:    app,
+		codeAddress: validator.SimFabricRuleAddr,
+	})
 	// check unsuccessfully
 	err = dc.Check(ibtp6)
 	require.NotNil(t, err)
@@ -159,7 +164,11 @@ func getIBTP(t *testing.T, index uint64, typ pb.IBTP_Type, from, to, proofPath s
 type MockAppchainMgr struct {
 }
 
-func (m MockAppchainMgr) ChangeStatus(id, trigger string, extra []byte) (bool, []byte) {
+func (m MockAppchainMgr) GovernancePre(id string, event governance.EventType, extra []byte) (bool, []byte) {
+	panic("implement me")
+}
+
+func (m MockAppchainMgr) ChangeStatus(id, trigger, lastStatus string, extra []byte) (bool, []byte) {
 	return true, nil
 }
 

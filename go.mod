@@ -18,24 +18,23 @@ require (
 	github.com/hashicorp/go-hclog v0.0.0-20180709165350-ff2cf002a8dd
 	github.com/hashicorp/go-plugin v1.3.0
 	github.com/ipfs/go-cid v0.0.7
-	github.com/lestrrat-go/strftime v1.0.3 // indirect
 	github.com/libp2p/go-libp2p-core v0.6.1
-	github.com/meshplus/bitxhub-core v1.3.1-0.20210524071255-789fd9ab501c
-	github.com/meshplus/bitxhub-kit v1.2.1-0.20210616114532-4849447f09e1
-	github.com/meshplus/bitxhub-model v1.2.1-0.20210811024313-728f913a1397
+	github.com/meshplus/bitxhub-core v1.3.1-0.20220129100150-aa3fd98079e4
+	github.com/meshplus/bitxhub-kit v1.2.1-0.20210830031953-cf5f83f2e1dd
+	github.com/meshplus/bitxhub-model v1.2.1-0.20210909055322-3025ed2ba82f
 	github.com/meshplus/bitxid v0.0.0-20210412025850-e0eaf0f9063a
 	github.com/meshplus/go-bitxhub-client v1.3.1-0.20210701063659-a0836fbc1c78
 	github.com/meshplus/go-lightp2p v0.0.0-20200817105923-6b3aee40fa54
 	github.com/mitchellh/go-homedir v1.1.0
 	github.com/multiformats/go-multiaddr v0.3.0
-	github.com/sirupsen/logrus v1.6.0
-	github.com/spf13/viper v1.7.0
+	github.com/sirupsen/logrus v1.8.1
+	github.com/spf13/viper v1.7.1
 	github.com/stretchr/testify v1.7.0
 	github.com/tidwall/gjson v1.6.8
 	github.com/urfave/cli v1.22.1
 	github.com/wonderivan/logger v1.0.0
-	go.uber.org/atomic v1.6.0
-	google.golang.org/grpc v1.33.1
+	go.uber.org/atomic v1.7.0
+	google.golang.org/grpc v1.33.2
 )
 
 replace github.com/libp2p/go-libp2p-core => github.com/libp2p/go-libp2p-core v0.5.6
