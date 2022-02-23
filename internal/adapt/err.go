@@ -10,6 +10,7 @@ const (
 	ValidationRules_Unregister
 	Proof_Invalid
 	Index_Wrong
+	InvalidIBTP
 	Other_Error
 	PierConnect_Error
 )
@@ -25,9 +26,9 @@ func (e *SendIbtpError) Error() string {
 
 func (e *SendIbtpError) NeedRetry() bool {
 	switch e.Status {
-	case SrcChain_Unavailable, SrcChainService_Unavailable, ValidationRules_Unregister, Proof_Invalid, PierConnect_Error:
+	case SrcChainService_Unavailable, ValidationRules_Unregister, Proof_Invalid, PierConnect_Error, InvalidIBTP:
 		return true
-	case TargetChain_Unavailable, TargetChainService_Unavailable, Index_Wrong:
+	case Index_Wrong:
 		return false
 	default:
 		return false
