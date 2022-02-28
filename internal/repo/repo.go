@@ -227,3 +227,17 @@ func LoadNodePrivateKey(repoRoot string) (crypto.PrivateKey, error) {
 
 	return asym.PrivateKeyFromStdKey(privKey)
 }
+
+func ReadConfig(v *viper.Viper, path, configType string, config interface{}) error {
+	v.SetConfigFile(path)
+	v.SetConfigType(configType)
+	if err := v.ReadInConfig(); err != nil {
+		return err
+	}
+
+	if err := v.Unmarshal(config); err != nil {
+		return err
+	}
+
+	return nil
+}

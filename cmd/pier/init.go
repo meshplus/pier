@@ -91,7 +91,7 @@ var initCMD = cli.Command{
 				cli.StringSliceFlag{
 					Name:     "peers",
 					Usage:    "Specify counter party peers to connect",
-					Required: true,
+					Required: false,
 				},
 			},
 			Action: initPier,
@@ -109,7 +109,7 @@ var initCMD = cli.Command{
 				cli.StringSliceFlag{
 					Name:     "connectors",
 					Usage:    "Specify the remote union peers to connect",
-					Required: true,
+					Required: false,
 				},
 			},
 			Action: initPier,
