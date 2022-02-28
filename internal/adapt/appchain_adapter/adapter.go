@@ -155,6 +155,11 @@ func (a *AppchainAdapter) SendIBTP(ibtp *pb.IBTP) error {
 		}
 	}
 
+	// set IBTP_RECEIPT_ROLLBACK txStatus TransactionStatus_BEGIN_ROLLBACK
+	if a.config.Mode.Type == repo.DirectMode && ibtp.Type == pb.IBTP_RECEIPT_ROLLBACK {
+		proof.TxStatus = pb.TransactionStatus_BEGIN_ROLLBACK
+	}
+
 	if isReq {
 		content := &pb.Content{}
 		if err := content.Unmarshal(pd.Content); err != nil {
@@ -290,6 +295,11 @@ func (a *AppchainAdapter) GetChainID() string {
 	return a.appchainID
 }
 
+// GetTransactionMeta get transaction start timestamp and timeout period in direct mode
+func (a *AppchainAdapter) GetTransactionMeta(IBTPid string) (uint64, uint64, error) {
+	return a.client.GetTransactionMeta(IBTPid)
+}
+
 func (a *AppchainAdapter) MonitorUpdatedMeta() chan *[]byte {
 	panic("implement me")
 }
@@ -314,7 +324,7 @@ func (a *AppchainAdapter) handlePayload(ibtp *pb.IBTP, encrypt bool) (*pb.IBTP, 
 
 	if pd.Encrypted {
 		if encrypt {
-			if ibtp.Category() == pb.IBTP_REQUEST {
+			if a.appchainID == dstChainID {
 				chainID = dstChainID
 			} else {
 				chainID = srcChainID
@@ -324,7 +334,7 @@ func (a *AppchainAdapter) handlePayload(ibtp *pb.IBTP, encrypt bool) (*pb.IBTP, 
 				return nil, nil, fmt.Errorf("cannot encrypt content for monitored ibtp %s", ibtp.ID())
 			}
 		} else {
-			if ibtp.Category() == pb.IBTP_REQUEST {
+			if a.appchainID == dstChainID {
 				chainID = srcChainID
 			} else {
 				chainID = dstChainID

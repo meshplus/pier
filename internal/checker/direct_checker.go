@@ -55,21 +55,28 @@ func (c *DirectChecker) BasicCheck(ibtp *pb.IBTP) (bool, error) {
 		return false, fmt.Errorf("invalid IBTP ID %s: the same from and to appchain", ibtp.ID())
 	}
 
-	if ibtp.Category() == pb.IBTP_REQUEST && c.appchainID != chainID1 ||
-		ibtp.Category() == pb.IBTP_RESPONSE && c.appchainID != chainID0 {
-		return false, fmt.Errorf("invalid IBTP ID %s with type %v", ibtp.ID(), ibtp.Type)
+	if c.appchainID == chainID0 {
+		return false, nil
 	}
 
-	return ibtp.Category() == pb.IBTP_REQUEST, nil
+	if c.appchainID == chainID1 {
+		return true, nil
+	}
+
+	//return ibtp.Category() == pb.IBTP_REQUEST, nil
+	return false, fmt.Errorf("invalid IBTP ID %s with type %v", ibtp.ID(), ibtp.Type)
 }
 
 func (c *DirectChecker) CheckProof(ibtp *pb.IBTP) error {
 	var chainID string
 
-	if ibtp.Category() == pb.IBTP_REQUEST {
-		_, chainID, _, _ = pb.ParseFullServiceID(ibtp.From)
+	_, chainID0, _, _ := pb.ParseFullServiceID(ibtp.From)
+	_, chainID1, _, _ := pb.ParseFullServiceID(ibtp.To)
+
+	if c.appchainID == chainID0 {
+		chainID = chainID1
 	} else {
-		_, chainID, _, _ = pb.ParseFullServiceID(ibtp.To)
+		chainID = chainID0
 	}
 
 	appchainInfo, ok := c.chainInfoM[chainID]
