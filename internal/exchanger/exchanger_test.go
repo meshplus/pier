@@ -1093,3 +1093,26 @@ func convertToLibp2pPrivKey(privateKey crypto.PrivateKey) (crypto2.PrivKey, erro
 
 	return libp2pPrivKey, nil
 }
+
+//var (
+//	nodesInfo = []*rpcx.NodeInfo{
+//		{Addr: "47.118.64.133:6661"},
+//	}
+//	logger = logrus.New()
+//)
+//
+//func Test_ListenBurn(t *testing.T) {
+//	privKey, err := asym.RestorePrivateKey("./testdata/node1/key.json", "bitxhub")
+//	require.Nil(t, err)
+//	cli, err := rpcx.New(
+//		rpcx.WithNodesInfo(nodesInfo...),
+//		rpcx.WithLogger(logger),
+//		rpcx.WithPrivateKey(privKey),
+//	)
+//	require.Nil(t, err)
+//	rpcClient, err := syncer.InitializeJsonRpcClient("0xB96f145CFAFD379c2Ee173BcA1302468838912d6", "http://47.118.64.133:7771", cli, syncer.WithLogger(log.NewWithModule(loggers.JsonrpcClient)))
+//	require.Nil(t, err)
+//
+//	rpcClient.QueryBurnEventByIndex(1)
+//	time.Sleep(1000 * time.Second)
+//}

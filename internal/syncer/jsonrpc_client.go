@@ -19,29 +19,43 @@ import (
 )
 
 type Client struct {
-	ctx                   context.Context
-	ethClient             *ethclient.Client
-	logger                logrus.FieldLogger
-	interchainSwapSession *contracts.InterchainSwapSession
-	appchainIndex         uint64
-	relayIndex            uint64
-	filterOptCh           chan *bind.FilterOpts
-	logCh                 chan *contracts.InterchainSwapBurn
-	burnCh                chan *pb.UnLock
-	pierId                string
+	ctx                   context.Context                    `json:"ctx,omitempty"`
+	ethClient             *ethclient.Client                  `json:"eth_client,omitempty"`
+	logger                logrus.FieldLogger                 `json:"logger,omitempty"`
+	interchainSwapSession *contracts.InterchainSwapSession   `json:"interchain_swap_session,omitempty"`
+	appchainIndex         uint64                             `json:"appchain_index,omitempty"`
+	relayIndex            uint64                             `json:"relay_index,omitempty"`
+	filterOptCh           chan *bind.FilterOpts              `json:"filter_opt_ch,omitempty"`
+	logCh                 chan *contracts.InterchainSwapBurn `json:"log_ch,omitempty"`
+	burnCh                chan *pb.UnLock                    `json:"burn_ch,omitempty"`
+	pierId                string                             `json:"pier_id,omitempty"`
 }
 
 func (c *Client) QueryBurnEventByIndex(index uint64) *pb.UnLock {
 	var burnCh *pb.UnLock
 	height := c.GetInterchainSwapIndex2Height(index)
-	end := height.Uint64()
+	currentStart := height.Uint64()
+	latestHeight, err := c.ethClient.BlockNumber(c.ctx)
+	if err != nil {
+		c.logger.Error("get most recent height", "error", err.Error())
+		return nil
+	}
+	if latestHeight < currentStart {
+		return nil
+	}
+	var end uint64
+
+	if latestHeight < currentStart+500 {
+		end = latestHeight
+	} else {
+		end = currentStart + 500
+	}
 	filterOpt := &bind.FilterOpts{
-		Start: end,
+		Start: currentStart,
 		End:   &end,
 	}
 	var (
 		iter *contracts.InterchainSwapBurnIterator
-		err  error
 	)
 	if err := retry.Retry(func(attempt uint) error {
 		iter, err = c.interchainSwapSession.Contract.FilterBurn(filterOpt)
