@@ -178,6 +178,7 @@ func (b *BxhAdapter) SendIBTP(ibtp *pb.IBTP) error {
 			b.logger.Errorf("retry error to get receipt: %w", err)
 		}
 
+		// most err occur in bxh's handleIBTP
 		if !receipt.IsSuccess() {
 			b.logger.WithFields(logrus.Fields{
 				"ibtp_id":   ibtp.ID(),
@@ -187,6 +188,7 @@ func (b *BxhAdapter) SendIBTP(ibtp *pb.IBTP) error {
 			// if no rule bind for this appchain or appchain not available, exit pier
 			errMsg := string(receipt.Ret)
 
+			// service have no bind rule when bxh verifyProofs
 			if strings.Contains(errMsg, noBindRule) {
 				retErr = &adapt.SendIbtpError{
 					Err:    errMsg,
@@ -196,16 +198,7 @@ func (b *BxhAdapter) SendIBTP(ibtp *pb.IBTP) error {
 				return nil
 			}
 
-			if strings.Contains(errMsg, CurAppchainNotAvailable) {
-				retErr = &adapt.SendIbtpError{
-					Err:    errMsg,
-					Status: adapt.SrcChain_Unavailable,
-				}
-
-				return nil
-			}
-
-			if strings.Contains(errMsg, CurServiceNotAvailable) {
+			if strings.Contains(errMsg, SrcServiceNotAvailable) {
 				retErr = &adapt.SendIbtpError{
 					Err:    errMsg,
 					Status: adapt.SrcChainService_Unavailable,
@@ -214,49 +207,57 @@ func (b *BxhAdapter) SendIBTP(ibtp *pb.IBTP) error {
 				return nil
 			}
 
-			// if target service is unavailable(maybe enter wrong format serviceID), just throw error
-			if strings.Contains(errMsg, InvalidTargetService) {
-				b.logger.Errorf("ignore invalid IBTP ID: invalid target service: %s", errMsg)
-				return nil
-			}
+			/* redundant code:
+			** if target err occur, bxh will actively notify src and dest appchain rollback. bxh receipt type is success,
+			** There is no need for pier actively handle error.
+			 */
 
-			// if target chain is not available, this ibtp should be rollback
-			if strings.Contains(errMsg, TargetAppchainNotAvailable) ||
-				strings.Contains(errMsg, TargetServiceNotAvailable) ||
-				strings.Contains(errMsg, TargetBitXHubNotAvailable) {
-				var isReq bool
-				switch ibtp.Category() {
-				case pb.IBTP_REQUEST:
-					isReq = true
-				case pb.IBTP_RESPONSE:
-					isReq = false
-				default:
-					b.logger.Warnf("ignore invalid IBTP ID %s", ibtp.ID())
-					return nil
-				}
+			//// if target service is unavailable(maybe enter wrong format serviceID), just throw error
+			//if strings.Contains(errMsg, InvalidTargetService) {
+			//	b.logger.Errorf("ignore invalid IBTP ID: invalid target service: %s", errMsg)
+			//	return nil
+			//}
 
-				// get multiSign
-				if err := retry.Retry(func(attempt uint) error {
-					proof, err := b.getMultiSign(ibtp, isReq)
-					if err != nil {
-						return fmt.Errorf("multiSign %w", err)
-					}
-					ibtp.Proof = proof
-					return nil
-				}, strategy.Wait(1*time.Second)); err != nil {
-					b.logger.Errorf("get ibtp multiSign from bxh err: %w", err)
-				}
+			//// if target chain is not available, this ibtp should be rollback
+			//if strings.Contains(errMsg, TargetAppchainNotAvailable) ||
+			//	strings.Contains(errMsg, TargetServiceNotAvailable) ||
+			//	strings.Contains(errMsg, TargetBitXHubNotAvailable) {
+			//	var isReq bool
+			//	switch ibtp.Category() {
+			//	case pb.IBTP_REQUEST:
+			//		isReq = true
+			//	case pb.IBTP_RESPONSE:
+			//		isReq = false
+			//	default:
+			//		b.logger.Warnf("ignore invalid IBTP ID %s", ibtp.ID())
+			//		return nil
+			//	}
+			//
+			//	// get multiSign
+			//	if err := retry.Retry(func(attempt uint) error {
+			//		proof, err := b.getMultiSign(ibtp, isReq)
+			//		if err != nil {
+			//			return fmt.Errorf("multiSign %w", err)
+			//		}
+			//		ibtp.Proof = proof
+			//		return nil
+			//	}, strategy.Wait(1*time.Second)); err != nil {
+			//		b.logger.Errorf("get ibtp multiSign from bxh err: %w", err)
+			//	}
+			//
+			//	b.ibtpC <- ibtp
+			//	return nil
+			//}
 
-				b.ibtpC <- ibtp
-				return nil
-			}
+			// check index
 			if strings.Contains(errMsg, ibtpIndexExist) {
 				// if ibtp index is lower than index recorded on bitxhub, then ignore this ibtp
 				return nil
 			}
 
 			if strings.Contains(errMsg, ibtpIndexWrong) {
-				// if index is wrong ,notify exchanger to update its meta from bitxhub
+				// if index is wrong , means appchain's ibtp_index > bxh's ibtp_index+1
+				// TODO: redundant code? maybe it's impossible to occur？
 				b.logger.Error("invalid ibtp %s", ibtp.ID())
 				retErr = &adapt.SendIbtpError{
 					Err:    errMsg,
@@ -270,9 +271,8 @@ func (b *BxhAdapter) SendIBTP(ibtp *pb.IBTP) error {
 				// try to get new ibtp and resend
 				retErr = &adapt.SendIbtpError{
 					Err:    errMsg,
-					Status: adapt.Other_Error,
+					Status: adapt.InvalidIBTP,
 				}
-
 				return nil
 			}
 
@@ -290,15 +290,16 @@ func (b *BxhAdapter) SendIBTP(ibtp *pb.IBTP) error {
 			// step2: bxh give a multiSign field with txStatus.
 			// if the ibtp will rollback, the proof filed txStatus wii be modified to TransactionStatus_BEGIN_ROLLBACK.
 			// step3: bxh send ibtp with TransactionStatus_BEGIN_ROLLBACK to bxhAdapter ibtpCh, then send to destAppchain.
-			// step4: destAppchain receive the ibtp, will rollback according to the txStatus.
-			// step5: desAppchain rollback finished, send receipt ibtp with TransactionStatus_ROLLBACK to bxh.
+			// step4: destAppchain receive the ibtp, will rollback according to the txStatus(TransactionStatus_BEGIN_ROLLBACK).
+			// step5: desAppchain rollback finished, send receipt(type is pb.IBTP_RECEIPT_ROLLBACK) to bxh.
+			// step6: bxh change status to TransactionStatus_ROLLBACK, it's done.
 			if strings.Contains(errMsg, ibtpRollback) {
 				b.logger.WithFields(logrus.Fields{
 					"id":  ibtp.ID(),
 					"err": errMsg,
 				}).Warn("IBTP has rollback")
 				if err := retry.Retry(func(attempt uint) error {
-					ibtp, err := b.QueryIBTP(ibtp.ID(), true)
+					ibtp, err = b.QueryIBTP(ibtp.ID(), true)
 					if err != nil {
 						b.logger.Warnf("query IBTP %s with isReq true", ibtp.ID())
 					} else {

@@ -214,13 +214,13 @@ func TestSendIBTP(t *testing.T) {
 	// test for receipt failed situation
 	client.EXPECT().SendTransaction(gomock.Any(), gomock.Any()).Return(hash, nil).AnyTimes()
 	errMsg1 := fmt.Sprintf("%s: appchain not registerd", noBindRule)
-	errMsg2 := fmt.Sprintf("%s: current appchain err", CurAppchainNotAvailable)
-	errMsg3 := fmt.Sprintf("%s: current service err", CurServiceNotAvailable)
-	errMsg4 := fmt.Sprintf("%s: target service err", InvalidTargetService)
+	//errMsg2 := fmt.Sprintf("%s: current appchain err", CurAppchainNotAvailable)
+	errMsg3 := fmt.Sprintf("%s: source service err", SrcServiceNotAvailable)
+	//errMsg4 := fmt.Sprintf("%s: target service err", InvalidTargetService)
 
-	errMsg5 := fmt.Sprintf("%s: target appchain err", TargetAppchainNotAvailable)
-	errMsg6 := fmt.Sprintf("%s: target service err", TargetServiceNotAvailable)
-	errMsg7 := fmt.Sprintf("%s: target bitxhub err", TargetBitXHubNotAvailable)
+	//errMsg5 := fmt.Sprintf("%s: target appchain err", TargetAppchainNotAvailable)
+	//errMsg6 := fmt.Sprintf("%s: target service err", TargetServiceNotAvailable)
+	//errMsg7 := fmt.Sprintf("%s: target bitxhub err", TargetBitXHubNotAvailable)
 
 	errMsg8 := fmt.Sprintf("%s: ibtp already on chain", ibtpIndexExist)
 	errMsg9 := fmt.Sprintf("%s: ibtp index is too high", ibtpIndexWrong)
@@ -237,11 +237,11 @@ func TestSendIBTP(t *testing.T) {
 	require.Equal(t, true, ok)
 	require.Equal(t, adapt.ValidationRules_Unregister, ibtpErr1.Status)
 
-	failReceipt.Ret = []byte(errMsg2)
-	err = adapter.SendIBTP(&pb.IBTP{})
-	ibtpErr2, ok := err.(*adapt.SendIbtpError)
-	require.Equal(t, true, ok)
-	require.Equal(t, adapt.SrcChain_Unavailable, ibtpErr2.Status)
+	//failReceipt.Ret = []byte(errMsg2)
+	//err = adapter.SendIBTP(&pb.IBTP{})
+	//ibtpErr2, ok := err.(*adapt.SendIbtpError)
+	//require.Equal(t, true, ok)
+	//require.Equal(t, adapt.SrcChain_Unavailable, ibtpErr2.Status)
 
 	failReceipt.Ret = []byte(errMsg3)
 	err = adapter.SendIBTP(&pb.IBTP{})
@@ -249,25 +249,25 @@ func TestSendIBTP(t *testing.T) {
 	require.Equal(t, true, ok)
 	require.Equal(t, adapt.SrcChainService_Unavailable, ibtpErr3.Status)
 
-	failReceipt.Ret = []byte(errMsg4)
-	err = adapter.SendIBTP(&pb.IBTP{})
-	require.Nil(t, err)
+	//failReceipt.Ret = []byte(errMsg4)
+	//err = adapter.SendIBTP(&pb.IBTP{})
+	//require.Nil(t, err)
 
 	// if target chain is not available, this ibtp should be rollback
-	failReceipt.Ret = []byte(errMsg5)
-	err = adapter.SendIBTP(&pb.IBTP{})
-	require.Nil(t, err)
-	<-adapter.ibtpC
+	//failReceipt.Ret = []byte(errMsg5)
+	//err = adapter.SendIBTP(&pb.IBTP{})
+	//require.Nil(t, err)
+	//<-adapter.ibtpC
 
-	failReceipt.Ret = []byte(errMsg6)
-	err = adapter.SendIBTP(&pb.IBTP{})
-	require.Nil(t, err)
-	<-adapter.ibtpC
+	//failReceipt.Ret = []byte(errMsg6)
+	//err = adapter.SendIBTP(&pb.IBTP{})
+	//require.Nil(t, err)
+	//<-adapter.ibtpC
 
-	failReceipt.Ret = []byte(errMsg7)
-	err = adapter.SendIBTP(&pb.IBTP{})
-	require.Nil(t, err)
-	<-adapter.ibtpC
+	//failReceipt.Ret = []byte(errMsg7)
+	//err = adapter.SendIBTP(&pb.IBTP{})
+	//require.Nil(t, err)
+	//<-adapter.ibtpC
 
 	failReceipt.Ret = []byte(errMsg8)
 	err = adapter.SendIBTP(&pb.IBTP{})
@@ -283,7 +283,7 @@ func TestSendIBTP(t *testing.T) {
 	err = adapter.SendIBTP(&pb.IBTP{})
 	ibtpErr10, ok := err.(*adapt.SendIbtpError)
 	require.Equal(t, true, ok)
-	require.Equal(t, adapt.Other_Error, ibtpErr10.Status)
+	require.Equal(t, adapt.InvalidIBTP, ibtpErr10.Status)
 
 	failReceipt.Ret = []byte(errMsg11)
 	err = adapter.SendIBTP(&pb.IBTP{})
