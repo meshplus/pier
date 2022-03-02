@@ -230,6 +230,10 @@ type mockAppchainPluginClient struct {
 	count uint64
 }
 
+func (mc *mockAppchainPluginClient) GetTransactionMeta(ctx context.Context, in *pb.TransactionMetaRequest, opts ...grpc.CallOption) (*pb.TransactionMetaResponse, error) {
+	panic("implement me")
+}
+
 func (mc *mockAppchainPluginClient) SubmitReceipt(ctx context.Context, in *pb.SubmitReceiptRequest, opts ...grpc.CallOption) (*pb.SubmitIBTPResponse, error) {
 	if mc.count%2 == 0 {
 		mc.count++
