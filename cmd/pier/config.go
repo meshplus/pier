@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"net"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -124,6 +125,23 @@ var configCMD = cli.Command{
 			},
 			Action: configPlugin,
 		},
+		{
+			Name:  "peers",
+			Usage: "config remote pier addr",
+			Flags: []cli.Flag{
+				cli.StringSliceFlag{
+					Name:     "addPier",
+					Usage:    "add pier address and pid, split with \"#\" ",
+					Required: false,
+				},
+				cli.StringSliceFlag{
+					Name:     "delPier",
+					Usage:    "delete pier address and pid, split with \"#\" ",
+					Required: false,
+				},
+			},
+			Action: configPeers,
+		},
 		//{
 		//	Name:  "flato",
 		//	Usage: "Initialize pier and flato plugin configuration",
@@ -226,6 +244,83 @@ var configCMD = cli.Command{
 		//	Action: configPlugin,
 		//},
 	},
+}
+
+func configPeers(ctx *cli.Context) error {
+	repoRoot, err := repo.PathRootWithDefault(ctx.GlobalString("repo"))
+	if err != nil {
+		return err
+	}
+	vpr, err := readFromConfigFile(filepath.Join(repoRoot, repo.ConfigName))
+	if err != nil {
+		return err
+	}
+
+	var peers []string
+	oldConfig := &repo.Config{}
+	err = repo.ReadConfig(vpr, filepath.Join(repoRoot, "pier.toml"), "toml", oldConfig)
+	if err != nil {
+		return err
+	}
+
+	//record pier
+	pierMap := make(map[string]string)
+	for _, v := range oldConfig.Mode.Direct.Peers {
+		multiStr := strings.Split(v, "/")
+		pierMap[multiStr[len(multiStr)-1]] = v
+	}
+
+	addPiers := ctx.StringSlice("addPier")
+	delPiers := ctx.StringSlice("delPier")
+
+	for _, str := range addPiers {
+		// multiStr looks like the format of QMfewfxxxxxxx#ip1:port1,ip2:port2....
+		multiStr := strings.Split(str, "#")
+		// the input must including one "#"
+		if len(multiStr) != 2 {
+			return fmt.Errorf("illegal pier input:%s, correct input looks like: [ip]:[port]#[Pid]", str)
+		}
+		// addr looks like the format of ip:port
+		host := strings.Split(multiStr[0], ":")
+		if len(host) != 2 {
+			return fmt.Errorf(
+				"illegal host input:%s, correct input looks like: [ip1]:[port1],[ip2]:[port2]", host)
+		}
+		ip := net.ParseIP(host[0])
+		if ip == nil {
+			return fmt.Errorf("illegal type of ipv4: %s", host[0])
+		}
+		port := host[1]
+		peer := fmt.Sprintf("/ip4/%s/tcp/%s/p2p/", ip, port)
+
+		// check repeat pid
+		if _, ok := pierMap[multiStr[1]]; !ok {
+			pierMap[multiStr[1]] = fmt.Sprintf(peer + multiStr[1])
+		} else {
+			return fmt.Errorf("reapt pid")
+		}
+
+	}
+
+	for _, str := range delPiers {
+		mutiStr := strings.Split(str, "#")
+		if len(mutiStr) != 2 {
+			return fmt.Errorf("illegal pier input:%s, correct input looks like: [ip]:[port]#[Pid]", str)
+		}
+		// remove pier form pierMap. if does not exist, return err.
+		if _, ok := pierMap[mutiStr[1]]; ok {
+			delete(pierMap, mutiStr[1])
+		} else {
+			return fmt.Errorf("%s does not exit", str)
+		}
+	}
+
+	for _, peer := range pierMap {
+		peers = append(peers, peer)
+	}
+	vpr.Set("mode.direct.peers", peers)
+
+	return vpr.WriteConfig()
 }
 
 func configPlugin(ctx *cli.Context) error {
