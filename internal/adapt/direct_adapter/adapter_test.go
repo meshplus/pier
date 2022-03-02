@@ -132,10 +132,6 @@ func TestSendIBTP(t *testing.T) {
 
 	time.Sleep(2 * time.Second)
 
-	wrongTypeIbtp := getIBTP(t, 1, pb.IBTP_RECEIPT_ROLLBACK)
-	err = adapter1.SendIBTP(wrongTypeIbtp)
-	require.Equal(t, true, strings.Contains(err.Error(), "unsupport ibtp type"))
-
 	// test AsyncSend err
 	asyncSendErr := fmt.Errorf("send ibtp to pier err")
 	peerMgr.EXPECT().AsyncSend(gomock.Any(), gomock.Any()).Return(asyncSendErr).MaxTimes(1)

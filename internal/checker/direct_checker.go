@@ -55,15 +55,22 @@ func (c *DirectChecker) BasicCheck(ibtp *pb.IBTP) (bool, error) {
 		return false, fmt.Errorf("invalid IBTP ID %s: the same from and to appchain", ibtp.ID())
 	}
 
-	if c.appchainID == chainID0 {
-		return false, nil
-	}
-
-	if c.appchainID == chainID1 {
+	if ibtp.Type == pb.IBTP_INTERCHAIN && c.appchainID == chainID1 {
 		return true, nil
 	}
 
-	//return ibtp.Category() == pb.IBTP_REQUEST, nil
+	if (ibtp.Type == pb.IBTP_RECEIPT_SUCCESS || ibtp.Type == pb.IBTP_RECEIPT_FAILURE || ibtp.Type == pb.IBTP_RECEIPT_ROLLBACK_END) && c.appchainID == chainID0 {
+		return false, nil
+	}
+
+	if ibtp.Type == pb.IBTP_RECEIPT_ROLLBACK && c.appchainID == chainID0 {
+		return false, nil
+	}
+
+	if ibtp.Type == pb.IBTP_RECEIPT_ROLLBACK && c.appchainID == chainID1 {
+		return true, nil
+	}
+
 	return false, fmt.Errorf("invalid IBTP ID %s with type %v", ibtp.ID(), ibtp.Type)
 }
 
