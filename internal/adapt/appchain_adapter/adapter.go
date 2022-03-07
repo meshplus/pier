@@ -193,9 +193,10 @@ func (a *AppchainAdapter) SendIBTP(ibtp *pb.IBTP) error {
 		err := &adapt.SendIbtpError{Err: fmt.Sprintf("fail to send ibtp %s with type %v: %s", ibtp.ID(), ibtp.Type, res.Message)}
 		if strings.Contains(res.Message, "invalid multi-signature") {
 			err.Status = adapt.Proof_Invalid
-		} else if a.config.Mode.Type == repo.DirectMode && (strings.Contains(res.Message, "dest address is not in local white list") ||
-			strings.Contains(res.Message, "remote service is not registered") ||
-			strings.Contains(res.Message, "remote service is not allowed to call dest address")) {
+		} else if a.config.Mode.Type == repo.DirectMode &&
+			(strings.Contains(res.Message, "dest address is not in local white list") ||
+				strings.Contains(res.Message, "remote service is not registered") ||
+				strings.Contains(res.Message, "remote service is not allowed to call dest address")) {
 			ibtp.Type = pb.IBTP_RECEIPT_FAILURE
 			a.ibtpC <- ibtp
 			err.Status = adapt.Other_Error

@@ -9,7 +9,7 @@ import (
 
 var versionCMD = cli.Command{
 	Name:  "version",
-	Usage: "Show version about ap",
+	Usage: "Show version about pier",
 	Action: func(ctx *cli.Context) error {
 		fmt.Print(getVersion(true))
 
