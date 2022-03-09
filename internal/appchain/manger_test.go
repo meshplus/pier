@@ -2,8 +2,11 @@ package appchain
 
 import (
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
+	"strconv"
 	"testing"
+	"time"
 
 	"github.com/golang/mock/gomock"
 	appchainmgr "github.com/meshplus/bitxhub-core/appchain-mgr"
@@ -22,19 +25,12 @@ const (
 )
 
 func TestRegisterAppchain(t *testing.T) {
-	manager := prepare(t)
-	appchain := appchain()
-	var s network.Stream
-	data, err := json.Marshal(appchain)
-	require.Nil(t, err)
 
-	msg := peermgr.Message(peerproto.Message_APPCHAIN_REGISTER, true, data)
-	manager.handleMessage(s, msg)
-	require.Nil(t, err)
+	parseInt, _ := strconv.ParseInt("1642499088759", 10, 64)
+	fmt.Println(parseInt)
+	fmt.Println(time.Unix(parseInt/1e3, parseInt%1e3).String())
 
-	ok, count := manager.Mgr.CountAppchains()
-	require.Equal(t, ok, true)
-	require.Equal(t, string(count), "1")
+	fmt.Println(time.Now().UnixNano() / 1e6)
 }
 
 func TestUpdateAppchain(t *testing.T) {

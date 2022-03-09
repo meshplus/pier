@@ -218,6 +218,7 @@ func (g *GRPCClient) GetDataReq() chan *pb.GetDataRequest {
 }
 
 func (g *GRPCClient) SubmitData(response *pb.GetDataResponse) error {
+	logger.Info("start to submitData!")
 	_, err := g.client.SubmitData(g.doneContext, response)
 	return err
 }
@@ -287,6 +288,7 @@ func (g *GRPCClient) handleDataReqStream(conn pb.AppchainPlugin_GetDataReqClient
 		case <-g.doneContext.Done():
 			return
 		case dataReq <- req:
+			logger.Info("handleDataReqStream req", "req", req)
 		}
 	}
 }

@@ -83,6 +83,7 @@ func New(typ, pierID string, meta *pb.Interchain, opts ...Option) (*Exchanger, e
 func (ex *Exchanger) Start() error {
 	if ex.mode != repo.UnionMode {
 		go ex.listenAndSendIBTPFromMnt()
+		go ex.listenDataReq()
 	}
 	if ex.mode != repo.DirectMode {
 		go ex.listenAndSendIBTPFromSyncer()
@@ -267,7 +268,7 @@ func (ex *Exchanger) listenDataReq() {
 					return err
 				}
 				entry.Info("send data request success")
-				var dataRes *pb.GetDataResponse
+				var dataRes = &pb.GetDataResponse{}
 				if res.Payload.Ok {
 					if err := dataRes.Unmarshal(res.Payload.Data); err != nil {
 						return err

@@ -272,7 +272,7 @@ func (ex *Exchanger) handleGetIBTPMessage(stream network.Stream, msg *peerMsg.Me
 }
 
 func (ex *Exchanger) handleGetDataMessage(stream network.Stream, msg *peerMsg.Message) {
-	var req *pb.GetDataRequest
+	var req = &pb.GetDataRequest{}
 	if err := req.Unmarshal(msg.Payload.Data); err != nil {
 		ex.logger.Error(err)
 		return
@@ -282,6 +282,7 @@ func (ex *Exchanger) handleGetDataMessage(stream network.Stream, msg *peerMsg.Me
 		"to":    req.To,
 		"from":  req.From,
 	})
+	entry.Info("receive handleGetData")
 
 	res, err := ex.exec.GetData(req)
 	if err != nil {

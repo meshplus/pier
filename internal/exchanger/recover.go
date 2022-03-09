@@ -14,6 +14,12 @@ import (
 func (ex *Exchanger) recoverRelay() {
 	// recover possible unrollbacked ibtp
 	callbackMeta := ex.exec.QueryCallbackMeta()
+	mntMeta := ex.mnt.QueryOuterMeta()
+	ex.logger.WithFields(logrus.Fields{
+		"outMeta":      mntMeta,
+		"callbackMeta": callbackMeta,
+		"InMeta":       ex.executorCounter,
+	}).Info("Appchain information")
 	for to, idx := range ex.interchainCounter {
 		beginIndex, ok := callbackMeta[to]
 		if !ok {
@@ -25,7 +31,6 @@ func (ex *Exchanger) recoverRelay() {
 		}
 	}
 	// recover unsent interchain ibtp
-	mntMeta := ex.mnt.QueryOuterMeta()
 	for to, idx := range mntMeta {
 		beginIndex, ok := ex.interchainCounter[to]
 		if !ok {
