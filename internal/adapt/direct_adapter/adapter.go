@@ -134,7 +134,12 @@ func (d *DirectAdapter) MonitorIBTP() chan *pb.IBTP {
 func (d *DirectAdapter) QueryIBTP(id string, isReq bool) (*pb.IBTP, error) {
 
 	var result *pb.Message
-	msg := peermgr.Message(pb.Message_IBTP_GET, true, []byte(id))
+	var msg *pb.Message
+	if isReq {
+		msg = peermgr.Message(pb.Message_IBTP_GET, true, []byte(id))
+	} else {
+		msg = peermgr.Message(pb.Message_IBTP_RECEIPT_GET, true, []byte(id))
+	}
 	result, err := d.peerMgr.Send(d.remotePierID, msg)
 	if err != nil {
 		return nil, err
@@ -148,12 +153,16 @@ func (d *DirectAdapter) QueryIBTP(id string, isReq bool) (*pb.IBTP, error) {
 
 // SendIBTP send ibtp to another pier
 func (d *DirectAdapter) SendIBTP(ibtp *pb.IBTP) error {
-	if ibtp.Type != pb.IBTP_INTERCHAIN && ibtp.Type != pb.IBTP_RECEIPT_SUCCESS && ibtp.Type != pb.IBTP_RECEIPT_FAILURE {
-		return fmt.Errorf("unsupport ibtp type:%s", ibtp.Type)
-	}
-
 	var targetChainID string
-	if ibtp.Category() == pb.IBTP_REQUEST {
+	//_, chainID0, _, _ := pb.ParseFullServiceID(ibtp.From)
+	//_, chainID1, _, _ := pb.ParseFullServiceID(ibtp.To)
+	//
+	//if strings.EqualFold(chainID0, d.appchainID) {
+	//	targetChainID = chainID1
+	//} else {
+	//	targetChainID = chainID0
+	//}
+	if ibtp.Type == pb.IBTP_INTERCHAIN || ibtp.Type == pb.IBTP_RECEIPT_ROLLBACK {
 		_, targetChainID, _ = ibtp.ParseTo()
 	} else {
 		_, targetChainID, _ = ibtp.ParseFrom()

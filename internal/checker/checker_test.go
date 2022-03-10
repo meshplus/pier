@@ -94,6 +94,20 @@ func TestDirectChecker_BasicCheck(t *testing.T) {
 	require.Nil(t, err)
 	require.False(t, isReq)
 
+	ibtp.From = fmt.Sprintf(":%s:service0", appchain1)
+	ibtp.To = fmt.Sprintf(":%s:service1", appchain0)
+	ibtp.Type = pb.IBTP_RECEIPT_ROLLBACK
+	isReq, err = checker.BasicCheck(ibtp)
+	require.Nil(t, err)
+	require.False(t, isReq)
+
+	ibtp.From = fmt.Sprintf(":%s:service0", appchain0)
+	ibtp.To = fmt.Sprintf(":%s:service1", appchain1)
+	ibtp.Type = pb.IBTP_RECEIPT_ROLLBACK
+	isReq, err = checker.BasicCheck(ibtp)
+	require.Nil(t, err)
+	require.True(t, isReq)
+
 	ibtp.From = fmt.Sprintf("%s:%s:service0", bxhID, appchain1)
 	isReq, err = checker.BasicCheck(ibtp)
 	require.NotNil(t, err)
@@ -117,6 +131,12 @@ func TestDirectChecker_BasicCheck(t *testing.T) {
 	ibtp.From = fmt.Sprintf(":%s:service0", appchain0)
 	ibtp.To = fmt.Sprintf(":%s:service1", appchain1)
 	ibtp.Type = pb.IBTP_RECEIPT_SUCCESS
+	isReq, err = checker.BasicCheck(ibtp)
+	require.NotNil(t, err)
+
+	ibtp.From = fmt.Sprintf(":%s:service0", appchain0)
+	ibtp.To = fmt.Sprintf(":%s:service1", appchain1)
+	ibtp.Type = pb.IBTP_RECEIPT_ROLLBACK_END
 	isReq, err = checker.BasicCheck(ibtp)
 	require.NotNil(t, err)
 }

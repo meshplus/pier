@@ -186,6 +186,22 @@ func (mr *MockClientMockRecorder) GetServices() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetServices", reflect.TypeOf((*MockClient)(nil).GetServices))
 }
 
+// GetTransactionMeta mocks base method.
+func (m *MockClient) GetTransactionMeta(arg0 string) (uint64, uint64, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetTransactionMeta", arg0)
+	ret0, _ := ret[0].(uint64)
+	ret1, _ := ret[1].(uint64)
+	ret2, _ := ret[2].(error)
+	return ret0, ret1, ret2
+}
+
+// GetTransactionMeta indicates an expected call of GetTransactionMeta.
+func (mr *MockClientMockRecorder) GetTransactionMeta(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetTransactionMeta", reflect.TypeOf((*MockClient)(nil).GetTransactionMeta), arg0)
+}
+
 // GetUpdateMeta mocks base method.
 func (m *MockClient) GetUpdateMeta() chan *pb.UpdateMeta {
 	m.ctrl.T.Helper()
