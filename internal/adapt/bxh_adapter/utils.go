@@ -13,14 +13,12 @@ import (
 )
 
 const (
-	CurAppchainNotAvailable    = "current appchain not available"
 	TargetAppchainNotAvailable = "target appchain not available"
 	SrcBitXHubNotAvailable     = "source bitxhub not available"
 	TargetBitXHubNotAvailable  = "target bitxhub not available"
-	CurServiceNotAvailable     = "current service not available"
-	TargetServiceNotAvailable  = "target service not available"
+	SrcServiceNotAvailable     = "1080007"
 
-	proofFailed          = "verify failed"
+	proofFailed          = "proof verify failed"
 	invalidIBTP          = "invalid ibtp"
 	ibtpIndexExist       = "index already exists"
 	ibtpIndexWrong       = "wrong index"

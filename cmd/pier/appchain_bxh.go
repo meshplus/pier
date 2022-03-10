@@ -99,6 +99,9 @@ var appchainBxhCMD = cli.Command{
 			},
 			Action: getAppchain,
 		},
+		interchainCMD,
+		ruleCMD,
+		governanceCMD,
 	},
 }
 
