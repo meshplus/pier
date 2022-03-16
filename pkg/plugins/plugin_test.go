@@ -230,7 +230,7 @@ type mockAppchainPluginClient struct {
 	count uint64
 }
 
-func (mc *mockAppchainPluginClient) GetTransactionMeta(ctx context.Context, in *pb.TransactionMetaRequest, opts ...grpc.CallOption) (*pb.TransactionMetaResponse, error) {
+func (mc *mockAppchainPluginClient) GetDirectTransactionMeta(ctx context.Context, in *pb.DirectTransactionMetaRequest, opts ...grpc.CallOption) (*pb.DirectTransactionMetaResponse, error) {
 	panic("implement me")
 }
 

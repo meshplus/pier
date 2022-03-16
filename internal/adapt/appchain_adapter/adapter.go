@@ -342,9 +342,9 @@ func (a *AppchainAdapter) GetChainID() string {
 	return a.appchainID
 }
 
-// GetTransactionMeta get transaction start timestamp and timeout period in direct mode
-func (a *AppchainAdapter) GetTransactionMeta(IBTPid string) (uint64, uint64, error) {
-	return a.client.GetTransactionMeta(IBTPid)
+// GetDirectTransactionMeta get transaction start timestamp, timeout period and transaction status in direct mode
+func (a *AppchainAdapter) GetDirectTransactionMeta(IBTPid string) (uint64, uint64, uint64, error) {
+	return a.client.GetDirectTransactionMeta(IBTPid)
 }
 
 func (a *AppchainAdapter) MonitorUpdatedMeta() chan *[]byte {

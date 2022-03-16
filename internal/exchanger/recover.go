@@ -2,16 +2,17 @@ package exchanger
 
 import (
 	"fmt"
-	"time"
-
 	"github.com/Rican7/retry"
 	"github.com/Rican7/retry/backoff"
 	"github.com/Rican7/retry/strategy"
 	"github.com/meshplus/bitxhub-kit/hexutil"
 	"github.com/meshplus/bitxhub-model/pb"
 	"github.com/meshplus/pier/internal/adapt"
+	"github.com/meshplus/pier/internal/adapt/appchain_adapter"
 	"github.com/meshplus/pier/internal/repo"
 	"github.com/sirupsen/logrus"
+	"strings"
+	"time"
 )
 
 func (ex *Exchanger) handleMissingIBTPByServicePair(begin, end uint64, fromAdapt, toAdapt adapt.Adapt, srcService, targetService string, isReq bool) {
@@ -23,6 +24,13 @@ func (ex *Exchanger) handleMissingIBTPByServicePair(begin, end uint64, fromAdapt
 			"isReq":        isReq,
 		}).Info("handle missing event from:" + adaptName)
 		ibtp := ex.queryIBTP(fromAdapt, fmt.Sprintf("%s-%s-%d", srcService, targetService, begin), isReq)
+		//transaction timeout rollback in direct mode
+		if strings.EqualFold(ex.mode, repo.DirectMode) {
+			if isRollback := ex.isIBTPRollbackForDirect(ibtp); isRollback {
+				ex.rollbackIBTPForDirect(ibtp)
+				return
+			}
+		}
 		ex.sendIBTP(fromAdapt, toAdapt, ibtp)
 	}
 }
@@ -55,6 +63,25 @@ func (ex *Exchanger) recover(srcServiceMeta map[string]*pb.Interchain, destServi
 			if !ok {
 				destCount = 0
 			}
+
+			// handle the situation that dst chain rollback failed but interchainCounter is balanced
+			if ex.mode == repo.DirectMode && destCount == count {
+				var begin uint64
+				for begin = 1; begin <= count; begin++ {
+					IBTPid := fmt.Sprintf("%s-%s-%d", interchain.ID, k, begin)
+					_, _, txStatus, err := ex.srcAdapt.(*appchain_adapter.AppchainAdapter).GetDirectTransactionMeta(IBTPid)
+					if err != nil {
+						ex.logger.Panicf("fail to get direct transaction status for ibtp %s", IBTPid)
+					}
+					if txStatus == 2 { // transaction status is begin_rollback
+						// notify dst chain rollback
+						ibtp := ex.queryIBTP(ex.srcAdapt, IBTPid, true)
+						ibtp.Type = pb.IBTP_RECEIPT_ROLLBACK
+						ex.sendIBTPForDirect(ex.srcAdapt, ex.destAdapt, ibtp, ex.isIBTPBelongSrc(ibtp), true)
+					}
+				}
+			}
+
 			// handle unsentIBTP : query IBTP -> sendIBTP
 			if destCount < count {
 				ex.handleMissingIBTPByServicePair(destCount+1, count, ex.srcAdapt, ex.destAdapt, interchain.ID, k, true)

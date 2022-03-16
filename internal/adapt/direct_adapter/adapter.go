@@ -154,14 +154,6 @@ func (d *DirectAdapter) QueryIBTP(id string, isReq bool) (*pb.IBTP, error) {
 // SendIBTP send ibtp to another pier
 func (d *DirectAdapter) SendIBTP(ibtp *pb.IBTP) error {
 	var targetChainID string
-	//_, chainID0, _, _ := pb.ParseFullServiceID(ibtp.From)
-	//_, chainID1, _, _ := pb.ParseFullServiceID(ibtp.To)
-	//
-	//if strings.EqualFold(chainID0, d.appchainID) {
-	//	targetChainID = chainID1
-	//} else {
-	//	targetChainID = chainID0
-	//}
 	if ibtp.Type == pb.IBTP_INTERCHAIN || ibtp.Type == pb.IBTP_RECEIPT_ROLLBACK {
 		_, targetChainID, _ = ibtp.ParseTo()
 	} else {
