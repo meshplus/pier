@@ -133,7 +133,7 @@ func NewPier(repoRoot string, config *repo.Config) (*Pier, error) {
 			return nil, fmt.Errorf("peerMgr create: %w", err)
 		}
 		cryptor, err := txcrypto.NewDirectCryptor(peerManager, privateKey, loggers.Logger(loggers.Cryptor))
-		appchainAdapter, err := appchain_adapter.NewAppchainAdapter(config, loggers.Logger(loggers.Appchain), cryptor)
+		appchainAdapter, err := appchain_adapter.NewAppchainAdapter(repo.DirectMode, config, loggers.Logger(loggers.Appchain), cryptor)
 		if err != nil {
 			return nil, fmt.Errorf("new appchain adapter: %w", err)
 		}
@@ -159,7 +159,7 @@ func NewPier(repoRoot string, config *repo.Config) (*Pier, error) {
 		}
 
 		cryptor, err := txcrypto.NewRelayCryptor(client, privateKey, loggers.Logger(loggers.Cryptor))
-		appchainAdapter, err := appchain_adapter.NewAppchainAdapter(config, loggers.Logger(loggers.Appchain), cryptor)
+		appchainAdapter, err := appchain_adapter.NewAppchainAdapter(repo.RelayMode, config, loggers.Logger(loggers.Appchain), cryptor)
 		if err != nil {
 			return nil, fmt.Errorf("new appchain adapter: %w", err)
 		}

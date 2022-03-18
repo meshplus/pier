@@ -192,6 +192,8 @@ func (ex *Exchanger) listenIBTPFromDestAdaptToServicePairCh() {
 				ex.destIBTPMap[key] = make(chan *pb.IBTP, 40960)
 				if strings.EqualFold(repo.RelayMode, ex.mode) {
 					go ex.listenIBTPFromDestAdaptForRelay(key)
+				} else if strings.EqualFold(repo.DirectMode, ex.mode) {
+					go ex.listenIBTPFromDestAdaptForDirect(key)
 				} else {
 					go ex.listenIBTPFromDestAdapt(key)
 				}
@@ -268,6 +270,8 @@ func (ex *Exchanger) listenIBTPFromSrcAdaptToServicePairCh() {
 				ex.srcIBTPMap[key] = make(chan *pb.IBTP, 40960)
 				if strings.EqualFold(repo.RelayMode, ex.mode) {
 					go ex.listenIBTPFromSrcAdaptForRelay(key)
+				} else if strings.EqualFold(repo.DirectMode, ex.mode) {
+					go ex.listenIBTPFromSrcAdaptForDirect(key)
 				} else {
 					go ex.listenIBTPFromSrcAdapt(key)
 				}
