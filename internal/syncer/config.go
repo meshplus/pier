@@ -42,6 +42,12 @@ func WithLogger(logger logrus.FieldLogger) Option {
 	}
 }
 
+func WithConfig(conf *repo.Config) Option {
+	return func(config *Config) {
+		config.config = conf
+	}
+}
+
 func GenerateConfig(opts ...Option) (*Config, error) {
 	config := &Config{}
 	for _, opt := range opts {

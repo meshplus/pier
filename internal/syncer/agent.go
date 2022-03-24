@@ -191,7 +191,7 @@ func (syncer *WrapperSyncer) SendIBTP(ibtp *pb.IBTP) error {
 	tx.Extra = proof
 
 	var receipt *pb.Receipt
-	if err := syncer.retryFunc(func(attempt uint) error {
+	err := syncer.retryFunc(func(attempt uint) error {
 		hash, err := syncer.client.SendTransaction(tx, nil)
 		if err != nil {
 			syncer.logger.Errorf("Send ibtp error: %s", err.Error())
@@ -203,19 +203,16 @@ func (syncer *WrapperSyncer) SendIBTP(ibtp *pb.IBTP) error {
 				tx.Extra = proof
 				return err
 			}
-			if uint64(attempt) >= syncer.rollbackTimeout {
-				return rpcx.ErrBrokenNetwork
-			}
 		}
 		receipt, err = syncer.client.GetReceipt(hash)
 		if err != nil {
 			return fmt.Errorf("get tx receipt by hash %s: %w", hash, err)
 		}
 		return nil
-	}); err != nil {
+	})
+	if err != nil {
 		return err
 	}
-
 	if !receipt.IsSuccess() {
 		syncer.logger.WithFields(logrus.Fields{
 			"ibtp_id": ibtp.ID(),
@@ -252,11 +249,17 @@ func (syncer *WrapperSyncer) SendIBTP(ibtp *pb.IBTP) error {
 }
 
 func (syncer *WrapperSyncer) retryFunc(handle func(uint) error) error {
-	return retry.Retry(func(attempt uint) error {
+	var err error
+	retry.Retry(func(attempt uint) error {
 		if err := handle(attempt); err != nil {
-			syncer.logger.Errorf("retry failed for reason: %s", err.Error())
+			syncer.logger.Errorf("retry[%d] failed for reason: %s", attempt, err.Error())
+			if uint64(attempt) >= syncer.rollbackTimeout {
+				err = rpcx.ErrBrokenNetwork
+				return nil
+			}
 			return err
 		}
 		return nil
 	}, strategy.Wait(500*time.Millisecond))
+	return err
 }

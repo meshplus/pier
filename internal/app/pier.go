@@ -179,7 +179,7 @@ func NewPier(repoRoot string, config *repo.Config) (*Pier, error) {
 		}
 
 		sync, err = syncer.New(addr.String(), config.Appchain.DID, repo.RelayMode,
-			syncer.WithClient(client), syncer.WithLite(lite),
+			syncer.WithClient(client), syncer.WithLite(lite), syncer.WithConfig(config),
 			syncer.WithStorage(store), syncer.WithLogger(loggers.Logger(loggers.Syncer)),
 		)
 		if err != nil {
