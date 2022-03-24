@@ -191,7 +191,7 @@ func (syncer *WrapperSyncer) SendIBTP(ibtp *pb.IBTP) error {
 	tx.Extra = proof
 
 	var receipt *pb.Receipt
-	syncer.retryFunc(func(attempt uint) error {
+	if err := syncer.retryFunc(func(attempt uint) error {
 		hash, err := syncer.client.SendTransaction(tx, nil)
 		if err != nil {
 			syncer.logger.Errorf("Send ibtp error: %s", err.Error())
@@ -203,13 +203,18 @@ func (syncer *WrapperSyncer) SendIBTP(ibtp *pb.IBTP) error {
 				tx.Extra = proof
 				return err
 			}
+			if uint64(attempt) >= syncer.rollbackTimeout {
+				return rpcx.ErrBrokenNetwork
+			}
 		}
 		receipt, err = syncer.client.GetReceipt(hash)
 		if err != nil {
 			return fmt.Errorf("get tx receipt by hash %s: %w", hash, err)
 		}
 		return nil
-	})
+	}); err != nil {
+		return err
+	}
 
 	if !receipt.IsSuccess() {
 		syncer.logger.WithFields(logrus.Fields{

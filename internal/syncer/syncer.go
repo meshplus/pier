@@ -38,13 +38,14 @@ type WrapperSyncer struct {
 	recoverHandler  RecoverUnionHandler
 	rollbackHandler RollbackHandler
 
-	mode        string
-	isRecover   bool
-	height      uint64
-	pierID      string
-	appchainDID string
-	ctx         context.Context
-	cancel      context.CancelFunc
+	mode            string
+	isRecover       bool
+	height          uint64
+	pierID          string
+	appchainDID     string
+	ctx             context.Context
+	cancel          context.CancelFunc
+	rollbackTimeout uint64
 }
 
 type SubscriptionKey struct {
@@ -61,15 +62,16 @@ func New(pierID, appchainDID string, mode string, opts ...Option) (*WrapperSynce
 	}
 
 	ws := &WrapperSyncer{
-		wrappersC:   make(chan *pb.InterchainTxWrappers, maxChSize),
-		ibtpC:       make(chan *model.WrappedIBTP, maxChSize),
-		client:      cfg.client,
-		lite:        cfg.lite,
-		storage:     cfg.storage,
-		logger:      cfg.logger,
-		mode:        mode,
-		pierID:      pierID,
-		appchainDID: appchainDID,
+		wrappersC:       make(chan *pb.InterchainTxWrappers, maxChSize),
+		ibtpC:           make(chan *model.WrappedIBTP, maxChSize),
+		client:          cfg.client,
+		lite:            cfg.lite,
+		storage:         cfg.storage,
+		logger:          cfg.logger,
+		rollbackTimeout: cfg.config.Mode.Relay.RollbackTimeout,
+		mode:            mode,
+		pierID:          pierID,
+		appchainDID:     appchainDID,
 	}
 
 	return ws, nil

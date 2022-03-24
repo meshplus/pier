@@ -7,6 +7,8 @@ import (
 	"sync"
 	"time"
 
+	rpcx "github.com/meshplus/go-bitxhub-client"
+
 	"github.com/Rican7/retry"
 	"github.com/Rican7/retry/backoff"
 	"github.com/Rican7/retry/strategy"
@@ -305,6 +307,11 @@ func (ex *Exchanger) sendIBTP(ibtp *pb.IBTP) error {
 			entry.Errorf("Send ibtp to bitxhub: %s", err.Error())
 			if errors.Is(err, syncer.ErrMetaOutOfDate) {
 				ex.updateInterchainMeta()
+				return nil
+			}
+			if errors.Is(err, rpcx.ErrBrokenNetwork) {
+				entry.Infof("SrcChain rollback ibtp")
+				ex.exec.Rollback(ibtp, false)
 				return nil
 			}
 			return fmt.Errorf("send ibtp to bitxhub: %s", err.Error())
