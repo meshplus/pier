@@ -312,6 +312,7 @@ func (ex *Exchanger) sendIBTP(ibtp *pb.IBTP) error {
 			if errors.Is(err, rpcx.ErrBrokenNetwork) {
 				entry.Infof("SrcChain rollback ibtp")
 				ex.exec.Rollback(ibtp, false)
+				ex.interchainCounter[ibtp.To] = ibtp.Index - 1
 				return nil
 			}
 			return fmt.Errorf("send ibtp to bitxhub: %s", err.Error())
