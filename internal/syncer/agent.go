@@ -210,8 +210,8 @@ func (syncer *WrapperSyncer) SendIBTP(ibtp *pb.IBTP) error {
 		}
 		return nil
 	})
-	if err != nil {
-		return err
+	if err != nil || receipt == nil {
+		return rpcx.ErrBrokenNetwork
 	}
 	if !receipt.IsSuccess() {
 		syncer.logger.WithFields(logrus.Fields{
@@ -249,17 +249,17 @@ func (syncer *WrapperSyncer) SendIBTP(ibtp *pb.IBTP) error {
 }
 
 func (syncer *WrapperSyncer) retryFunc(handle func(uint) error) error {
-	var err error
+	var errC error
 	retry.Retry(func(attempt uint) error {
 		if err := handle(attempt); err != nil {
 			syncer.logger.Errorf("retry[%d] failed for reason: %s", attempt, err.Error())
 			if uint64(attempt) >= syncer.rollbackTimeout {
-				err = rpcx.ErrBrokenNetwork
+				errC = rpcx.ErrBrokenNetwork
 				return nil
 			}
 			return err
 		}
 		return nil
 	}, strategy.Wait(500*time.Millisecond))
-	return err
+	return errC
 }
