@@ -18,6 +18,10 @@ type GRPCServer struct {
 	Impl Client
 }
 
+func (s *GRPCServer) GetTransactionMeta(ctx context.Context, request *pb.TransactionMetaRequest) (*pb.TransactionMetaResponse, error) {
+	panic("implement me")
+}
+
 func (s *GRPCServer) GetUpdateMeta(empty *pb.Empty, server pb.AppchainPlugin_GetUpdateMetaServer) error {
 	panic("implement me")
 }
