@@ -100,7 +100,7 @@ func (m *AppchainMonitor) QueryIBTP(id string) (*pb.IBTP, error) {
 		}
 		c <- e
 		return nil
-	}, strategy.Wait(2*time.Second)); err != nil {
+	}, strategy.Wait(50*time.Millisecond)); err != nil {
 		panic(err)
 	}
 
@@ -127,7 +127,7 @@ func (m *AppchainMonitor) QueryOuterMeta() map[string]uint64 {
 			return err
 		}
 		return nil
-	}, strategy.Wait(2*time.Second)); err != nil {
+	}, strategy.Wait(50*time.Millisecond)); err != nil {
 		panic(err)
 	}
 

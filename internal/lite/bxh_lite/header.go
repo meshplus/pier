@@ -91,7 +91,7 @@ func (lite *BxhLite) getHeaderChannel() chan *pb.BlockHeader {
 		}
 
 		return nil
-	}, strategy.Wait(2*time.Second)); err != nil {
+	}, strategy.Wait(50*time.Millisecond)); err != nil {
 		panic(err)
 	}
 

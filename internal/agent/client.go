@@ -191,7 +191,7 @@ func (client *BxhClient) getProof(ibtp *pb.IBTP) ([]byte, error) {
 			return err
 		}
 		return nil
-	}, strategy.Wait(1*time.Second)); err != nil {
+	}, strategy.Wait(50*time.Millisecond)); err != nil {
 		return nil, err
 		// log.NewWithModule("agent client plugin").Panic(err)
 	}

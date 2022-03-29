@@ -417,12 +417,12 @@ func (syncer *WrapperSyncer) verifyWrapper(w *pb.InterchainTxWrapper) (bool, err
 	if err := retry.Retry(func(attempt uint) error {
 		header, err = syncer.lite.QueryHeader(w.Height)
 		if err != nil {
-			syncer.logger.Warnf("query header: %s", err.Error())
+			//syncer.logger.Warnf("query header: %s", err.Error())
 			return err
 		}
 
 		return nil
-	}, strategy.Wait(2*time.Second)); err != nil {
+	}, strategy.Wait(50*time.Millisecond)); err != nil {
 		panic(err)
 	}
 
