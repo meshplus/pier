@@ -442,14 +442,18 @@ func prepare(t *testing.T) (*BxhAdapter, *BxhAdapter, *mock_client.MockClient) {
 
 	config := &repo.Config{}
 	config.Mode.Type = repo.RelayMode
+	config.TSS = &repo.TSS{
+		EnableTSS: false,
+		Signers:   []string{"1", "2", "3", "4"},
+	}
 
 	relayAdapter, err := New(repo.RelayMode, "",
-		client, log.NewWithModule("adapter"),
+		client, log.NewWithModule("adapter"), config.TSS,
 	)
 	require.Nil(t, err)
 
 	unionAdapter, err := New(repo.UnionMode, defaultUnionPierId,
-		client, log.NewWithModule("adapter"),
+		client, log.NewWithModule("adapter"), config.TSS,
 	)
 	require.Nil(t, err)
 

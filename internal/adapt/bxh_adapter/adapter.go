@@ -43,6 +43,7 @@ type BxhAdapter struct {
 	bxhID      uint64
 	ctx        context.Context
 	cancel     context.CancelFunc
+	tss        *repo.TSS
 }
 
 func (b *BxhAdapter) MonitorUpdatedMeta() chan *[]byte {
@@ -55,7 +56,7 @@ func (b *BxhAdapter) SendUpdatedMeta(byte []byte) error {
 
 // New creates instance of WrapperSyncer given agent interacting with bitxhub,
 // validators addresses of bitxhub and local storage
-func New(mode, appchainId string, client rpcx.Client, logger logrus.FieldLogger) (*BxhAdapter, error) {
+func New(mode, appchainId string, client rpcx.Client, logger logrus.FieldLogger, tss *repo.TSS) (*BxhAdapter, error) {
 	bxhID, err := client.GetChainID()
 	if err != nil {
 		return nil, fmt.Errorf("new bxh adapter err: %w", err)
@@ -72,6 +73,7 @@ func New(mode, appchainId string, client rpcx.Client, logger logrus.FieldLogger)
 		cancel:     cancel,
 		mode:       mode,
 		bxhID:      bxhID,
+		tss:        tss,
 	}
 
 	return ba, nil
@@ -508,7 +510,7 @@ func (b *BxhAdapter) handleInterchainTxWrapper(w *pb.InterchainTxWrapper, i int)
 			return false
 		}
 
-		proof, err := b.getMultiSign(ibtp, isReq)
+		proof, err := b.getSign(ibtp, isReq)
 		if err != nil {
 			return false
 		}
@@ -580,23 +582,38 @@ func (b *BxhAdapter) getTxStatus(id string) (pb.TransactionStatus, error) {
 	return pb.TransactionStatus(status), nil
 }
 
-func (b *BxhAdapter) getMultiSign(ibtp *pb.IBTP, isReq bool) ([]byte, error) {
+func (b *BxhAdapter) getSign(ibtp *pb.IBTP, isReq bool) ([]byte, error) {
 	var (
 		err     error
 		retSign *pb.SignResponse
+		reqTyp  pb.GetSignsRequest_Type
 	)
-	if isReq {
-		retSign, err = b.client.GetMultiSigns(ibtp.ID(), pb.GetMultiSignsRequest_IBTP_REQUEST)
+
+	extra := []byte{}
+	if b.tss.EnableTSS {
+		if isReq {
+			reqTyp = pb.GetSignsRequest_TSS_IBTP_REQUEST
+		} else {
+			reqTyp = pb.GetSignsRequest_TSS_IBTP_RESPONSE
+		}
+		extra = []byte(strings.Join(b.tss.Signers, ","))
+		retSign, err = b.client.GetTssSigns(ibtp.ID(), reqTyp, extra)
 		if err != nil {
 			return nil, err
 		}
 	} else {
-		retSign, err = b.client.GetMultiSigns(ibtp.ID(), pb.GetMultiSignsRequest_IBTP_RESPONSE)
+		if isReq {
+			reqTyp = pb.GetSignsRequest_MULTI_IBTP_REQUEST
+		} else {
+			reqTyp = pb.GetSignsRequest_MULTI_IBTP_RESPONSE
+		}
+
+		retSign, err = b.client.GetMultiSigns(ibtp.ID(), reqTyp)
 		if err != nil {
 			return nil, err
 		}
-
 	}
+
 	if retSign == nil || retSign.Sign == nil {
 		return nil, fmt.Errorf("get empty signatures for ibtp %s", ibtp.ID())
 	}
@@ -654,7 +671,7 @@ func (b *BxhAdapter) getIBTPByID(id string, isReq bool) (*pb.IBTP, error) {
 	}
 
 	retIBTP := response.Tx.GetIBTP()
-	proof, err := b.getMultiSign(retIBTP, isReq)
+	proof, err := b.getSign(retIBTP, isReq)
 	if err != nil {
 		return nil, err
 	}

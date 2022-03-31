@@ -53,3 +53,7 @@ mode = "single"
 id = "fabappchain"
 plugin = "appchain_plugin"
 config = "fabric"
+
+[tss]
+enable_tss = true
+signers = ["1", "2", "3", "4"]
