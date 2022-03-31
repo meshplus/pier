@@ -17,10 +17,10 @@ require (
 	github.com/hashicorp/go-plugin v1.3.0
 	github.com/ipfs/go-cid v0.0.7
 	github.com/libp2p/go-libp2p-core v0.6.1
-	github.com/meshplus/bitxhub-core v1.3.1-0.20211015044526-39e8bbfefa99
-	github.com/meshplus/bitxhub-kit v1.2.1-0.20210902085548-07f4fa85bfc9
-	github.com/meshplus/bitxhub-model v1.2.1-0.20220316053550-41f29cdca646
-	github.com/meshplus/go-bitxhub-client v1.4.1-0.20210902103117-4a8dcc2e8c18
+	github.com/meshplus/bitxhub-core v1.3.1-0.20220412081707-f923bd1fbc64
+	github.com/meshplus/bitxhub-kit v1.2.1-0.20220412092457-5836414df781
+	github.com/meshplus/bitxhub-model v1.2.1-0.20220412094754-157551807727
+	github.com/meshplus/go-bitxhub-client v1.4.1-0.20220412093230-11ca79f069fc
 	github.com/meshplus/go-lightp2p v0.0.0-20200817105923-6b3aee40fa54
 	github.com/mitchellh/go-homedir v1.1.0
 	github.com/multiformats/go-multiaddr v0.3.0
@@ -40,3 +40,5 @@ replace github.com/libp2p/go-libp2p-core => github.com/libp2p/go-libp2p-core v0.
 replace github.com/hyperledger/fabric => github.com/hyperledger/fabric v2.0.1+incompatible
 
 replace golang.org/x/net => golang.org/x/net v0.0.0-20210405180319-a5a99cb37ef4
+
+replace github.com/binance-chain/tss-lib => github.com/dawn-to-dusk/tss-lib v1.3.3-0.20220330081758-f404e10a1268

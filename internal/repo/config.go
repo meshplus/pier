@@ -25,6 +25,7 @@ type Config struct {
 	Appchain Appchain `toml:"appchain" json:"appchain"`
 	Security Security `toml:"security" json:"security"`
 	HA       HA       `toml:"ha" json:"ha"`
+	TSS      *TSS     `toml:"tss" json:"tss"`
 }
 
 // Security are certs used to setup connection with tls
@@ -44,6 +45,11 @@ type Port struct {
 
 type HA struct {
 	Mode string `toml:"mode" json:"mode"`
+}
+
+type TSS struct {
+	EnableTSS bool     `toml:"enable_tss" json:"enable_tss"`
+	Signers   []string `mapstructure:"signers"`
 }
 
 const (
@@ -170,6 +176,10 @@ func DefaultConfig() *Config {
 			ID:     "appchain",
 			Plugin: "appchain_plugin",
 			Config: "fabric",
+		},
+		TSS: &TSS{
+			EnableTSS: false,
+			Signers:   []string{"1", "2", "3", "4"},
 		},
 	}
 }
