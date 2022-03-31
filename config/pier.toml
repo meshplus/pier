@@ -56,4 +56,3 @@ config = "fabric"
 
 [tss]
 enable_tss = true
-signers = ["1", "2", "3", "4"]
