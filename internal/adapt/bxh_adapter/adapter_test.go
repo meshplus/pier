@@ -444,7 +444,6 @@ func prepare(t *testing.T) (*BxhAdapter, *BxhAdapter, *mock_client.MockClient) {
 	config.Mode.Type = repo.RelayMode
 	config.TSS = &repo.TSS{
 		EnableTSS: false,
-		Signers:   []string{"1", "2", "3", "4"},
 	}
 
 	relayAdapter, err := New(repo.RelayMode, "",

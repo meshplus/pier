@@ -589,15 +589,13 @@ func (b *BxhAdapter) getSign(ibtp *pb.IBTP, isReq bool) ([]byte, error) {
 		reqTyp  pb.GetSignsRequest_Type
 	)
 
-	extra := []byte{}
 	if b.tss.EnableTSS {
 		if isReq {
 			reqTyp = pb.GetSignsRequest_TSS_IBTP_REQUEST
 		} else {
 			reqTyp = pb.GetSignsRequest_TSS_IBTP_RESPONSE
 		}
-		extra = []byte(strings.Join(b.tss.Signers, ","))
-		retSign, err = b.client.GetTssSigns(ibtp.ID(), reqTyp, extra)
+		retSign, err = b.client.GetTssSigns(ibtp.ID(), reqTyp, nil)
 		if err != nil {
 			return nil, err
 		}

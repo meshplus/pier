@@ -48,8 +48,7 @@ type HA struct {
 }
 
 type TSS struct {
-	EnableTSS bool     `toml:"enable_tss" json:"enable_tss"`
-	Signers   []string `mapstructure:"signers"`
+	EnableTSS bool `toml:"enable_tss" json:"enable_tss"`
 }
 
 const (
@@ -179,7 +178,6 @@ func DefaultConfig() *Config {
 		},
 		TSS: &TSS{
 			EnableTSS: false,
-			Signers:   []string{"1", "2", "3", "4"},
 		},
 	}
 }
