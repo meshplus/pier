@@ -1,12 +1,13 @@
 package main
 
 import (
+	"fmt"
 	"os"
 	"time"
 
 	"github.com/fatih/color"
 	"github.com/meshplus/bitxhub-kit/log"
-	"github.com/meshplus/pier/cmd/pier/client"
+	"github.com/meshplus/pier"
 	"github.com/urfave/cli"
 )
 
@@ -15,8 +16,9 @@ var logger = log.NewWithModule("cmd")
 func main() {
 	app := cli.NewApp()
 	app.Name = "Pier"
-	app.Usage = "Manipulate the crosschain node"
+	app.Usage = "A Gateway Used To Cross the Appchain"
 	app.Compiled = time.Now()
+	app.Version = fmt.Sprintf("Pier version: %s-%s-%s\n", pier.CurrentVersion, pier.CurrentBranch, pier.CurrentCommit)
 
 	// global flags
 	app.Flags = []cli.Flag{
@@ -32,17 +34,14 @@ func main() {
 
 	app.Commands = []cli.Command{
 		appchainBxhCMD,
-		client.LoadClientCMD(),
+		//client.LoadClientCMD(),
 		idCMD,
 		initCMD,
-		interchainCMD,
 		networkCMD,
 		p2pCMD,
 		pluginCMD,
-		ruleCMD,
 		startCMD,
 		versionCMD,
-		governanceCMD,
 	}
 
 	err := app.Run(os.Args)
