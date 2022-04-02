@@ -47,10 +47,6 @@ var serviceCommand = cli.Command{
 					Value:    "CallContract",
 					Required: false,
 				},
-				cli.BoolFlag{
-					Name:  "ordered",
-					Usage: "Specify if the service should be ordered",
-				},
 				cli.StringFlag{
 					Name:     "permit",
 					Usage:    "Specify contracts which are not allowed to invoke the service. If there are multiple contract addresses, separate them with ','",
@@ -342,7 +338,6 @@ func registerService(ctx *cli.Context) error {
 	name := ctx.String("name")
 	typ := ctx.String("type")
 	intro := ctx.String("intro")
-	ordered := ctx.Bool("ordered")
 	permit := ctx.String("permit")
 	details := ctx.String("details")
 	reason := ctx.String("reason")
@@ -357,10 +352,6 @@ func registerService(ctx *cli.Context) error {
 		return err
 	}
 	// init method registry with this admin key
-	orderedTmp := 0
-	if ordered {
-		orderedTmp = 1
-	}
 	receipt, err := client.InvokeBVMContract(
 		constant.ServiceMgrContractAddr.Address(),
 		"RegisterService", nil,
@@ -369,7 +360,7 @@ func registerService(ctx *cli.Context) error {
 		rpcx.String(name),
 		rpcx.String(typ),
 		rpcx.String(intro),
-		rpcx.Uint64(uint64(orderedTmp)),
+		rpcx.Uint64(1),
 		rpcx.String(permit),
 		rpcx.String(details),
 		rpcx.String(reason),
