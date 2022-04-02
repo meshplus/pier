@@ -1,7 +1,6 @@
 package exchanger
 
 import (
-	"encoding/binary"
 	"fmt"
 	"github.com/Rican7/retry"
 	"github.com/Rican7/retry/backoff"
@@ -28,46 +27,12 @@ func (ex *Exchanger) listenIBTPFromDestAdaptForDirect(servicePair string) {
 			index := ex.getCurrentIndexFromDest(ibtp)
 
 			if index >= ibtp.Index {
-				// check if IBTP_RECEIPT_ROLLBACK && IBTP_RECEIPT_ROLLBACK_END
 				if ibtp.Type == pb.IBTP_RECEIPT_ROLLBACK {
-					// dstChain receive rollback, need rollback
-					if err := retry.Retry(func(attempt uint) error {
-						ex.logger.Infof("receive rollback ibtp from %s, start sendIBTP to adapter: %s", ibtp.GetFrom(), ex.srcAdaptName)
-						if err := ex.srcAdapt.SendIBTP(ibtp); err != nil {
-							ex.logger.Errorf("send IBTP to Adapt:%s", ex.srcAdaptName, "error", err.Error())
-							// if err occurs, try to get new ibtp and resend
-							if err, ok := err.(*adapt.SendIbtpError); ok {
-								if err.NeedRetry() {
-									// query to new ibtp
-									ibtp = ex.queryIBTP(ex.destAdapt, ibtp.ID(), !ex.isIBTPBelongSrc(ibtp))
-									ibtp.Type = pb.IBTP_RECEIPT_ROLLBACK
-									return fmt.Errorf("retry sending ibtp")
-								}
-							}
-						}
-						return nil
-					}, strategy.Backoff(backoff.Fibonacci(500*time.Millisecond))); err != nil {
-						ex.logger.Panic(err)
-					}
+					// dst chain receive rollback, need rollback
+					ex.sendIBTPForDirect(ex.destAdapt, ex.srcAdapt, ibtp, !ex.isIBTPBelongSrc(ibtp), true)
 				} else if ibtp.Type == pb.IBTP_RECEIPT_ROLLBACK_END {
-					// receive rollback end from dstChain, srcChain change transaction status
-					if err := retry.Retry(func(attempt uint) error {
-						ex.logger.Infof("receive rollback end, start sendIBTP to adapter: %s", ex.srcAdaptName)
-						if err := ex.srcAdapt.SendIBTP(ibtp); err != nil {
-							ex.logger.Errorf("send IBTP to Adapt:%s", ex.srcAdaptName, "error", err.Error())
-							// if err occurs, try to get new ibtp and resend
-							if err, ok := err.(*adapt.SendIbtpError); ok {
-								if err.NeedRetry() {
-									// query to new ibtp
-									ibtp = ex.queryIBTP(ex.destAdapt, ibtp.ID(), !ex.isIBTPBelongSrc(ibtp))
-									return fmt.Errorf("retry sending ibtp")
-								}
-							}
-						}
-						return nil
-					}, strategy.Backoff(backoff.Fibonacci(500*time.Millisecond))); err != nil {
-						ex.logger.Panic(err)
-					}
+					// receive rollback end from dst chain, src chain change transaction status
+					ex.sendIBTPForDirect(ex.destAdapt, ex.srcAdapt, ibtp, !ex.isIBTPBelongSrc(ibtp), false)
 				} else {
 					ex.logger.WithFields(logrus.Fields{"index": ibtp.Index, "to_counter": index, "ibtp_id": ibtp.ID()}).Info("Ignore ibtp")
 				}
@@ -79,69 +44,10 @@ func (ex *Exchanger) listenIBTPFromDestAdaptForDirect(servicePair string) {
 				ex.handleMissingIBTPByServicePair(index+1, ibtp.Index-1, ex.destAdapt, ex.srcAdapt, ibtp.From, ibtp.To, !ex.isIBTPBelongSrc(ibtp))
 			}
 
-			var isTimeout bool
-			// only check IBTP_RECEIPT_SUCCESS && IBTP_RECEIPT_FAILURE
-			if ex.isIBTPBelongSrc(ibtp) && ibtp.Type != pb.IBTP_RECEIPT_ROLLBACK && ibtp.Type != pb.IBTP_RECEIPT_ROLLBACK_END {
-				startTimeStamp, timeoutPeriod, err := ex.srcAdapt.(*appchain_adapter.AppchainAdapter).GetTransactionMeta(ibtp.ID())
-				if err != nil {
-					ex.logger.Errorf("get transaction meta with %s", ibtp.ID(), "error", err.Error())
-				}
-				// transaction timeout
-				if uint64(time.Now().Unix())-startTimeStamp > timeoutPeriod {
-					isTimeout = true
-					ibtp.Type = pb.IBTP_RECEIPT_ROLLBACK
-				}
-			}
-
-			if err := retry.Retry(func(attempt uint) error {
-				if isTimeout {
-					ex.logger.Infof("srcChain rollback, start sendIBTP to adapter: %s", ex.srcAdaptName)
-				} else {
-					ex.logger.Infof("start sendIBTP to adapter: %s", ex.srcAdaptName)
-				}
-				if err := ex.srcAdapt.SendIBTP(ibtp); err != nil {
-					ex.logger.Errorf("send IBTP to Adapt:%s", ex.srcAdaptName, "error", err.Error())
-					// if err occurs, try to get new ibtp and resend
-					if err, ok := err.(*adapt.SendIbtpError); ok {
-						if err.NeedRetry() {
-							// query to new ibtp
-							ibtp = ex.queryIBTP(ex.destAdapt, ibtp.ID(), !ex.isIBTPBelongSrc(ibtp))
-							// if transaction timeout, src chain rollback
-							if isTimeout {
-								ibtp.Type = pb.IBTP_RECEIPT_ROLLBACK
-							}
-							return fmt.Errorf("retry sending ibtp")
-						}
-					}
-				}
-				return nil
-			}, strategy.Backoff(backoff.Fibonacci(500*time.Millisecond))); err != nil {
-				ex.logger.Panic(err)
-			}
-
-			// if transaction timeout, dst chain need rollback
-			if isTimeout {
-				// get outMessage and notify dst chain rollback
-				ibtp = ex.queryIBTP(ex.srcAdapt, ibtp.ID(), ex.isIBTPBelongSrc(ibtp))
-				ibtp.Type = pb.IBTP_RECEIPT_ROLLBACK
-				if err := retry.Retry(func(attempt uint) error {
-					ex.logger.Infof("notify dstChain %s rollback, start sendIBTP to adapter: %s", ibtp.GetTo(), ex.destAdaptName)
-					if err := ex.destAdapt.SendIBTP(ibtp); err != nil {
-						ex.logger.Errorf("send IBTP to Adapt:%s", ex.destAdaptName, "error", err.Error())
-						// if err occurs, try to get new ibtp and resend
-						if err, ok := err.(*adapt.SendIbtpError); ok {
-							if err.NeedRetry() {
-								// query to new ibtp
-								ibtp = ex.queryIBTP(ex.srcAdapt, ibtp.ID(), ex.isIBTPBelongSrc(ibtp))
-								ibtp.Type = pb.IBTP_RECEIPT_ROLLBACK
-								return fmt.Errorf("retry sending ibtp")
-							}
-						}
-					}
-					return nil
-				}, strategy.Backoff(backoff.Fibonacci(500*time.Millisecond))); err != nil {
-					ex.logger.Panic(err)
-				}
+			if isRollback := ex.isIBTPRollbackForDirect(ibtp); isRollback {
+				ex.rollbackIBTPForDirect(ibtp)
+			} else {
+				ex.sendIBTPForDirect(ex.destAdapt, ex.srcAdapt, ibtp, !ex.isIBTPBelongSrc(ibtp), false)
 			}
 
 			if ex.isIBTPBelongSrc(ibtp) {
@@ -167,26 +73,11 @@ func (ex *Exchanger) listenIBTPFromSrcAdaptForDirect(servicePair string) {
 			ex.logger.WithFields(logrus.Fields{"index": ibtp.Index, "type": ibtp.Type, "ibtp_id": ibtp.ID()}).Info("Receive ibtp from :", ex.srcAdaptName)
 			index := ex.getCurrentIndexFromSrc(ibtp)
 			if index >= ibtp.Index {
-				if ibtp.Type == pb.IBTP_RECEIPT_ROLLBACK_END && !ex.isIBTPBelongSrc(ibtp) {
-					if err := retry.Retry(func(attempt uint) error {
-						ex.logger.Infof("start sendIBTP to Adapt:%s", ex.destAdaptName)
-						if err := ex.destAdapt.SendIBTP(ibtp); err != nil {
-							// if err occurs, try to get new ibtp and resend
-							if err, ok := err.(*adapt.SendIbtpError); ok {
-								if err.NeedRetry() {
-									ex.logger.Errorf("send IBTP to Adapt:%s", ex.destAdaptName, "error", err.Error())
-									// query to new ibtp
-									ibtp = ex.queryIBTP(ex.srcAdapt, ibtp.ID(), ex.isIBTPBelongSrc(ibtp))
-									return fmt.Errorf("retry sending ibtp")
-								}
-							}
-						}
-						return nil
-					}, strategy.Backoff(backoff.Fibonacci(500*time.Millisecond))); err != nil {
-						ex.logger.Panic(err)
-					}
+				if ibtp.Type == pb.IBTP_RECEIPT_ROLLBACK_END {
+					ex.sendIBTPForDirect(ex.srcAdapt, ex.destAdapt, ibtp, ex.isIBTPBelongSrc(ibtp), false)
+				} else {
+					ex.logger.WithFields(logrus.Fields{"index": ibtp.Index, "to_counter": index, "ibtp_id": ibtp.ID()}).Info("Ignore ibtp")
 				}
-				ex.logger.WithFields(logrus.Fields{"index": ibtp.Index, "to_counter": index, "ibtp_id": ibtp.ID()}).Info("Ignore ibtp")
 				continue
 			}
 
@@ -195,60 +86,10 @@ func (ex *Exchanger) listenIBTPFromSrcAdaptForDirect(servicePair string) {
 				ex.handleMissingIBTPByServicePair(index+1, ibtp.Index-1, ex.srcAdapt, ex.destAdapt, ibtp.From, ibtp.To, ex.isIBTPBelongSrc(ibtp))
 			}
 
-			var isTimeout bool
-			// transaction timeout
-			// ensure ibtp belong src chain
-			if ex.isIBTPBelongSrc(ibtp) {
-				startTimeStamp := int64(binary.BigEndian.Uint64(ibtp.GetExtra()))
-				if time.Now().Unix()-startTimeStamp > ibtp.GetTimeoutHeight() {
-					isTimeout = true
-					// src chain rollback
-					ibtp.Type = pb.IBTP_RECEIPT_ROLLBACK
-					if err := retry.Retry(func(attempt uint) error {
-						ex.logger.Infof("srcChain rollback, start send IBTP to Adapt:%s", ex.srcAdaptName)
-						if err := ex.srcAdapt.SendIBTP(ibtp); err != nil {
-							// if err occurs, try to get new ibtp and resend
-							if err, ok := err.(*adapt.SendIbtpError); ok {
-								if err.NeedRetry() {
-									ex.logger.Errorf("send IBTP to Adapt:%s", ex.srcAdaptName, "error", err.Error())
-									// query to new ibtp
-									ibtp = ex.queryIBTP(ex.srcAdapt, ibtp.ID(), ex.isIBTPBelongSrc(ibtp))
-									ibtp.Type = pb.IBTP_RECEIPT_ROLLBACK
-									return fmt.Errorf("retry sending ibtp")
-								}
-							}
-						}
-						return nil
-					}, strategy.Backoff(backoff.Fibonacci(500*time.Millisecond))); err != nil {
-						ex.logger.Panic(err)
-					}
-				}
-			}
-
-			if err := retry.Retry(func(attempt uint) error {
-				if isTimeout {
-					ex.logger.Infof("dstChain rollback, start sendIBTP to Adapt:%s", ex.destAdaptName)
-				} else {
-					ex.logger.Infof("start sendIBTP to Adapt:%s", ex.destAdaptName)
-				}
-				if err := ex.destAdapt.SendIBTP(ibtp); err != nil {
-					// if err occurs, try to get new ibtp and resend
-					if err, ok := err.(*adapt.SendIbtpError); ok {
-						if err.NeedRetry() {
-							ex.logger.Errorf("send IBTP to Adapt:%s", ex.destAdaptName, "error", err.Error())
-							// query to new ibtp
-							ibtp = ex.queryIBTP(ex.srcAdapt, ibtp.ID(), ex.isIBTPBelongSrc(ibtp))
-							if isTimeout {
-								// dst chain rollback
-								ibtp.Type = pb.IBTP_RECEIPT_ROLLBACK
-							}
-							return fmt.Errorf("retry sending ibtp")
-						}
-					}
-				}
-				return nil
-			}, strategy.Backoff(backoff.Fibonacci(500*time.Millisecond))); err != nil {
-				ex.logger.Panic(err)
+			if isRollback := ex.isIBTPRollbackForDirect(ibtp); isRollback {
+				ex.rollbackIBTPForDirect(ibtp)
+			} else {
+				ex.sendIBTPForDirect(ex.srcAdapt, ex.destAdapt, ibtp, ex.isIBTPBelongSrc(ibtp), false)
 			}
 
 			if ex.isIBTPBelongSrc(ibtp) {
@@ -257,5 +98,60 @@ func (ex *Exchanger) listenIBTPFromSrcAdaptForDirect(servicePair string) {
 				ex.srcServiceMeta[ibtp.To].SourceReceiptCounter[ibtp.From] = ibtp.Index
 			}
 		}
+	}
+}
+
+func (ex *Exchanger) isIBTPRollbackForDirect(ibtp *pb.IBTP) bool {
+	if !ex.isIBTPBelongSrc(ibtp) || ibtp.Type == pb.IBTP_RECEIPT_ROLLBACK || ibtp.Type == pb.IBTP_RECEIPT_ROLLBACK_END {
+		return false
+	}
+
+	startTimeStamp, timeoutPeriod, _, err := ex.srcAdapt.(*appchain_adapter.AppchainAdapter).GetDirectTransactionMeta(ibtp.ID())
+	if err != nil {
+		ex.logger.Errorf("get transaction meta with %s", ibtp.ID(), "error", err.Error())
+	}
+
+	return uint64(time.Now().Unix())-startTimeStamp > timeoutPeriod
+}
+
+func (ex *Exchanger) rollbackIBTPForDirect(ibtp *pb.IBTP) {
+	ibtp.Type = pb.IBTP_RECEIPT_ROLLBACK
+
+	// src chain rollback
+	ex.logger.Infof("src chain start rollback %s", ibtp.ID())
+	ex.sendIBTPForDirect(ex.srcAdapt, ex.srcAdapt, ibtp, ex.isIBTPBelongSrc(ibtp), true)
+	ex.logger.Infof("src chain rollback %s end", ibtp.ID())
+
+	// src chain rollback end, notify dst chain rollback
+	ex.logger.Infof("notify dst chain rollback")
+	ex.sendIBTPForDirect(ex.srcAdapt, ex.destAdapt, ibtp, ex.isIBTPBelongSrc(ibtp), true)
+}
+
+func (ex *Exchanger) sendIBTPForDirect(fromAdapt, toAdapt adapt.Adapt, ibtp *pb.IBTP, isReq bool, isRollback bool) {
+	if err := retry.Retry(func(attempt uint) error {
+		ex.logger.Infof("start sendIBTP to Adapt:%s", toAdapt.Name())
+		if err := toAdapt.SendIBTP(ibtp); err != nil {
+			// if err occurs, try to get new ibtp and resend
+			if err, ok := err.(*adapt.SendIbtpError); ok {
+				if err.NeedRetry() {
+					ex.logger.Errorf("send IBTP to Adapt:%s", ex.destAdaptName, "error", err.Error())
+					// query to new ibtp
+					ibtp = ex.queryIBTP(fromAdapt, ibtp.ID(), isReq)
+					// set ibtp rollback
+					if isRollback {
+						ibtp.Type = pb.IBTP_RECEIPT_ROLLBACK
+					}
+					// check if retry timeout
+					if isTimeout := ex.isIBTPRollbackForDirect(ibtp); isTimeout {
+						ex.rollbackIBTPForDirect(ibtp)
+						return nil
+					}
+					return fmt.Errorf("retry sending ibtp")
+				}
+			}
+		}
+		return nil
+	}, strategy.Backoff(backoff.Fibonacci(500*time.Millisecond))); err != nil {
+		ex.logger.Panic(err)
 	}
 }

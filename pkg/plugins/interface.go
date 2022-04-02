@@ -50,8 +50,8 @@ type Client interface {
 	// executed rollback txs from each service pair
 	GetDstRollbackMeta() (map[string]uint64, error)
 
-	// GetTransactionMeta gets transaction start timestamp and timeout period in direct mode
-	GetTransactionMeta(string) (uint64, uint64, error)
+	// GetDirectTransactionMeta gets transaction start timestamp, timeout period and transaction status in direct mode
+	GetDirectTransactionMeta(string) (uint64, uint64, uint64, error)
 
 	// GetServices gets all service IDs the pier cares
 	GetServices() ([]string, error)

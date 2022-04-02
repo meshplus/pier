@@ -163,15 +163,16 @@ func (s *GRPCServer) GetChainID(ctx context.Context, empty *pb.Empty) (*pb.Chain
 	}, nil
 }
 
-func (s *GRPCServer) GetTransactionMeta(ctx context.Context, request *pb.TransactionMetaRequest) (*pb.TransactionMetaResponse, error) {
-	startTimestamp, timeoutPeriod, err := s.Impl.GetTransactionMeta(request.IBTPid)
+func (s *GRPCServer) GetDirectTransactionMeta(ctx context.Context, request *pb.DirectTransactionMetaRequest) (*pb.DirectTransactionMetaResponse, error) {
+	startTimestamp, timeoutPeriod, transactionStatus, err := s.Impl.GetDirectTransactionMeta(request.IBTPid)
 	if err != nil {
 		return nil, err
 	}
 
-	return &pb.TransactionMetaResponse{
-		StartTimestamp: startTimestamp,
-		TimeoutPeriod:  timeoutPeriod,
+	return &pb.DirectTransactionMetaResponse{
+		StartTimestamp:    startTimestamp,
+		TimeoutPeriod:     timeoutPeriod,
+		TransactionStatus: transactionStatus,
 	}, nil
 }
 
@@ -429,13 +430,13 @@ func (g *GRPCClient) GetChainID() (string, string, error) {
 	return response.BxhID, response.AppchainID, nil
 }
 
-func (g *GRPCClient) GetTransactionMeta(id string) (uint64, uint64, error) {
-	response, err := g.client.GetTransactionMeta(g.doneContext, &pb.TransactionMetaRequest{IBTPid: id})
+func (g *GRPCClient) GetDirectTransactionMeta(id string) (uint64, uint64, uint64, error) {
+	response, err := g.client.GetDirectTransactionMeta(g.doneContext, &pb.DirectTransactionMetaRequest{IBTPid: id})
 	if err != nil {
-		return 0, 0, err
+		return 0, 0, 0, err
 	}
 
-	return response.StartTimestamp, response.TimeoutPeriod, nil
+	return response.StartTimestamp, response.TimeoutPeriod, response.TransactionStatus, nil
 }
 
 func (g *GRPCClient) Name() string {

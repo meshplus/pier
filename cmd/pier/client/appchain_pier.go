@@ -19,151 +19,151 @@ type Approve struct {
 	Desc       string `json:"desc"`
 }
 
-var clientCMD = cli.Command{
-	Name:  "client",
-	Usage: "Command about appchain in pier",
-	Subcommands: []cli.Command{
-		{
-			Name:  "register",
-			Usage: "Register appchain in pier",
-			Flags: []cli.Flag{
-				cli.StringFlag{
-					Name:     "pier-id",
-					Usage:    "Specify target pier id",
-					Required: true,
-				},
-				cli.StringFlag{
-					Name:     "name",
-					Usage:    "Specify appchain name",
-					Required: true,
-				},
-				cli.StringFlag{
-					Name:     "type",
-					Usage:    "Specify appchain type",
-					Required: true,
-				},
-				cli.StringFlag{
-					Name:     "desc",
-					Usage:    "Specify appchain description",
-					Required: true,
-				},
-				cli.StringFlag{
-					Name:     "version",
-					Usage:    "Specify appchain version",
-					Required: true,
-				},
-				cli.StringFlag{
-					Name:     "validators",
-					Usage:    "Specify appchain validators path",
-					Required: true,
-				},
-				cli.StringFlag{
-					Name:     "consensus-type",
-					Usage:    "Specify appchain consensus type",
-					Required: true,
-				},
-			},
-			Action: registerPierAppchain,
-		},
-		{
-			Name:  "update",
-			Usage: "Update appchain in pier",
-			Flags: []cli.Flag{
-				cli.StringFlag{
-					Name:     "pier-id",
-					Usage:    "Specify target pier id",
-					Required: false,
-				},
-				cli.StringFlag{
-					Name:     "name",
-					Usage:    "Specify appchain name",
-					Required: false,
-				},
-				cli.StringFlag{
-					Name:     "type",
-					Usage:    "Specify appchain type",
-					Required: false,
-				},
-				cli.StringFlag{
-					Name:     "desc",
-					Usage:    "Specify appchain description",
-					Required: false,
-				},
-				cli.StringFlag{
-					Name:     "version",
-					Usage:    "Specify appchain version",
-					Required: false,
-				},
-				cli.StringFlag{
-					Name:     "validators",
-					Usage:    "Specify appchain validators path",
-					Required: false,
-				},
-				cli.StringFlag{
-					Name:     "consensus-type",
-					Usage:    "Specify appchain consensus type",
-					Required: false,
-				},
-			},
-			Action: updatePierAppchain,
-		},
-		{
-			Name:  "audit",
-			Usage: "Audit appchain in pier",
-			Flags: []cli.Flag{
-				cli.StringFlag{
-					Name:     "id",
-					Usage:    "Specific appchain id",
-					Required: true,
-				},
-				cli.StringFlag{
-					Name:     "is-approved",
-					Usage:    "Specific approved signal",
-					Required: true,
-				},
-				cli.StringFlag{
-					Name:     "desc",
-					Usage:    "Specific audit description",
-					Required: true,
-				},
-			},
-			Action: auditPierAppchain,
-		},
-		{
-			Name:  "get",
-			Usage: "Get appchain info",
-			Flags: []cli.Flag{
-				cli.StringFlag{
-					Name:     "pier-id",
-					Usage:    "Specific target pier id",
-					Required: true,
-				},
-			},
-			Action: getPierAppchain,
-		},
-		{
-			Name:  "rule",
-			Usage: "register appchain validation rule",
-			Flags: []cli.Flag{
-				cli.StringFlag{
-					Name:     "path",
-					Usage:    "rule file path",
-					Required: true,
-				},
-				cli.StringFlag{
-					Name:     "pier-id",
-					Usage:    "Specific target pier id",
-					Required: true,
-				},
-			},
-			Action: registerAppchainRule,
-		},
-	},
-}
+//var clientCMD = cli.Command{
+//	Name:  "client",
+//	Usage: "Command about appchain in pier",
+//	Subcommands: []cli.Command{
+//		{
+//			Name:  "register",
+//			Usage: "Register appchain in pier",
+//			Flags: []cli.Flag{
+//				cli.StringFlag{
+//					Name:     "pier-id",
+//					Usage:    "Specify target pier id",
+//					Required: true,
+//				},
+//				cli.StringFlag{
+//					Name:     "name",
+//					Usage:    "Specify appchain name",
+//					Required: true,
+//				},
+//				cli.StringFlag{
+//					Name:     "type",
+//					Usage:    "Specify appchain type",
+//					Required: true,
+//				},
+//				cli.StringFlag{
+//					Name:     "desc",
+//					Usage:    "Specify appchain description",
+//					Required: true,
+//				},
+//				cli.StringFlag{
+//					Name:     "version",
+//					Usage:    "Specify appchain version",
+//					Required: true,
+//				},
+//				cli.StringFlag{
+//					Name:     "validators",
+//					Usage:    "Specify appchain validators path",
+//					Required: true,
+//				},
+//				cli.StringFlag{
+//					Name:     "consensus-type",
+//					Usage:    "Specify appchain consensus type",
+//					Required: true,
+//				},
+//			},
+//			Action: registerPierAppchain,
+//		},
+//		{
+//			Name:  "update",
+//			Usage: "Update appchain in pier",
+//			Flags: []cli.Flag{
+//				cli.StringFlag{
+//					Name:     "pier-id",
+//					Usage:    "Specify target pier id",
+//					Required: false,
+//				},
+//				cli.StringFlag{
+//					Name:     "name",
+//					Usage:    "Specify appchain name",
+//					Required: false,
+//				},
+//				cli.StringFlag{
+//					Name:     "type",
+//					Usage:    "Specify appchain type",
+//					Required: false,
+//				},
+//				cli.StringFlag{
+//					Name:     "desc",
+//					Usage:    "Specify appchain description",
+//					Required: false,
+//				},
+//				cli.StringFlag{
+//					Name:     "version",
+//					Usage:    "Specify appchain version",
+//					Required: false,
+//				},
+//				cli.StringFlag{
+//					Name:     "validators",
+//					Usage:    "Specify appchain validators path",
+//					Required: false,
+//				},
+//				cli.StringFlag{
+//					Name:     "consensus-type",
+//					Usage:    "Specify appchain consensus type",
+//					Required: false,
+//				},
+//			},
+//			Action: updatePierAppchain,
+//		},
+//		{
+//			Name:  "audit",
+//			Usage: "Audit appchain in pier",
+//			Flags: []cli.Flag{
+//				cli.StringFlag{
+//					Name:     "id",
+//					Usage:    "Specific appchain id",
+//					Required: true,
+//				},
+//				cli.StringFlag{
+//					Name:     "is-approved",
+//					Usage:    "Specific approved signal",
+//					Required: true,
+//				},
+//				cli.StringFlag{
+//					Name:     "desc",
+//					Usage:    "Specific audit description",
+//					Required: true,
+//				},
+//			},
+//			Action: auditPierAppchain,
+//		},
+//		{
+//			Name:  "get",
+//			Usage: "Get appchain info",
+//			Flags: []cli.Flag{
+//				cli.StringFlag{
+//					Name:     "pier-id",
+//					Usage:    "Specific target pier id",
+//					Required: true,
+//				},
+//			},
+//			Action: getPierAppchain,
+//		},
+//		{
+//			Name:  "rule",
+//			Usage: "register appchain validation rule",
+//			Flags: []cli.Flag{
+//				cli.StringFlag{
+//					Name:     "path",
+//					Usage:    "rule file path",
+//					Required: true,
+//				},
+//				cli.StringFlag{
+//					Name:     "pier-id",
+//					Usage:    "Specific target pier id",
+//					Required: true,
+//				},
+//			},
+//			Action: registerAppchainRule,
+//		},
+//	},
+//}
 
-func LoadClientCMD() cli.Command {
-	return clientCMD
-}
+//func LoadClientCMD() cli.Command {
+//	return clientCMD
+//}
 
 func registerPierAppchain(ctx *cli.Context) error {
 	return savePierAppchain(ctx, RegisterAppchainUrl)

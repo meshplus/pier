@@ -21,6 +21,7 @@ import (
 var _ adapt.Adapt = (*AppchainAdapter)(nil)
 
 type AppchainAdapter struct {
+	mode         string
 	config       *repo.Config
 	client       plugins.Client
 	pluginClient *plugin.Client
@@ -35,8 +36,9 @@ type AppchainAdapter struct {
 
 const IBTP_CH_SIZE = 1024
 
-func NewAppchainAdapter(config *repo.Config, logger logrus.FieldLogger, crypto txcrypto.Cryptor) (adapt.Adapt, error) {
+func NewAppchainAdapter(mode string, config *repo.Config, logger logrus.FieldLogger, crypto txcrypto.Cryptor) (adapt.Adapt, error) {
 	adapter := &AppchainAdapter{
+		mode:    mode,
 		config:  config,
 		cryptor: crypto,
 		logger:  logger,
@@ -198,9 +200,10 @@ func (a *AppchainAdapter) SendIBTP(ibtp *pb.IBTP) error {
 		err := &adapt.SendIbtpError{Err: fmt.Sprintf("fail to send ibtp %s with type %v: %s", ibtp.ID(), ibtp.Type, res.Message)}
 		if strings.Contains(res.Message, "invalid multi-signature") {
 			err.Status = adapt.Proof_Invalid
-		} else if a.config.Mode.Type == repo.DirectMode && (strings.Contains(res.Message, "dest address is not in local white list") ||
-			strings.Contains(res.Message, "remote service is not registered") ||
-			strings.Contains(res.Message, "remote service is not allowed to call dest address")) {
+		} else if a.config.Mode.Type == repo.DirectMode &&
+			(strings.Contains(res.Message, "dest address is not in local white list") ||
+				strings.Contains(res.Message, "remote service is not registered") ||
+				strings.Contains(res.Message, "remote service is not allowed to call dest address")) {
 			ibtp.Type = pb.IBTP_RECEIPT_FAILURE
 			a.ibtpC <- ibtp
 			err.Status = adapt.Other_Error
@@ -230,7 +233,23 @@ func (a *AppchainAdapter) QueryInterchain(serviceID string) (*pb.Interchain, err
 	if err != nil {
 		return nil, err
 	}
+	// check if the service is in the dest chain
+	if repo.DirectMode == a.mode {
+		services, err := a.client.GetServices()
+		if err != nil {
+			return nil, err
+		}
+		for _, value := range services {
+			if strings.EqualFold(serviceID, value) {
+				return findSelfInterchain(serviceID, outMeta, callbackMeta, inMeta)
+			}
+		}
+		return findRemoteInterchain(serviceID, outMeta, callbackMeta, inMeta)
+	}
+	return findSelfInterchain(serviceID, outMeta, callbackMeta, inMeta)
+}
 
+func findSelfInterchain(serviceID string, outMeta map[string]uint64, callbackMeta map[string]uint64, inMeta map[string]uint64) (*pb.Interchain, error) {
 	interchainCounter, err := filterMap(outMeta, serviceID, true)
 	if err != nil {
 		return nil, err
@@ -258,7 +277,36 @@ func (a *AppchainAdapter) QueryInterchain(serviceID string) (*pb.Interchain, err
 		SourceInterchainCounter: sourceInterchainCounter,
 		SourceReceiptCounter:    sourceReceiptCounter,
 	}, nil
+}
 
+func findRemoteInterchain(remoteServiceID string, outMeta map[string]uint64, callbackMeta map[string]uint64, inMeta map[string]uint64) (*pb.Interchain, error) {
+	interchainCounter, err := filterMap(inMeta, remoteServiceID, true)
+	if err != nil {
+		return nil, err
+	}
+
+	receiptCounter, err := filterMap(inMeta, remoteServiceID, true)
+	if err != nil {
+		return nil, err
+	}
+
+	sourceInterchainCounter, err := filterMap(outMeta, remoteServiceID, false)
+	if err != nil {
+		return nil, err
+	}
+
+	sourceReceiptCounter, err := filterMap(callbackMeta, remoteServiceID, false)
+	if err != nil {
+		return nil, err
+	}
+
+	return &pb.Interchain{
+		ID:                      remoteServiceID,
+		InterchainCounter:       interchainCounter,
+		ReceiptCounter:          receiptCounter,
+		SourceInterchainCounter: sourceInterchainCounter,
+		SourceReceiptCounter:    sourceReceiptCounter,
+	}, nil
 }
 
 func (a *AppchainAdapter) init() error {
@@ -294,9 +342,9 @@ func (a *AppchainAdapter) GetChainID() string {
 	return a.appchainID
 }
 
-// GetTransactionMeta get transaction start timestamp and timeout period in direct mode
-func (a *AppchainAdapter) GetTransactionMeta(IBTPid string) (uint64, uint64, error) {
-	return a.client.GetTransactionMeta(IBTPid)
+// GetDirectTransactionMeta get transaction start timestamp, timeout period and transaction status in direct mode
+func (a *AppchainAdapter) GetDirectTransactionMeta(IBTPid string) (uint64, uint64, uint64, error) {
+	return a.client.GetDirectTransactionMeta(IBTPid)
 }
 
 func (a *AppchainAdapter) MonitorUpdatedMeta() chan *[]byte {
