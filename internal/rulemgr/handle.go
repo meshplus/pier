@@ -4,13 +4,13 @@ import (
 	"encoding/json"
 
 	"github.com/meshplus/bitxhub-kit/types"
+	"github.com/meshplus/bitxhub-model/pb"
 	network "github.com/meshplus/go-lightp2p"
 	"github.com/meshplus/pier/internal/peermgr"
-	peerproto "github.com/meshplus/pier/internal/peermgr/proto"
 )
 
-func (rm *RuleMgr) handleRule(net network.Stream, msg *peerproto.Message) {
-	data := msg.Payload.Data
+func (rm *RuleMgr) handleRule(net network.Stream, msg *pb.Message) {
+	data := peermgr.DataToPayload(msg).Data
 	rule := &Rule{}
 	if err := json.Unmarshal(data, rule); err != nil {
 		rm.logger.Error(err)
@@ -33,7 +33,7 @@ func (rm *RuleMgr) handleRule(net network.Stream, msg *peerproto.Message) {
 		return
 	}
 
-	ackMsg := peermgr.Message(peerproto.Message_ACK, true, ackData)
+	ackMsg := peermgr.Message(pb.Message_ACK, true, ackData)
 
 	err = rm.PeerManager.AsyncSendWithStream(net, ackMsg)
 	if err != nil {

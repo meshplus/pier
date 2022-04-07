@@ -11,7 +11,6 @@ import (
 	rpcx "github.com/meshplus/go-bitxhub-client"
 	network "github.com/meshplus/go-lightp2p"
 	"github.com/meshplus/pier/internal/peermgr"
-	peerMsg "github.com/meshplus/pier/internal/peermgr/proto"
 	"github.com/meshplus/pier/internal/repo"
 	"github.com/meshplus/pier/pkg/model"
 	"github.com/sirupsen/logrus"
@@ -143,10 +142,10 @@ func (ex *Exchanger) handleProviderAppchains() error {
 }
 
 //handleRouterSendIBTPMessage handles IBTP from union interchain network
-func (ex *Exchanger) handleRouterSendIBTPMessage(stream network.Stream, msg *peerMsg.Message) {
+func (ex *Exchanger) handleRouterSendIBTPMessage(stream network.Stream, msg *pb.Message) {
 	handle := func() error {
 		ibtp := &pb.IBTP{}
-		if err := ibtp.Unmarshal(msg.Payload.Data); err != nil {
+		if err := ibtp.Unmarshal(peermgr.DataToPayload(msg).Data); err != nil {
 			return fmt.Errorf("unmarshal ibtp: %w", err)
 		}
 		entry := ex.logger.WithFields(logrus.Fields{
@@ -157,10 +156,10 @@ func (ex *Exchanger) handleRouterSendIBTPMessage(stream network.Stream, msg *pee
 			"id":    ibtp.ID(),
 		})
 
-		retMsg := peermgr.Message(peerMsg.Message_ACK, true, nil)
+		retMsg := peermgr.Message(pb.Message_ACK, true, nil)
 		if !ex.router.ExistAppchain(ibtp.To) {
 			entry.WithField("appchain", ibtp.To).Errorf("cannot found appchain in relay network")
-			retMsg.Payload.Ok = false
+			peermgr.DataToPayload(retMsg).Ok = false
 		}
 
 		err := ex.peerMgr.AsyncSendWithStream(stream, retMsg)
@@ -186,7 +185,7 @@ func (ex *Exchanger) postHandleIBTP(from string, receipt *pb.IBTP) {
 		return
 	}
 	if receipt == nil {
-		retMsg := peermgr.Message(peerMsg.Message_IBTP_RECEIPT_SEND, true, nil)
+		retMsg := peermgr.Message(pb.Message_IBTP_RECEIPT_SEND, true, nil)
 		err := ex.peerMgr.AsyncSend(from, retMsg)
 		if err != nil {
 			ex.logger.Errorf("Send back empty ibtp receipt: %s", err.Error())
@@ -195,7 +194,7 @@ func (ex *Exchanger) postHandleIBTP(from string, receipt *pb.IBTP) {
 	}
 
 	data, _ := receipt.Marshal()
-	retMsg := peermgr.Message(peerMsg.Message_IBTP_RECEIPT_SEND, true, data)
+	retMsg := peermgr.Message(pb.Message_IBTP_RECEIPT_SEND, true, data)
 
 	if err := retry.Retry(func(attempt uint) error {
 		err := ex.peerMgr.AsyncSend(from, retMsg)
@@ -217,12 +216,12 @@ func (ex *Exchanger) timeCost() func() {
 	}
 }
 
-func (ex *Exchanger) handleSendIBTPMessage(stream network.Stream, msg *peerMsg.Message) {
+func (ex *Exchanger) handleSendIBTPMessage(stream network.Stream, msg *pb.Message) {
 	//ex.logger.Infof("handleSendIBTPMessage in")
 	//ex.ch <- struct{}{}
-	//go func(msg *peerMsg.Message) {
+	//go func(msg *pb.Message) {
 	ibtp := &pb.IBTP{}
-	if err := ibtp.Unmarshal(msg.Payload.Data); err != nil {
+	if err := ibtp.Unmarshal(peermgr.DataToPayload(msg).Data); err != nil {
 		ex.logger.Errorf("Unmarshal ibtp: %s", err.Error())
 		return
 	}
@@ -247,14 +246,14 @@ func (ex *Exchanger) handleSendIBTPMessage(stream network.Stream, msg *peerMsg.M
 	//}(msg)
 }
 
-func (ex *Exchanger) handleSendIBTPReceiptMessage(stream network.Stream, msg *peerMsg.Message) {
+func (ex *Exchanger) handleSendIBTPReceiptMessage(stream network.Stream, msg *pb.Message) {
 	ex.logger.Info("Receive ibtp receipt from other pier")
-	if msg.Payload.Data == nil {
+	if peermgr.DataToPayload(msg).Data == nil {
 		ex.logger.Error("empty ibtp receipt")
 		return
 	}
 	receipt := &pb.IBTP{}
-	if err := receipt.Unmarshal(msg.Payload.Data); err != nil {
+	if err := receipt.Unmarshal(peermgr.DataToPayload(msg).Data); err != nil {
 		ex.logger.Error("unmarshal ibtp: %w", err)
 		return
 	}
@@ -274,8 +273,8 @@ func (ex *Exchanger) handleSendIBTPReceiptMessage(stream network.Stream, msg *pe
 	ex.feedReceipt(receipt)
 }
 
-func (ex *Exchanger) handleGetIBTPMessage(stream network.Stream, msg *peerMsg.Message) {
-	ibtpID := string(msg.Payload.Data)
+func (ex *Exchanger) handleGetIBTPMessage(stream network.Stream, msg *pb.Message) {
+	ibtpID := string(peermgr.DataToPayload(msg).Data)
 	ibtp, err := ex.mnt.QueryIBTP(ibtpID)
 	if err != nil {
 		ex.logger.Error("Get wrong ibtp id")
@@ -287,7 +286,7 @@ func (ex *Exchanger) handleGetIBTPMessage(stream network.Stream, msg *peerMsg.Me
 		return
 	}
 
-	retMsg := peermgr.Message(peerMsg.Message_ACK, true, data)
+	retMsg := peermgr.Message(pb.Message_ACK, true, data)
 
 	err = ex.peerMgr.AsyncSendWithStream(stream, retMsg)
 	if err != nil {
@@ -297,7 +296,7 @@ func (ex *Exchanger) handleGetIBTPMessage(stream network.Stream, msg *peerMsg.Me
 
 func (ex *Exchanger) handleNewConnection(dstPierID string) {
 	pierID := []byte(ex.appchainDID)
-	msg := peermgr.Message(peerMsg.Message_INTERCHAIN_META_GET, true, pierID)
+	msg := peermgr.Message(pb.Message_INTERCHAIN_META_GET, true, pierID)
 
 	indices := &struct {
 		InterchainIndex uint64 `json:"interchain_index"`
@@ -310,11 +309,11 @@ func (ex *Exchanger) handleNewConnection(dstPierID string) {
 			return err
 		}
 
-		if !interchainMeta.Payload.Ok {
+		if !peermgr.DataToPayload(interchainMeta).Ok {
 			return fmt.Errorf("interchain meta message payload is false")
 		}
 
-		if err = json.Unmarshal(interchainMeta.Payload.Data, indices); err != nil {
+		if err = json.Unmarshal(peermgr.DataToPayload(interchainMeta).Data, indices); err != nil {
 			return err
 		}
 
@@ -336,13 +335,13 @@ func (ex *Exchanger) handleRecover(ibtp *pb.IBTP) (*rpcx.Interchain, error) {
 	if err != nil {
 		return nil, err
 	}
-	msg := peermgr.Message(peerMsg.Message_ROUTER_INTERCHAIN_SEND, true, []byte(ibtp.From))
+	msg := peermgr.Message(pb.Message_ROUTER_INTERCHAIN_SEND, true, []byte(ibtp.From))
 	res, err := ex.peerMgr.Send(pierId, msg)
 	if err != nil {
 		return nil, fmt.Errorf("router interchain:%v", err)
 	}
 	interchain := &pb.Interchain{}
-	err = json.Unmarshal(res.Payload.Data, interchain)
+	err = json.Unmarshal(peermgr.DataToPayload(res).Data, interchain)
 	if err != nil {
 		return nil, err
 	}
@@ -355,20 +354,20 @@ func (ex *Exchanger) handleRecover(ibtp *pb.IBTP) (*rpcx.Interchain, error) {
 	return ic, nil
 }
 
-func (ex *Exchanger) handleRouterInterchain(s network.Stream, msg *peerMsg.Message) {
-	ic := ex.syncer.GetInterchainById(string(msg.Payload.Data))
+func (ex *Exchanger) handleRouterInterchain(s network.Stream, msg *pb.Message) {
+	ic := ex.syncer.GetInterchainById(string(peermgr.DataToPayload(msg).Data))
 	data, err := ic.Marshal()
 	if err != nil {
 		panic(err)
 	}
-	retMsg := peermgr.Message(peerMsg.Message_ACK, true, data)
+	retMsg := peermgr.Message(pb.Message_ACK, true, data)
 	err = ex.peerMgr.AsyncSendWithStream(s, retMsg)
 	if err != nil {
 		ex.logger.Error(err)
 	}
 }
 
-func (ex *Exchanger) handleGetInterchainMessage(stream network.Stream, msg *peerMsg.Message) {
+func (ex *Exchanger) handleGetInterchainMessage(stream network.Stream, msg *pb.Message) {
 	cbMeta := ex.exec.QueryCallbackMeta()
 	execMeta := ex.exec.QueryInterchainMeta()
 
@@ -377,12 +376,12 @@ func (ex *Exchanger) handleGetInterchainMessage(stream network.Stream, msg *peer
 		ReceiptIndex    uint64 `json:"receipt_index"`
 	}{}
 
-	execLoad, ok := execMeta[string(msg.Payload.Data)]
+	execLoad, ok := execMeta[string(peermgr.DataToPayload(msg).Data)]
 	if ok {
 		indices.InterchainIndex = execLoad
 	}
 
-	cbLoad, ok := cbMeta[string(msg.Payload.Data)]
+	cbLoad, ok := cbMeta[string(peermgr.DataToPayload(msg).Data)]
 	if ok {
 		indices.ReceiptIndex = cbLoad
 	}
@@ -392,7 +391,7 @@ func (ex *Exchanger) handleGetInterchainMessage(stream network.Stream, msg *peer
 		panic(err)
 	}
 
-	retMsg := peermgr.Message(peerMsg.Message_ACK, true, data)
+	retMsg := peermgr.Message(pb.Message_ACK, true, data)
 	if err := ex.peerMgr.AsyncSendWithStream(stream, retMsg); err != nil {
 		ex.logger.Error(err)
 		return

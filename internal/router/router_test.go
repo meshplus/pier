@@ -14,7 +14,6 @@ import (
 	"github.com/meshplus/bitxhub-model/pb"
 	"github.com/meshplus/pier/internal/peermgr"
 	"github.com/meshplus/pier/internal/peermgr/mock_peermgr"
-	peerproto "github.com/meshplus/pier/internal/peermgr/proto"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -29,7 +28,7 @@ func TestUnionRouter_Route(t *testing.T) {
 	mockCtl := gomock.NewController(t)
 	mockPeerManager := mock_peermgr.NewMockPeerManager(mockCtl)
 
-	message := peermgr.Message(peerproto.Message_ACK, true, nil)
+	message := peermgr.Message(pb.Message_ACK, true, nil)
 	mockPeerManager.EXPECT().FindProviders(gomock.Any()).Return(other, nil).AnyTimes()
 	mockPeerManager.EXPECT().Connect(gomock.Any()).Return(other, nil).AnyTimes()
 	mockPeerManager.EXPECT().Send(gomock.Any(), gomock.Any()).Return(message, nil).AnyTimes()

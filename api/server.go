@@ -14,7 +14,6 @@ import (
 	"github.com/meshplus/pier/cmd/pier/client"
 	"github.com/meshplus/pier/internal/appchain"
 	"github.com/meshplus/pier/internal/peermgr"
-	peerproto "github.com/meshplus/pier/internal/peermgr/proto"
 	"github.com/meshplus/pier/internal/repo"
 	"github.com/meshplus/pier/internal/rulemgr"
 	"github.com/sirupsen/logrus"
@@ -98,14 +97,14 @@ func (g *Server) auditAppchain(c *gin.Context) {
 }
 
 func (g *Server) updateAppchain(c *gin.Context) {
-	g.sendAppchain(c, peerproto.Message_APPCHAIN_UPDATE)
+	g.sendAppchain(c, pb.Message_APPCHAIN_UPDATE)
 }
 
 func (g *Server) registerAppchain(c *gin.Context) {
-	g.sendAppchain(c, peerproto.Message_APPCHAIN_REGISTER)
+	g.sendAppchain(c, pb.Message_APPCHAIN_REGISTER)
 }
 
-func (g *Server) sendAppchain(c *gin.Context, appchainType peerproto.Message_Type) {
+func (g *Server) sendAppchain(c *gin.Context, appchainType pb.Message_Type) {
 	// target pier id
 	pierID := c.Query("pier_id")
 	var res pb.Response
@@ -150,7 +149,7 @@ func (g *Server) getAppchain(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, err.Error())
 		return
 	}
-	msg := peermgr.Message(peerproto.Message_APPCHAIN_GET, true, data)
+	msg := peermgr.Message(pb.Message_APPCHAIN_GET, true, data)
 
 	ackMsg, err := g.peerMgr.Send(targetPierID, msg)
 	if err != nil {
@@ -162,30 +161,22 @@ func (g *Server) getAppchain(c *gin.Context) {
 	g.handleAckAppchain(c, ackMsg)
 }
 
-func (g *Server) handleAckAppchain(c *gin.Context, msg *peerproto.Message) {
-	res := &response{}
-	// the function of Update in server return nil when direct mode
-	if msg.Type == peerproto.Message_APPCHAIN_UPDATE {
-		if msg.Payload.Ok != true {
-			g.logger.Error(fmt.Errorf("update appchain error"))
-			return
-		}
-		res.Data = []byte(fmt.Sprintf("appchain update successfully.\n"))
-		c.JSON(http.StatusOK, res)
-		return
-	}
-
+func (g *Server) handleAckAppchain(c *gin.Context, msg *pb.Message) {
 	app := appchainmgr.Appchain{}
-	if err := json.Unmarshal(msg.Payload.Data, &app); err != nil {
+	if err := json.Unmarshal(peermgr.DataToPayload(msg).Data, &app); err != nil {
 		g.logger.Error(err)
 		return
 	}
 
+	res := &response{}
+
 	switch msg.Type {
-	case peerproto.Message_APPCHAIN_REGISTER:
+	case pb.Message_APPCHAIN_REGISTER:
 		res.Data = []byte(fmt.Sprintf("appchain register successfully, id is %s\n", app.ID))
-	case peerproto.Message_APPCHAIN_GET:
-		res.Data = msg.Payload.Data
+	case pb.Message_APPCHAIN_UPDATE:
+		res.Data = []byte(fmt.Sprintf("appchain update successfully, id is %s\n", app.ID))
+	case pb.Message_APPCHAIN_GET:
+		res.Data = peermgr.DataToPayload(msg).Data
 	}
 
 	c.JSON(http.StatusOK, res)
@@ -206,7 +197,7 @@ func (g *Server) registerRule(c *gin.Context) {
 		g.logger.Errorln(err)
 		return
 	}
-	msg := peermgr.Message(peerproto.Message_RULE_DEPLOY, true, data)
+	msg := peermgr.Message(pb.Message_RULE_DEPLOY, true, data)
 	ackMsg, err := g.peerMgr.Send(pierID, msg)
 	if err != nil {
 		res.Data = []byte(err.Error())
@@ -216,8 +207,8 @@ func (g *Server) registerRule(c *gin.Context) {
 	g.handleAckRule(c, ackMsg)
 }
 
-func (g *Server) handleAckRule(c *gin.Context, msg *peerproto.Message) {
-	data := msg.Payload.Data
+func (g *Server) handleAckRule(c *gin.Context, msg *pb.Message) {
+	data := peermgr.DataToPayload(msg).Data
 	ruleRes := &rulemgr.RuleResponse{}
 	if err := json.Unmarshal(data, ruleRes); err != nil {
 		g.logger.Error(err)

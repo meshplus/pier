@@ -178,10 +178,18 @@ func NewPier(repoRoot string, config *repo.Config) (*Pier, error) {
 			return nil, fmt.Errorf("lite create: %w", err)
 		}
 
+		peerManager, err = peermgr.New(config, nodePrivKey, privateKey, 1, loggers.Logger(loggers.PeerMgr))
+		if err != nil {
+			return nil, fmt.Errorf("peerMgr create: %w", err)
+		}
+
 		sync, err = syncer.New(addr.String(), config.Appchain.DID, repo.RelayMode,
 			syncer.WithClient(client), syncer.WithLite(lite),
 			syncer.WithStorage(store), syncer.WithLogger(loggers.Logger(loggers.Syncer)),
 		)
+		//sync, err = syncer.New2(addr.String(), config.Appchain.DID, peerManager, repo.RelayMode, syncer.WithLite(lite),
+		//	syncer.WithStorage(store), syncer.WithLogger(loggers.Logger(loggers.Syncer)),
+		//)
 		if err != nil {
 			return nil, fmt.Errorf("syncer create: %w", err)
 		}

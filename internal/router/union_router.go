@@ -14,7 +14,6 @@ import (
 	"github.com/meshplus/bitxhub-kit/storage"
 	"github.com/meshplus/bitxhub-model/pb"
 	"github.com/meshplus/pier/internal/peermgr"
-	peerproto "github.com/meshplus/pier/internal/peermgr/proto"
 	"github.com/meshplus/pier/internal/syncer"
 	"github.com/sirupsen/logrus"
 )
@@ -73,7 +72,7 @@ func (u *UnionRouter) Route(ibtp *pb.IBTP) error {
 		return err
 	}
 
-	message := peermgr.Message(peerproto.Message_ROUTER_IBTP_SEND, true, data)
+	message := peermgr.Message(pb.Message_ROUTER_IBTP_SEND, true, data)
 
 	handle := func() error {
 		pierId, err := u.peermgr.FindProviders(ibtp.To)
@@ -81,7 +80,7 @@ func (u *UnionRouter) Route(ibtp *pb.IBTP) error {
 			return err
 		}
 		res, err := u.peermgr.Send(pierId, message)
-		if err != nil || res.Type != peerproto.Message_ACK || !res.Payload.Ok {
+		if err != nil || res.Type != pb.Message_ACK || !peermgr.DataToPayload(res).Ok {
 			u.logger.Errorf("send ibtp error:%v", err)
 			return err
 		}
@@ -94,7 +93,7 @@ func (u *UnionRouter) Route(ibtp *pb.IBTP) error {
 	//find target union pier by local cache
 	if unionPierId, ok := u.pbTable.Load(ibtp.To); ok {
 		res, err := u.peermgr.Send(unionPierId.(string), message)
-		if err == nil && res.Type == peerproto.Message_ACK && res.Payload.Ok {
+		if err == nil && res.Type == pb.Message_ACK && peermgr.DataToPayload(res).Ok {
 			u.store.Put(RouteIBTPKey(ibtp.ID()), []byte(""))
 			u.logger.WithField("ibtp", ibtp.ID()).Infof("send ibtp successfully from %s to %s", ibtp.From, ibtp.To)
 			return nil

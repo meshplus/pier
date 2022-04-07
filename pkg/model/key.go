@@ -2,9 +2,13 @@ package model
 
 import (
 	"fmt"
-
 	"github.com/meshplus/bitxhub-model/pb"
 )
+
+type Payload struct {
+	Ok   bool
+	Data []byte
+}
 
 func WrapperKey(height uint64) []byte {
 	return []byte(fmt.Sprintf("wrapper-%d", height))
