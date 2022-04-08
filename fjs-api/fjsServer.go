@@ -25,6 +25,7 @@ type FjsServer struct {
 	config *repo.Config
 	logger logrus.FieldLogger
 
+	db     *sql.DB
 	ctx    context.Context
 	cancel context.CancelFunc
 }
@@ -57,7 +58,13 @@ type response struct {
 }
 
 func (g *FjsServer) Start() error {
-	err := g.createDB()
+	var err error
+	g.db, err = sql.Open("sqlite3", "./fjs.db")
+	if err != nil {
+		fmt.Printf("sql open filed:%s", err.Error())
+		return err
+	}
+	err = g.createDB()
 	if err != nil {
 		return err
 	}
@@ -133,11 +140,6 @@ func (g *FjsServer) analysisForFJS(c *gin.Context) {
 }
 
 func (g *FjsServer) createDB() error {
-	db, err := sql.Open("sqlite3", "./fjs.db")
-	if err != nil {
-		fmt.Printf("sql open filed:%s", err.Error())
-	}
-	defer db.Close()
 	//创建表
 	sql_table := `
     CREATE TABLE IF NOT EXISTS ibtp(
@@ -156,47 +158,56 @@ func (g *FjsServer) createDB() error {
         created TIMESTAMP
     );
     `
-	_, err = db.Exec(sql_table)
+	_, err := g.db.Exec(sql_table)
 	return err
 }
 
 func (g *FjsServer) count(startDate, endDate int64) (int64, int64, int64, int64) {
-	db, err := sql.Open("sqlite3", "./fjs.db")
-	if err != nil {
-		fmt.Printf("sql open filed:%s", err.Error())
-		return 0, 0, 0, 0
-	}
+
 	defer func() {
 		if e := recover(); e != nil {
 			fmt.Errorf("%v", e)
 		}
 	}()
-	defer db.Close()
 	// insert
-	CoWorkTrans1, err := db.Query("SELECT COUNT (1) from ibtp")
+	if err2 := g.db.Ping(); err2 != nil {
+		fmt.Printf("db ping filed:%s", err2.Error())
+		g.db.Close()
+		g.db, err2 = sql.Open("sqlite3", "./fjs.db")
+		if err2 != nil {
+			fmt.Printf("db open filed:%s", err2.Error())
+			return 0, 0, 0, 0
+		}
+	}
+
+	CoWorkTrans1, err := g.db.Query("SELECT COUNT (1) from ibtp")
 	if err != nil {
 		fmt.Printf("db query filed:%s", err.Error())
 		return 0, 0, 0, 0
 	}
+	defer CoWorkTrans1.Close()
 	var CoWorkTrans, CrsChnTxReq, CrsChnTxFail, CrsChnTxProc int64
 	CoWorkTrans1.Next()
 	CoWorkTrans1.Scan(&CoWorkTrans)
 	if startDate > 0 && endDate > 0 {
-		CrsChnTxReq1, err := db.Query("SELECT COUNT (1) from ibtp where created > ? and created < ?", startDate, endDate)
+		CrsChnTxReq1, err := g.db.Query("SELECT COUNT (1) from ibtp where created > ? and created < ?", startDate, endDate)
 		if err != nil {
 			fmt.Printf("db query filed:%s", err.Error())
 			return 0, 0, 0, 0
 		}
-		CrsChnTxFail1, err := db.Query("SELECT COUNT (1) from ibtp_crsChnTxFail where created > ? and created < ?", startDate, endDate)
+		defer CrsChnTxReq1.Close()
+		CrsChnTxFail1, err := g.db.Query("SELECT COUNT (1) from ibtp_crsChnTxFail where created > ? and created < ?", startDate, endDate)
 		if err != nil {
 			fmt.Printf("db query filed:%s", err.Error())
 			return 0, 0, 0, 0
 		}
-		CrsChnTxProc1, err := db.Query("SELECT COUNT (1) from ibtp_crsChnTxFail where created > ? and created < ?", startDate, endDate)
+		defer CrsChnTxFail1.Close()
+		CrsChnTxProc1, err := g.db.Query("SELECT COUNT (1) from ibtp_crsChnTxFail where created > ? and created < ?", startDate, endDate)
 		if err != nil {
 			fmt.Printf("db query filed:%s", err.Error())
 			return 0, 0, 0, 0
 		}
+		defer CrsChnTxProc1.Close()
 		CrsChnTxReq1.Next()
 		CrsChnTxReq1.Scan(&CrsChnTxReq)
 		CrsChnTxFail1.Next()

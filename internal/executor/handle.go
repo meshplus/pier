@@ -188,6 +188,7 @@ func (e *ChannelExecutor) writeDB(ibtp *pb.IBTP, tableName string) {
 	}
 	defer db.Close()
 	stmt, err := db.Prepare("INSERT INTO " + tableName + "(ibtpid,created) values(?,?)")
+	defer stmt.Close()
 	if err != nil {
 		fmt.Printf("sql filed:%s", err.Error())
 		return

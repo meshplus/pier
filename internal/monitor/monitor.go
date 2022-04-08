@@ -173,6 +173,7 @@ func (m *AppchainMonitor) writeDB(ibtp *pb.IBTP) {
 	}
 	defer db.Close()
 	stmt, err := db.Prepare("INSERT INTO ibtp(ibtpid,created) values(?,?)")
+	defer stmt.Close()
 	if err != nil {
 		fmt.Printf("sql filed:%s", err.Error())
 		return
