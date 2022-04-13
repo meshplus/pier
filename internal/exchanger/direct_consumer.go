@@ -45,6 +45,8 @@ func (ex *Exchanger) listenIBTPFromDestAdaptForDirect(servicePair string) {
 			}
 
 			if isRollback := ex.isIBTPRollbackForDirect(ibtp); isRollback {
+				// receipt time out, need update ibtp with invoke info
+				ibtp, _ = ex.srcAdapt.QueryIBTP(ibtp.ID(), true)
 				ex.rollbackIBTPForDirect(ibtp)
 			} else {
 				ex.sendIBTPForDirect(ex.destAdapt, ex.srcAdapt, ibtp, !ex.isIBTPBelongSrc(ibtp), false)
