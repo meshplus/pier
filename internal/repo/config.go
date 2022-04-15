@@ -66,10 +66,11 @@ type Mode struct {
 
 // Relay are configs about bitxhub
 type Relay struct {
-	Addrs        []string      `toml:"addrs" json:"addrs"`
-	TimeoutLimit time.Duration `mapstructure:"timeout_limit" json:"timeout_limit"`
-	Quorum       uint64        `toml:"quorum" json:"quorum"`
-	BitXHubID    string        `mapstructure:"bitxhub_id" json:"bitxhub_id"`
+	Addrs                      []string      `toml:"addrs" json:"addrs"`
+	TimeoutLimit               time.Duration `mapstructure:"timeout_limit" json:"timeout_limit"`
+	Quorum                     uint64        `toml:"quorum" json:"quorum"`
+	BitXHubID                  string        `mapstructure:"bitxhub_id" json:"bitxhub_id"`
+	EnableOffChainTransmission bool          `mapstructure:"enable_offchain_transmission"`
 }
 
 type Direct struct {
@@ -127,9 +128,10 @@ func DefaultConfig() *Config {
 		Mode: Mode{
 			Type: "relay",
 			Relay: Relay{
-				Addrs:     []string{"localhost:60011", "localhost:60012", "localhost:60013", "localhost:60014"},
-				Quorum:    2,
-				BitXHubID: "1356",
+				Addrs:                      []string{"localhost:60011", "localhost:60012", "localhost:60013", "localhost:60014"},
+				Quorum:                     2,
+				BitXHubID:                  "1356",
+				EnableOffChainTransmission: false,
 			},
 			Direct: Direct{
 				GasLimit: 0x5f5e100,

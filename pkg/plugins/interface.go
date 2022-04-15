@@ -67,4 +67,13 @@ type Client interface {
 
 	// Type gets type of blockchain from plugin
 	Type() string
+
+	// GetOffChainData get offchain data and send back
+	GetOffChainData(request *pb.GetDataRequest) (*pb.GetDataResponse, error)
+
+	// GetOffChainDataReq get offchain data request
+	GetOffChainDataReq() chan *pb.GetDataRequest
+
+	// SubmitOffChainData submit offchain data to plugin
+	SubmitOffChainData(response *pb.GetDataResponse) error
 }

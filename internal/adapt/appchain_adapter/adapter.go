@@ -338,6 +338,10 @@ func (a *AppchainAdapter) init() error {
 	return nil
 }
 
+func (a *AppchainAdapter) GetPluginClient() plugins.Client {
+	return a.client
+}
+
 func (a *AppchainAdapter) GetChainID() string {
 	return a.appchainID
 }

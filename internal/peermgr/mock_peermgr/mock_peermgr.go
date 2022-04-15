@@ -12,7 +12,6 @@ import (
 	peer_mgr "github.com/meshplus/bitxhub-core/peer-mgr"
 	pb "github.com/meshplus/bitxhub-model/pb"
 	network "github.com/meshplus/go-lightp2p"
-	peermgr "github.com/meshplus/pier/internal/peermgr"
 )
 
 // MockPeerManager is a mock of PeerManager interface.
@@ -153,7 +152,7 @@ func (mr *MockPeerManagerMockRecorder) Provider(arg0, arg1 interface{}) *gomock.
 }
 
 // RegisterConnectHandler mocks base method.
-func (m *MockPeerManager) RegisterConnectHandler(arg0 peermgr.ConnectHandler) error {
+func (m *MockPeerManager) RegisterConnectHandler(arg0 func(string)) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "RegisterConnectHandler", arg0)
 	ret0, _ := ret[0].(error)
@@ -167,7 +166,7 @@ func (mr *MockPeerManagerMockRecorder) RegisterConnectHandler(arg0 interface{}) 
 }
 
 // RegisterMsgHandler mocks base method.
-func (m *MockPeerManager) RegisterMsgHandler(arg0 pb.Message_Type, arg1 peermgr.MessageHandler) error {
+func (m *MockPeerManager) RegisterMsgHandler(arg0 pb.Message_Type, arg1 func(network.Stream, *pb.Message)) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "RegisterMsgHandler", arg0, arg1)
 	ret0, _ := ret[0].(error)
@@ -181,7 +180,7 @@ func (mr *MockPeerManagerMockRecorder) RegisterMsgHandler(arg0, arg1 interface{}
 }
 
 // RegisterMultiMsgHandler mocks base method.
-func (m *MockPeerManager) RegisterMultiMsgHandler(arg0 []pb.Message_Type, arg1 peermgr.MessageHandler) error {
+func (m *MockPeerManager) RegisterMultiMsgHandler(arg0 []pb.Message_Type, arg1 func(network.Stream, *pb.Message)) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "RegisterMultiMsgHandler", arg0, arg1)
 	ret0, _ := ret[0].(error)

@@ -230,6 +230,18 @@ type mockAppchainPluginClient struct {
 	count uint64
 }
 
+func (mc *mockAppchainPluginClient) GetOffChainData(ctx context.Context, in *pb.GetDataRequest, opts ...grpc.CallOption) (*pb.GetDataResponse, error) {
+	panic("implement me")
+}
+
+func (mc *mockAppchainPluginClient) GetOffChainDataReq(ctx context.Context, in *pb.Empty, opts ...grpc.CallOption) (pb.AppchainPlugin_GetOffChainDataReqClient, error) {
+	panic("implement me")
+}
+
+func (mc *mockAppchainPluginClient) SubmitOffChainData(ctx context.Context, in *pb.GetDataResponse, opts ...grpc.CallOption) (*pb.Empty, error) {
+	panic("implement me")
+}
+
 func (mc *mockAppchainPluginClient) GetDirectTransactionMeta(ctx context.Context, in *pb.DirectTransactionMetaRequest, opts ...grpc.CallOption) (*pb.DirectTransactionMetaResponse, error) {
 	panic("implement me")
 }

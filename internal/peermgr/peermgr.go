@@ -7,9 +7,6 @@ import (
 	network "github.com/meshplus/go-lightp2p"
 )
 
-type MessageHandler func(network.Stream, *pb.Message)
-type ConnectHandler func(string)
-
 //go:generate mockgen -destination mock_peermgr/mock_peermgr.go -package mock_peermgr -source peermgr.go
 type PeerManager interface {
 	basicMgr.BasicPeerManager
@@ -25,13 +22,13 @@ type PeerManager interface {
 	ConnectedPeerIDs() []string
 
 	// RegisterMsgHandler
-	RegisterMsgHandler(pb.Message_Type, MessageHandler) error
+	RegisterMsgHandler(pb.Message_Type, func(network.Stream, *pb.Message)) error
 
 	// RegisterMultiMsgHandler
-	RegisterMultiMsgHandler([]pb.Message_Type, MessageHandler) error
+	RegisterMultiMsgHandler([]pb.Message_Type, func(network.Stream, *pb.Message)) error
 
 	// RegisterConnectHandler
-	RegisterConnectHandler(ConnectHandler) error
+	RegisterConnectHandler(func(string)) error
 }
 
 type DHTManager interface {
