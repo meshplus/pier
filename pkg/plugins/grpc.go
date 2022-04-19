@@ -63,6 +63,40 @@ func (s *GRPCServer) GetIBTPCh(_ *pb.Empty, conn pb.AppchainPlugin_GetIBTPChServ
 	}
 }
 
+func (s *GRPCServer) GetOffChainData(ctx context.Context, req *pb.GetDataRequest) (*pb.GetDataResponse, error) {
+	return s.Impl.GetOffChainData(req)
+}
+
+func (s *GRPCServer) GetOffChainDataReq(_ *pb.Empty, conn pb.AppchainPlugin_GetOffChainDataReqServer) error {
+	ctx := conn.Context()
+	c := s.Impl.GetOffChainDataReq()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return nil
+		case req, ok := <-c:
+			if !ok {
+				logger.Error("get data request channel has closed")
+				return nil
+			}
+			if err := retry.Retry(func(attempt uint) error {
+				if err := conn.Send(req); err != nil {
+					logger.Error("plugin send data req err", "error", err)
+					return err
+				}
+				return nil
+			}, strategy.Wait(1*time.Second)); err != nil {
+				logger.Error("Execution of plugin server sending data request failed", "error", err)
+			}
+		}
+	}
+}
+
+func (s *GRPCServer) SubmitOffChainData(_ context.Context, res *pb.GetDataResponse) (*pb.Empty, error) {
+	return &pb.Empty{}, s.Impl.SubmitOffChainData(res)
+}
+
 func (s *GRPCServer) SubmitIBTP(_ context.Context, ibtp *pb.SubmitIBTPRequest) (*pb.SubmitIBTPResponse, error) {
 	return s.Impl.SubmitIBTP(ibtp.From, ibtp.Index, ibtp.ServiceId, ibtp.Type, ibtp.Content, ibtp.BxhProof, ibtp.IsEncrypted)
 }
@@ -237,6 +271,26 @@ func (g *GRPCClient) GetIBTPCh() chan *pb.IBTP {
 	return ibtpQ
 }
 
+func (g *GRPCClient) GetOffChainData(request *pb.GetDataRequest) (*pb.GetDataResponse, error) {
+	return g.client.GetOffChainData(g.doneContext, request)
+}
+
+func (g *GRPCClient) GetOffChainDataReq() chan *pb.GetDataRequest {
+	conn, err := g.client.GetOffChainDataReq(g.doneContext, &pb.Empty{})
+	if err != nil {
+		panic(err)
+	}
+	dataReq := make(chan *pb.GetDataRequest)
+	go g.handleOffChainDataReqStream(conn, dataReq)
+	return dataReq
+}
+
+func (g *GRPCClient) SubmitOffChainData(response *pb.GetDataResponse) error {
+	logger.Info("start submit offChain data")
+	_, err := g.client.SubmitOffChainData(g.doneContext, response)
+	return err
+}
+
 func (g *GRPCClient) GetUpdateMeta() chan *pb.UpdateMeta {
 	conn, err := g.client.GetUpdateMeta(g.doneContext, &pb.Empty{})
 	if err != nil {
@@ -299,6 +353,35 @@ func (g *GRPCClient) handleIBTPStream(conn pb.AppchainPlugin_GetIBTPChClient, ib
 		case <-g.doneContext.Done():
 			return
 		case ibtpQ <- ibtp:
+		}
+	}
+}
+
+func (g *GRPCClient) handleOffChainDataReqStream(conn pb.AppchainPlugin_GetOffChainDataReqClient, dataReq chan *pb.GetDataRequest) {
+	defer close(dataReq)
+
+	for {
+		var (
+			req *pb.GetDataRequest
+			err error
+		)
+		if err := retry.Retry(func(attempt uint) error {
+			req, err = conn.Recv()
+			if err != nil {
+				logger.Error("Plugin grpc client recv data request", "error", err)
+				// End the stream
+				return err
+			}
+			return nil
+		}, strategy.Wait(1*time.Second)); err != nil {
+			logger.Error("Execution of client recv failed", "error", err)
+		}
+
+		select {
+		case <-g.doneContext.Done():
+			return
+		case dataReq <- req:
+			logger.Info("handleDataReqStream req", "req", req)
 		}
 	}
 }

@@ -32,6 +32,7 @@ addrs = ["localhost:60011", "localhost:60012", "localhost:60013", "localhost:600
 timeout_limit = "1s"
 quorum = 2
 bitxhub_id = "1356"
+enable_offchain_transmission = true
 [mode.direct]
 gas_limit = 0x5f5e100
 

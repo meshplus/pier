@@ -175,6 +175,21 @@ func NewPier(repoRoot string, config *repo.Config) (*Pier, error) {
 
 		pierHA = pierHAConstructor(client, config.Appchain.ID)
 
+		if config.Mode.Relay.EnableOffChainTransmission {
+			offChainTransmissionConstructor, err := agency.GetOffchainTransmissionConstructor("offChain_transmission")
+			if err != nil {
+				return nil, fmt.Errorf("offchain transmission constructor not found")
+			}
+			peerManager, err = peermgr.New(config, nodePrivKey, privateKey, 1, loggers.Logger(loggers.PeerMgr))
+			if err != nil {
+				return nil, fmt.Errorf("peerMgr create: %w", err)
+			}
+			offChainTransmissionMgr := offChainTransmissionConstructor(appchainAdapter.ID(), peerManager, appchainAdapter.(*appchain_adapter.AppchainAdapter).GetPluginClient())
+			if err := offChainTransmissionMgr.Start(); err != nil {
+				return nil, fmt.Errorf("start offchain transmission: %w", err)
+			}
+		}
+
 		ex, err = exchanger.New(repo.RelayMode, config.Appchain.ID, config.Mode.Relay.BitXHubID,
 			exchanger.WithSrcAdapt(appchainAdapter),
 			exchanger.WithDestAdapt(bxhAdapter),

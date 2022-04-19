@@ -36,7 +36,7 @@ type Swarm struct {
 	connectedPeers  sync.Map                  // key is appChain address, value is AddrInfo(including pid and addr)
 	msgHandlers     sync.Map
 	providers       uint64
-	connectHandlers []ConnectHandler
+	connectHandlers []func(string)
 	privKey         crypto.PrivateKey
 
 	lock   sync.RWMutex
@@ -151,7 +151,7 @@ func (swarm *Swarm) Start() error {
 				swarm.lock.RLock()
 				defer swarm.lock.RUnlock()
 				for _, handler := range swarm.connectHandlers {
-					go func(connectHandler ConnectHandler, address string) {
+					go func(connectHandler func(string), address string) {
 						connectHandler(address)
 					}(handler, pierId)
 				}
@@ -280,7 +280,7 @@ func (swarm *Swarm) CountConnectedPeers() uint64 {
 	return counter
 }
 
-func (swarm *Swarm) RegisterMsgHandler(messageType pb.Message_Type, handler MessageHandler) error {
+func (swarm *Swarm) RegisterMsgHandler(messageType pb.Message_Type, handler func(network.Stream, *pb.Message)) error {
 	if handler == nil {
 		return fmt.Errorf("register msg handler: empty handler")
 	}
@@ -295,7 +295,7 @@ func (swarm *Swarm) RegisterMsgHandler(messageType pb.Message_Type, handler Mess
 	return fmt.Errorf("register msg handler: invalid message type")
 }
 
-func (swarm *Swarm) RegisterMultiMsgHandler(messageTypes []pb.Message_Type, handler MessageHandler) error {
+func (swarm *Swarm) RegisterMultiMsgHandler(messageTypes []pb.Message_Type, handler func(network.Stream, *pb.Message)) error {
 	for _, typ := range messageTypes {
 		if err := swarm.RegisterMsgHandler(typ, handler); err != nil {
 			return err
@@ -355,7 +355,7 @@ func (swarm *Swarm) handleMessage(s network.Stream, data []byte) {
 		return
 	}
 
-	msgHandler, ok := handler.(MessageHandler)
+	msgHandler, ok := handler.(func(network.Stream, *pb.Message))
 	if !ok {
 		swarm.logger.WithFields(logrus.Fields{
 			"error": fmt.Errorf("invalid handler for msg [type: %v]", m.Type),
@@ -385,7 +385,7 @@ func (swarm *Swarm) getRemotePierID(id peer.ID) (string, error) {
 	return string(DataToPayload(ret).Data), nil
 }
 
-func (swarm *Swarm) RegisterConnectHandler(handler ConnectHandler) error {
+func (swarm *Swarm) RegisterConnectHandler(handler func(string)) error {
 	swarm.lock.Lock()
 	defer swarm.lock.Unlock()
 

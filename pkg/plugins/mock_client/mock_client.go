@@ -143,6 +143,35 @@ func (mr *MockClientMockRecorder) GetInMeta() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetInMeta", reflect.TypeOf((*MockClient)(nil).GetInMeta))
 }
 
+// GetOffChainData mocks base method.
+func (m *MockClient) GetOffChainData(request *pb.GetDataRequest) (*pb.GetDataResponse, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetOffChainData", request)
+	ret0, _ := ret[0].(*pb.GetDataResponse)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetOffChainData indicates an expected call of GetOffChainData.
+func (mr *MockClientMockRecorder) GetOffChainData(request interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetOffChainData", reflect.TypeOf((*MockClient)(nil).GetOffChainData), request)
+}
+
+// GetOffChainDataReq mocks base method.
+func (m *MockClient) GetOffChainDataReq() chan *pb.GetDataRequest {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetOffChainDataReq")
+	ret0, _ := ret[0].(chan *pb.GetDataRequest)
+	return ret0
+}
+
+// GetOffChainDataReq indicates an expected call of GetOffChainDataReq.
+func (mr *MockClientMockRecorder) GetOffChainDataReq() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetOffChainDataReq", reflect.TypeOf((*MockClient)(nil).GetOffChainDataReq))
+}
+
 // GetOutMessage mocks base method.
 func (m *MockClient) GetOutMessage(servicePair string, idx uint64) (*pb.IBTP, error) {
 	m.ctrl.T.Helper()
@@ -286,6 +315,20 @@ func (m *MockClient) SubmitIBTP(from string, index uint64, serviceID string, ibt
 func (mr *MockClientMockRecorder) SubmitIBTP(from, index, serviceID, ibtpType, content, proof, isEncrypted interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SubmitIBTP", reflect.TypeOf((*MockClient)(nil).SubmitIBTP), from, index, serviceID, ibtpType, content, proof, isEncrypted)
+}
+
+// SubmitOffChainData mocks base method.
+func (m *MockClient) SubmitOffChainData(response *pb.GetDataResponse) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SubmitOffChainData", response)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// SubmitOffChainData indicates an expected call of SubmitOffChainData.
+func (mr *MockClientMockRecorder) SubmitOffChainData(response interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SubmitOffChainData", reflect.TypeOf((*MockClient)(nil).SubmitOffChainData), response)
 }
 
 // SubmitReceipt mocks base method.
