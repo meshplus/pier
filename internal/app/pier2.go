@@ -41,8 +41,8 @@ import (
 	"github.com/wonderivan/logger"
 )
 
-// Pier represents the necessary data for starting the pier app
-type Pier struct {
+// Pier2 represents the necessary data for starting the pier app
+type Pier2 struct {
 	privateKey crypto.PrivateKey
 	plugin     plugins.Client
 	grpcPlugin *plugin.Client
@@ -60,8 +60,8 @@ type Pier struct {
 	logger     logrus.FieldLogger
 }
 
-// NewPier instantiates pier instance.
-func NewPier(repoRoot string, config *repo.Config) (*Pier, error) {
+// NewPier2 instantiates pier instance.
+func NewPier2(repoRoot string, config *repo.Config) (*Pier2, error) {
 	store, err := leveldb.New(filepath.Join(config.RepoRoot, "store"))
 	if err != nil {
 		return nil, fmt.Errorf("read from datastaore %w", err)
@@ -137,10 +137,10 @@ func NewPier(repoRoot string, config *repo.Config) (*Pier, error) {
 
 		// pier register to bitxhub and got meta infos about its related
 		// appchain from bitxhub
-		opts := []rpcx.Option{
-			rpcx.WithLogger(logger),
-			rpcx.WithPrivateKey(privateKey),
-		}
+		//opts := []rpcx.Option{
+		//	rpcx.WithLogger(logger),
+		//	rpcx.WithPrivateKey(privateKey),
+		//}
 		nodesInfo := make([]*rpcx.NodeInfo, 0, len(config.Mode.Relay.Addrs))
 		for _, addr := range config.Mode.Relay.Addrs {
 			nodeInfo := &rpcx.NodeInfo{Addr: addr}
@@ -151,37 +151,40 @@ func NewPier(repoRoot string, config *repo.Config) (*Pier, error) {
 			}
 			nodesInfo = append(nodesInfo, nodeInfo)
 		}
-		opts = append(opts, rpcx.WithNodesInfo(nodesInfo...), rpcx.WithTimeoutLimit(config.Mode.Relay.TimeoutLimit))
-		client, err := rpcx.New(opts...)
+
+		peerManager, err = peermgr.New(config, nodePrivKey, privateKey, 1, loggers.Logger(loggers.PeerMgr))
+		if err != nil {
+			return nil, fmt.Errorf("peerMgr create: %w", err)
+		}
+
 		if err != nil {
 			return nil, fmt.Errorf("create bitxhub client: %w", err)
 		}
 
-		// agent queries appchain info from bitxhub
-		meta, err = getInterchainMeta(client, config.Appchain.DID)
+		err := peerManager.Start()
+		if err != nil {
+			return nil, err
+		}
+		meta, err = getInterchainMeta2(peerManager, config.Appchain.DID)
 		if err != nil {
 			return nil, err
 		}
 
-		//chain, err = getAppchainInfo(client)
-		//if err != nil {
-		//	return nil, err
-		//}
-
-		cryptor, err = txcrypto.NewRelayCryptor(client, privateKey)
+		cryptor, err = txcrypto.NewRelayCryptor2(peerManager, privateKey)
 		if err != nil {
 			return nil, fmt.Errorf("cryptor create: %w", err)
 		}
 
-		lite, err = bxh_lite.New(client, store, loggers.Logger(loggers.BxhLite))
+		lite, err = bxh_lite.New2(peerManager, store, loggers.Logger(loggers.BxhLite), addr.String())
 		if err != nil {
 			return nil, fmt.Errorf("lite create: %w", err)
 		}
 
-		sync, err = syncer.New(addr.String(), config.Appchain.DID, repo.RelayMode,
-			syncer.WithClient(client), syncer.WithLite(lite),
+		sync, err = syncer.New2(privateKey, addr.String(), config.Appchain.DID, repo.RelayMode,
+			peerManager, syncer.WithLite(lite),
 			syncer.WithStorage(store), syncer.WithLogger(loggers.Logger(loggers.Syncer)),
 		)
+
 		if err != nil {
 			return nil, fmt.Errorf("syncer create: %w", err)
 		}
@@ -189,7 +192,7 @@ func NewPier(repoRoot string, config *repo.Config) (*Pier, error) {
 		if err != nil {
 			return nil, fmt.Errorf("pier ha constructor not found")
 		}
-		pierHA = pierHAConstructor(client, config.Appchain.DID)
+		pierHA = pierHAConstructor(peerManager, config.Appchain.DID)
 	default:
 		return nil, fmt.Errorf("unsupported mode")
 	}
@@ -239,7 +242,7 @@ func NewPier(repoRoot string, config *repo.Config) (*Pier, error) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 
-	return &Pier{
+	return &Pier2{
 		privateKey: privateKey,
 		plugin:     cli,
 		grpcPlugin: grpcPlugin,
@@ -258,7 +261,7 @@ func NewPier(repoRoot string, config *repo.Config) (*Pier, error) {
 	}, nil
 }
 
-func NewUnionPier(repoRoot string, config *repo.Config) (*Pier, error) {
+func NewUnionPier2(repoRoot string, config *repo.Config) (*Pier2, error) {
 	store, err := leveldb.New(filepath.Join(config.RepoRoot, "store"))
 	if err != nil {
 		return nil, fmt.Errorf("read from datastaore %w", err)
@@ -351,7 +354,7 @@ func NewUnionPier(repoRoot string, config *repo.Config) (*Pier, error) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 
-	return &Pier{
+	return &Pier2{
 		privateKey: privateKey,
 		meta:       meta,
 		exchanger:  ex,
@@ -366,7 +369,7 @@ func NewUnionPier(repoRoot string, config *repo.Config) (*Pier, error) {
 }
 
 // Start starts three main components of pier app
-func (pier *Pier) Start() error {
+func (pier *Pier2) Start() error {
 	if pier.config.Mode.Type == repo.UnionMode {
 		if err := pier.lite.Start(); err != nil {
 			pier.logger.Errorf("lite start: %w", err)
@@ -385,7 +388,7 @@ func (pier *Pier) Start() error {
 	return nil
 }
 
-func (pier *Pier) startPierHA() {
+func (pier *Pier2) startPierHA() {
 	logger.Info("pier HA manager start")
 	status := false
 	for {
@@ -433,7 +436,7 @@ func (pier *Pier) startPierHA() {
 }
 
 // Stop stops three main components of pier app
-func (pier *Pier) Stop(isAux bool) error {
+func (pier *Pier2) Stop(isAux bool) error {
 	if pier.config.Mode.Type != repo.UnionMode {
 		if err := pier.monitor.Stop(); err != nil {
 			return fmt.Errorf("monitor stop: %w", err)
@@ -460,7 +463,7 @@ func (pier *Pier) Stop(isAux bool) error {
 }
 
 // Type gets the application blockchain type the pier is related to
-func (pier *Pier) Type() string {
+func (pier *Pier2) Type() string {
 	if pier.config.Mode.Type != repo.UnionMode {
 		return pier.plugin.Type()
 	}

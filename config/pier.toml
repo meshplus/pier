@@ -10,29 +10,42 @@ dir = "logs"
 filename = "pier.log"
 report_caller = false
 [log.module]
-  api_server   = "info"
-  appchain_mgr = "info"
-  bxh_lite     = "info"
-  executor     = "info"
-  exchanger    = "info"
-  monitor      = "info"
-  peer_mgr     = "info"
-  router       = "info"
-  rule_mgr     = "info"
-  swarm        = "info"
-  syncer       = "info"
+api_server   = "info"
+appchain_mgr = "info"
+bxh_lite     = "info"
+executor     = "info"
+exchanger    = "info"
+monitor      = "info"
+peer_mgr     = "info"
+router       = "info"
+rule_mgr     = "info"
+swarm        = "info"
+syncer       = "info"
 
 [mode]
 type = "relay" # relay, direct or union
 [mode.relay]
+# peer 前缀表示p2p
+# netagap 前缀表示p2n
+# 使用的时候为：peer/pangolin_addrs + netgap/pangolin_addrs + peer/bitxhub
+pangolin_addrs = ["/ip4/0.0.0.0/tcp/5010/p2p/QmQtwbFSFFsafBXCHt73JgeX8vEcUvsGVPGN8mPefX1WxS",
+  "/ip4/0.0.0.0/tcp/5020/p2p/QmXjrHKfxWfRodGc4Df5XHi29tMtCzvPLDLsVqkpLaGVk1"]
+# pier的p2p地址
+pier_addr = "/ip4/127.0.0.1/tcp/4111/p2p/QmcenE2ydvgURsYsjvawKSGRf8kbnuNTsKW22DVLXjDnUP"
+# bitxhub节点的p2p地址
+bxh_addrs = ["/ip4/127.0.0.1/tcp/4001/p2p/QmXi58fp9ZczF3Z5iz1yXAez3Hy5NYo1R8STHWKEM9XnTL"]
+#   "/ip4/127.0.0.1/tcp/4002/p2p/QmbmD1kzdsxRiawxu7bRrteDgW1ituXupR8GH6E2EUAHY4",
+#   "/ip4/127.0.0.1/tcp/4003/p2p/QmQUcDYCtqbpn5Nhaw4FAGxQaSSNvdWfAFcpQT9SPiezbS",
+#   "/ip4/127.0.0.1/tcp/4004/p2p/QmQW3bFn8XX1t4W14Pmn37bPJUpUVBrBjnPuBZwPog3Qdy"]
+
 addrs = ["localhost:60011", "localhost:60012", "localhost:60013", "localhost:60014"]
 timeout_limit = "1s"
 quorum = 2
 validators = [
-    "0x000f1a7a08ccc48e5d30f80850cf1cf283aa3abd",
-    "0xe93b92f1da08f925bdee44e91e7768380ae83307",
-    "0xb18c8575e3284e79b92100025a31378feb8100d6",
-    "0x856E2B9A5FA82FD1B031D1FF6863864DBAC7995D",
+  "0x000f1a7a08ccc48e5d30f80850cf1cf283aa3abd",
+  "0xe93b92f1da08f925bdee44e91e7768380ae83307",
+  "0xb18c8575e3284e79b92100025a31378feb8100d6",
+  "0x856E2B9A5FA82FD1B031D1FF6863864DBAC7995D",
 ]
 [mode.direct]
 peers = []
@@ -51,6 +64,6 @@ common_name = "localhost"
 mode = "single"
 
 [appchain]
-did = "did:bitxhub:fabappchain:."
+did = "did:bitxhub:appchain0x724E2AEb86cbefA917Fff5939F31C74F9F560dCb:."
 plugin = "appchain_plugin"
-config = "fabric"
+config = "ethereum"

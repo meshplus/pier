@@ -1,17 +1,22 @@
 package peermgr
 
 import (
+	"context"
 	"fmt"
 	"testing"
 	"time"
 
 	libp2pcry "github.com/libp2p/go-libp2p-core/crypto"
+	network2 "github.com/libp2p/go-libp2p-core/network"
 	peer2 "github.com/libp2p/go-libp2p-core/peer"
+	"github.com/libp2p/go-libp2p/p2p/protocol/ping"
 	"github.com/meshplus/bitxhub-kit/crypto"
 	"github.com/meshplus/bitxhub-kit/crypto/asym"
 	"github.com/meshplus/bitxhub-kit/log"
 	"github.com/meshplus/bitxhub-model/pb"
 	network "github.com/meshplus/go-lightp2p"
+	"github.com/meshplus/go-lightp2p/hybrid"
+	network_pb "github.com/meshplus/go-lightp2p/pb"
 	"github.com/meshplus/pier/internal/repo"
 	ma "github.com/multiformats/go-multiaddr"
 	"github.com/stretchr/testify/require"
@@ -315,7 +320,7 @@ func genKeysAndConfig(t *testing.T, peerCnt int, mode string) ([]crypto.PrivateK
 type MockStream struct {
 }
 
-func (ms *MockStream) RemotePeerID() string {
+func (ms *MockStream) RemotePeerID() peer2.ID {
 	return ""
 }
 
@@ -361,6 +366,10 @@ func (ms *MockStream) Read(time.Duration) ([]byte, error) {
 	return nil, nil
 }
 
+func (ms *MockStream) GetStream() network2.Stream {
+	return nil
+}
+
 //=======================================================================
 type MockStreamHandler struct {
 }
@@ -390,8 +399,8 @@ func (mph *MockPeerHandler) PrivKey() libp2pcry.PrivKey {
 }
 
 // get peer addr info by peer id
-func (mph *MockPeerHandler) PeerInfo(string) (peer2.AddrInfo, error) {
-	return peer2.AddrInfo{}, nil
+func (mph *MockPeerHandler) PeerInfo(string) (*peer2.AddrInfo, error) {
+	return &peer2.AddrInfo{}, nil
 }
 
 // get all network peers
@@ -470,6 +479,8 @@ type MockNetwork struct {
 	MockPeerHandler
 
 	MockDHTHandler
+
+	MockPangolinHandler
 }
 
 // Start start the network service.
@@ -486,7 +497,7 @@ func (mn *MockNetwork) Stop() error {
 }
 
 // Connect connects peer by addr.
-func (mn *MockNetwork) Connect(addrinfo peer2.AddrInfo) error {
+func (mn *MockNetwork) Connect(addrinfo *peer2.AddrInfo) error {
 	if addrinfo.ID == "" {
 		return fmt.Errorf("Connect: wrong addrinfo %s", addrinfo.String())
 	}
@@ -494,7 +505,7 @@ func (mn *MockNetwork) Connect(addrinfo peer2.AddrInfo) error {
 }
 
 // Disconnect peer with id
-func (mn *MockNetwork) Disconnect(string) error {
+func (mn *MockNetwork) Disconnect(*peer2.AddrInfo) error {
 	return nil
 }
 
@@ -508,11 +519,17 @@ func (mn *MockNetwork) SetMessageHandler(network.MessageHandler) {
 
 }
 
+//// AsyncSend sends message to peer with peer id.
+//func (mn *MockNetwork) AsyncSend(id string, msg []byte) error {
+//	if len(id) != 46 {
+//		return fmt.Errorf("AsyncSend: wrong id %s", id)
+//	}
+//	return nil
+//}
+
 // AsyncSend sends message to peer with peer id.
-func (mn *MockNetwork) AsyncSend(id string, msg []byte) error {
-	if len(id) != 46 {
-		return fmt.Errorf("AsyncSend: wrong id %s", id)
-	}
+func (mn *MockNetwork) AsyncSend(addrInfo *peer2.AddrInfo, msg *network_pb.Message) error {
+
 	return nil
 }
 
@@ -541,6 +558,89 @@ func (mn *MockNetwork) Send(id string, data []byte) ([]byte, error) {
 }
 
 // Broadcast message to all node
-func (mn *MockNetwork) Broadcast([]string, []byte) error {
+func (mn *MockNetwork) Broadcast([]*peer2.AddrInfo, *network_pb.Message) error {
 	return nil
+}
+
+type MockPangolinHandler struct {
+}
+
+func (m MockPangolinHandler) AsyncSendWithStream(stream network.Stream, message *network_pb.Message) error {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (m MockPangolinHandler) SendWithStream(stream network.Stream, message *network_pb.Message) (*network_pb.Message, error) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (m MockPangolinHandler) Ping(ctx context.Context, peerID string) (<-chan ping.Result, error) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (m MockPangolinHandler) ConnectByMultiAddr(s string) error {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (m MockPangolinHandler) DisconnectByMultiAddr(s string) error {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (m MockPangolinHandler) AsyncSendByMultiAddr(s string, bytes []byte) error {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (m MockPangolinHandler) SendByMultiAddr(s string, bytes []byte) ([]byte, error) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (m MockPangolinHandler) AsyncSendWithStreamByMultiAddr(stream network.Stream, bytes []byte) error {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (m MockPangolinHandler) SendWithStreamByMultiAddr(stream network.Stream, bytes []byte) ([]byte, error) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (m MockPangolinHandler) SetConnectCallbackByMultiAddr(callback hybrid.ConnectCallback) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (m MockPangolinHandler) NewStreamByMultiAddr(s string) (network.Stream, error) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (m MockPangolinHandler) AsyncSendWithAliveStream(s network.Stream, data []byte) error {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (m MockPangolinHandler) SendWithAliveStream(s network.Stream, data []byte) ([]byte, error) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (m MockPangolinHandler) PeerNum() int {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (m MockPangolinHandler) StorePeer(peerID string, addr ma.Multiaddr) error {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (m MockPangolinHandler) Peers() []peer2.AddrInfo {
+	//TODO implement me
+	panic("implement me")
 }

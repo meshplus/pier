@@ -120,7 +120,10 @@ func (ex *Exchanger) handleMissingIBTPFromMnt(to string, begin, end uint64) erro
 				ex.logger.Errorf("Fetch ibtp: %s", err.Error())
 				return err
 			}
-
+			ex.logger.WithFields(logrus.Fields{
+				"to":    to,
+				"index": begin,
+			}).Info("start sendIBTP to bxh")
 			if err := ex.sendIBTP(ibtp); err != nil {
 				ex.logger.Errorf("Send ibtp: %s", err.Error())
 				// if err occurs, try to resend this ibtp

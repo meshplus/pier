@@ -13,6 +13,10 @@ type ConnectHandler func(string)
 type PeerManager interface {
 	DHTManager
 
+	PangolinNetwork
+
+	Ha
+
 	// Start
 	Start() error
 
@@ -54,4 +58,29 @@ type DHTManager interface {
 	// passed, it also announces it, otherwise it is just kept in the local
 	// accounting of which objects are being provided.
 	Provider(string, bool) error
+}
+
+type ConnectCallback func(string) error
+
+type PangolinNetwork interface {
+	// Connect to remote peer through netgap using multi-address
+	AsyncSendByMultiAddr([]byte) error
+
+	// Disconnect from remote peer through netgap using multi-address
+	SendByMultiAddr([]byte) ([]byte, error)
+
+	GetLocalAddr() string
+
+	GetPangolinAddr() string
+}
+
+type Ha interface {
+	// CheckMasterPier Check whether there is a master pier connect to the BitXHub.
+	CheckMasterPier(address string) (*pb.Response, error)
+
+	// SetMasterPier Set the master pier connect to the BitXHub.
+	SetMasterPier(address string, index string, timeout int64) (*pb.Response, error)
+
+	// HeartBeat Update the master pier status
+	HeartBeat(address string, index string) (*pb.Response, error)
 }

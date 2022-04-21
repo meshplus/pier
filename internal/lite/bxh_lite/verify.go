@@ -8,3 +8,8 @@ func (lite *BxhLite) verifyHeader(h *pb.BlockHeader) (bool, error) {
 	// TODO: blocked by signature mechanism implementation of BitXHub
 	return true, nil
 }
+
+func (lite *BxhLite2) verifyHeader(h *pb.BlockHeader) (bool, error) {
+	// TODO: blocked by signature mechanism implementation of BitXHub
+	return true, nil
+}

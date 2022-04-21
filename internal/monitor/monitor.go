@@ -76,6 +76,7 @@ func (m *AppchainMonitor) ListenIBTP() <-chan *pb.IBTP {
 
 // QueryIBTP queries interchain tx recorded in appchain given ibtp id
 func (m *AppchainMonitor) QueryIBTP(id string) (*pb.IBTP, error) {
+	m.logger.WithField("id", id).Infof("start queryIBTP")
 	// TODO(xcc): Encapsulate as a function
 	args := strings.Split(id, "-")
 	if len(args) != 3 {
@@ -90,6 +91,7 @@ func (m *AppchainMonitor) QueryIBTP(id string) (*pb.IBTP, error) {
 	c := make(chan *pb.IBTP, 1)
 	if err := retry.Retry(func(attempt uint) error {
 		// TODO(xcc): Need to distinguish error types
+		m.logger.WithField("id", idx).Infof("start GetOutMessage")
 		e, err := m.client.GetOutMessage(args[1], idx)
 		if err != nil {
 			m.logger.WithFields(logrus.Fields{
@@ -98,6 +100,10 @@ func (m *AppchainMonitor) QueryIBTP(id string) (*pb.IBTP, error) {
 			}).Error("Query ibtp")
 			return err
 		}
+		m.logger.WithFields(logrus.Fields{
+			"index":   e.Index,
+			"ibtp_id": e.ID(),
+		}).Error("Query ibtp from appchain success")
 		c <- e
 		return nil
 	}, strategy.Wait(2*time.Second)); err != nil {
@@ -157,9 +163,10 @@ func (m *AppchainMonitor) encryption(ibtp *pb.IBTP) error {
 		return err
 	}
 	if !pld.Encrypted {
+		m.logger.Infof("no encryption ibtp:%s", ibtp.ID())
 		return nil
 	}
-
+	m.logger.Infof("start encryption ibtp:%s", ibtp.ID())
 	ctb, err := m.cryptor.Encrypt(pld.Content, ibtp.To)
 	if err != nil {
 		return err

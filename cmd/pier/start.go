@@ -56,7 +56,7 @@ func start(ctx *cli.Context) error {
 	// init loggers map for pier
 	loggers.InitializeLogger(config)
 
-	var pier *app.Pier
+	var pier *app.Pier2
 
 	switch config.Mode.Type {
 	case repo.RelayMode:
@@ -66,12 +66,12 @@ func start(ctx *cli.Context) error {
 			return fmt.Errorf("check plugin: %w", err)
 		}
 
-		pier, err = app.NewPier(repoRoot, config)
+		pier, err = app.NewPier2(repoRoot, config)
 		if err != nil {
 			return err
 		}
 	case repo.UnionMode:
-		pier, err = app.NewUnionPier(repoRoot, config)
+		pier, err = app.NewUnionPier2(repoRoot, config)
 		if err != nil {
 			return err
 		}
@@ -94,7 +94,7 @@ func start(ctx *cli.Context) error {
 	return nil
 }
 
-func handleShutdown(pier *app.Pier, wg *sync.WaitGroup) {
+func handleShutdown(pier *app.Pier2, wg *sync.WaitGroup) {
 	var stop = make(chan os.Signal)
 	signal.Notify(stop, syscall.SIGTERM)
 	signal.Notify(stop, syscall.SIGINT)

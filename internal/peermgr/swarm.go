@@ -12,36 +12,189 @@ import (
 	"github.com/ipfs/go-cid"
 	crypto2 "github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/libp2p/go-libp2p-core/peer"
+	"github.com/libp2p/go-libp2p-core/protocol"
 	"github.com/meshplus/bitxhub-kit/crypto"
 	"github.com/meshplus/bitxhub-kit/crypto/asym/ecdsa"
 	"github.com/meshplus/bitxhub-model/pb"
 	"github.com/meshplus/bitxid"
 	network "github.com/meshplus/go-lightp2p"
+	network2 "github.com/meshplus/go-lightp2p/hybrid"
+	network_pb "github.com/meshplus/go-lightp2p/pb"
 	"github.com/meshplus/pier/internal/repo"
 	ma "github.com/multiformats/go-multiaddr"
 	"github.com/sirupsen/logrus"
 )
 
 const (
-	protocolID          = "/pier/1.0.0" // magic protocol
-	defaultProvidersNum = 1
+	//protocolID          protocol.ID = "/pier/1.0.0" // magic protocol
+	protocolID          protocol.ID = "/pangolin/1.0.0" // magic protocol
+	defaultProvidersNum             = 1
+	SubscribeResponse               = "Successfully subscribe"
 )
 
 var _ PeerManager = (*Swarm)(nil)
 
 type Swarm struct {
-	p2p             network.Network
-	logger          logrus.FieldLogger
-	peers           map[string]*peer.AddrInfo
-	connectedPeers  sync.Map
-	msgHandlers     sync.Map
-	providers       uint64
-	connectHandlers []ConnectHandler
-	privKey         crypto.PrivateKey
+	p2p               network2.HybridNetwork
+	localAddr         string
+	pangolinAddr      string
+	logger            logrus.FieldLogger
+	peers             map[string]*peer.AddrInfo
+	pangolinPeers     map[string]string
+	connectedPeers    sync.Map
+	connectedBxhPeers sync.Map
+	msgHandlers       sync.Map
+	providers         uint64
+	connectHandlers   []ConnectHandler
+	privKey           crypto.PrivateKey
 
 	lock   sync.RWMutex
 	ctx    context.Context
 	cancel context.CancelFunc
+}
+
+func (swarm *Swarm) GetPangolinAddr() string {
+	return swarm.pangolinAddr
+}
+
+func (swarm *Swarm) GetLocalAddr() string {
+	return swarm.localAddr
+}
+
+func (swarm *Swarm) CheckMasterPier(address string) (*pb.Response, error) {
+	request := &pb.Address{
+		Address: address,
+	}
+	rb, err := request.Marshal()
+	if err != nil {
+		return nil, err
+	}
+	msg := Message(pb.Message_PIER_CHECK_MASTER_PIER, true, rb)
+	data, err := msg.Marshal()
+	if err != nil {
+		return nil, fmt.Errorf("CheckMasterPier marshal err: %w", err)
+	}
+	res, err := swarm.SendByMultiAddr(data)
+	if err != nil {
+		return nil, fmt.Errorf("CheckMasterPier from bitxhub: %w", err)
+	}
+	response := &pb.Response{}
+	err = response.Unmarshal(res)
+	if err != nil {
+		return nil, err
+	}
+	return response, nil
+}
+
+func (swarm *Swarm) SetMasterPier(address string, index string, timeout int64) (*pb.Response, error) {
+	request := &pb.PierInfo{
+		Address: address,
+		Index:   index,
+		Timeout: timeout,
+	}
+
+	rb, err := request.Marshal()
+	if err != nil {
+		return nil, err
+	}
+	msg := Message(pb.Message_PIER_SET_MASTER_PIER, true, rb)
+	data, err := msg.Marshal()
+	if err != nil {
+		return nil, fmt.Errorf("SetMasterPier marshal err: %w", err)
+	}
+	res, err := swarm.SendByMultiAddr(data)
+	if err != nil {
+		return nil, fmt.Errorf("SetMasterPier from bitxhub: %w", err)
+	}
+	response := &pb.Response{}
+	err = response.Unmarshal(res)
+	if err != nil {
+		return nil, err
+	}
+	return response, nil
+}
+
+func (swarm *Swarm) HeartBeat(address string, index string) (*pb.Response, error) {
+	request := &pb.PierInfo{
+		Address: address,
+		Index:   index,
+	}
+	rb, err := request.Marshal()
+	if err != nil {
+		return nil, err
+	}
+	msg := Message(pb.Message_PIER_HEART_BEAT, true, rb)
+	data, err := msg.Marshal()
+	if err != nil {
+		return nil, fmt.Errorf("HeartBeat marshal err: %w", err)
+	}
+	res, err := swarm.SendByMultiAddr(data)
+	if err != nil {
+		return nil, fmt.Errorf("HeartBeat from bitxhub: %w", err)
+	}
+	response := &pb.Response{}
+	err = response.Unmarshal(res)
+	if err != nil {
+		return nil, err
+	}
+	return response, nil
+}
+
+func (swarm *Swarm) AsyncSendByMultiAddr(data []byte) error {
+	var success bool
+	swarm.connectedBxhPeers.Range(func(key, value interface{}) bool {
+		multiAddr := value.(string)
+		err := swarm.p2p.AsyncSendByMultiAddr(multiAddr, data)
+		if err != nil {
+			swarm.logger.WithFields(logrus.Fields{
+				"node":  multiAddr,
+				"error": err,
+			}).Error("SendByMultiAddr failed")
+			return true
+		}
+		success = true
+		// if successfully send msg, stop the range
+		return false
+	})
+	if !success {
+		return fmt.Errorf("AsyncSendByMultiAddr err: all multiAddr connect failed")
+	}
+	return nil
+}
+
+func (swarm *Swarm) SendByMultiAddr(data []byte) ([]byte, error) {
+	var (
+		resp    []byte
+		err     error
+		success bool
+	)
+	if err := retry.Retry(func(attempt uint) error {
+		swarm.connectedBxhPeers.Range(func(key, value interface{}) bool {
+			multiAddr := value.(string)
+			bxId := key.(string)
+			//hexData := hexutil.Encode(data)
+			//resp, err = swarm.p2p.SendByMultiAddr(multiAddr, []byte(hexData))
+			resp, err = swarm.p2p.SendByMultiAddr(multiAddr, data)
+			if err != nil {
+				swarm.logger.WithFields(logrus.Fields{
+					"node":  bxId,
+					"error": err,
+				}).Error("SendByMultiAddr failed")
+				return true
+			}
+			// if successfully send msg, stop the range
+			success = true
+			return false
+		})
+		if !success {
+			return fmt.Errorf("AsyncSendByMultiAddr err: all multiAddr connect failed")
+		}
+
+		return nil
+	}, strategy.Wait(500*time.Millisecond)); err != nil {
+		swarm.logger.Panic(err)
+	}
+	return resp, nil
 }
 
 func New(config *repo.Config, nodePrivKey crypto.PrivateKey, privKey crypto.PrivateKey, providers uint64, logger logrus.FieldLogger) (*Swarm, error) {
@@ -51,6 +204,7 @@ func New(config *repo.Config, nodePrivKey crypto.PrivateKey, privKey crypto.Priv
 	}
 	var local string
 	var remotes map[string]*peer.AddrInfo
+	var pangolinPeer map[string]string
 	switch config.Mode.Type {
 	case repo.UnionMode:
 		local, remotes, err = loadPeers(config.Mode.Union.Connectors, libp2pPrivKey)
@@ -62,17 +216,18 @@ func New(config *repo.Config, nodePrivKey crypto.PrivateKey, privKey crypto.Priv
 		if err != nil {
 			return nil, fmt.Errorf("load peers: %w", err)
 		}
+	case repo.RelayMode:
+		local, pangolinPeer, err = loadPangolinPeers(config.Mode.Relay.PangolinAddrs,
+			config.Mode.Relay.BxhAddrs, config.Mode.Relay.PierAddr)
 	default:
 		return nil, fmt.Errorf("unsupport mode type")
 	}
 
-	var protocolIDs = []string{protocolID}
-
-	p2p, err := network.New(
-		network.WithLocalAddr(local),
-		network.WithPrivateKey(libp2pPrivKey),
-		network.WithProtocolIDs(protocolIDs),
-		network.WithLogger(logger),
+	p2p, err := network2.NewHybridNet(
+		network2.WithLocalAddr(local),
+		network2.WithPrivateKey(libp2pPrivKey),
+		network2.WithProtocolID(protocolID),
+		network2.WithLogger(logger),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("create p2p: %w", err)
@@ -85,13 +240,16 @@ func New(config *repo.Config, nodePrivKey crypto.PrivateKey, privKey crypto.Priv
 	ctx, cancel := context.WithCancel(context.Background())
 
 	return &Swarm{
-		providers: providers,
-		p2p:       p2p,
-		logger:    logger,
-		peers:     remotes,
-		privKey:   privKey,
-		ctx:       ctx,
-		cancel:    cancel,
+		providers:     providers,
+		p2p:           p2p,
+		localAddr:     config.Mode.Relay.PierAddr,
+		pangolinAddr:  config.Mode.Relay.PangolinAddrs[0],
+		logger:        logger,
+		peers:         remotes,
+		pangolinPeers: pangolinPeer,
+		privKey:       privKey,
+		ctx:           ctx,
+		cancel:        cancel,
 	}, nil
 }
 
@@ -108,12 +266,13 @@ func (swarm *Swarm) Start() error {
 
 	//need to connect one other pier at least
 	wg := &sync.WaitGroup{}
-	wg.Add(1)
+	wg.Add(len(swarm.peers) + len(swarm.pangolinPeers))
 
-	for id, addr := range swarm.peers {
-		go func(id string, addr *peer.AddrInfo) {
+	for id, addrInfo := range swarm.peers {
+		go func(id string, addrInfo *peer.AddrInfo) {
+			defer wg.Done()
 			if err := retry.Retry(func(attempt uint) error {
-				if err := swarm.p2p.Connect(*addr); err != nil {
+				if err := swarm.p2p.Connect(addrInfo); err != nil {
 					if attempt != 0 && attempt%5 == 0 {
 						swarm.logger.WithFields(logrus.Fields{
 							"node":  id,
@@ -123,7 +282,7 @@ func (swarm *Swarm) Start() error {
 					return err
 				}
 
-				address, err := swarm.getRemoteAddress(addr.ID)
+				pierID, err := swarm.getRemoteAddress(addrInfo)
 				if err != nil {
 					swarm.logger.WithFields(logrus.Fields{
 						"node":  id,
@@ -134,19 +293,49 @@ func (swarm *Swarm) Start() error {
 
 				swarm.logger.WithFields(logrus.Fields{
 					"node":     id,
-					"address:": address,
+					"address:": pierID,
 				}).Info("Connect successfully")
 
-				swarm.connectedPeers.Store(address, addr)
+				swarm.connectedPeers.Store(pierID, addrInfo)
 
 				swarm.lock.RLock()
 				defer swarm.lock.RUnlock()
 				for _, handler := range swarm.connectHandlers {
 					go func(connectHandler ConnectHandler, address string) {
 						connectHandler(address)
-					}(handler, address)
+					}(handler, pierID)
 				}
-				wg.Done()
+				return nil
+			},
+				strategy.Wait(1*time.Second),
+			); err != nil {
+				swarm.logger.Error(err)
+			}
+		}(id, addrInfo)
+	}
+
+	for id, addr := range swarm.pangolinPeers {
+		go func(id string, addr string) {
+			defer wg.Done()
+			if err := retry.Retry(func(attempt uint) error {
+				if err := swarm.p2p.ConnectByMultiAddr(addr); err != nil {
+					if attempt != 0 && attempt%5 == 0 {
+						swarm.logger.WithFields(logrus.Fields{
+							"node":  id,
+							"error": err,
+						}).Error("Pangolin Connect failed")
+					}
+					return err
+				}
+				swarm.connectedBxhPeers.Store(id, addr)
+
+				//swarm.lock.RLock()
+				//defer swarm.lock.RUnlock()
+				//for _, handler := range swarm.connectHandlers {
+				//	go func(connectHandler ConnectHandler, address string) {
+				//		connectHandler(address)
+				//	}(handler, addr)
+				//}
 				return nil
 			},
 				strategy.Wait(1*time.Second),
@@ -158,6 +347,7 @@ func (swarm *Swarm) Start() error {
 
 	wg.Wait()
 
+	swarm.logger.Infof("successful start swarm")
 	return nil
 }
 
@@ -181,16 +371,25 @@ func (swarm *Swarm) AsyncSend(id string, msg *pb.Message) error {
 		return fmt.Errorf("marshal message: %w", err)
 	}
 
-	return swarm.p2p.AsyncSend(addrInfo.ID.String(), data)
+	msg1 := &network_pb.Message{
+		Data: data,
+		Msg:  network_pb.Message_DATA_ASYNC,
+	}
+	return swarm.p2p.AsyncSend(addrInfo, msg1)
 }
 
+// SendWithStream
+// todo(lrx) not implement correctly
 func (swarm *Swarm) SendWithStream(s network.Stream, msg *pb.Message) (*pb.Message, error) {
 	data, err := msg.Marshal()
 	if err != nil {
 		return nil, err
 	}
-
-	recvData, err := s.Send(data)
+	//msg1 := &network_pb.Message{
+	//	Data: data,
+	//	Msg:  network_pb.Message_DATA,
+	//}
+	recvData, err := swarm.p2p.SendWithAliveStream(s, data)
 	if err != nil {
 		return nil, err
 	}
@@ -202,11 +401,11 @@ func (swarm *Swarm) SendWithStream(s network.Stream, msg *pb.Message) (*pb.Messa
 }
 
 func (swarm *Swarm) Connect(addrInfo *peer.AddrInfo) (string, error) {
-	err := swarm.p2p.Connect(*addrInfo)
+	err := swarm.p2p.Connect(addrInfo)
 	if err != nil {
 		return "", err
 	}
-	pierId, err := swarm.getRemoteAddress(addrInfo.ID)
+	pierId, err := swarm.getRemoteAddress(addrInfo)
 	if err != nil {
 		return "", err
 	}
@@ -238,13 +437,18 @@ func (swarm *Swarm) Send(id string, msg *pb.Message) (*pb.Message, error) {
 		return nil, err
 	}
 
-	ret, err := swarm.p2p.Send(addrInfo.ID.String(), data)
+	msg1 := &network_pb.Message{
+		Data: data,
+		Msg:  network_pb.Message_DATA,
+	}
+
+	ret, err := swarm.p2p.Send(addrInfo, msg1)
 	if err != nil {
 		return nil, fmt.Errorf("sync send: %w", err)
 	}
 
 	m := &pb.Message{}
-	if err := m.Unmarshal(ret); err != nil {
+	if err := m.Unmarshal(ret.Data); err != nil {
 		return nil, err
 	}
 
@@ -296,6 +500,7 @@ func (swarm *Swarm) RegisterMultiMsgHandler(messageTypes []pb.Message_Type, hand
 	return nil
 }
 
+// todo(lrx) refactor addrInfo
 func (swarm *Swarm) getAddrInfo(id string) (*peer.AddrInfo, error) {
 	if bitxid.DID(id).IsValidFormat() {
 		id = strings.TrimPrefix(bitxid.DID(id).GetSubMethod(), "appchain")
@@ -355,6 +560,32 @@ func loadPeers(peers []string, privateKey crypto2.PrivKey) (string, map[string]*
 	return local, remotes, nil
 }
 
+func loadPangolinPeers(pangolinAddrs, bxhAddrs []string, pierAddr string) (string, map[string]string, error) {
+	remotes := make(map[string]string)
+
+	if len(pangolinAddrs) != 2 {
+		return "", nil, fmt.Errorf("pangolin addrs err: the length should be 2, "+
+			"but actually is %d", len(pangolinAddrs))
+	}
+	local, err := AddrToPeerInfo(pierAddr)
+	if err != nil {
+		return "", nil, fmt.Errorf("wrong pier network addr: %w", err)
+	}
+
+	for _, b := range bxhAddrs {
+		addr := fmt.Sprintf("/peer" + pangolinAddrs[0] + "/netgap" + pangolinAddrs[0] + "/peer" + pangolinAddrs[1] + "/peer" + b)
+		bxhAddr, err := AddrToPeerInfo(b)
+		if err != nil {
+			return "", nil, fmt.Errorf("wrong bitxhub network addr: %w", err)
+		}
+		if _, err = network2.StrToMultiAddr(addr); err != nil {
+			return "", nil, fmt.Errorf("wrong pangolin multi network addr: %w", err)
+		}
+		remotes[bxhAddr.ID.String()] = addr
+	}
+	return local.Addrs[0].String(), remotes, nil
+}
+
 // AddrToPeerInfo transfer addr to PeerInfo
 // addr example: "/ip4/104.236.76.40/tcp/4001/ipfs/QmSoLV4Bbm51jM9C4gDYZQ9Cy3U6aXMJDAbzgu2fzaDs64"
 func AddrToPeerInfo(multiAddr string) (*peer.AddrInfo, error) {
@@ -394,18 +625,22 @@ func (swarm *Swarm) handleMessage(s network.Stream, data []byte) {
 	msgHandler(s, m)
 }
 
-func (swarm *Swarm) getRemoteAddress(id peer.ID) (string, error) {
+func (swarm *Swarm) getRemoteAddress(addr *peer.AddrInfo) (string, error) {
 	msg := Message(pb.Message_ADDRESS_GET, true, nil)
 	reqData, err := msg.Marshal()
 	if err != nil {
 		return "", err
 	}
-	retData, err := swarm.p2p.Send(id.String(), reqData)
+	msg1 := &network_pb.Message{
+		Data: reqData,
+		Msg:  network_pb.Message_DATA,
+	}
+	retData, err := swarm.p2p.Send(addr, msg1)
 	if err != nil {
 		return "", fmt.Errorf("sync send: %w", err)
 	}
 	ret := &pb.Message{}
-	if err := ret.Unmarshal(retData); err != nil {
+	if err := ret.Unmarshal(retData.Data); err != nil {
 		return "", err
 	}
 

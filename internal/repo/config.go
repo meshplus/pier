@@ -55,10 +55,13 @@ type Mode struct {
 
 // Relay are configs about bitxhub
 type Relay struct {
-	Addrs        []string      `toml:"addrs" json:"addrs"`
-	TimeoutLimit time.Duration `mapstructure:"timeout_limit" json:"timeout_limit"`
-	Quorum       uint64        `toml:"quorum" json:"quorum"`
-	Validators   []string      `toml:"validators" json:"validators"`
+	PangolinAddrs []string      `mapstructure:"pangolin_addrs" json:"pangolin_addrs"`
+	PierAddr      string        `mapstructure:"pier_addr" json:"pier_addr"`
+	BxhAddrs      []string      `mapstructure:"bxh_addrs" json:"bxh_addrs"`
+	Addrs         []string      `toml:"addrs" json:"addrs"`
+	TimeoutLimit  time.Duration `mapstructure:"timeout_limit" json:"timeout_limit"`
+	Quorum        uint64        `toml:"quorum" json:"quorum"`
+	Validators    []string      `toml:"validators" json:"validators"`
 }
 
 type Direct struct {

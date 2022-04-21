@@ -1,9 +1,7 @@
 package peermgr
 
 import (
-	"encoding/json"
 	"github.com/meshplus/bitxhub-model/pb"
-	"github.com/meshplus/pier/pkg/model"
 )
 
 const (
@@ -11,8 +9,11 @@ const (
 )
 
 func Message(typ pb.Message_Type, ok bool, data []byte) *pb.Message {
-	payload := &model.Payload{Ok: ok, Data: data}
-	mData, err := json.Marshal(payload)
+	payload := &pb.PierPayload{Ok: ok, Data: data}
+	mData, err := payload.Marshal()
+	if err != nil {
+		return nil
+	}
 	//TODO: Marshal error handing.
 	if err != nil {
 		return nil
@@ -24,10 +25,10 @@ func Message(typ pb.Message_Type, ok bool, data []byte) *pb.Message {
 	}
 }
 
-func DataToPayload(msg *pb.Message) *model.Payload {
-	payload := &model.Payload{}
-	if err := json.Unmarshal(msg.Data, payload); err != nil {
-		//TODO: Unmarshal error handing.
+func DataToPayload(msg *pb.Message) *pb.PierPayload {
+	payload := &pb.PierPayload{}
+	err := payload.Unmarshal(msg.Data)
+	if err != nil {
 		return nil
 	}
 	return payload

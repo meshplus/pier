@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/meshplus/pier/internal/utils"
 	"strings"
 	"time"
 
@@ -20,8 +21,8 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-func (syncer *WrapperSyncer) GetAssetExchangeSigns(id string) ([]byte, error) {
-	resp, err := syncer.client.GetMultiSigns(id, pb.GetMultiSignsRequest_ASSET_EXCHANGE)
+func (syncer *WrapperSyncer2) GetAssetExchangeSigns(id string) ([]byte, error) {
+	resp, err := utils.GetMultiSigns(syncer.peerMgr, id, pb.GetMultiSignsRequest_ASSET_EXCHANGE)
 	if err != nil {
 		return nil, err
 	}
@@ -38,9 +39,9 @@ func (syncer *WrapperSyncer) GetAssetExchangeSigns(id string) ([]byte, error) {
 	return signs, nil
 }
 
-func (syncer *WrapperSyncer) GetIBTPSigns(ibtp *pb.IBTP) ([]byte, error) {
+func (syncer *WrapperSyncer2) GetIBTPSigns(ibtp *pb.IBTP) ([]byte, error) {
 	hash := ibtp.Hash()
-	resp, err := syncer.client.GetMultiSigns(hash.String(), pb.GetMultiSignsRequest_IBTP)
+	resp, err := utils.GetMultiSigns(syncer.peerMgr, hash.String(), pb.GetMultiSignsRequest_IBTP)
 	if err != nil {
 		return nil, err
 	}
@@ -56,15 +57,19 @@ func (syncer *WrapperSyncer) GetIBTPSigns(ibtp *pb.IBTP) ([]byte, error) {
 	return signs, nil
 }
 
-func (syncer *WrapperSyncer) GetAppchains() ([]*appchainmgr.Appchain, error) {
+func (syncer *WrapperSyncer2) GetAppchains() ([]*appchainmgr.Appchain, error) {
 	var receipt *pb.Receipt
 	if err := syncer.retryFunc(func(attempt uint) error {
-		tx, err := syncer.client.GenerateContractTx(pb.TransactionData_BVM, constant.AppchainMgrContractAddr.Address(), "Appchains")
+		tx, err := utils.GenerateContractTx(syncer.priv, pb.TransactionData_BVM, constant.AppchainMgrContractAddr.Address(), "Appchains")
 		if err != nil {
 			return err
 		}
 		tx.Nonce = 1
-		receipt, err = syncer.client.SendView(tx)
+		err = tx.Sign(syncer.priv)
+		if err != nil {
+			return fmt.Errorf("%w: for reason %s", utils.ErrSignTx, err.Error())
+		}
+		receipt, err = utils.SenView(syncer.peerMgr, tx)
 		if err != nil {
 			return err
 		}
@@ -89,15 +94,23 @@ func (syncer *WrapperSyncer) GetAppchains() ([]*appchainmgr.Appchain, error) {
 	return appchains, nil
 }
 
-func (syncer *WrapperSyncer) GetInterchainById(from string) *pb.Interchain {
+func (syncer *WrapperSyncer2) GetInterchainById(from string) *pb.Interchain {
 	ic := &pb.Interchain{}
-	tx, err := syncer.client.GenerateContractTx(pb.TransactionData_BVM, constant.InterchainContractAddr.Address(), "GetInterchain", rpcx.String(from))
+	var receipt *pb.Receipt
+	tx, err := utils.GenerateContractTx(syncer.priv, pb.TransactionData_BVM, constant.InterchainContractAddr.Address(), "GetInterchain", rpcx.String(from))
 	if err != nil {
+		syncer.logger.Errorf("GetInterchainById generateContractTx err:%s", err)
 		return ic
 	}
 	tx.Nonce = 1
-	receipt, err := syncer.client.SendView(tx)
+	err = tx.Sign(syncer.priv)
 	if err != nil {
+		syncer.logger.Errorf("GetInterchainById sign err:%s", err)
+		return ic
+	}
+	receipt, err = utils.SenView(syncer.peerMgr, tx)
+	if err != nil {
+		syncer.logger.Errorf("GetInterchainById SenView err:%s", err)
 		return ic
 	}
 	var interchain pb.Interchain
@@ -107,16 +120,21 @@ func (syncer *WrapperSyncer) GetInterchainById(from string) *pb.Interchain {
 	return &interchain
 }
 
-func (syncer *WrapperSyncer) QueryInterchainMeta() *pb.Interchain {
+func (syncer *WrapperSyncer2) QueryInterchainMeta() *pb.Interchain {
 	var interchainMeta *pb.Interchain
+	var receipt *pb.Receipt
 	if err := syncer.retryFunc(func(attempt uint) error {
-		queryTx, err := syncer.client.GenerateContractTx(pb.TransactionData_BVM,
+		queryTx, err := utils.GenerateContractTx(syncer.priv, pb.TransactionData_BVM,
 			constant.InterchainContractAddr.Address(), "Interchain")
 		if err != nil {
 			return err
 		}
 		queryTx.Nonce = 1
-		receipt, err := syncer.client.SendView(queryTx)
+		err = queryTx.Sign(syncer.priv)
+		if err != nil {
+			return fmt.Errorf("%w: for reason %s", utils.ErrSignTx, err.Error())
+		}
+		receipt, err = utils.SenView(syncer.peerMgr, queryTx)
 		if err != nil {
 			return err
 		}
@@ -136,14 +154,19 @@ func (syncer *WrapperSyncer) QueryInterchainMeta() *pb.Interchain {
 	return interchainMeta
 }
 
-func (syncer *WrapperSyncer) QueryIBTP(ibtpID string) (*pb.IBTP, bool, error) {
-	queryTx, err := syncer.client.GenerateContractTx(pb.TransactionData_BVM, constant.InterchainContractAddr.Address(),
+func (syncer *WrapperSyncer2) QueryIBTP(ibtpID string) (*pb.IBTP, bool, error) {
+	var receipt *pb.Receipt
+	queryTx, err := utils.GenerateContractTx(syncer.priv, pb.TransactionData_BVM, constant.InterchainContractAddr.Address(),
 		"GetIBTPByID", rpcx.String(ibtpID))
 	if err != nil {
 		return nil, false, err
 	}
 	queryTx.Nonce = 1
-	receipt, err := syncer.client.SendView(queryTx)
+	err = queryTx.Sign(syncer.priv)
+	if err != nil {
+		return nil, false, fmt.Errorf("%w: for reason %s", utils.ErrSignTx, err.Error())
+	}
+	receipt, err = utils.SenView(syncer.peerMgr, queryTx)
 	if err != nil {
 		return nil, false, err
 	}
@@ -153,49 +176,52 @@ func (syncer *WrapperSyncer) QueryIBTP(ibtpID string) (*pb.IBTP, bool, error) {
 	}
 
 	hash := types.NewHash(receipt.Ret)
-	response, err := syncer.client.GetTransaction(hash.String())
+
+	response, err := utils.GetTransaction(syncer.peerMgr, hash.String())
 	if err != nil {
 		return nil, false, err
 	}
-	receipt, err = syncer.client.GetReceipt(hash.String())
+	receipt, err = utils.GetReceipt(syncer.peerMgr, hash.String())
 	if err != nil {
 		return nil, false, err
 	}
 	return response.Txs.Transactions[0].GetIBTP(), receipt.Status == pb.Receipt_SUCCESS, nil
 }
 
-func (syncer *WrapperSyncer) ListenIBTP() <-chan *model.WrappedIBTP {
+func (syncer *WrapperSyncer2) ListenIBTP() <-chan *model.WrappedIBTP {
 	return syncer.ibtpC
 }
 
-func (syncer *WrapperSyncer) SendIBTP(ibtp *pb.IBTP) error {
+func (syncer *WrapperSyncer2) SendIBTP(ibtp *pb.IBTP) error {
 	proof := ibtp.GetProof()
 	proofHash := sha256.Sum256(proof)
 	ibtp.Proof = proofHash[:]
 
-	tx, _ := syncer.client.GenerateIBTPTx(ibtp)
+	tx, _ := utils.GenerateIBTPTx(syncer.priv, ibtp)
 	tx.Extra = proof
 
 	var receipt *pb.Receipt
-	syncer.retryFunc(func(attempt uint) error {
-		hash, err := syncer.client.SendTransaction(tx, nil)
+	err := syncer.retryFunc(func(attempt uint) error {
+		hash, err := utils.SendTransaction(syncer.priv, syncer.peerMgr, tx, nil)
 		if err != nil {
 			syncer.logger.Errorf("Send ibtp error: %s", err.Error())
-			if errors.Is(err, rpcx.ErrRecoverable) {
-				return err
-			}
 			if errors.Is(err, rpcx.ErrReconstruct) {
-				tx, _ = syncer.client.GenerateIBTPTx(ibtp)
+				tx, _ = utils.GenerateIBTPTx(syncer.priv, ibtp)
 				tx.Extra = proof
-				return err
 			}
+			return err
 		}
-		receipt, err = syncer.client.GetReceipt(hash)
+		syncer.logger.WithFields(logrus.Fields{"hash": hash}).Info("syncer agent sendIBTP to bxh")
+		receipt, err = utils.GetReceipt(syncer.peerMgr, hash)
+		syncer.logger.WithFields(logrus.Fields{"receiptHash": receipt.TxHash, "status": receipt.Status}).Info("get receipt")
 		if err != nil {
 			return fmt.Errorf("get tx receipt by hash %s: %w", hash, err)
 		}
 		return nil
 	})
+	if err != nil {
+		panic(err)
+	}
 
 	if !receipt.IsSuccess() {
 		syncer.logger.WithFields(logrus.Fields{
@@ -229,10 +255,14 @@ func (syncer *WrapperSyncer) SendIBTP(ibtp *pb.IBTP) error {
 		}
 		return fmt.Errorf("unknown error, retry for %s anyway", ibtp.ID())
 	}
+	syncer.logger.WithFields(logrus.Fields{
+		"ibtp_id": ibtp.ID(),
+		"msg":     string(receipt.Ret),
+	}).Info("Receipt result for bixthub")
 	return nil
 }
 
-func (syncer *WrapperSyncer) retryFunc(handle func(uint) error) error {
+func (syncer *WrapperSyncer2) retryFunc(handle func(uint) error) error {
 	return retry.Retry(func(attempt uint) error {
 		if err := handle(attempt); err != nil {
 			syncer.logger.Errorf("retry failed for reason: %s", err.Error())

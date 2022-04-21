@@ -5,6 +5,8 @@ import (
 	"sync/atomic"
 )
 
+const maxChSize = 1024
+
 func (lite *BxhLite) getDemandHeight() uint64 {
 	return atomic.LoadUint64(&lite.height) + 1
 }

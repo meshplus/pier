@@ -10,8 +10,6 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-const maxChSize = 1024
-
 type BxhLite struct {
 	client  rpcx.Client
 	storage storage.Storage

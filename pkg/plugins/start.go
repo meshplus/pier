@@ -53,7 +53,7 @@ func CreateClient(pierID string, appchainConfig repo.Appchain, extra []byte) (Cl
 	default:
 		return nil, nil, fmt.Errorf("unsupported client type")
 	}
-
+	logger.Info("start Initialize appchain plugin")
 	// initialize our client plugin
 	err = appchain.Initialize(pluginConfigPath, pierID, extra)
 	if err != nil {
