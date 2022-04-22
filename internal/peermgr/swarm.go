@@ -107,7 +107,7 @@ func (swarm *Swarm) Start() error {
 
 	//need to connect one other pier at least
 	wg := &sync.WaitGroup{}
-	wg.Add(1)
+	wg.Add(len(swarm.peers))
 
 	for id, addr := range swarm.peers {
 		go func(id string, addr *peer.AddrInfo) {
