@@ -202,7 +202,7 @@ func (g *FjsServer) count(startDate, endDate int64) (int64, int64, int64, int64)
 			return 0, 0, 0, 0
 		}
 		defer CrsChnTxFail1.Close()
-		CrsChnTxProc1, err := g.db.Query("SELECT COUNT (1) from ibtp_crsChnTxFail where created > ? and created < ?", startDate, endDate)
+		CrsChnTxProc1, err := g.db.Query("SELECT COUNT (1) from ibtp_crsChnTxProc where created > ? and created < ?", startDate, endDate)
 		if err != nil {
 			fmt.Printf("db query filed:%s", err.Error())
 			return 0, 0, 0, 0
