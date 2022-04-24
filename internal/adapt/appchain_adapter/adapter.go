@@ -375,8 +375,12 @@ func (a *AppchainAdapter) handlePayload(ibtp *pb.IBTP, encrypt bool) (*pb.IBTP, 
 
 	if pd.Encrypted {
 		if encrypt {
-			if a.appchainID == dstChainID {
+			// get request IBTP from appchain
+			// need dstPubkey and srcPrivkey to encrypt
+			if a.appchainID == srcChainID {
 				chainID = dstChainID
+				// get receipt IBTP from appchain
+				// need srcPubkey and dstPrivkey to encrypt
 			} else {
 				chainID = srcChainID
 			}
@@ -385,9 +389,13 @@ func (a *AppchainAdapter) handlePayload(ibtp *pb.IBTP, encrypt bool) (*pb.IBTP, 
 				return nil, nil, fmt.Errorf("cannot encrypt content for monitored ibtp %s", ibtp.ID())
 			}
 		} else {
+			// get request IBTP from bxh/pier
+			// need srcPubkey and dstPrivkey to decrypt
 			if a.appchainID == dstChainID {
 				chainID = srcChainID
 			} else {
+				// get receipt IBTP from bxh/pier
+				// need dstPubkey and srtPrivkey to decrypt
 				chainID = dstChainID
 			}
 			newContent, err = a.cryptor.Decrypt(pd.Content, chainID)
