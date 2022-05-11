@@ -1,6 +1,7 @@
 package direct_adapter
 
 import (
+	"context"
 	"fmt"
 	"runtime"
 	"sync"
@@ -33,6 +34,8 @@ type DirectAdapter struct {
 	ibtps           sync.Map
 	appchainID      string
 	remotePierID    string
+	ctx             context.Context
+	cancel          context.CancelFunc
 	gopool          *pool
 }
 
@@ -55,7 +58,7 @@ func (d *DirectAdapter) GetServiceIDList() ([]string, error) {
 func New(peerMgr peermgr.PeerManager, appchainAdapt adapt.Adapt, logger logrus.FieldLogger) (*DirectAdapter, error) {
 
 	appchainID := appchainAdapt.ID()
-
+	ctx, cancel := context.WithCancel(context.Background())
 	da := &DirectAdapter{
 		logger:        logger,
 		peerMgr:       peerMgr,
@@ -64,6 +67,8 @@ func New(peerMgr peermgr.PeerManager, appchainAdapt adapt.Adapt, logger logrus.F
 		ibtpC:         make(chan *pb.IBTP, maxChSize),
 		appchainID:    appchainID,
 		gopool:        NewGoPool(runtime.GOMAXPROCS(runtime.NumCPU())),
+		ctx:           ctx,
+		cancel:        cancel,
 	}
 
 	return da, nil
