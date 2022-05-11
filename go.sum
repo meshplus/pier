@@ -701,6 +701,8 @@ github.com/meshplus/bitxhub-core v1.3.1-0.20220419015433-0fc9632c8a9c h1:LNX5HHI
 github.com/meshplus/bitxhub-core v1.3.1-0.20220419015433-0fc9632c8a9c/go.mod h1:4XwpJi5KRDb7Uwzf8mCy3XZVrLw2HOA3pngpvyGLtLU=
 github.com/meshplus/bitxhub-core v1.3.1-0.20220419072638-73c914bd56f1 h1:R0cssmTlWe8yeRiEjw/zo/q8HLh3To+mX5mqrfgpDJM=
 github.com/meshplus/bitxhub-core v1.3.1-0.20220419072638-73c914bd56f1/go.mod h1:Rkokix/QLfDhQBTtr5jvFNJlxnPH4tb3oZhgTXDP3iY=
+github.com/meshplus/bitxhub-core v1.3.1-0.20220511024304-f7458609c30a h1:Clvp7MNj6maH0npn2pYUqwZR3eDZ9F8iKOhlf0bhk50=
+github.com/meshplus/bitxhub-core v1.3.1-0.20220511024304-f7458609c30a/go.mod h1:pKTNjjg4pRi3wGYT7pUZjzqqd+TKiomOXbWUeOpbxss=
 github.com/meshplus/bitxhub-kit v1.0.0-rc1/go.mod h1:ra/AhOkPvpElI+wXrB9G6DjdcrdxFU3vMwA5MYKr9D0=
 github.com/meshplus/bitxhub-kit v1.0.0/go.mod h1:7cWyhXWZfrQ3+EaxkRoXfuiG3Y5R9DXYJomeZKkETW8=
 github.com/meshplus/bitxhub-kit v1.2.1-0.20210902085548-07f4fa85bfc9/go.mod h1:wrEdhHp1tktzdwcWb4bOxYsVc+KkcrYL18IYWYeumPQ=
@@ -713,6 +715,8 @@ github.com/meshplus/bitxhub-model v1.2.1-0.20220412064024-c35cae241eb2/go.mod h1
 github.com/meshplus/bitxhub-model v1.2.1-0.20220415095224-3a9571aa1d15 h1:8BP+MSBMq2r5UquhNrAA/ZOdNLmCgNWBUnvZpxIWAjU=
 github.com/meshplus/bitxhub-model v1.2.1-0.20220415095224-3a9571aa1d15/go.mod h1:sPko8fD+G3MYOnH/44Ju4T4jD/tlEU3IJDIJ4hjrzxg=
 github.com/meshplus/bitxhub-model v1.2.1-0.20220419071920-bd5cc4a17768/go.mod h1:sPko8fD+G3MYOnH/44Ju4T4jD/tlEU3IJDIJ4hjrzxg=
+github.com/meshplus/bitxhub-model v1.2.1-0.20220511024107-42f4374f5c73 h1:GP4mKQ2myNwdKCARrTyULLiKWuPBhtibdRQWU8SfIKc=
+github.com/meshplus/bitxhub-model v1.2.1-0.20220511024107-42f4374f5c73/go.mod h1:sPko8fD+G3MYOnH/44Ju4T4jD/tlEU3IJDIJ4hjrzxg=
 github.com/meshplus/go-bitxhub-client v1.4.1-0.20220412093230-11ca79f069fc h1:3J52XPtUFf0gvJHn61EBr+pI268/edQv544w+TWgEwU=
 github.com/meshplus/go-bitxhub-client v1.4.1-0.20220412093230-11ca79f069fc/go.mod h1:pvV1elDWb8ITsOccfJa6CXEHHHb7yURmtGSOngTPL8c=
 github.com/meshplus/go-lightp2p v0.0.0-20200817105923-6b3aee40fa54 h1:5Ip5AB7SxxQHg5SRtf2cCOI2wy1p75MQB12soPtPyf8=
