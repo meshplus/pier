@@ -70,7 +70,8 @@ build: packr
 
 installent: packr
 	cp imports/imports.go.template imports/imports.go
-	@sed "s?)?$(MODS)@)?" go.mod  | tr '@' '\n' > goent.mod
+	@sed "s?)?$(MODS))?" go.mod  | tr '@' '\n' > goent.mod
+	@cat goent.diff | grep '^replace' >> goent.mod
 	$(GO) install $(GOFLAG) -tags ent -ldflags '${GOLDFLAGS}' -modfile goent.mod ./cmd/${APP_NAME}
 	@printf "${GREEN}Install pier ent successfully${NC}\n"
 
