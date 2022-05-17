@@ -30,16 +30,21 @@ const (
 	protocolID          protocol.ID = "/pangolin/1.0.0" // magic protocol
 	defaultProvidersNum             = 1
 	SubscribeResponse               = "Successfully subscribe"
+	PangolinID                      = "pangolin"
 )
 
 var _ PeerManager = (*Swarm)(nil)
 
 type Swarm struct {
-	p2p               network2.HybridNetwork
-	localAddr         string
-	pangolinAddr      string
-	logger            logrus.FieldLogger
-	peers             map[string]*peer.AddrInfo
+	p2p       network2.HybridNetwork
+	localAddr string
+	// 自己连接的pangolin地址
+	pangolinAddr string
+	logger       logrus.FieldLogger
+	peers        map[string]*peer.AddrInfo
+	// 需要connect的pangolin地址（bxh端pangolin的地址）
+	pangolinConnect string
+	// 通过pangolin连接的bxh地址
 	pangolinPeers     map[string]string
 	connectedPeers    sync.Map
 	connectedBxhPeers sync.Map
@@ -204,7 +209,8 @@ func New(config *repo.Config, nodePrivKey crypto.PrivateKey, privKey crypto.Priv
 	}
 	var local string
 	var remotes map[string]*peer.AddrInfo
-	var pangolinPeer map[string]string
+	var pangolinPeers map[string]string
+	var pangolinConnected string
 	switch config.Mode.Type {
 	case repo.UnionMode:
 		local, remotes, err = loadPeers(config.Mode.Union.Connectors, libp2pPrivKey)
@@ -217,7 +223,7 @@ func New(config *repo.Config, nodePrivKey crypto.PrivateKey, privKey crypto.Priv
 			return nil, fmt.Errorf("load peers: %w", err)
 		}
 	case repo.RelayMode:
-		local, pangolinPeer, err = loadPangolinPeers(config.Mode.Relay.PangolinAddrs,
+		local, pangolinConnected, pangolinPeers, err = loadPangolinPeers(config.Mode.Relay.PangolinAddrs,
 			config.Mode.Relay.BxhAddrs, config.Mode.Relay.PierAddr)
 	default:
 		return nil, fmt.Errorf("unsupport mode type")
@@ -240,16 +246,17 @@ func New(config *repo.Config, nodePrivKey crypto.PrivateKey, privKey crypto.Priv
 	ctx, cancel := context.WithCancel(context.Background())
 
 	return &Swarm{
-		providers:     providers,
-		p2p:           p2p,
-		localAddr:     config.Mode.Relay.PierAddr,
-		pangolinAddr:  config.Mode.Relay.PangolinAddrs[0],
-		logger:        logger,
-		peers:         remotes,
-		pangolinPeers: pangolinPeer,
-		privKey:       privKey,
-		ctx:           ctx,
-		cancel:        cancel,
+		providers:       providers,
+		p2p:             p2p,
+		localAddr:       config.Mode.Relay.PierAddr,
+		pangolinAddr:    config.Mode.Relay.PangolinAddrs[0],
+		logger:          logger,
+		peers:           remotes,
+		pangolinConnect: pangolinConnected,
+		pangolinPeers:   pangolinPeers,
+		privKey:         privKey,
+		ctx:             ctx,
+		cancel:          cancel,
 	}, nil
 }
 
@@ -314,6 +321,28 @@ func (swarm *Swarm) Start() error {
 		}(id, addrInfo)
 	}
 
+	// connect bxh pangolin
+	if err := retry.Retry(func(attempt uint) error {
+		if err := swarm.p2p.ConnectByMultiAddr(swarm.pangolinConnect); err != nil {
+			if attempt != 0 && attempt%5 == 0 {
+				swarm.logger.WithFields(logrus.Fields{
+					"node":  PangolinID,
+					"error": err,
+				}).Error("Pangolin Connect failed")
+			}
+			return err
+		}
+
+		return nil
+	},
+		strategy.Limit(5),
+		strategy.Wait(1*time.Second),
+	); err != nil {
+		swarm.logger.Error(err)
+	}
+	swarm.logger.Infof("Connect pangolin successfully")
+
+	// connect bxh nodes
 	for id, addr := range swarm.pangolinPeers {
 		go func(id string, addr string) {
 			defer wg.Done()
@@ -323,19 +352,23 @@ func (swarm *Swarm) Start() error {
 						swarm.logger.WithFields(logrus.Fields{
 							"node":  id,
 							"error": err,
-						}).Error("Pangolin Connect failed")
+						}).Error("Connect bxh node failed")
 					}
 					return err
 				}
 				swarm.connectedBxhPeers.Store(id, addr)
+				swarm.logger.WithFields(logrus.Fields{
+					"node":     id,
+					"address:": addr,
+				}).Info("Connect bxh node successfully")
 
-				//swarm.lock.RLock()
-				//defer swarm.lock.RUnlock()
-				//for _, handler := range swarm.connectHandlers {
-				//	go func(connectHandler ConnectHandler, address string) {
-				//		connectHandler(address)
-				//	}(handler, addr)
-				//}
+				swarm.lock.RLock()
+				defer swarm.lock.RUnlock()
+				for _, handler := range swarm.connectHandlers {
+					go func(connectHandler ConnectHandler, address string) {
+						connectHandler(address)
+					}(handler, addr)
+				}
 				return nil
 			},
 				strategy.Wait(1*time.Second),
@@ -560,30 +593,35 @@ func loadPeers(peers []string, privateKey crypto2.PrivKey) (string, map[string]*
 	return local, remotes, nil
 }
 
-func loadPangolinPeers(pangolinAddrs, bxhAddrs []string, pierAddr string) (string, map[string]string, error) {
+func loadPangolinPeers(pangolinAddrs, bxhAddrs []string, pierAddr string) (string, string, map[string]string, error) {
 	remotes := make(map[string]string)
 
 	if len(pangolinAddrs) != 2 {
-		return "", nil, fmt.Errorf("pangolin addrs err: the length should be 2, "+
+		return "", "", nil, fmt.Errorf("pangolin addrs err: the length should be 2, "+
 			"but actually is %d", len(pangolinAddrs))
 	}
 	local, err := AddrToPeerInfo(pierAddr)
 	if err != nil {
-		return "", nil, fmt.Errorf("wrong pier network addr: %w", err)
+		return "", "", nil, fmt.Errorf("wrong pier network addr: %w", err)
+	}
+
+	remote := fmt.Sprintf("/peer" + pangolinAddrs[0] + "/netgap" + pangolinAddrs[0] + "/peer" + pangolinAddrs[1])
+	if _, err = network2.StrToMultiAddr(remote); err != nil {
+		return "", "", nil, fmt.Errorf("wrong pangolin multi network addr: %w", err)
 	}
 
 	for _, b := range bxhAddrs {
 		addr := fmt.Sprintf("/peer" + pangolinAddrs[0] + "/netgap" + pangolinAddrs[0] + "/peer" + pangolinAddrs[1] + "/peer" + b)
 		bxhAddr, err := AddrToPeerInfo(b)
 		if err != nil {
-			return "", nil, fmt.Errorf("wrong bitxhub network addr: %w", err)
+			return "", "", nil, fmt.Errorf("wrong bitxhub network addr: %w", err)
 		}
 		if _, err = network2.StrToMultiAddr(addr); err != nil {
-			return "", nil, fmt.Errorf("wrong pangolin multi network addr: %w", err)
+			return "", "", nil, fmt.Errorf("wrong pangolin multi network addr: %w", err)
 		}
 		remotes[bxhAddr.ID.String()] = addr
 	}
-	return local.Addrs[0].String(), remotes, nil
+	return local.Addrs[0].String(), remote, remotes, nil
 }
 
 // AddrToPeerInfo transfer addr to PeerInfo
