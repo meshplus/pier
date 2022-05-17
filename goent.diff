@@ -1,5 +1,5 @@
     github.com/bitxhub/pier-ha v0.0.0-20210125070843-56ccae0d88a4
     github.com/bitxhub/crypto-gm v0.0.0-20210825015341-e035b646648d
-    github.com/bitxhub/offchain-transmission v0.0.0-20220415030517-1436a760ab2d
+    github.com/bitxhub/offchain-transmission v0.0.0-20220511070827-6c1732ec0a85
 
 replace github.com/ultramesh/crypto-gm => git.hyperchain.cn/dmlab/crypto-gm v0.2.14
