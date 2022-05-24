@@ -222,7 +222,7 @@ func (syncer *WrapperSyncer2) syncInterchainTxWrappers() {
 			return err
 		}
 		msg := peermgr.Message(pb.Message_PIER_SUBSCRIBE_INTERCHAIN_TX_WRAPPERS, true, reqData)
-		msg.From = fmt.Sprintf("%s, %s", syncer.peerMgr.GetLocalAddr(), syncer.peerMgr.GetPangolinAddr())
+		msg.From = fmt.Sprintf("%s", syncer.peerMgr.GetLocalAddr())
 		data, err := msg.Marshal()
 		if err != nil {
 			syncer.logger.Errorf("lite subscrbe marshal err: %w", err)

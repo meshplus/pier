@@ -1,42 +1,56 @@
 title = "Pier"
 
-[port]
-http = 44544
-pprof = 44555
+[appchain]
+config = "ethereum"
+did = "did:bitxhub:appchain0x218B3425F085BB41Bdb5170A3eBAfAe9C4911243:."
+plugin = "appchain_plugin"
+
+[ha]
+mode = "single"
 
 [log]
-level = "info"
 dir = "logs"
 filename = "pier.log"
+level = "info"
 report_caller = false
+
 [log.module]
-api_server   = "info"
+api_server = "info"
 appchain_mgr = "info"
-bxh_lite     = "info"
-executor     = "info"
-exchanger    = "info"
-monitor      = "info"
-peer_mgr     = "info"
-router       = "info"
-rule_mgr     = "info"
-swarm        = "info"
-syncer       = "info"
+bxh_lite = "info"
+exchanger = "info"
+executor = "info"
+monitor = "info"
+peer_mgr = "info"
+router = "info"
+rule_mgr = "info"
+swarm = "info"
+syncer = "info"
 
 [mode]
-type = "relay" # relay, direct or union
+type = "relay"
+
+[mode.direct]
+peers = []
+
 [mode.relay]
 # peer 前缀表示p2p
 # netagap 前缀表示p2n
 # 使用的时候为：peer/pangolin_addrs + netgap/pangolin_addrs + peer/bitxhub
-pangolin_addrs = ["/ip4/0.0.0.0/tcp/5010/p2p/QmQtwbFSFFsafBXCHt73JgeX8vEcUvsGVPGN8mPefX1WxS",
-  "/ip4/0.0.0.0/tcp/5020/p2p/QmXjrHKfxWfRodGc4Df5XHi29tMtCzvPLDLsVqkpLaGVk1"]
+
+pier_send_to_bxh_pangolin_addrs = ["/peer/ip4/127.0.0.1/tcp/4111/p2p/QmdRqCjuMtnVoaBW9iPmnt2BZPxuaqgLJ8Kx7jnqp2aRNm/netgap/ip4/127.0.0.1/tcp/4221/p2p/QmVuPe9faLjVmf1bcUqVsa6Ui88c9U7aG4Dse9izToGKA6/peer/ip4/127.0.0.1/tcp/4221/p2p/QmVuPe9faLjVmf1bcUqVsa6Ui88c9U7aG4Dse9izToGKA6",
+  "/peer/ip4/127.0.0.1/tcp/4112/p2p/QmZi2Mdi6Jw2n8dtL7xtUME29Vcaebavy5ZRo2KeYbHsyG/netgap/ip4/127.0.0.1/tcp/4222/p2p/QmX49p6tr72FGHnqXnaSEuVrVrfMFYvigi2gsDTh2gZm2x/peer/ip4/127.0.0.1/tcp/4222/p2p/QmX49p6tr72FGHnqXnaSEuVrVrfMFYvigi2gsDTh2gZm2x"]
+
+bxh_send_to_pier_pangolin_addrs = ["/peer/ip4/0.0.0.0/tcp/4223/p2p/QmUFqbYftLFda93CjyuKJ5c8WA431xww3QfmJe6pePvBWR/netgap/ip4/0.0.0.0/tcp/4113/p2p/QmaiJ1jGbryxxKR2ESRH9d3DoEWTMpQ5JctWxmpqXWHboM/peer/ip4/0.0.0.0/tcp/4113/p2p/QmaiJ1jGbryxxKR2ESRH9d3DoEWTMpQ5JctWxmpqXWHboM",
+  "/peer/ip4/0.0.0.0/tcp/4224/p2p/QmcDZp5Liob5mRXNbeqsP9Fs1cRFFvKKSALZ61EVhQNsAc/netgap/ip4/0.0.0.0/tcp/4114/p2p/QmYUaMTvs9Nn37eSHhL6YmAZqnoc9aymGcVpTWZTRpapHX/peer/ip4/0.0.0.0/tcp/4114/p2p/QmYUaMTvs9Nn37eSHhL6YmAZqnoc9aymGcVpTWZTRpapHX"]
+
 # pier的p2p地址
-pier_addr = "/ip4/127.0.0.1/tcp/4111/p2p/QmcenE2ydvgURsYsjvawKSGRf8kbnuNTsKW22DVLXjDnUP"
+pier_addr = "/ip4/127.0.0.1/tcp/4300/p2p/QmQ6TyJ9tm1fuEQhviCq115jMpXECrDYeve4S7VK8jqMQq"
 # bitxhub节点的p2p地址
-bxh_addrs = ["/ip4/127.0.0.1/tcp/4001/p2p/QmXi58fp9ZczF3Z5iz1yXAez3Hy5NYo1R8STHWKEM9XnTL"]
-#   "/ip4/127.0.0.1/tcp/4002/p2p/QmbmD1kzdsxRiawxu7bRrteDgW1ituXupR8GH6E2EUAHY4",
-#   "/ip4/127.0.0.1/tcp/4003/p2p/QmQUcDYCtqbpn5Nhaw4FAGxQaSSNvdWfAFcpQT9SPiezbS",
-#   "/ip4/127.0.0.1/tcp/4004/p2p/QmQW3bFn8XX1t4W14Pmn37bPJUpUVBrBjnPuBZwPog3Qdy"]
+bxh_addrs = ["/ip4/127.0.0.1/tcp/4001/p2p/QmXi58fp9ZczF3Z5iz1yXAez3Hy5NYo1R8STHWKEM9XnTL",
+  "/ip4/127.0.0.1/tcp/4002/p2p/QmbmD1kzdsxRiawxu7bRrteDgW1ituXupR8GH6E2EUAHY4",
+ "/ip4/127.0.0.1/tcp/4003/p2p/QmQUcDYCtqbpn5Nhaw4FAGxQaSSNvdWfAFcpQT9SPiezbS",
+ "/ip4/127.0.0.1/tcp/4004/p2p/QmQW3bFn8XX1t4W14Pmn37bPJUpUVBrBjnPuBZwPog3Qdy"]
 
 addrs = ["localhost:60011", "localhost:60012", "localhost:60013", "localhost:60014"]
 timeout_limit = "1s"
@@ -47,23 +61,16 @@ validators = [
   "0xb18c8575e3284e79b92100025a31378feb8100d6",
   "0x856E2B9A5FA82FD1B031D1FF6863864DBAC7995D",
 ]
-[mode.direct]
-peers = []
-
 [mode.union]
-addrs = ["localhost:60011", "localhost:60012", "localhost:60013", "localhost:60014"]
+addrs = ["localhost:60011"]
 connectors = []
 providers = 1
 
+[port]
+http = 44554
+pprof = 44550
+
 [security]
+common_name = "localhost"
 enable_tls = false
 tlsca = "certs/ca.pem"
-common_name = "localhost"
-
-[HA]
-mode = "single"
-
-[appchain]
-did = "did:bitxhub:appchain0x724E2AEb86cbefA917Fff5939F31C74F9F560dCb:."
-plugin = "appchain_plugin"
-config = "ethereum"

@@ -30,7 +30,7 @@ const (
 	protocolID          protocol.ID = "/pangolin/1.0.0" // magic protocol
 	defaultProvidersNum             = 1
 	SubscribeResponse               = "Successfully subscribe"
-	PangolinID                      = "pangolin"
+	SendAddrResponse                = "Successfully get pangolin addr"
 )
 
 var _ PeerManager = (*Swarm)(nil)
@@ -38,14 +38,12 @@ var _ PeerManager = (*Swarm)(nil)
 type Swarm struct {
 	p2p       network2.HybridNetwork
 	localAddr string
-	// 自己连接的pangolin地址
+	// pier receive pangolin addr
 	pangolinAddr string
 	logger       logrus.FieldLogger
 	peers        map[string]*peer.AddrInfo
-	// 需要connect的pangolin地址（bxh端pangolin的地址）
-	pangolinConnect string
 	// 通过pangolin连接的bxh地址
-	pangolinPeers     map[string]string
+	pangolinPeers     []string
 	connectedPeers    sync.Map
 	connectedBxhPeers sync.Map
 	msgHandlers       sync.Map
@@ -147,13 +145,14 @@ func (swarm *Swarm) HeartBeat(address string, index string) (*pb.Response, error
 
 func (swarm *Swarm) AsyncSendByMultiAddr(data []byte) error {
 	var success bool
+	// todo(lrx): concurrent queue maybe better
 	swarm.connectedBxhPeers.Range(func(key, value interface{}) bool {
-		multiAddr := value.(string)
+		multiAddr := key.(string)
 		err := swarm.p2p.AsyncSendByMultiAddr(multiAddr, data)
 		if err != nil {
 			swarm.logger.WithFields(logrus.Fields{
-				"node":  multiAddr,
-				"error": err,
+				"address": multiAddr,
+				"error":   err,
 			}).Error("SendByMultiAddr failed")
 			return true
 		}
@@ -175,15 +174,14 @@ func (swarm *Swarm) SendByMultiAddr(data []byte) ([]byte, error) {
 	)
 	if err := retry.Retry(func(attempt uint) error {
 		swarm.connectedBxhPeers.Range(func(key, value interface{}) bool {
-			multiAddr := value.(string)
-			bxId := key.(string)
+			multiAddr := key.(string)
 			//hexData := hexutil.Encode(data)
 			//resp, err = swarm.p2p.SendByMultiAddr(multiAddr, []byte(hexData))
 			resp, err = swarm.p2p.SendByMultiAddr(multiAddr, data)
 			if err != nil {
 				swarm.logger.WithFields(logrus.Fields{
-					"node":  bxId,
-					"error": err,
+					"address": multiAddr,
+					"error":   err,
 				}).Error("SendByMultiAddr failed")
 				return true
 			}
@@ -207,10 +205,12 @@ func New(config *repo.Config, nodePrivKey crypto.PrivateKey, privKey crypto.Priv
 	if err != nil {
 		return nil, fmt.Errorf("convert private key: %w", err)
 	}
-	var local string
-	var remotes map[string]*peer.AddrInfo
-	var pangolinPeers map[string]string
-	var pangolinConnected string
+	var (
+		local         string
+		receivePgl    string
+		remotes       map[string]*peer.AddrInfo
+		pangolinPeers []string
+	)
 	switch config.Mode.Type {
 	case repo.UnionMode:
 		local, remotes, err = loadPeers(config.Mode.Union.Connectors, libp2pPrivKey)
@@ -223,8 +223,11 @@ func New(config *repo.Config, nodePrivKey crypto.PrivateKey, privKey crypto.Priv
 			return nil, fmt.Errorf("load peers: %w", err)
 		}
 	case repo.RelayMode:
-		local, pangolinConnected, pangolinPeers, err = loadPangolinPeers(config.Mode.Relay.PangolinAddrs,
-			config.Mode.Relay.BxhAddrs, config.Mode.Relay.PierAddr)
+		local, receivePgl, pangolinPeers, err = loadPangolinPeers(config.Mode.Relay.PierSendPglAddrs,
+			config.Mode.Relay.PierRevPglAddrs, config.Mode.Relay.BxhAddrs, config.Mode.Relay.PierAddr)
+		if err != nil {
+			return nil, fmt.Errorf("load peers: %w", err)
+		}
 	default:
 		return nil, fmt.Errorf("unsupport mode type")
 	}
@@ -234,6 +237,7 @@ func New(config *repo.Config, nodePrivKey crypto.PrivateKey, privKey crypto.Priv
 		network2.WithPrivateKey(libp2pPrivKey),
 		network2.WithProtocolID(protocolID),
 		network2.WithLogger(logger),
+		network2.WithHybridMode(network2.P2P_ONLY),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("create p2p: %w", err)
@@ -246,17 +250,16 @@ func New(config *repo.Config, nodePrivKey crypto.PrivateKey, privKey crypto.Priv
 	ctx, cancel := context.WithCancel(context.Background())
 
 	return &Swarm{
-		providers:       providers,
-		p2p:             p2p,
-		localAddr:       config.Mode.Relay.PierAddr,
-		pangolinAddr:    config.Mode.Relay.PangolinAddrs[0],
-		logger:          logger,
-		peers:           remotes,
-		pangolinConnect: pangolinConnected,
-		pangolinPeers:   pangolinPeers,
-		privKey:         privKey,
-		ctx:             ctx,
-		cancel:          cancel,
+		providers:     providers,
+		p2p:           p2p,
+		localAddr:     config.Mode.Relay.PierAddr,
+		logger:        logger,
+		peers:         remotes,
+		pangolinAddr:  receivePgl,
+		pangolinPeers: pangolinPeers,
+		privKey:       privKey,
+		ctx:           ctx,
+		cancel:        cancel,
 	}, nil
 }
 
@@ -272,6 +275,67 @@ func (swarm *Swarm) Start() error {
 	}
 
 	//need to connect one other pier at least
+	swarm.connectPeers()
+
+	if err := retry.Retry(func(attempt uint) error {
+		err := swarm.sendRevPglAddrs()
+		if err != nil {
+			return err
+		}
+		return nil
+	}, strategy.Wait(2*time.Second)); err != nil {
+		panic(err)
+	}
+	swarm.logger.Infof("successful start swarm")
+	return nil
+}
+
+func (swarm *Swarm) sendRevPglAddrs() error {
+	msg := Message(pb.Message_PIER_GET_RECEIVE_PANGOLIN_ADDR, true, []byte(swarm.pangolinAddr))
+	msg.From = fmt.Sprintf("%s", swarm.localAddr)
+	data, err := msg.Marshal()
+	if err != nil {
+		return fmt.Errorf(" get receive pangolin addr marshal err: %w", err)
+	}
+
+	var (
+		success bool
+		resp    []byte
+	)
+	swarm.connectedBxhPeers.Range(func(key, value interface{}) bool {
+		multiAddr := key.(string)
+		if err := retry.Retry(func(attempt uint) error {
+			resp, err = swarm.p2p.SendByMultiAddr(multiAddr, data)
+			if err != nil {
+				swarm.logger.WithFields(logrus.Fields{
+					"address": multiAddr,
+					"error":   err,
+				}).Error("SendByMultiAddr failed")
+				return err
+			}
+			return nil
+		}, strategy.Wait(500*time.Millisecond), strategy.Limit(5)); err != nil {
+			swarm.logger.WithFields(logrus.Fields{
+				"address": multiAddr,
+				"error":   err,
+			}).Error("all attempt to connect addr is failed")
+			swarm.connectedPeers.Delete(multiAddr)
+		}
+		if strings.Contains(string(resp), SendAddrResponse) {
+			success = true
+		}
+		return true
+	})
+
+	if !success {
+		err = fmt.Errorf("bitxhub send pier connnect is failed：%s", resp)
+		swarm.logger.Errorf("get receive pangolin addr err: %v", err)
+		return err
+	}
+	return nil
+
+}
+func (swarm *Swarm) connectPeers() {
 	wg := &sync.WaitGroup{}
 	wg.Add(len(swarm.peers) + len(swarm.pangolinPeers))
 
@@ -320,68 +384,34 @@ func (swarm *Swarm) Start() error {
 			}
 		}(id, addrInfo)
 	}
-
-	// connect bxh pangolin
-	if err := retry.Retry(func(attempt uint) error {
-		if err := swarm.p2p.ConnectByMultiAddr(swarm.pangolinConnect); err != nil {
-			if attempt != 0 && attempt%5 == 0 {
-				swarm.logger.WithFields(logrus.Fields{
-					"node":  PangolinID,
-					"error": err,
-				}).Error("Pangolin Connect failed")
-			}
-			return err
-		}
-
-		return nil
-	},
-		strategy.Limit(5),
-		strategy.Wait(1*time.Second),
-	); err != nil {
-		swarm.logger.Error(err)
-	}
-	swarm.logger.Infof("Connect pangolin successfully")
-
 	// connect bxh nodes
-	for id, addr := range swarm.pangolinPeers {
-		go func(id string, addr string) {
+	for _, addr := range swarm.pangolinPeers {
+		go func(addr string) {
 			defer wg.Done()
 			if err := retry.Retry(func(attempt uint) error {
 				if err := swarm.p2p.ConnectByMultiAddr(addr); err != nil {
 					if attempt != 0 && attempt%5 == 0 {
 						swarm.logger.WithFields(logrus.Fields{
-							"node":  id,
-							"error": err,
+							"address": addr,
+							"error":   err,
 						}).Error("Connect bxh node failed")
 					}
 					return err
 				}
-				swarm.connectedBxhPeers.Store(id, addr)
+				swarm.connectedBxhPeers.Store(addr, struct{}{})
 				swarm.logger.WithFields(logrus.Fields{
-					"node":     id,
 					"address:": addr,
 				}).Info("Connect bxh node successfully")
 
-				swarm.lock.RLock()
-				defer swarm.lock.RUnlock()
-				for _, handler := range swarm.connectHandlers {
-					go func(connectHandler ConnectHandler, address string) {
-						connectHandler(address)
-					}(handler, addr)
-				}
 				return nil
 			},
 				strategy.Wait(1*time.Second),
 			); err != nil {
 				swarm.logger.Error(err)
 			}
-		}(id, addr)
+		}(addr)
 	}
-
 	wg.Wait()
-
-	swarm.logger.Infof("successful start swarm")
-	return nil
 }
 
 func (swarm *Swarm) Stop() error {
@@ -593,35 +623,47 @@ func loadPeers(peers []string, privateKey crypto2.PrivKey) (string, map[string]*
 	return local, remotes, nil
 }
 
-func loadPangolinPeers(pangolinAddrs, bxhAddrs []string, pierAddr string) (string, string, map[string]string, error) {
-	remotes := make(map[string]string)
-
-	if len(pangolinAddrs) != 2 {
-		return "", "", nil, fmt.Errorf("pangolin addrs err: the length should be 2, "+
-			"but actually is %d", len(pangolinAddrs))
+func loadPangolinPeers(pierSendPglAddrs, pierRevPglAddrs, bxhAddrs []string, pierAddr string) (string, string, []string, error) {
+	remotes := make([]string, 0)
+	if len(pierSendPglAddrs) < 2 && len(pierRevPglAddrs) < 2 {
+		return "", "", nil, fmt.Errorf("pangolin addrs err: the pangolin addr length should be more than 2 ")
 	}
 	local, err := AddrToPeerInfo(pierAddr)
 	if err != nil {
 		return "", "", nil, fmt.Errorf("wrong pier network addr: %w", err)
 	}
 
-	remote := fmt.Sprintf("/peer" + pangolinAddrs[0] + "/netgap" + pangolinAddrs[0] + "/peer" + pangolinAddrs[1])
-	if _, err = network2.StrToMultiAddr(remote); err != nil {
-		return "", "", nil, fmt.Errorf("wrong pangolin multi network addr: %w", err)
+	var receivePgl strings.Builder
+	// store bxh_send_to_pier multiAddr
+	for i, pierRevPglAddr := range pierRevPglAddrs {
+		if _, err = network2.StrToMultiAddr(pierRevPglAddr); err != nil {
+			return "", "", nil, fmt.Errorf("wrong bxh_send_to_pier pangolin multi network addr: %w", err)
+		}
+		if i == 0 {
+			receivePgl.WriteString(pierRevPglAddr)
+		} else {
+			receivePgl.WriteString(fmt.Sprintf("," + pierRevPglAddr))
+		}
+	}
+	// check multiAddr
+	for _, pierSendPglAddr := range pierSendPglAddrs {
+		if _, err = network2.StrToMultiAddr(pierSendPglAddr); err != nil {
+			return "", "", nil, fmt.Errorf("wrong pier_send_to_bxh pangolin multi network addr: %w", err)
+		}
+		for _, b := range bxhAddrs {
+			addr := fmt.Sprintf(pierSendPglAddr + "/peer" + b)
+			_, err = AddrToPeerInfo(b)
+			if err != nil {
+				return "", "", nil, fmt.Errorf("wrong bitxhub network addr: %w", err)
+			}
+			if _, err = network2.StrToMultiAddr(addr); err != nil {
+				return "", "", nil, fmt.Errorf("wrong pangolin multi network addr: %w", err)
+			}
+			remotes = append(remotes, addr)
+		}
 	}
 
-	for _, b := range bxhAddrs {
-		addr := fmt.Sprintf("/peer" + pangolinAddrs[0] + "/netgap" + pangolinAddrs[0] + "/peer" + pangolinAddrs[1] + "/peer" + b)
-		bxhAddr, err := AddrToPeerInfo(b)
-		if err != nil {
-			return "", "", nil, fmt.Errorf("wrong bitxhub network addr: %w", err)
-		}
-		if _, err = network2.StrToMultiAddr(addr); err != nil {
-			return "", "", nil, fmt.Errorf("wrong pangolin multi network addr: %w", err)
-		}
-		remotes[bxhAddr.ID.String()] = addr
-	}
-	return local.Addrs[0].String(), remote, remotes, nil
+	return local.Addrs[0].String(), receivePgl.String(), remotes, nil
 }
 
 // AddrToPeerInfo transfer addr to PeerInfo

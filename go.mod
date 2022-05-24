@@ -22,7 +22,7 @@ require (
 	github.com/libp2p/go-libp2p-core v0.6.1
 	github.com/meshplus/bitxhub-core v1.3.1-0.20220129100150-aa3fd98079e4
 	github.com/meshplus/bitxhub-kit v1.2.1-0.20210902085548-07f4fa85bfc9
-	github.com/meshplus/bitxhub-model v1.2.1-0.20220425093801-4cc50cc6bc61
+	github.com/meshplus/bitxhub-model v1.2.1-0.20220524072608-c1e04c1f060b
 	github.com/meshplus/bitxid v0.0.0-20210412025850-e0eaf0f9063a
 	github.com/meshplus/go-bitxhub-client v1.3.1-0.20210701063659-a0836fbc1c78
 	github.com/meshplus/go-lightp2p v0.0.0-20200817105923-6b3aee40fa54
@@ -44,8 +44,7 @@ replace github.com/libp2p/go-libp2p-core => github.com/libp2p/go-libp2p-core v0.
 
 replace golang.org/x/net => golang.org/x/net v0.0.0-20210405180319-a5a99cb37ef4
 
-//replace github.com/meshplus/go-lightp2p => git.hyperchain.cn/dmlab/go-lightp2p v0.0.0-20220513125259-25519f9c6fa3
-replace github.com/meshplus/go-lightp2p => ../../dmlab/go-lightp2p
+replace github.com/meshplus/go-lightp2p => git.hyperchain.cn/dmlab/go-lightp2p v0.0.0-20220531083846-4be489c05a9c
 
 replace git.hyperchain.cn/dmlab/go-common-utils => git.hyperchain.cn/dmlab/go-common-utils.git v0.0.0-20200323065116-07edae98cb7a
 

@@ -51,7 +51,8 @@ func (lite *BxhLite2) syncBlock() {
 		lite.logger.Errorf("SubscriptionRequest marshal err: %w", err)
 	}
 	msg := peermgr.Message(pb.Message_PIER_SUBSCRIBE_BLOCK_HEADER, true, reqData)
-	msg.From = fmt.Sprintf("%s, %s", lite.peerMgr.GetLocalAddr(), lite.peerMgr.GetPangolinAddr())
+	//msg.From = fmt.Sprintf("%s,%s", lite.peerMgr.GetLocalAddr(), lite.peerMgr.GetPangolinAddr())
+	msg.From = fmt.Sprintf("%s", lite.peerMgr.GetLocalAddr())
 	data, err := msg.Marshal()
 	if err != nil {
 		lite.logger.Errorf("lite subscrbe marshal err: %w", err)
