@@ -174,6 +174,8 @@ func (a *AppchainAdapter) SendIBTP(ibtp *pb.IBTP) error {
 		a.logger.Warn("3434343," + string(pd.Content))
 		result := &pb.Result{}
 		if err := result.Unmarshal(pd.Content); err != nil {
+			a.logger.Warn("from+" + ibtp.From)
+			a.logger.Warn("err+" + err.Error())
 			return fmt.Errorf("unmarshal result of ibtp %s: %w", ibtp.ID(), err)
 		}
 		a.logger.Warn("from+" + ibtp.From)
