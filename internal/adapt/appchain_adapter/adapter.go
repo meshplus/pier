@@ -132,6 +132,7 @@ func (a *AppchainAdapter) QueryIBTP(id string, isReq bool) (*pb.IBTP, error) {
 }
 
 func (a *AppchainAdapter) SendIBTP(ibtp *pb.IBTP) error {
+	a.logger.Warn("1111111111111111")
 	var res *pb.SubmitIBTPResponse
 	proof := &pb.BxhProof{}
 
@@ -139,7 +140,7 @@ func (a *AppchainAdapter) SendIBTP(ibtp *pb.IBTP) error {
 	if err != nil {
 		return err
 	}
-
+	a.logger.Warn("2222")
 	ibtp, pd, err := a.handlePayload(ibtp, false)
 	if err != nil {
 		return err
@@ -148,12 +149,13 @@ func (a *AppchainAdapter) SendIBTP(ibtp *pb.IBTP) error {
 	if err := a.checker.CheckProof(ibtp); err != nil {
 		return err
 	}
-
+	a.logger.Warn("33333")
 	if a.config.Mode.Type == repo.RelayMode {
 		if err := proof.Unmarshal(ibtp.Proof); err != nil {
 			return fmt.Errorf("fail to unmarshal proof of ibtp %s: %w", ibtp.ID(), err)
 		}
 	}
+	a.logger.Warnf("req,%v", isReq)
 
 	if isReq {
 		content := &pb.Content{}
@@ -168,6 +170,8 @@ func (a *AppchainAdapter) SendIBTP(ibtp *pb.IBTP) error {
 		res, err = a.client.SubmitIBTP(ibtp.From, ibtp.Index, serviceID, ibtp.Type, content, proof, pd.Encrypted)
 		a.logger.Info("appchain adapter submit ibtp success")
 	} else {
+		a.logger.Warn("4444444444444")
+		a.logger.Warn("3434343," + string(pd.Content))
 		result := &pb.Result{}
 		if err := result.Unmarshal(pd.Content); err != nil {
 			return fmt.Errorf("unmarshal result of ibtp %s: %w", ibtp.ID(), err)
@@ -180,7 +184,7 @@ func (a *AppchainAdapter) SendIBTP(ibtp *pb.IBTP) error {
 		res, err = a.client.SubmitReceipt(ibtp.To, ibtp.Index, serviceID, ibtp.Type, result, proof)
 		a.logger.Debug("appchain adapter submit receipt success")
 	}
-
+	a.logger.Warn("5555555555555")
 	if err != nil {
 		// solidity broker cannot get detailed error info
 		return &adapt.SendIbtpError{
