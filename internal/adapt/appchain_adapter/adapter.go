@@ -313,8 +313,8 @@ func (a *AppchainAdapter) init() error {
 	a.client, a.pluginClient, err = plugins.CreateClient(&a.config.Appchain, nil)
 	if err != nil {
 		a.logger.Errorf("create client plugin", "error", err.Error())
+		return err
 	}
-	return err
 	//}, strategy.Wait(3*time.Second)); err != nil {
 	//	return fmt.Errorf("retry error to create plugin: %w", err)
 	//}
