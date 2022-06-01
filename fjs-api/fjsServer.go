@@ -2,7 +2,6 @@ package fjs_api
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -13,6 +12,7 @@ import (
 	"github.com/meshplus/pier/internal/repo"
 	"github.com/sirupsen/logrus"
 
+	"github.com/jmoiron/sqlx"
 	_ "github.com/mattn/go-sqlite3"
 )
 
@@ -25,19 +25,17 @@ type FjsServer struct {
 	config *repo.Config
 	logger logrus.FieldLogger
 
-	db     *sql.DB
+	db     *sqlx.DB
 	ctx    context.Context
 	cancel context.CancelFunc
 }
 
 type FJSResponse struct {
-	CrsChnTxReq  int64 `json:"CrsChnTxReq"`
-	CrsChnTxProc int64 `json:"CrsChnTxProc"`
-	CrsChnTxFail int64 `json:"CrsChnTxFail"`
-	CoWorkChains int64 `json:"CoWorkChains"`
-	CoWorkSys    int64 `json:"CoWorkSys"`
-	CoWorkTrans  int64 `json:"CoWorkTrans"`
-	ConnectGWs   int64 `json:"ConnectGWs"`
+	CrsChn       []*CrsChn `json:"CrsChn"`
+	CoWorkChains int64     `json:"CoWorkChains"`
+	CoWorkSys    int64     `json:"CoWorkSys"`
+	CoWorkTrans  int64     `json:"CoWorkTrans"`
+	ConnectGWs   int64     `json:"ConnectGWs"`
 }
 
 func NewFjsServer(config *repo.Config, logger logrus.FieldLogger) (*FjsServer, error) {
@@ -59,7 +57,7 @@ type response struct {
 
 func (g *FjsServer) Start() error {
 	var err error
-	g.db, err = sql.Open("sqlite3", "./fjs.db")
+	g.db, err = sqlx.Open("sqlite3", "./fjs.db")
 	if err != nil {
 		fmt.Printf("sql open filed:%s", err.Error())
 		return err
@@ -68,6 +66,7 @@ func (g *FjsServer) Start() error {
 	if err != nil {
 		return err
 	}
+	// 定时查询ibtp数据信息
 	g.router.Use(gin.Recovery())
 	v1 := g.router.Group("/v1")
 	{
@@ -131,39 +130,19 @@ func (g *FjsServer) analysisForFJS(c *gin.Context) {
 			return
 		}
 	}
-	CoWorkTrans, CrsChnTxReq, CrsChnTxFail, CrsChnTxProc := g.count(queryStartTsInt, queryEndTsInt)
-	res.CoWorkTrans = CoWorkTrans
-	res.CrsChnTxReq = CrsChnTxReq
-	res.CrsChnTxFail = CrsChnTxFail
-	res.CrsChnTxProc = CrsChnTxProc
+	count, u := g.count(queryStartTsInt, queryEndTsInt)
+	res.CoWorkTrans = u
+	res.CrsChn = count
 	c.JSON(http.StatusOK, res)
 }
 
-func (g *FjsServer) createDB() error {
-	//创建表
-	sql_table := `
-    CREATE TABLE IF NOT EXISTS ibtp(
-        uid INTEGER PRIMARY KEY AUTOINCREMENT,
-        ibtpid VARCHAR(64) NULL unique ,
-        created TIMESTAMP
-    );
-  	CREATE TABLE IF NOT EXISTS ibtp_crsChnTxProc(
-        uid INTEGER PRIMARY KEY AUTOINCREMENT,
-        ibtpid VARCHAR(64) NULL unique ,
-        created TIMESTAMP
-    );
-  	CREATE TABLE IF NOT EXISTS ibtp_crsChnTxFail(
-        uid INTEGER PRIMARY KEY AUTOINCREMENT,
-        ibtpid VARCHAR(64) NULL unique ,
-        created TIMESTAMP
-    );
-    `
-	_, err := g.db.Exec(sql_table)
-	return err
+type CrsChn struct {
+	Name  string `json:"name"`
+	Value string `db:"iptpid" json:"value"`
+	Ts    uint64 `db:"created" json:"ts"`
 }
 
-func (g *FjsServer) count(startDate, endDate int64) (int64, int64, int64, int64) {
-
+func (g *FjsServer) count(startDate, endDate int64) ([]*CrsChn, int64) {
 	defer func() {
 		if e := recover(); e != nil {
 			fmt.Errorf("%v", e)
@@ -173,49 +152,60 @@ func (g *FjsServer) count(startDate, endDate int64) (int64, int64, int64, int64)
 	if err2 := g.db.Ping(); err2 != nil {
 		fmt.Printf("db ping filed:%s", err2.Error())
 		g.db.Close()
-		g.db, err2 = sql.Open("sqlite3", "./fjs.db")
+		g.db, err2 = sqlx.Open("sqlite3", "./fjs.db")
 		if err2 != nil {
 			fmt.Printf("db open filed:%s", err2.Error())
-			return 0, 0, 0, 0
+			return nil, 0
 		}
 	}
 
 	CoWorkTrans1, err := g.db.Query("SELECT COUNT (1) from ibtp")
 	if err != nil {
 		fmt.Printf("db query filed:%s", err.Error())
-		return 0, 0, 0, 0
+		return nil, 0
 	}
 	defer CoWorkTrans1.Close()
-	var CoWorkTrans, CrsChnTxReq, CrsChnTxFail, CrsChnTxProc int64
+	var CoWorkTrans int64
+	var resp []*CrsChn
 	CoWorkTrans1.Next()
 	CoWorkTrans1.Scan(&CoWorkTrans)
 	if startDate > 0 && endDate > 0 {
-		CrsChnTxReq1, err := g.db.Query("SELECT COUNT (1) from ibtp where created > ? and created < ?", startDate, endDate)
+		CrsChnTxReq1, err := g.db.Queryx("SELECT iptpid, created from ibtp where created > ? and created < ?", startDate, endDate)
 		if err != nil {
 			fmt.Printf("db query filed:%s", err.Error())
-			return 0, 0, 0, 0
+			return nil, CoWorkTrans
 		}
 		defer CrsChnTxReq1.Close()
-		CrsChnTxFail1, err := g.db.Query("SELECT COUNT (1) from ibtp_crsChnTxFail where created > ? and created < ?", startDate, endDate)
+		CrsChnTxFail1, err := g.db.Queryx("SELECT iptpid, created from ibtp_crsChnTxFail where created > ? and created < ?", startDate, endDate)
 		if err != nil {
 			fmt.Printf("db query filed:%s", err.Error())
-			return 0, 0, 0, 0
+			return nil, CoWorkTrans
 		}
 		defer CrsChnTxFail1.Close()
-		CrsChnTxProc1, err := g.db.Query("SELECT COUNT (1) from ibtp_crsChnTxProc where created > ? and created < ?", startDate, endDate)
+		CrsChnTxProc1, err := g.db.Queryx("SELECT iptpid, created from ibtp_crsChnTxProc where created > ? and created < ?", startDate, endDate)
 		if err != nil {
 			fmt.Printf("db query filed:%s", err.Error())
-			return 0, 0, 0, 0
+			return nil, CoWorkTrans
 		}
 		defer CrsChnTxProc1.Close()
-		CrsChnTxReq1.Next()
-		CrsChnTxReq1.Scan(&CrsChnTxReq)
-		CrsChnTxFail1.Next()
-		CrsChnTxFail1.Scan(&CrsChnTxFail)
-		CrsChnTxProc1.Next()
-		CrsChnTxProc1.Scan(&CrsChnTxProc)
+
+		for CrsChnTxReq1.Next() {
+			a := &CrsChn{Name: "CrsChnTxReq"}
+			err = CrsChnTxReq1.StructScan(a)
+			resp = append(resp, a)
+		}
+		for CrsChnTxFail1.Next() {
+			a := &CrsChn{Name: "CrsChnTxReq"}
+			err = CrsChnTxFail1.StructScan(a)
+			resp = append(resp, a)
+		}
+		for CrsChnTxProc1.Next() {
+			a := &CrsChn{Name: "CrsChnTxReq"}
+			err = CrsChnTxProc1.StructScan(a)
+			resp = append(resp, a)
+		}
 	}
-	return CoWorkTrans, CrsChnTxReq, CrsChnTxFail, CrsChnTxProc
+	return resp, CoWorkTrans
 }
 
 func (g *FjsServer) Stop() error {

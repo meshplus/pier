@@ -144,6 +144,7 @@ func (e *ChannelExecutor) execCallback(ibtp *pb.IBTP) error {
 		"msg":    resp.Message,
 	}).Info("Execute callback")
 	e.writeDB(ibtp, "ibtp_crsChnTxProc")
+	e.writeDB(ibtp, "ibtp")
 
 	return nil
 }
@@ -176,6 +177,7 @@ func (e *ChannelExecutor) execRollback(ibtp *pb.IBTP, isSrcChain bool) error {
 		"msg":    resp.Message,
 	}).Info("Executed rollbcak")
 	e.writeDB(ibtp, "ibtp_crsChnTxFail")
+	e.writeDB(ibtp, "ibtp")
 	return nil
 }
 
