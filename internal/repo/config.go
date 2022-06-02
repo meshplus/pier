@@ -48,7 +48,7 @@ type HA struct {
 }
 
 type TSS struct {
-	EnableTSS bool `toml:"enable_tss" json:"enable_tss"`
+	EnableTSS bool `mapstructure:"enable_tss" json:"enable_tss"`
 }
 
 const (

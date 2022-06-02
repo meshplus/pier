@@ -56,4 +56,4 @@ plugin = "appchain_plugin"
 config = "fabric"
 
 [tss]
-enable_tss = true
+enable_tss = false
