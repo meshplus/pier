@@ -49,3 +49,10 @@ func TestInit(t *testing.T) {
 	_, err = PluginPath()
 	require.Nil(t, err)
 }
+
+func TestLoadConfig(t *testing.T) {
+	rootPath := "./testdata"
+	config, err := UnmarshalConfig(rootPath)
+	require.Nil(t, err)
+	require.Equal(t, 2, len(config.Mode.Relay.Addrs))
+}
