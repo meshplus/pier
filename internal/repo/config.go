@@ -128,7 +128,7 @@ func DefaultConfig() *Config {
 		Mode: Mode{
 			Type: "relay",
 			Relay: Relay{
-				Addrs:                      []string{"localhost:60011", "localhost:60012", "localhost:60013", "localhost:60014"},
+				//Addrs:                      []string{"localhost:60011", "localhost:60012", "localhost:60013", "localhost:60014"},
 				Quorum:                     2,
 				BitXHubID:                  "1356",
 				EnableOffChainTransmission: false,
@@ -137,7 +137,7 @@ func DefaultConfig() *Config {
 				GasLimit: 0x5f5e100,
 			},
 			Union: Union{
-				Addrs:     []string{"localhost:60011", "localhost:60012", "localhost:60013", "localhost:60014"},
+				//Addrs:     []string{"localhost:60011", "localhost:60012", "localhost:60013", "localhost:60014"},
 				Providers: 1,
 			},
 		},
@@ -164,9 +164,9 @@ func DefaultConfig() *Config {
 			},
 		},
 		Security: Security{
-			EnableTLS:  false,
-			Tlsca:      "certs/agency.cert",
-			AccessCert: []string{"node1.cert", "node2.cert", "node3.cert", "node4.cert"},
+			EnableTLS: false,
+			Tlsca:     "certs/agency.cert",
+			//AccessCert: []string{"node1.cert", "node2.cert", "node3.cert", "node4.cert"},
 			AccessKey:  "node.priv",
 			CommonName: "localhost",
 		},
@@ -206,6 +206,18 @@ func UnmarshalConfig(repoRoot string) (*Config, error) {
 
 	if err := viper.Unmarshal(config); err != nil {
 		return nil, err
+	}
+
+	if len(config.Mode.Relay.Addrs) == 0 {
+		config.Mode.Relay.Addrs = []string{"localhost:60011", "localhost:60012", "localhost:60013", "localhost:60014"}
+	}
+
+	if len(config.Mode.Union.Addrs) == 0 {
+		config.Mode.Union.Addrs = []string{"localhost:60011", "localhost:60012", "localhost:60013", "localhost:60014"}
+	}
+
+	if len(config.Security.AccessCert) == 0 {
+		config.Security.AccessCert = []string{"node1.cert", "node2.cert", "node3.cert", "node4.cert"}
 	}
 
 	config.RepoRoot = repoRoot
