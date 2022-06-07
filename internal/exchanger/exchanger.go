@@ -228,7 +228,7 @@ func (ex *Exchanger) listenIBTPFromDestAdapt(servicePair string) {
 			if err := retry.Retry(func(attempt uint) error {
 				ex.logger.Infof("start sendIBTP to adapter: %s", ex.srcAdaptName)
 				if err := ex.srcAdapt.SendIBTP(ibtp); err != nil {
-					ex.logger.Errorf("send IBTP to Adapt:%s", ex.srcAdaptName, "error", err.Error())
+					ex.logger.Errorf("send IBTP to Adapt, from:%s, error:%s", ex.srcAdaptName, err.Error())
 					// if err occurs, try to get new ibtp and resend
 					if err, ok := err.(*adapt.SendIbtpError); ok {
 						if err.NeedRetry() {
