@@ -62,7 +62,7 @@ func (g *FjsServer) Start() error {
 		fmt.Printf("sql open filed:%s", err.Error())
 		return err
 	}
-	err = g.createDB()
+	err = g.createDB(g.db)
 	if err != nil {
 		return err
 	}
@@ -75,6 +75,94 @@ func (g *FjsServer) Start() error {
 		//跨链网关处理的跨链协同事务数量，数据类型为int32 - ibtp-id数量为准
 
 	}
+
+	//定时任务每五分钟统计一次数据
+	f := func() {
+		startDate := time.Now().Add(-time.Minute * 5).Unix()
+		endDate := time.Now().Unix()
+		timeLayout := "2006-01-02 15:04:05"
+		startTime := time.Unix(startDate, 0).Format(timeLayout) //Convert timestamp to standard time
+		endTime := time.Unix(endDate, 0).Format(timeLayout)
+		CrsChnTxReq1, err := g.db.Queryx("SELECT ibtpid, created from ibtp where created >= ? and created <= ?", startTime, endTime)
+		if err != nil {
+			fmt.Printf("db query filed:%s", err.Error())
+			return
+		}
+		CrsChnTxFail1, err := g.db.Queryx("SELECT ibtpid, created from ibtp_crsChnTxFail where created >= ? and created <= ?", startTime, endTime)
+		if err != nil {
+			fmt.Printf("db query filed:%s", err.Error())
+			return
+		}
+		defer CrsChnTxFail1.Close()
+		CrsChnTxProc1, err := g.db.Queryx("SELECT ibtpid, created from ibtp_crsChnTxProc where created >= ? and created <= ?", startTime, endTime)
+		if err != nil {
+			fmt.Printf("db query filed:%s", err.Error())
+			return
+		}
+		defer CrsChnTxProc1.Close()
+		var reqCount int64
+		for CrsChnTxReq1.Next() {
+			reqCount++
+		}
+
+		var failReqCount int64
+		for CrsChnTxFail1.Next() {
+			failReqCount++
+		}
+
+		var procReqCount int64
+		for CrsChnTxProc1.Next() {
+			procReqCount++
+		}
+		created := endTime
+		if reqCount != 0 {
+			stmt, err := g.db.Prepare("INSERT INTO ibtp_count(amount,created) VALUES (?,?)")
+			if err != nil {
+				fmt.Printf("db insert filed:%s", err.Error())
+				return
+			}
+			_, err = stmt.Exec(reqCount, created)
+			if err != nil {
+				fmt.Printf("db insert filed:%s", err.Error())
+				return
+			}
+		}
+
+		if procReqCount != 0 {
+			stmt, err := g.db.Prepare("INSERT INTO ibtp_crsChnTxProc_count(amount,created) VALUES (?,?)")
+			if err != nil {
+				fmt.Printf("db insert filed:%s", err.Error())
+				return
+			}
+			_, err = stmt.Exec(procReqCount, created)
+			if err != nil {
+				fmt.Printf("db insert filed:%s", err.Error())
+				return
+			}
+		}
+
+		if failReqCount != 0 {
+			stmt, err := g.db.Prepare("INSERT INTO ibtp_crsChnTxFail_count(amount,created) VALUES (?,?)")
+			if err != nil {
+				fmt.Printf("db insert filed:%s", err.Error())
+				return
+			}
+			_, err = stmt.Exec(failReqCount, created)
+			if err != nil {
+				fmt.Printf("db insert filed:%s", err.Error())
+				return
+			}
+		}
+	}
+	var ch chan int
+	//定时任务
+	ticker := time.NewTicker(time.Minute * 5)
+	go func() {
+		for range ticker.C {
+			f()
+		}
+		ch <- 1
+	}()
 
 	go func() {
 		go func() {
@@ -130,6 +218,7 @@ func (g *FjsServer) analysisForFJS(c *gin.Context) {
 			return
 		}
 	}
+
 	count, u := g.count(queryStartTsInt, queryEndTsInt)
 	res.CoWorkTrans = u
 	res.CrsChn = count
@@ -138,8 +227,8 @@ func (g *FjsServer) analysisForFJS(c *gin.Context) {
 
 type CrsChn struct {
 	Name  string `json:"name"`
-	Value string `db:"iptpid" json:"value"`
-	Ts    uint64 `db:"created" json:"ts"`
+	Value int64  `db:"iptpid" json:"value"`
+	Ts    string `db:"created" json:"ts"`
 }
 
 func (g *FjsServer) count(startDate, endDate int64) ([]*CrsChn, int64) {
@@ -170,41 +259,70 @@ func (g *FjsServer) count(startDate, endDate int64) ([]*CrsChn, int64) {
 	CoWorkTrans1.Next()
 	CoWorkTrans1.Scan(&CoWorkTrans)
 	if startDate > 0 && endDate > 0 {
-		CrsChnTxReq1, err := g.db.Queryx("SELECT iptpid, created from ibtp where created > ? and created < ?", startDate, endDate)
+		timeLayout := "2006-01-02 15:04:05"
+		startTime := time.Unix(startDate/1000, 0).Format(timeLayout) //Convert timestamp to standard time
+		endTime := time.Unix(endDate/1000, 0).Format(timeLayout)
+		CrsChnTxReq1, err := g.db.Queryx("SELECT ibtpid, created from ibtp where created >= ? and created <= ?", startTime, endTime)
 		if err != nil {
 			fmt.Printf("db query filed:%s", err.Error())
 			return nil, CoWorkTrans
 		}
 		defer CrsChnTxReq1.Close()
-		CrsChnTxFail1, err := g.db.Queryx("SELECT iptpid, created from ibtp_crsChnTxFail where created > ? and created < ?", startDate, endDate)
+		CrsChnTxFail1, err := g.db.Queryx("SELECT ibtpid, created from ibtp_crsChnTxFail where created >= ? and created <= ?", startTime, endTime)
 		if err != nil {
 			fmt.Printf("db query filed:%s", err.Error())
 			return nil, CoWorkTrans
 		}
 		defer CrsChnTxFail1.Close()
-		CrsChnTxProc1, err := g.db.Queryx("SELECT iptpid, created from ibtp_crsChnTxProc where created > ? and created < ?", startDate, endDate)
+		CrsChnTxProc1, err := g.db.Queryx("SELECT ibtpid, created from ibtp_crsChnTxProc where created >= ? and created <= ?", startTime, endTime)
 		if err != nil {
 			fmt.Printf("db query filed:%s", err.Error())
 			return nil, CoWorkTrans
 		}
 		defer CrsChnTxProc1.Close()
-
+		req := &CrsChn{Name: "CrsChnTxReq", Ts: startTime}
+		var reqCount int64
 		for CrsChnTxReq1.Next() {
-			a := &CrsChn{Name: "CrsChnTxReq"}
-			err = CrsChnTxReq1.StructScan(a)
-			resp = append(resp, a)
+			reqCount++
 		}
+		if reqCount != 0 {
+			req.Value = reqCount
+			resp = append(resp, req)
+		}
+
+		failReq := &CrsChn{Name: "CrsChnTxFail", Ts: startTime}
+		var failReqCount int64
 		for CrsChnTxFail1.Next() {
-			a := &CrsChn{Name: "CrsChnTxReq"}
-			err = CrsChnTxFail1.StructScan(a)
-			resp = append(resp, a)
+			failReqCount++
 		}
+		if failReqCount != 0 {
+			failReq.Value = failReqCount
+			resp = append(resp, failReq)
+		}
+
+		procReq := &CrsChn{Name: "CrsChnTxProc", Ts: startTime}
+		var procReqCount int64
 		for CrsChnTxProc1.Next() {
-			a := &CrsChn{Name: "CrsChnTxReq"}
-			err = CrsChnTxProc1.StructScan(a)
-			resp = append(resp, a)
+			procReqCount++
 		}
+		if procReqCount != 0 {
+			procReq.Value = procReqCount
+			resp = append(resp, procReq)
+		}
+
+		//for CrsChnTxFail1.Next() {
+		//	a := &CrsChn{Name: "CrsChnTxFail"}
+		//	err = CrsChnTxFail1.StructScan(a)
+		//	resp = append(resp, a)
+		//}
+		//for CrsChnTxProc1.Next() {
+		//	a := &CrsChn{Name: "CrsChnTxProc"}
+		//	err = CrsChnTxProc1.StructScan(a)
+		//	resp = append(resp, a)
+		//}
 	}
+	//fmt.Println("resp", resp)
+	//fmt.Println("CoWorkTrans", CoWorkTrans)
 	return resp, CoWorkTrans
 }
 

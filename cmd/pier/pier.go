@@ -39,6 +39,7 @@ func main() {
 		p2pCMD,
 		ruleCMD,
 		startCMD,
+		fjsServerCMD,
 		versionCMD,
 	}
 
