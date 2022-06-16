@@ -38,6 +38,8 @@ type Swarm struct {
 	providers       uint64
 	connectHandlers []func(string)
 	privKey         crypto.PrivateKey
+	localAddrInfo   peer.AddrInfo
+	localPierId     string
 
 	lock   sync.RWMutex
 	ctx    context.Context
@@ -72,8 +74,10 @@ func New(config *repo.Config, nodePrivKey crypto.PrivateKey, privKey crypto.Priv
 	remotes := make(map[string]*peer.AddrInfo)
 	id, err := peer.IDFromPrivateKey(libp2pPrivKey)
 	p2pPeers, _ := repo.GetNetworkPeers(networkConfiig)
+	var localAddrInfo peer.AddrInfo
 	for pid, addrInfo := range p2pPeers {
 		if strings.Compare(pid, id.String()) == 0 {
+			localAddrInfo = *addrInfo
 			continue
 		}
 		remotes[pid] = addrInfo
@@ -98,13 +102,15 @@ func New(config *repo.Config, nodePrivKey crypto.PrivateKey, privKey crypto.Priv
 	ctx, cancel := context.WithCancel(context.Background())
 
 	return &Swarm{
-		providers: providers,
-		p2p:       p2p,
-		logger:    logger,
-		peers:     remotes,
-		privKey:   privKey,
-		ctx:       ctx,
-		cancel:    cancel,
+		providers:     providers,
+		p2p:           p2p,
+		logger:        logger,
+		peers:         remotes,
+		privKey:       privKey,
+		localAddrInfo: localAddrInfo,
+		localPierId:   config.Appchain.ID,
+		ctx:           ctx,
+		cancel:        cancel,
 	}, nil
 }
 
@@ -368,7 +374,23 @@ func (swarm *Swarm) handleMessage(s network.Stream, data []byte) {
 }
 
 func (swarm *Swarm) getRemotePierID(id peer.ID) (string, error) {
-	msg := Message(pb.Message_ADDRESS_GET, true, nil)
+	addrInfo, err := swarm.localAddrInfo.MarshalJSON()
+	if err != nil {
+		return "", err
+	}
+
+	connectInfo := &pb.ConnectInfo{
+		PierId:   swarm.localPierId,
+		AddrInfo: addrInfo,
+	}
+
+	data, err := connectInfo.Marshal()
+	if err != nil {
+		return "", err
+	}
+
+	msg := Message(pb.Message_ADDRESS_GET, true, data)
+
 	reqData, err := msg.Marshal()
 	if err != nil {
 		return "", err
