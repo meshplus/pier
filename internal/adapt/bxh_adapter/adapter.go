@@ -595,6 +595,7 @@ func (b *BxhAdapter) getSign(ibtp *pb.IBTP, isReq bool) ([]byte, error) {
 		} else {
 			reqTyp = pb.GetSignsRequest_TSS_IBTP_RESPONSE
 		}
+		// client connect bitxhub nodes random
 		retSign, err = b.client.GetTssSigns(ibtp.ID(), reqTyp, nil)
 		if err != nil {
 			return nil, err

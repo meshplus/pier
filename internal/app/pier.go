@@ -335,7 +335,7 @@ func newBitXHubClient(logger logrus.FieldLogger, privateKey crypto.PrivateKey, c
 	} else if strings.EqualFold(repo.UnionMode, config.Mode.Type) {
 		addrs = config.Mode.Union.Addrs
 	}
-	nodesInfo := make([]*rpcx.NodeInfo, 0, len(addrs))
+	nodesInfos := make([]*rpcx.NodeInfo, 0, len(addrs))
 	for index, addr := range addrs {
 		nodeInfo := &rpcx.NodeInfo{Addr: addr}
 		if config.Security.EnableTLS {
@@ -345,8 +345,8 @@ func newBitXHubClient(logger logrus.FieldLogger, privateKey crypto.PrivateKey, c
 			nodeInfo.AccessCert = filepath.Join(config.RepoRoot, config.Security.AccessCert[index])
 			nodeInfo.AccessKey = filepath.Join(config.RepoRoot, config.Security.AccessKey)
 		}
-		nodesInfo = append(nodesInfo, nodeInfo)
+		nodesInfos = append(nodesInfos, nodeInfo)
 	}
-	opts = append(opts, rpcx.WithNodesInfo(nodesInfo...), rpcx.WithTimeoutLimit(config.Mode.Relay.TimeoutLimit))
+	opts = append(opts, rpcx.WithNodesInfo(nodesInfos...), rpcx.WithTimeoutLimit(config.Mode.Relay.TimeoutLimit))
 	return rpcx.New(opts...)
 }
