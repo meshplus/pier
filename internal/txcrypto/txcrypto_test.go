@@ -1,6 +1,7 @@
 package txcrypto
 
 import (
+	"encoding/base64"
 	"fmt"
 	"strings"
 	"testing"
@@ -34,7 +35,7 @@ func TestRelayCryptor(t *testing.T) {
 	require.Nil(t, err)
 	addr2 := address2.String()
 	ret := &pb.Receipt{
-		Ret: pubBytes2,
+		Ret: []byte(base64.StdEncoding.EncodeToString(pubBytes2)),
 	}
 
 	rc1, err := NewRelayCryptor(mockClient, privKey1, log.NewWithModule("Cryptor"))
@@ -50,6 +51,7 @@ func TestRelayCryptor(t *testing.T) {
 	rc2 := &RelayCryptor{
 		privKey: privKey2,
 		keyMap:  keyMap2,
+		logger:  log.NewWithModule("Cryptor"),
 	}
 
 	mockClient.EXPECT().InvokeBVMContract(gomock.Any(), gomock.Any(), gomock.Any(), rpcx.String(addr2)).Return(ret, nil).AnyTimes()
@@ -58,6 +60,7 @@ func TestRelayCryptor(t *testing.T) {
 
 	content := []byte("bitxhub cryptor test")
 	encryptBytes, err := rc1.Encrypt(content, addr2)
+	fmt.Println(err)
 	require.Nil(t, err)
 
 	decryptBytes, err := rc2.Decrypt(encryptBytes, addr1)

@@ -381,8 +381,10 @@ func (a *AppchainAdapter) handlePayload(ibtp *pb.IBTP, encrypt bool) (*pb.IBTP, 
 			} else {
 				chainID = srcChainID
 			}
+			a.logger.Info(string(pd.Content))
 			newContent, err = a.cryptor.Encrypt(pd.Content, chainID)
 			if err != nil {
+				a.logger.Errorln(err)
 				return nil, nil, fmt.Errorf("cannot encrypt content for monitored ibtp %s", ibtp.ID())
 			}
 		} else {
@@ -396,6 +398,7 @@ func (a *AppchainAdapter) handlePayload(ibtp *pb.IBTP, encrypt bool) (*pb.IBTP, 
 				chainID = dstChainID
 			}
 			newContent, err = a.cryptor.Decrypt(pd.Content, chainID)
+			a.logger.Info(string(newContent))
 			if err != nil {
 				return nil, nil, fmt.Errorf("cannot encrypt content for monitored ibtp %s", ibtp.ID())
 			}
