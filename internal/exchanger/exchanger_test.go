@@ -79,6 +79,7 @@ func testNormalStartRelay(t *testing.T) {
 	mockSyncer.EXPECT().Stop().Return(nil)
 	mockSyncer.EXPECT().ListenIBTP().Return(inCh).AnyTimes()
 	mockSyncer.EXPECT().SendIBTP(gomock.Any()).Return(nil).AnyTimes()
+	mockSyncer.EXPECT().QueryInterchainMeta().Return(&pb.Interchain{}).AnyTimes()
 
 	ibtps, ibtpM := genIBTPs(t, 100, pb.IBTP_INTERCHAIN)
 	mockSyncer.EXPECT().QueryIBTP(gomock.Any()).
@@ -349,6 +350,7 @@ func testRecoverErrorStartRelay(t *testing.T) {
 	mockExecutor.EXPECT().QueryCallbackMeta().Return(callbackMeta).AnyTimes()
 	mockSyncer.EXPECT().ListenIBTP().Return(inCh).AnyTimes()
 	mockMonitor.EXPECT().ListenIBTP().Return(outCh).AnyTimes()
+	mockSyncer.EXPECT().QueryInterchainMeta().Return(meta).AnyTimes()
 
 	mockExchanger, err := New(mode, from, meta,
 		WithMonitor(mockMonitor), WithExecutor(mockExecutor),

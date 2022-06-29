@@ -80,6 +80,13 @@ func New(typ, appchainDID string, meta *pb.Interchain, opts ...Option) (*Exchang
 }
 
 func (ex *Exchanger) Start() error {
+	if ex.mode == repo.RelayMode {
+		meta := ex.syncer.QueryInterchainMeta()
+		ex.interchainCounter = copyCounterMap(meta.InterchainCounter)
+		ex.sourceReceiptCounter = copyCounterMap(meta.SourceReceiptCounter)
+	}
+	ex.executorCounter = copyCounterMap(ex.exec.QueryInterchainMeta())
+	ex.callbackCounter = copyCounterMap(ex.exec.QueryCallbackMeta())
 	if ex.mode != repo.UnionMode {
 		go ex.listenAndSendIBTPFromMnt()
 	}
