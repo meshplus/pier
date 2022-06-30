@@ -189,13 +189,14 @@ func (e *ChannelExecutor) writeDB(ibtp *pb.IBTP, tableName string) {
 		return
 	}
 	defer db.Close()
+	timeLayout := "2006-01-02 15:04:05"
 	stmt, err := db.Prepare("INSERT INTO " + tableName + "(ibtpid,created) values(?,?)")
 	defer stmt.Close()
 	if err != nil {
 		fmt.Printf("sql filed:%s", err.Error())
 		return
 	}
-	_, err = stmt.Exec(fmt.Sprintf("%s-%s-%d", ibtp.From, ibtp.To, ibtp.Index), time.Now().UnixNano()/1e6)
+	_, err = stmt.Exec(fmt.Sprintf("%s-%s-%d", ibtp.From, ibtp.To, ibtp.Index), time.Unix(time.Now().Unix(), 0).Format(timeLayout))
 	if err != nil {
 		fmt.Printf("sql filed:%s", err.Error())
 		return
