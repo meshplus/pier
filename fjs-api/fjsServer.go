@@ -115,43 +115,37 @@ func (g *FjsServer) Start() error {
 			procReqCount++
 		}
 		created := endTime
-		if reqCount != 0 {
-			stmt, err := g.db.Prepare("INSERT INTO ibtp_count(amount,created) VALUES (?,?)")
-			if err != nil {
-				fmt.Printf("db insert filed:%s", err.Error())
-				return
-			}
-			_, err = stmt.Exec(reqCount, created)
-			if err != nil {
-				fmt.Printf("db insert filed:%s", err.Error())
-				return
-			}
+		stmt, err := g.db.Prepare("INSERT INTO ibtp_count(amount,created) VALUES (?,?)")
+		if err != nil {
+			fmt.Printf("db insert filed:%s", err.Error())
+			return
+		}
+		_, err = stmt.Exec(reqCount, created)
+		if err != nil {
+			fmt.Printf("db insert filed:%s", err.Error())
+			return
 		}
 
-		if procReqCount != 0 {
-			stmt, err := g.db.Prepare("INSERT INTO ibtp_crsChnTxProc_count(amount,created) VALUES (?,?)")
-			if err != nil {
-				fmt.Printf("db insert filed:%s", err.Error())
-				return
-			}
-			_, err = stmt.Exec(procReqCount, created)
-			if err != nil {
-				fmt.Printf("db insert filed:%s", err.Error())
-				return
-			}
+		stmt, err = g.db.Prepare("INSERT INTO ibtp_crsChnTxProc_count(amount,created) VALUES (?,?)")
+		if err != nil {
+			fmt.Printf("db insert filed:%s", err.Error())
+			return
+		}
+		_, err = stmt.Exec(procReqCount, created)
+		if err != nil {
+			fmt.Printf("db insert filed:%s", err.Error())
+			return
 		}
 
-		if failReqCount != 0 {
-			stmt, err := g.db.Prepare("INSERT INTO ibtp_crsChnTxFail_count(amount,created) VALUES (?,?)")
-			if err != nil {
-				fmt.Printf("db insert filed:%s", err.Error())
-				return
-			}
-			_, err = stmt.Exec(failReqCount, created)
-			if err != nil {
-				fmt.Printf("db insert filed:%s", err.Error())
-				return
-			}
+		stmt, err = g.db.Prepare("INSERT INTO ibtp_crsChnTxFail_count(amount,created) VALUES (?,?)")
+		if err != nil {
+			fmt.Printf("db insert filed:%s", err.Error())
+			return
+		}
+		_, err = stmt.Exec(failReqCount, created)
+		if err != nil {
+			fmt.Printf("db insert filed:%s", err.Error())
+			return
 		}
 	}
 	var ch chan int
