@@ -57,9 +57,11 @@ func TestStart(t *testing.T) {
 		syncWrapperCh <- w2
 	}()
 
+	client.EXPECT().GenerateContractTx(gomock.Any(), gomock.Any(), "GetStatus", gomock.Any()).Return(&pb.BxhTransaction{}, nil).AnyTimes()
+	client.EXPECT().SendView(gomock.Any()).Return(&pb.Receipt{Ret: []byte("1")}, nil).AnyTimes()
 	client.EXPECT().Subscribe(gomock.Any(), gomock.Any(), gomock.Any()).Return(syncWrapperCh, nil).AnyTimes()
 	client.EXPECT().GetMultiSigns(gomock.Any(), gomock.Any()).Return(&pb.SignResponse{Sign: make(map[string][]byte)}, nil).AnyTimes()
-	client.EXPECT().InvokeBVMContract(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(&pb.Receipt{Ret: []byte("1")}, nil).AnyTimes()
+	//client.EXPECT().InvokeBVMContract(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(&pb.Receipt{Ret: []byte("1")}, nil).AnyTimes()
 
 	done := make(chan bool)
 	go func() {
@@ -131,18 +133,42 @@ func TestQueryIBTP(t *testing.T) {
 	//badResponse := &pb.GetTransactionResponse{
 	//	Tx: tx,
 	//}
+
+	pl := &pb.InvokePayload{
+		Method: "GetStatus",
+	}
+
+	data1, err := pl.Marshal()
+	require.Nil(t, err)
+
+	td1 := &pb.TransactionData{
+		Type:    pb.TransactionData_INVOKE,
+		Payload: data1,
+	}
+
+	payload1, err := td1.Marshal()
+	require.Nil(t, err)
+
+	queryStatusTx := &pb.BxhTransaction{
+		To:      constant.TransactionMgrContractAddr.Address(),
+		Payload: payload1,
+	}
+
 	client.EXPECT().GetMultiSigns(gomock.Any(), gomock.Any()).Return(&pb.SignResponse{Sign: make(map[string][]byte)}, nil).MaxTimes(3)
 	client.EXPECT().GenerateContractTx(gomock.Any(), gomock.Any(), "GetIBTPByID", gomock.Any()).Return(tx, nil).AnyTimes()
+	client.EXPECT().GenerateContractTx(gomock.Any(), gomock.Any(), "GetStatus", gomock.Any()).Return(queryStatusTx, nil).AnyTimes()
 	// test for normal receipt
-	client.EXPECT().SendView(tx).Return(normalReceipt, nil).MaxTimes(1)
-	client.EXPECT().GetTransaction(gomock.Any()).Return(normalResponse, nil).MaxTimes(1)
-	client.EXPECT().GetReceipt(gomock.Any()).Return(normalReceipt, nil).MaxTimes(1)
+	client.EXPECT().SendView(tx).Return(normalReceipt, nil).Times(1)
 
 	receipt := &pb.Receipt{
 		Ret:    []byte(strconv.Itoa(int(pb.TransactionStatus_SUCCESS))),
 		Status: pb.Receipt_SUCCESS,
 	}
-	client.EXPECT().InvokeBVMContract(constant.TransactionMgrContractAddr.Address(), "GetStatus", nil, gomock.Any()).Return(receipt, nil).AnyTimes()
+	client.EXPECT().SendView(queryStatusTx).Return(receipt, nil).Times(1)
+	client.EXPECT().GetTransaction(gomock.Any()).Return(normalResponse, nil).MaxTimes(1)
+	client.EXPECT().GetReceipt(gomock.Any()).Return(normalReceipt, nil).MaxTimes(1)
+
+	//client.EXPECT().InvokeBVMContract(constant.TransactionMgrContractAddr.Address(), "GetStatus", nil, gomock.Any()).Return(receipt, nil).AnyTimes()
 	ibtp, err := adapter.QueryIBTP(from, true)
 	require.Nil(t, err)
 	require.Equal(t, origin, ibtp)
@@ -154,8 +180,16 @@ func TestQueryIBTP(t *testing.T) {
 	require.NotNil(t, err)
 	require.Nil(t, ibtp)
 
-	client.EXPECT().SendView(tx).Return(badReceipt1, nil).MaxTimes(2)
-	client.EXPECT().GetTransaction(gomock.Any()).Return(normalResponse, nil).MaxTimes(2)
+	// test faied receipt
+	client.EXPECT().SendView(tx).Return(badReceipt1, nil).MaxTimes(1)
+	client.EXPECT().GenerateContractTx(gomock.Any(), gomock.Any(), "GetStatus", gomock.Any()).Return(queryStatusTx, nil).AnyTimes()
+	receiptStatus := &pb.Receipt{
+		Ret:    []byte(strconv.Itoa(int(pb.TransactionStatus_BEGIN))),
+		Status: pb.Receipt_SUCCESS,
+	}
+	client.EXPECT().SendView(queryStatusTx).Return(receiptStatus, nil).MaxTimes(2)
+
+	client.EXPECT().GetTransaction(gomock.Any()).Return(normalResponse, nil).MaxTimes(1)
 	client.EXPECT().GetReceipt(gomock.Any()).Return(nil, fmt.Errorf("bad ibtp 2")).MaxTimes(1)
 	ibtp, err = adapter.QueryIBTP(from, false)
 	require.NotNil(t, err)
@@ -345,6 +379,32 @@ func TestSendIBTP(t *testing.T) {
 	client.EXPECT().GetMultiSigns(gomock.Any(), gomock.Any()).Return(signResponse, nil).MaxTimes(1)
 	client.EXPECT().GenerateContractTx(gomock.Any(), gomock.Any(), "GetIBTPByID", gomock.Any(), gomock.Any()).Return(tx, nil).AnyTimes()
 	client.EXPECT().SendView(gomock.Any()).Return(rollReceipt, nil).MaxTimes(1)
+
+	pl := &pb.InvokePayload{
+		Method: "GetStatus",
+	}
+
+	data1, err := pl.Marshal()
+	require.Nil(t, err)
+
+	td1 := &pb.TransactionData{
+		Type:    pb.TransactionData_INVOKE,
+		Payload: data1,
+	}
+
+	payload1, err := td1.Marshal()
+	require.Nil(t, err)
+
+	queryStatusTx := &pb.BxhTransaction{
+		To:      constant.TransactionMgrContractAddr.Address(),
+		Payload: payload1,
+	}
+	client.EXPECT().GenerateContractTx(gomock.Any(), gomock.Any(), "GetStatus", gomock.Any()).Return(queryStatusTx, nil).AnyTimes()
+	receiptStatus := &pb.Receipt{
+		Ret:    []byte(strconv.Itoa(int(pb.TransactionStatus_BEGIN_ROLLBACK))),
+		Status: pb.Receipt_SUCCESS,
+	}
+	client.EXPECT().SendView(queryStatusTx).Return(receiptStatus, nil).MaxTimes(1)
 	client.EXPECT().GetTransaction(gomock.Any()).Return(rollbackResponse, nil).MaxTimes(1)
 
 	err = adapter.SendIBTP(&pb.IBTP{})
