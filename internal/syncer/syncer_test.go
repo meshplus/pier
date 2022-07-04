@@ -595,7 +595,7 @@ func TestQueryInterchainMeta(t *testing.T) {
 		Ret:    []byte("this is a failed receipt"),
 		Status: pb.Receipt_FAILED,
 	}
-	client.EXPECT().GenerateContractTx(gomock.Any(), gomock.Any(), "Interchain").Return(queryTx, nil).AnyTimes()
+	client.EXPECT().GenerateContractTx(gomock.Any(), gomock.Any(), "Interchain", gomock.Any()).Return(queryTx, nil).AnyTimes()
 	client.EXPECT().SendView(queryTx).Return(badReceipt, nil)
 	client.EXPECT().SendView(queryTx).Return(badReceipt1, nil)
 	client.EXPECT().SendView(queryTx).Return(normalReceipt, nil)

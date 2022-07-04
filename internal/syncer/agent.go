@@ -125,7 +125,7 @@ func (syncer *WrapperSyncer) QueryInterchainMeta() *pb.Interchain {
 	var interchainMeta *pb.Interchain
 	if err := syncer.retryFunc(func(attempt uint) error {
 		queryTx, err := syncer.client.GenerateContractTx(pb.TransactionData_BVM,
-			constant.InterchainContractAddr.Address(), "Interchain")
+			constant.InterchainContractAddr.Address(), "Interchain", rpcx.String(syncer.appchainDID))
 		if err != nil {
 			return err
 		}
