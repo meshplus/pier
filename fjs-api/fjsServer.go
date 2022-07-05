@@ -279,30 +279,24 @@ func (g *FjsServer) count(startDate, endDate int64) ([]*CrsChn, int64) {
 		for CrsChnTxReq1.Next() {
 			reqCount++
 		}
-		if reqCount != 0 {
-			req.Value = reqCount
-			resp = append(resp, req)
-		}
+		req.Value = reqCount
+		resp = append(resp, req)
 
 		failReq := &CrsChn{Name: "CrsChnTxFail", Ts: startTime}
 		var failReqCount int64
 		for CrsChnTxFail1.Next() {
 			failReqCount++
 		}
-		if failReqCount != 0 {
-			failReq.Value = failReqCount
-			resp = append(resp, failReq)
-		}
+		failReq.Value = failReqCount
+		resp = append(resp, failReq)
 
 		procReq := &CrsChn{Name: "CrsChnTxProc", Ts: startTime}
 		var procReqCount int64
 		for CrsChnTxProc1.Next() {
 			procReqCount++
 		}
-		if procReqCount != 0 {
-			procReq.Value = procReqCount
-			resp = append(resp, procReq)
-		}
+		procReq.Value = procReqCount
+		resp = append(resp, procReq)
 
 		//for CrsChnTxFail1.Next() {
 		//	a := &CrsChn{Name: "CrsChnTxFail"}
