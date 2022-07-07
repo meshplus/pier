@@ -443,6 +443,7 @@ func (b *BxhAdapter) run() {
 				b.logger.Warn("Unexpected closed channel while syncing interchain tx wrapper")
 				return
 			}
+
 			b.wrappersC <- h.(*pb.InterchainTxWrappers)
 		}
 	}
@@ -559,12 +560,16 @@ func (b *BxhAdapter) getTxStatus(id string) (pb.TransactionStatus, error) {
 	var receipt *pb.Receipt
 	// if query fail from BVMContract, retry
 	if err := retry.Retry(func(attempt uint) error {
-		bxhReceipt, err := b.client.InvokeBVMContract(constant.TransactionMgrContractAddr.Address(),
-			"GetStatus", nil, rpcx.String(id))
+
+		tx, err := b.client.GenerateContractTx(pb.TransactionData_BVM, constant.TransactionMgrContractAddr.Address(), "GetStatus", rpcx.String(id))
+		if err != nil {
+			b.logger.Errorf("generateContractTx err: %s", err)
+			return err
+		}
+		receipt, err = b.client.SendView(tx)
 		if err != nil {
 			return err
 		}
-		receipt = bxhReceipt
 		return nil
 	}, strategy.Wait(1*time.Second)); err != nil {
 		b.logger.Errorf("Retry to get tx status")

@@ -107,7 +107,7 @@ var initCMD = cli.Command{
 				cli.StringSliceFlag{
 					Name:     "addPier",
 					Usage:    "Specify the remote union piers to connect, input looks like: [ip]:[port]#[Pid]",
-					Required: true,
+					Required: false,
 				},
 			},
 			Action: initPier,
