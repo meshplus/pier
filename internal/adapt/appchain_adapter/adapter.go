@@ -204,6 +204,10 @@ func (a *AppchainAdapter) SendIBTP(ibtp *pb.IBTP) error {
 			ibtp.Type = pb.IBTP_RECEIPT_FAILURE
 			a.ibtpC <- ibtp
 			err.Status = adapt.Other_Error
+		} else if strings.Contains(res.Message, "failed to estimate gas needed: execution reverted") {
+			ibtp.Type = pb.IBTP_RECEIPT_FAILURE
+			a.ibtpC <- ibtp
+			err.Status = adapt.Other_Error
 		} else {
 			err.Status = adapt.Other_Error
 		}
