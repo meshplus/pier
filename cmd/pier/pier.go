@@ -34,7 +34,7 @@ func main() {
 
 	app.Commands = []cli.Command{
 		appchainBxhCMD,
-		//client.LoadClientCMD(),
+		keyCMD,
 		idCMD,
 		initCMD,
 		networkCMD,
