@@ -208,30 +208,30 @@ func TestSendIBTP(t *testing.T) {
 	client.EXPECT().GenerateIBTPTx(gomock.Any()).Return(tx, nil).AnyTimes()
 
 	networkDownTime := 0
-	client.EXPECT().SendTransaction(gomock.Any(), gomock.Any()).DoAndReturn(
-		func(tx *pb.BxhTransaction, opts *rpcx.TransactOpts) (string, error) {
-			networkDownTime++
-			if networkDownTime == 1 {
-				return "", rpcx.ErrBrokenNetwork
-			} else if networkDownTime == 2 {
-				return "", rpcx.ErrReconstruct
-			}
-			return hash, nil
-		}).MaxTimes(4)
-
+	receiptNetworkDownTime := 0
 	r := &pb.Receipt{
 		Ret:    []byte("this is a test"),
 		Status: pb.Receipt_SUCCESS,
 	}
-	receiptNetworkDownTime := 0
-	client.EXPECT().GetReceipt(hash).DoAndReturn(
-		func(ha string) (*pb.Receipt, error) {
+	rf := &pb.Receipt{
+		Ret:    []byte("fail receipt"),
+		Status: pb.Receipt_FAILED,
+	}
+	client.EXPECT().SendTransactionWithReceipt(gomock.Any(), gomock.Any()).DoAndReturn(
+		func(tx *pb.BxhTransaction, opts *rpcx.TransactOpts) (*pb.Receipt, error) {
+			networkDownTime++
+			if networkDownTime == 1 {
+				return nil, rpcx.ErrBrokenNetwork
+			} else if networkDownTime == 2 {
+				return nil, rpcx.ErrReconstruct
+			}
 			receiptNetworkDownTime++
 			if receiptNetworkDownTime == 1 {
-				return nil, fmt.Errorf("not found receipt")
+				return rf, fmt.Errorf("not found receipt")
 			}
 			return r, nil
-		}).MaxTimes(2)
+		}).MaxTimes(4)
+
 	require.Nil(t, adapter.SendIBTP(&pb.IBTP{}))
 
 	receipt := &pb.Receipt{
@@ -246,7 +246,6 @@ func TestSendIBTP(t *testing.T) {
 	//require.Nil(t, err)
 
 	// test for receipt failed situation
-	client.EXPECT().SendTransaction(gomock.Any(), gomock.Any()).Return(hash, nil).AnyTimes()
 	errMsg1 := fmt.Sprintf("%s: appchain not registerd", noBindRule)
 	//errMsg2 := fmt.Sprintf("%s: current appchain err", CurAppchainNotAvailable)
 	errMsg3 := fmt.Sprintf("%s: source service err", SrcServiceNotAvailable)
@@ -265,7 +264,7 @@ func TestSendIBTP(t *testing.T) {
 		Ret:    []byte(errMsg1),
 		Status: pb.Receipt_FAILED,
 	}
-	client.EXPECT().GetReceipt(hash).Return(failReceipt, nil).AnyTimes()
+	client.EXPECT().SendTransactionWithReceipt(gomock.Any(), gomock.Any()).Return(failReceipt, nil).AnyTimes()
 	err := adapter.SendIBTP(&pb.IBTP{})
 	ibtpErr1, ok := err.(*adapt.SendIbtpError)
 	require.Equal(t, true, ok)
@@ -421,25 +420,40 @@ func TestGetServiceIDList(t *testing.T) {
 		Ret:    data1,
 		Status: pb.Receipt_SUCCESS,
 	}
-	client.EXPECT().GenerateContractTx(gomock.Any(), gomock.Any(),
-		gomock.Any()).Return(&pb.BxhTransaction{}, nil).MaxTimes(2)
-	client.EXPECT().SendView(gomock.Any()).Return(reciept1, nil).MaxTimes(1)
 
-	// get registered bxhIds in Union Mode
-	bxhIds := make([]string, 0)
-	bxhIds = append(bxhIds, strconv.Itoa(bxhId1), strconv.Itoa(bxhId2))
-	data2, err := json.Marshal(bxhIds)
-	reciept2 := &pb.Receipt{
-		Ret:    data2,
-		Status: pb.Receipt_SUCCESS,
-	}
-	client.EXPECT().SendView(gomock.Any()).Return(reciept2, nil).MaxTimes(1)
+	client.EXPECT().GenerateContractTx(gomock.Any(), gomock.Any(),
+		gomock.Any(), gomock.Any()).Return(&pb.BxhTransaction{}, nil).Times(1)
+	client.EXPECT().SendView(gomock.Any()).Return(reciept1, nil).Times(1)
 
 	loggers.InitializeLogger(repo.DefaultConfig())
 	ids1, err := relayAdapter.GetServiceIDList()
 	require.Nil(t, err)
-	require.Equal(t, 0, len(ids1))
+	require.Equal(t, 2, len(ids1))
+	require.Equal(t, serviceId1, ids1[0])
+	require.Equal(t, serviceId2, ids1[1])
 
+	client.EXPECT().GenerateContractTx(gomock.Any(), gomock.Any(),
+		gomock.Any()).Return(&pb.BxhTransaction{}, nil).Times(2)
+
+	services2 := make([]string, 0)
+	services2 = append(services2, fmt.Sprintf("%s:%s:%s", strconv.Itoa(bxhId1), chainId, serviceId1),
+		fmt.Sprintf("%s:%s:%s", strconv.Itoa(bxhId2), chainId, serviceId2))
+	data2, err := json.Marshal(services2)
+	reciept2 := &pb.Receipt{
+		Ret:    data2,
+		Status: pb.Receipt_SUCCESS,
+	}
+	client.EXPECT().SendView(gomock.Any()).Return(reciept2, nil).Times(1)
+
+	// get registered bxhIds in Union Mode
+	bxhIds := make([]string, 0)
+	bxhIds = append(bxhIds, strconv.Itoa(bxhId1), strconv.Itoa(bxhId2))
+	data3, err := json.Marshal(bxhIds)
+	reciept3 := &pb.Receipt{
+		Ret:    data3,
+		Status: pb.Receipt_SUCCESS,
+	}
+	client.EXPECT().SendView(gomock.Any()).Return(reciept3, nil).Times(1)
 	ids2, err := unionAdapter.GetServiceIDList()
 	require.Nil(t, err)
 	require.Equal(t, 1, len(ids2))
@@ -636,15 +650,15 @@ func getIBTP(t *testing.T, index uint64, typ pb.IBTP_Type) *pb.IBTP {
 	}
 }
 
-func getServiceID(t *testing.T) []string {
-	services := make([]string, 0)
+func getServiceID(t *testing.T) []*service_mgr.Service {
+	services := make([]*service_mgr.Service, 0)
 	service1 := &service_mgr.Service{
-		ServiceID: fmt.Sprintf("%s:%s:%s", strconv.Itoa(bxhId1), chainId, serviceId1),
+		ServiceID: serviceId1,
 	}
 	service2 := &service_mgr.Service{
-		ServiceID: fmt.Sprintf("%s:%s:%s", strconv.Itoa(bxhId2), chainId, serviceId2),
+		ServiceID: serviceId2,
 	}
-	services = append(services, service1.ServiceID, service2.ServiceID)
+	services = append(services, service1, service2)
 	require.Equal(t, 2, len(services))
 
 	return services

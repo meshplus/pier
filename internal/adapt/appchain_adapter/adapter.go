@@ -17,6 +17,11 @@ import (
 
 var _ adapt.Adapt = (*AppchainAdapter)(nil)
 
+const (
+	DirectSrcRegisterErr = "remote service is not registered"
+	DirectDestAuditErr   = "remote service is not allowed to call dest address"
+)
+
 type AppchainAdapter struct {
 	mode         string
 	config       *repo.Config
@@ -193,14 +198,18 @@ func (a *AppchainAdapter) SendIBTP(ibtp *pb.IBTP) error {
 		}
 	}
 
+	var genFailReceipt bool
 	if !res.Status {
 		err := &adapt.SendIbtpError{Err: fmt.Sprintf("fail to send ibtp %s with type %v: %s", ibtp.ID(), ibtp.Type, res.Message)}
 		if strings.Contains(res.Message, "invalid multi-signature") {
 			err.Status = adapt.Proof_Invalid
-		} else if a.config.Mode.Type == repo.DirectMode &&
-			(strings.Contains(res.Message, "dest address is not in local white list") ||
-				strings.Contains(res.Message, "remote service is not registered") ||
-				strings.Contains(res.Message, "remote service is not allowed to call dest address")) {
+		}
+		if a.config.Mode.Type == repo.DirectMode &&
+			(strings.Contains(res.Message, DirectSrcRegisterErr) ||
+				strings.Contains(res.Message, DirectDestAuditErr)) {
+			genFailReceipt = true
+		}
+		if genFailReceipt {
 			ibtp.Type = pb.IBTP_RECEIPT_FAILURE
 			a.ibtpC <- ibtp
 			err.Status = adapt.Other_Error
