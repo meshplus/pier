@@ -12,6 +12,7 @@ import (
 
 	"github.com/Rican7/retry"
 	"github.com/Rican7/retry/strategy"
+	servicemgr "github.com/meshplus/bitxhub-core/service-mgr"
 	"github.com/meshplus/bitxhub-kit/types"
 	"github.com/meshplus/bitxhub-model/constant"
 	"github.com/meshplus/bitxhub-model/pb"
@@ -29,7 +30,7 @@ var (
 	ErrMetaOutOfDate             = fmt.Errorf("interchain meta is out of date")
 )
 
-const maxChSize = 1 << 10
+const maxChSize = 1024
 
 // BxhAdapter represents the necessary data for sync tx from bitxhub
 type BxhAdapter struct {
@@ -148,14 +149,13 @@ func (b *BxhAdapter) SendIBTP(ibtp *pb.IBTP) error {
 	tx.Extra = proof
 
 	var (
-		receipt *pb.Receipt
-		retErr  error
-		count   = uint64(0)
+		retErr error
+		count  = uint64(0)
 	)
 	if err := retry.Retry(func(attempt uint) error {
-		hash, err := b.client.SendTransaction(tx, nil)
+		receipt, err := b.client.SendTransactionWithReceipt(tx, nil)
 		if err != nil {
-			b.logger.Errorf("Send ibtp error: %s", err.Error())
+			b.logger.Errorf("Send ibtp with receipt error: %s", err.Error())
 			if errors.Is(err, rpcx.ErrRecoverable) {
 				count++
 				if count == 5 && ibtp.Type == pb.IBTP_INTERCHAIN {
@@ -168,16 +168,7 @@ func (b *BxhAdapter) SendIBTP(ibtp *pb.IBTP) error {
 				tx, _ = b.client.GenerateIBTPTx(ibtp)
 				return err
 			}
-		}
-		// ensure getting receipt successful
-		if err := retry.Retry(func(attempt uint) error {
-			receipt, err = b.client.GetReceipt(hash)
-			if err != nil {
-				return fmt.Errorf("get tx receipt by hash %s: %w", hash, err)
-			}
-			return nil
-		}, strategy.Wait(1*time.Second)); err != nil {
-			b.logger.Errorf("retry error to get receipt: %w", err)
+			return err
 		}
 
 		// most err occur in bxh's handleIBTP
@@ -324,8 +315,27 @@ func (b *BxhAdapter) SendIBTP(ibtp *pb.IBTP) error {
 
 func (b *BxhAdapter) GetServiceIDList() ([]string, error) {
 	if b.mode == repo.RelayMode {
-		return nil, nil
+		tx, err := b.client.GenerateContractTx(pb.TransactionData_BVM, constant.ServiceMgrContractAddr.Address(),
+			"GetServicesByAppchainID", rpcx.String(b.appchainId))
+		if err != nil {
+			b.logger.Errorf("GetServiceIDList GenerateContractTx err:%s", err)
+			panic(err)
+		}
+
+		ret := getTxView(b.client, tx)
+		service := make([]*servicemgr.Service, 0)
+		if err = json.Unmarshal(ret, &service); err != nil {
+			b.logger.Errorf("GetServiceIDList unmarshal err:%s", err)
+			panic(err)
+		}
+		serviceIDList := make([]string, 0)
+		for _, s := range service {
+			serviceIDList = append(serviceIDList, s.ServiceID)
+		}
+		return serviceIDList, nil
 	}
+
+	// union model
 	tx, err := b.client.GenerateContractTx(pb.TransactionData_BVM, constant.InterchainContractAddr.Address(),
 		"GetAllServiceIDs")
 	if err != nil {

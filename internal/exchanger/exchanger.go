@@ -61,6 +61,20 @@ func New(typ, srcChainId, srcBxhId string, opts ...Option) (*Exchanger, error) {
 	return exchanger, nil
 }
 
+func (ex *Exchanger) checkService(appServiceList, bxhServiceList []string) error {
+	appServiceM := make(map[string]struct{}, len(appServiceList))
+	for _, s := range appServiceList {
+		appServiceM[s] = struct{}{}
+	}
+	for _, serviceId := range bxhServiceList {
+		if _, ok := appServiceM[serviceId]; !ok {
+			return fmt.Errorf("service:[%s] has been registered in bitxhub, "+
+				"but not registered in broker contract", serviceId)
+		}
+	}
+	return nil
+}
+
 func (ex *Exchanger) Start() error {
 	// init meta info
 	var (
@@ -104,6 +118,25 @@ func (ex *Exchanger) Start() error {
 			return err
 		}, strategy.Backoff(backoff.Fibonacci(1*time.Second))); err != nil {
 			ex.logger.Errorf("retry err with queryInterchain: %w", err)
+		}
+	}
+
+	if repo.RelayMode == ex.mode {
+		bxhServiceList := make([]string, 0)
+		if err = retry.Retry(func(attempt uint) error {
+			bxhServiceList, err = ex.destAdapt.GetServiceIDList()
+			if err != nil {
+				ex.logger.Errorf("bxhAdapter GetServiceIDList err:%s", err)
+				return err
+			}
+			return nil
+		}, strategy.Wait(2*time.Second)); err != nil {
+			return err
+		}
+
+		err = ex.checkService(serviceList, bxhServiceList)
+		if err != nil {
+			panic(err)
 		}
 	}
 
