@@ -92,7 +92,7 @@ func testNormalStartRelay(t *testing.T) {
 			SourceReceiptCounter:    make(map[string]uint64),
 			InterchainCounter:       make(map[string]uint64)}, nil).AnyTimes()
 
-	mockAdaptRelay.EXPECT().GetServiceIDList().Return([]string{fullFromService}, nil).AnyTimes()
+	mockAdaptRelay.EXPECT().GetServiceIDList().Return([]string{to}, nil).AnyTimes()
 	//mockAdaptRelay.EXPECT().QueryInterchain(gomock.Eq("1356:fabric:data")).
 	//	Return(&pb.Interchain{ID: "1356:fabric:transfer"}, nil).AnyTimes()
 
