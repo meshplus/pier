@@ -61,9 +61,22 @@ func New(typ, srcChainId, srcBxhId string, opts ...Option) (*Exchanger, error) {
 	return exchanger, nil
 }
 
+func ParseFullServiceID(id string) (string, string, string, error) {
+	splits := strings.Split(id, ":")
+	if len(splits) != 3 {
+		return "", "", "", fmt.Errorf("invalid full service ID: %s", id)
+	}
+	return splits[0], splits[1], splits[2], nil
+}
+
 func (ex *Exchanger) checkService(appServiceList, bxhServiceList []string) error {
 	appServiceM := make(map[string]struct{}, len(appServiceList))
-	for _, s := range appServiceList {
+	for _, fullServiceID := range appServiceList {
+		_, _, s, err := ParseFullServiceID(fullServiceID)
+		if err != nil {
+			ex.logger.Errorf("ParseFullServiceID err:%s", err)
+			return err
+		}
 		appServiceM[s] = struct{}{}
 	}
 	for _, serviceId := range bxhServiceList {
