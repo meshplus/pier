@@ -2,6 +2,7 @@ package exchanger
 
 import (
 	"fmt"
+	"github.com/meshplus/pier/internal/adapt"
 	"strings"
 	"testing"
 	"time"
@@ -29,6 +30,9 @@ const (
 var errorUnhappy = fmt.Errorf("nil")
 
 func TestRelayMode(t *testing.T) {
+	testNormalStartDirectError(t)
+	testNormalStartDirect(t)
+
 	testNormalStartRelay(t)
 	//testRecoverErrorStartRelay(t)
 }
@@ -40,7 +44,19 @@ func prepareRelay(t *testing.T) (
 	mockCtl := gomock.NewController(t)
 	mockAdaptRelay := mock_adapt.NewMockAdapt(mockCtl)
 	mockAdaptAppchain := mock_adapt.NewMockAdapt(mockCtl)
-	mockExchanger, err := New(mode, "fabric", "1356", WithSrcAdapt(mockAdaptAppchain), WithDestAdapt(mockAdaptRelay), WithLogger(log.NewWithModule("exchanger")))
+	mockExchanger, err := New(mode, "fabric", "", WithSrcAdapt(mockAdaptAppchain), WithDestAdapt(mockAdaptRelay), WithLogger(log.NewWithModule("exchanger")))
+	require.Nil(t, err)
+	return mockAdaptRelay, mockAdaptAppchain, mockExchanger
+}
+
+func prepareDirect(t *testing.T) (
+	*mock_adapt.MockAdapt, *mock_adapt.MockAdapt, *Exchanger,
+) {
+	mode := repo.DirectMode
+	mockCtl := gomock.NewController(t)
+	mockAdaptRelay := mock_adapt.NewMockAdapt(mockCtl)
+	mockAdaptAppchain := mock_adapt.NewMockAdapt(mockCtl)
+	mockExchanger, err := New(mode, "eth", "1356", WithSrcAdapt(mockAdaptAppchain), WithDestAdapt(mockAdaptRelay), WithLogger(log.NewWithModule("exchanger")))
 	require.Nil(t, err)
 	return mockAdaptRelay, mockAdaptAppchain, mockExchanger
 }
@@ -108,6 +124,154 @@ func testNormalStartRelay(t *testing.T) {
 
 	testRelayIBTPFromDest(t, destIBTPCh, ibtps_dest, mockExchanger)
 	testRelayIBTPFromSrc(t, srcIBTPCh, ibtps_src, mockExchanger)
+
+	// test for asset exchange ibtp
+	time.Sleep(500 * time.Microsecond)
+	close(destIBTPCh)
+	close(srcIBTPCh)
+	require.Nil(t, mockExchanger.Stop())
+}
+
+func testNormalStartDirect(t *testing.T) {
+	mockAdaptDirect, mockAdaptAppchain, mockExchanger := prepareDirect(t)
+
+	srcIBTPCh := make(chan *pb.IBTP)
+	destIBTPCh := make(chan *pb.IBTP)
+	mockAdaptDirect.EXPECT().MonitorIBTP().Return(destIBTPCh).AnyTimes()
+	mockAdaptAppchain.EXPECT().MonitorIBTP().Return(srcIBTPCh).AnyTimes()
+	mockAdaptDirect.EXPECT().Start().Return(nil).AnyTimes()
+	mockAdaptDirect.EXPECT().Stop().Return(nil).AnyTimes()
+	mockAdaptDirect.EXPECT().Name().Return("bitxhub").AnyTimes()
+	mockAdaptAppchain.EXPECT().Start().Return(nil).AnyTimes()
+	mockAdaptAppchain.EXPECT().Stop().Return(nil).AnyTimes()
+	mockAdaptAppchain.EXPECT().Name().Return("fabric").AnyTimes()
+
+	//adapt0ServiceID_1 := fmt.Sprintf("1356:%s:%s", chain0, from)
+	//adapt0ServiceID_2 := fmt.Sprintf("1356:%s:%s", chain0, from)
+	//dstServiceID := fmt.Sprintf("1356:%s:%s", chain1, to)
+	//servicePair := fmt.Sprintf("%s-%s", srcServiceID, dstServiceID)
+	//
+	//outMeta := make(map[string]uint64)
+	//outMeta[servicePair] = 1
+	//inMeta := make(map[string]uint64)
+	//inMeta[servicePair] = 1
+	//meta.InterchainCounter = map[string]uint64{srcServiceID: 1}
+
+	mockAdaptDirect.EXPECT().QueryIBTP(gomock.Any(), gomock.Any()).Return(&pb.IBTP{}, nil).AnyTimes()
+	mockAdaptAppchain.EXPECT().QueryIBTP(gomock.Any(), gomock.Any()).Return(&pb.IBTP{}, nil).AnyTimes()
+
+	mockAdaptDirect.EXPECT().SendIBTP(gomock.Any()).Return(nil).AnyTimes()
+	mockAdaptAppchain.EXPECT().SendIBTP(gomock.Any()).Return(nil).AnyTimes()
+
+	mockAdaptAppchain.EXPECT().GetServiceIDList().Return([]string{fullFromService}, nil).AnyTimes()
+	mockAdaptAppchain.EXPECT().QueryInterchain(gomock.Eq(fullFromService)).
+		Return(&pb.Interchain{ID: fullFromService,
+			SourceInterchainCounter: make(map[string]uint64),
+			ReceiptCounter:          make(map[string]uint64),
+			SourceReceiptCounter:    map[string]uint64{fullToService: 1},
+			InterchainCounter:       map[string]uint64{fullToService: 1}}, nil).AnyTimes()
+	//mockAdaptAppchain.EXPECT().QueryInterchain(gomock.Eq("1356:fabric:data")).
+	//	Return(&pb.Interchain{ID: "1356:fabric:transfer"}, nil).AnyTimes()
+	mockAdaptDirect.EXPECT().QueryInterchain(gomock.Eq(fullFromService)).
+		Return(&pb.Interchain{ID: fullFromService,
+			SourceInterchainCounter: map[string]uint64{fullToService: 1},
+			ReceiptCounter:          map[string]uint64{fullToService: 1},
+			SourceReceiptCounter:    make(map[string]uint64),
+			InterchainCounter:       make(map[string]uint64)}, nil).AnyTimes()
+
+	mockAdaptDirect.EXPECT().GetServiceIDList().Return([]string{to}, nil).AnyTimes()
+	//mockAdaptDirect.EXPECT().QueryInterchain(gomock.Eq("1356:fabric:data")).
+	//	Return(&pb.Interchain{ID: "1356:fabric:transfer"}, nil).AnyTimes()
+
+	ibtps_src, _ := genIBTPs(t, 10, pb.IBTP_INTERCHAIN, false)
+
+	ibtps_dest, _ := genIBTPs(t, 10, pb.IBTP_INTERCHAIN, true)
+
+	//srcServiceMeta := make(map[string]*pb.Interchain)
+	//destServiceMeta := make(map[string]*pb.Interchain)
+
+	// test recover
+	require.Nil(t, mockExchanger.Start())
+
+	testDirectIBTPFromSrc(t, srcIBTPCh, ibtps_src, mockExchanger, 10)
+	testDirectIBTPFromDest(t, destIBTPCh, ibtps_dest, mockExchanger, 10)
+
+	// test for asset exchange ibtp
+	time.Sleep(500 * time.Microsecond)
+	close(destIBTPCh)
+	close(srcIBTPCh)
+	require.Nil(t, mockExchanger.Stop())
+}
+
+func testNormalStartDirectError(t *testing.T) {
+	mockAdaptDirect, mockAdaptAppchain, mockExchanger := prepareDirect(t)
+
+	srcIBTPCh := make(chan *pb.IBTP)
+	destIBTPCh := make(chan *pb.IBTP)
+	mockAdaptDirect.EXPECT().MonitorIBTP().Return(destIBTPCh).AnyTimes()
+	mockAdaptAppchain.EXPECT().MonitorIBTP().Return(srcIBTPCh).AnyTimes()
+	mockAdaptDirect.EXPECT().Start().Return(nil).AnyTimes()
+	mockAdaptDirect.EXPECT().Stop().Return(nil).AnyTimes()
+	mockAdaptDirect.EXPECT().Name().Return("bitxhub").AnyTimes()
+	mockAdaptAppchain.EXPECT().Start().Return(nil).AnyTimes()
+	mockAdaptAppchain.EXPECT().Stop().Return(nil).AnyTimes()
+	mockAdaptAppchain.EXPECT().Name().Return("fabric").AnyTimes()
+
+	//adapt0ServiceID_1 := fmt.Sprintf("1356:%s:%s", chain0, from)
+	//adapt0ServiceID_2 := fmt.Sprintf("1356:%s:%s", chain0, from)
+	//dstServiceID := fmt.Sprintf("1356:%s:%s", chain1, to)
+	//servicePair := fmt.Sprintf("%s-%s", srcServiceID, dstServiceID)
+	//
+	//outMeta := make(map[string]uint64)
+	//outMeta[servicePair] = 1
+	//inMeta := make(map[string]uint64)
+	//inMeta[servicePair] = 1
+	//meta.InterchainCounter = map[string]uint64{srcServiceID: 1}
+
+	mockAdaptDirect.EXPECT().QueryIBTP(gomock.Any(), gomock.Any()).Return(&pb.IBTP{}, nil).AnyTimes()
+	mockAdaptAppchain.EXPECT().QueryIBTP(gomock.Any(), gomock.Any()).Return(&pb.IBTP{}, nil).AnyTimes()
+
+	error := &adapt.SendIbtpError{
+		Err:    "err",
+		Status: adapt.SrcChainService_Unavailable,
+	}
+	mockAdaptDirect.EXPECT().SendIBTP(gomock.Any()).Return(error).Times(1)
+	mockAdaptAppchain.EXPECT().SendIBTP(gomock.Any()).Return(error).Times(1)
+	mockAdaptDirect.EXPECT().SendIBTP(gomock.Any()).Return(nil).AnyTimes()
+	mockAdaptAppchain.EXPECT().SendIBTP(gomock.Any()).Return(nil).AnyTimes()
+
+	mockAdaptAppchain.EXPECT().GetServiceIDList().Return([]string{fullFromService}, nil).AnyTimes()
+	mockAdaptAppchain.EXPECT().QueryInterchain(gomock.Eq(fullFromService)).
+		Return(&pb.Interchain{ID: fullFromService,
+			SourceInterchainCounter: make(map[string]uint64),
+			ReceiptCounter:          make(map[string]uint64),
+			SourceReceiptCounter:    map[string]uint64{fullToService: 1},
+			InterchainCounter:       map[string]uint64{fullToService: 1}}, nil).AnyTimes()
+	//mockAdaptAppchain.EXPECT().QueryInterchain(gomock.Eq("1356:fabric:data")).
+	//	Return(&pb.Interchain{ID: "1356:fabric:transfer"}, nil).AnyTimes()
+	mockAdaptDirect.EXPECT().QueryInterchain(gomock.Eq(fullFromService)).
+		Return(&pb.Interchain{ID: fullFromService,
+			SourceInterchainCounter: map[string]uint64{fullToService: 1},
+			ReceiptCounter:          map[string]uint64{fullToService: 1},
+			SourceReceiptCounter:    make(map[string]uint64),
+			InterchainCounter:       make(map[string]uint64)}, nil).AnyTimes()
+
+	mockAdaptDirect.EXPECT().GetServiceIDList().Return([]string{to}, nil).AnyTimes()
+	//mockAdaptDirect.EXPECT().QueryInterchain(gomock.Eq("1356:fabric:data")).
+	//	Return(&pb.Interchain{ID: "1356:fabric:transfer"}, nil).AnyTimes()
+
+	ibtps_src, _ := genIBTPs(t, 5, pb.IBTP_INTERCHAIN, false)
+
+	ibtps_dest, _ := genIBTPs(t, 5, pb.IBTP_INTERCHAIN, true)
+
+	//srcServiceMeta := make(map[string]*pb.Interchain)
+	//destServiceMeta := make(map[string]*pb.Interchain)
+
+	// test recover
+	require.Nil(t, mockExchanger.Start())
+
+	testDirectIBTPFromSrc(t, srcIBTPCh, ibtps_src, mockExchanger, 5)
+	testDirectIBTPFromDest(t, destIBTPCh, ibtps_dest, mockExchanger, 5)
 
 	// test for asset exchange ibtp
 	time.Sleep(500 * time.Microsecond)
@@ -206,7 +370,44 @@ func testRelayIBTPFromDest(t *testing.T, inCh chan *pb.IBTP, ibtps []*pb.IBTP, e
 	time.Sleep(100 * time.Millisecond)
 	//require.Equal(t, uint64(100), exchanger.destServiceMeta[ibtps[0].To].SourceInterchainCounter[ibtps[0].From])
 
-	ibtpReceipts, _ := genIBTPs(t, 100, pb.IBTP_RECEIPT_SUCCESS, true)
+	ibtpReceipts, _ := genIBTPsDirect(t, 100, pb.IBTP_RECEIPT_SUCCESS, true)
+	for _, receipt := range ibtpReceipts {
+		inCh <- receipt
+	}
+
+	time.Sleep(100 * time.Millisecond)
+	//require.Equal(t, uint64(100), exchanger.destServiceMeta[ibtpReceipts[0].From].ReceiptCounter[ibtpReceipts[0].To])
+}
+
+func testDirectIBTPFromSrc(t *testing.T, outCh chan *pb.IBTP, ibtps []*pb.IBTP, exchanger *Exchanger, num int) {
+	for i, ibtp := range ibtps {
+		if (i+1)%2 == 0 {
+			outCh <- ibtp
+		}
+	}
+	time.Sleep(100 * time.Millisecond)
+	//require.Equal(t, uint64(100), exchanger.srcServiceMeta[ibtps[0].From].InterchainCounter[ibtps[0].To])
+
+	ibtpReceipts, _ := genIBTPsDirect(t, num, pb.IBTP_RECEIPT_SUCCESS, false)
+	for _, receipt := range ibtpReceipts {
+		outCh <- receipt
+	}
+
+	time.Sleep(100 * time.Millisecond)
+	//require.Equal(t, uint64(100), exchanger.srcServiceMeta[ibtpReceipts[0].To].SourceReceiptCounter[ibtpReceipts[0].From])
+}
+
+func testDirectIBTPFromDest(t *testing.T, inCh chan *pb.IBTP, ibtps []*pb.IBTP, exchanger *Exchanger, num int) {
+	for i, ibtp := range ibtps {
+		if (i+1)%2 == 0 {
+			inCh <- ibtp
+		}
+	}
+
+	time.Sleep(100 * time.Millisecond)
+	//require.Equal(t, uint64(100), exchanger.destServiceMeta[ibtps[0].To].SourceInterchainCounter[ibtps[0].From])
+
+	ibtpReceipts, _ := genIBTPs(t, num, pb.IBTP_RECEIPT_SUCCESS, true)
 	for _, receipt := range ibtpReceipts {
 		inCh <- receipt
 	}
@@ -219,6 +420,25 @@ func genIBTPs(t *testing.T, count int, typ pb.IBTP_Type, isDestToSrc bool) ([]*p
 	ibtps := make([]*pb.IBTP, 0, count)
 	ibtpM := make(map[string]*pb.IBTP, count)
 	for i := 1; i <= count; i++ {
+		ibtp := getIBTP(t, uint64(i), typ, isDestToSrc)
+		ibtps = append(ibtps, ibtp)
+		ibtpM[ibtp.ID()] = ibtp
+	}
+	return ibtps, ibtpM
+}
+
+func genIBTPsDirect(t *testing.T, count int, typ pb.IBTP_Type, isDestToSrc bool) ([]*pb.IBTP, map[string]*pb.IBTP) {
+	ibtps := make([]*pb.IBTP, 0, count)
+	ibtpM := make(map[string]*pb.IBTP, count)
+	for i := 1; i <= count; i++ {
+		switch i {
+		case 2:
+			typ = pb.IBTP_RECEIPT_FAILURE
+		case 3:
+			typ = pb.IBTP_RECEIPT_ROLLBACK
+		case 4:
+			typ = pb.IBTP_RECEIPT_ROLLBACK_END
+		}
 		ibtp := getIBTP(t, uint64(i), typ, isDestToSrc)
 		ibtps = append(ibtps, ibtp)
 		ibtpM[ibtp.ID()] = ibtp
