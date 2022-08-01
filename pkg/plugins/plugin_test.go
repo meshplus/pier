@@ -16,11 +16,12 @@ import (
 )
 
 const (
-	from       = "0x3f9d18f7c3a6e5e4c0b877fe3e688ab08840b997"
-	to         = "0x0915fdfc96232c95fb9c62d27cc9dc0f13f50161"
-	configPath = "fabric"
-	name       = "app"
-	ty         = "fabric"
+	from        = "0x3f9d18f7c3a6e5e4c0b877fe3e688ab08840b997"
+	to          = "0x0915fdfc96232c95fb9c62d27cc9dc0f13f50161"
+	configPath  = "fabric"
+	name        = "app"
+	ty          = "fabric"
+	defaultMode = "relay"
 )
 
 func TestCreateClient(t *testing.T) {
@@ -29,7 +30,7 @@ func TestCreateClient(t *testing.T) {
 		Plugin: "appchain_plugin",
 	}
 
-	_, _, err := CreateClient(&appchainConfig, make([]byte, 0))
+	_, _, err := CreateClient(&appchainConfig, make([]byte, 0), defaultMode)
 	require.NotNil(t, err)
 }
 
@@ -77,7 +78,7 @@ func TestGRPCServer(t *testing.T) {
 	ch := make(chan *pb.IBTP, 1)
 	close(ch)
 
-	cli.EXPECT().Initialize(gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
+	cli.EXPECT().Initialize(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
 	cli.EXPECT().Start().Return(nil).AnyTimes()
 	cli.EXPECT().Stop().Return(nil).AnyTimes()
 	cli.EXPECT().GetIBTPCh().Return(ch).AnyTimes()
@@ -146,8 +147,9 @@ func TestGRPCClient(t *testing.T) {
 	grpcClientError, err := getGRPCClient(ctx1, &mockAppchainPluginClient{})
 	require.Nil(t, err)
 
-	require.Nil(t, grpcClient.Initialize(configPath, make([]byte, 0)))
-	require.NotNil(t, grpcClientError.Initialize(configPath, make([]byte, 0)))
+	require.Nil(t, grpcClient.Initialize(configPath, make([]byte, 0), defaultMode))
+	require.Nil(t, grpcClient.Initialize(configPath, make([]byte, 0), repo.RelayMode))
+	require.NotNil(t, grpcClientError.Initialize(configPath, make([]byte, 0), repo.RelayMode))
 	require.Nil(t, grpcClient.Start())
 	require.NotNil(t, grpcClientError.Start())
 	require.Nil(t, grpcClient.Stop())
@@ -233,6 +235,11 @@ func getGRPCClient(ctx context.Context, mc *mockAppchainPluginClient) (*GRPCClie
 //==========================================================
 type mockAppchainPluginClient struct {
 	count uint64
+}
+
+func (mc *mockAppchainPluginClient) SubmitReceiptBatch(ctx context.Context, in *pb.SubmitReceiptRequestBatch, opts ...grpc.CallOption) (*pb.SubmitIBTPResponse, error) {
+	//TODO implement me
+	panic("implement me")
 }
 
 func (mc *mockAppchainPluginClient) GetOffChainData(ctx context.Context, in *pb.GetDataRequest, opts ...grpc.CallOption) (*pb.GetDataResponse, error) {
@@ -381,6 +388,10 @@ func (mc *mockAppchainPluginClient) SubmitIBTP(ctx context.Context, in *pb.Submi
 	}
 	mc.count++
 	return nil, nil
+}
+
+func (mc *mockAppchainPluginClient) SubmitIBTPBatch(ctx context.Context, in *pb.SubmitIBTPRequestBatch, opts ...grpc.CallOption) (*pb.SubmitIBTPResponse, error) {
+	panic("implement me")
 }
 
 func (mc *mockAppchainPluginClient) GetOutMessage(ctx context.Context, in *pb.GetMessageRequest, opts ...grpc.CallOption) (*pb.IBTP, error) {

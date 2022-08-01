@@ -1,59 +1,63 @@
 title = "Pier"
 
 [port]
-http = 44544
-pprof = 44555
+    http = 44544
+    pprof = 44555
 
 [log]
-level = "info"
-dir = "logs"
-filename = "pier.log"
-report_caller = false
+    level = "info"
+    dir = "logs"
+    filename = "pier.log"
+    report_caller = false
 [log.module]
-api_server = "info"
-appchain_mgr = "info"
-bxh_lite = "info"
-executor = "info"
-exchanger = "info"
-monitor = "info"
-peer_mgr = "info"
-router = "info"
-rule_mgr = "info"
-swarm = "info"
-syncer = "info"
-direct_adapter = "info"
-union_adapter = "info"
-appchain_adapter = "info"
+    api_server = "info"
+    appchain_mgr = "info"
+    bxh_lite = "info"
+    executor = "info"
+    exchanger = "info"
+    monitor = "info"
+    peer_mgr = "info"
+    router = "info"
+    rule_mgr = "info"
+    swarm = "info"
+    syncer = "info"
+    direct_adapter = "info"
+    union_adapter = "info"
+    appchain_adapter = "info"
 
 [mode]
-type = "relay" # relay, direct or union
+    type = "relay" # relay, direct or union
 [mode.relay]
-addrs = ["localhost:60011", "localhost:60012", "localhost:60013", "localhost:60014"]
-timeout_limit = "1s"
-quorum = 2
-bitxhub_id = "1356"
-enable_offchain_transmission = false
+    addrs = ["localhost:60011", "localhost:60012", "localhost:60013", "localhost:60014"]
+    timeout_limit = "1s"
+    quorum = 2
+    bitxhub_id = "1356"
+    enable_offchain_transmission = false
 [mode.direct]
-gas_limit = 0x5f5e100
+    gas_limit = 0x5f5e100
 
 [mode.union]
-addrs = ["localhost:60011", "localhost:60012", "localhost:60013", "localhost:60014"]
-providers = 1
+    addrs = ["localhost:60011", "localhost:60012", "localhost:60013", "localhost:60014"]
+    providers = 1
 
 [security]
-enable_tls = false
-access_cert = ["node1.cert", "node2.cert", "node3.cert", "node4.cert"]
-access_key = "node.priv"
-tlsca = "certs/agency.cert"
-common_name = "BitXHub"
+    enable_tls = false
+    access_cert = ["node1.cert", "node2.cert", "node3.cert", "node4.cert"]
+    access_key = "node.priv"
+    tlsca = "certs/agency.cert"
+    common_name = "BitXHub"
 
 [HA]
-mode = "single"
+    mode = "single"
 
 [appchain]
-id = "fabappchain"
-plugin = "appchain_plugin"
-config = "fabric"
+    id = "fabappchain"
+    plugin = "appchain_plugin"
+    config = "fabric"
 
 [tss]
-enable_tss = false
+    enable_tss = false
+
+[batch]
+    enalble_batch = true
+    batch_size = 10

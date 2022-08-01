@@ -1,6 +1,7 @@
 package bxh_adapter
 
 import (
+	"crypto/sha256"
 	"encoding/json"
 	"fmt"
 	"strconv"
@@ -24,8 +25,9 @@ import (
 
 const (
 	hash               = "0x9f41dd84524bf8a42f8ab58ecfca6e1752d6fd93fe8dc00af4c71963c97db59f"
-	from               = "did:bitxhub:testappchain:."
-	chainId            = "testAppchain"
+	from               = "1356:appchain1:0x9f41dd84524bf8a42f8ab58ecfca6e1752d6fd93fe8dc00af4c71963c97db59f"
+	to                 = "1356:appchain2:0x9f41dd84524bf8a42f8ab58ecfca6e1752d6fd93fe8dc00af4c7196311111111"
+	chainId            = "appchain1"
 	bxhId1             = 1356
 	bxhId2             = 1111
 	serviceId1         = "transfer"
@@ -33,60 +35,158 @@ const (
 	defaultUnionPierId = "default_union_pier_id"
 )
 
+func TestMonitorUpdatedMeta(t *testing.T) {
+	adapter, _, _, _ := prepare(t)
+	v := adapter.MonitorUpdatedMeta()
+	require.Nil(t, v)
+}
+
+func TestSendUpdatedMeta(t *testing.T) {
+	adapter, _, _, _ := prepare(t)
+	v := adapter.SendUpdatedMeta([]byte{})
+	require.Nil(t, v)
+}
+
 func TestName(t *testing.T) {
-	adapter, _, _ := prepare(t)
+	adapter, _, _, _ := prepare(t)
 	name := adapter.Name()
 	require.Equal(t, fmt.Sprintf("bitxhub:%d", bxhId1), name)
 }
 
 func TestStart(t *testing.T) {
-	adapter, _, client := prepare(t)
-	syncWrapperCh := make(chan interface{}, 4)
-
-	txs := make([]*pb.BxhTransaction, 0, 2)
-	txs = append(txs, getTx(t, 1), getTx(t, 2))
+	adapter1, adapter2, _, client := prepare(t)
+	syncWrapperCh := make(chan interface{}, 1)
 
 	txs1 := make([]*pb.BxhTransaction, 0, 2)
-	txs1 = append(txs1, getTx(t, 3), getTx(t, 4))
-	txCount := len(txs1) + len(txs)
+	txs1 = append(txs1, getTx(t, 1, pb.IBTP_INTERCHAIN), getTx(t, 2, pb.IBTP_INTERCHAIN))
 
-	w1, _ := getTxWrapper(t, txs, txs1, 1)
-	w2, _ := getTxWrapper(t, txs1, txs, 2)
-	go func() {
-		syncWrapperCh <- w1
-		syncWrapperCh <- w2
-	}()
+	txs2 := make([]*pb.BxhTransaction, 0, 2)
+	txs2 = append(txs2, getTx(t, 4, pb.IBTP_INTERCHAIN), getTx(t, 5, pb.IBTP_INTERCHAIN))
+	//txCount := len(txs1) + len(txs)
+
+	// mock timeoutIBTP
+	timeoutIBTP := &pb.IBTP{
+		From:  from,
+		To:    to,
+		Index: 3,
+	}
+
+	multiIBTP := &pb.IBTP{
+		From:  from,
+		To:    to,
+		Index: 6,
+		Group: &pb.StringUint64Map{
+			Keys: []string{strconv.Itoa(bxhId2)},
+			Vals: []uint64{1},
+		},
+	}
+
+	timeoutTx := &pb.BxhTransaction{
+		IBTP: timeoutIBTP,
+	}
+	timeoutResponse := &pb.GetTransactionResponse{
+		Tx: timeoutTx,
+	}
+	multiTx := &pb.BxhTransaction{
+		IBTP: multiIBTP,
+	}
+	multiResponse := &pb.GetTransactionResponse{
+		Tx: multiTx,
+	}
+
+	timeoutList := []string{timeoutIBTP.ID()}
+	multiTxList := []string{multiIBTP.ID()}
+	w1, _ := getTxWrapper(t, txs1, txs2, []string{timeoutIBTP.ID()}, []string{}, 1, false)
+	w2, _ := getTxWrapper(t, txs2, txs1, []string{}, []string{multiIBTP.ID()}, 2, false)
+	syncWrapperCh <- w1
 
 	client.EXPECT().GenerateContractTx(gomock.Any(), gomock.Any(), "GetStatus", gomock.Any()).Return(&pb.BxhTransaction{}, nil).AnyTimes()
+	client.EXPECT().GenerateContractTx(gomock.Any(), gomock.Any(), "GetIBTPByID", gomock.Any()).Return(&pb.BxhTransaction{}, nil).AnyTimes()
 	client.EXPECT().SendView(gomock.Any()).Return(&pb.Receipt{Ret: []byte("1")}, nil).AnyTimes()
+	client.EXPECT().GetTransaction(gomock.Any()).Return(timeoutResponse, nil).Times(1)
+	client.EXPECT().GetTransaction(gomock.Any()).Return(multiResponse, nil).Times(1)
 	client.EXPECT().Subscribe(gomock.Any(), gomock.Any(), gomock.Any()).Return(syncWrapperCh, nil).AnyTimes()
 	client.EXPECT().GetMultiSigns(gomock.Any(), gomock.Any()).Return(&pb.SignResponse{Sign: make(map[string][]byte)}, nil).AnyTimes()
 	//client.EXPECT().InvokeBVMContract(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(&pb.Receipt{Ret: []byte("1")}, nil).AnyTimes()
 
 	done := make(chan bool)
 	go func() {
-		err := adapter.Start()
+		err := adapter1.Start()
 		require.Nil(t, err)
 		<-done
 	}()
 
-	ibtpCh := adapter.MonitorIBTP()
+	ibtpCh := adapter1.MonitorIBTP()
 
 	var ibtps []*pb.IBTP
-	for i := 1; i <= txCount; i++ {
+	for i := 1; i <= len(txs1)+1; i++ {
 		ibtp := <-ibtpCh
 		require.Equal(t, uint64(i), ibtp.Index)
 		ibtps = append(ibtps, ibtp)
 	}
-	require.Equal(t, txCount, len(ibtps))
+	require.Equal(t, len(txs1)+len(timeoutList), len(ibtps))
 	done <- true
 
-	require.Nil(t, adapter.Stop())
+	require.Nil(t, adapter1.Stop())
+
+	//finishStart := make(chan struct{}, 0)
+	ibtpCh2 := make(chan *pb.IBTP, maxChSize)
+
+	adapter2.ibtpC = nil
+	adapter2.wrappersC = nil
+	adapter2.mode = repo.RelayMode
+	err := adapter2.Start()
+	require.Nil(t, err)
+	ibtpCh2 = adapter2.MonitorIBTP()
+
+	syncWrapperCh <- w2
+
+	ibtps = make([]*pb.IBTP, 0)
+	txCount := len(txs1) + len(timeoutList) + len(txs2) + len(multiTxList)
+	for i := len(txs1) + len(timeoutList) + 1; i <= txCount; i++ {
+		ibtp := <-ibtpCh2
+		require.Equal(t, uint64(i), ibtp.Index)
+		ibtps = append(ibtps, ibtp)
+	}
+	require.Equal(t, len(txs2)+len(multiTxList), len(ibtps))
+
+	txs3 := make([]*pb.BxhTransaction, 0, 2)
+	txs3 = append(txs3, getTx(t, 1, pb.IBTP_RECEIPT_SUCCESS), getTx(t, 2, pb.IBTP_RECEIPT_FAILURE))
+
+	txs4 := make([]*pb.BxhTransaction, 0, 2)
+
+	txs4 = append(txs4, getTxBatch(t, 7), getTxBatch(t, 8))
+	w3, _ := getTxWrapper(t, txs3, txs4, []string{}, []string{}, 3, false)
+	w4, _ := getTxWrapper(t, txs4, txs3, []string{}, []string{}, 4, true)
+
+	go func() {
+		syncWrapperCh <- w3
+		syncWrapperCh <- w4
+	}()
+
+	ibtps = make([]*pb.IBTP, 0)
+
+	for i := 1; i <= len(txs3); i++ {
+		ibtp := <-ibtpCh2
+		require.Equal(t, uint64(i), ibtp.Index)
+		ibtps = append(ibtps, ibtp)
+	}
+
+	for i := 7; i <= 8; i++ {
+		ibtp := <-ibtpCh2
+		require.Equal(t, uint64(i), ibtp.Index)
+		ibtps = append(ibtps, ibtp)
+	}
+
+	require.Equal(t, len(txs3)+len(txs4), len(ibtps))
+
+	require.Nil(t, adapter2.Stop())
+
 }
 
 // 4. test broken network when sending ibtp
 func TestQueryIBTP(t *testing.T) {
-	adapter, _, client := prepare(t)
+	adapter, _, _, client := prepare(t)
 
 	origin := &pb.IBTP{
 		From:  from,
@@ -197,7 +297,7 @@ func TestQueryIBTP(t *testing.T) {
 }
 
 func TestSendIBTP(t *testing.T) {
-	adapter, _, client := prepare(t)
+	adapter, _, unionAdapter, client := prepare(t)
 
 	b := &types.Address{}
 	b.SetBytes([]byte(from))
@@ -217,6 +317,16 @@ func TestSendIBTP(t *testing.T) {
 		Ret:    []byte("fail receipt"),
 		Status: pb.Receipt_FAILED,
 	}
+
+	// test union pier succuss send
+	client.EXPECT().SendTransactionWithReceipt(gomock.Any(), gomock.Any()).Return(r, nil).Times(1)
+	require.Nil(t, unionAdapter.SendIBTP(&pb.IBTP{}))
+
+	client.EXPECT().SendTransactionWithReceipt(gomock.Any(), gomock.Any()).Return(rf, rpcx.ErrRecoverable).Times(5)
+	err := adapter.SendIBTP(&pb.IBTP{})
+	require.NotNil(t, err)
+	require.Contains(t, err.Error(), "rollback ibtp")
+
 	client.EXPECT().SendTransactionWithReceipt(gomock.Any(), gomock.Any()).DoAndReturn(
 		func(tx *pb.BxhTransaction, opts *rpcx.TransactOpts) (*pb.Receipt, error) {
 			networkDownTime++
@@ -265,7 +375,7 @@ func TestSendIBTP(t *testing.T) {
 		Status: pb.Receipt_FAILED,
 	}
 	client.EXPECT().SendTransactionWithReceipt(gomock.Any(), gomock.Any()).Return(failReceipt, nil).AnyTimes()
-	err := adapter.SendIBTP(&pb.IBTP{})
+	err = adapter.SendIBTP(&pb.IBTP{})
 	ibtpErr1, ok := err.(*adapt.SendIbtpError)
 	require.Equal(t, true, ok)
 	require.Equal(t, adapt.ValidationRules_Unregister, ibtpErr1.Status)
@@ -411,7 +521,7 @@ func TestSendIBTP(t *testing.T) {
 }
 
 func TestGetServiceIDList(t *testing.T) {
-	relayAdapter, unionAdapter, client := prepare(t)
+	relayAdapter, _, unionAdapter, client := prepare(t)
 	// get serviceID
 	services := getServiceID(t)
 	data1, err := json.Marshal(services)
@@ -421,11 +531,25 @@ func TestGetServiceIDList(t *testing.T) {
 		Status: pb.Receipt_SUCCESS,
 	}
 
+	failData := "interchain info does not exist"
+	failReceipt := &pb.Receipt{
+		Ret:    []byte(failData),
+		Status: pb.Receipt_FAILED,
+	}
 	client.EXPECT().GenerateContractTx(gomock.Any(), gomock.Any(),
-		gomock.Any(), gomock.Any()).Return(&pb.BxhTransaction{}, nil).Times(1)
+		gomock.Any(), gomock.Any()).Return(&pb.BxhTransaction{}, nil).Times(2)
+
+	client.EXPECT().SendView(gomock.Any()).Return(nil, fmt.Errorf("test sendView err")).Times(1)
+	client.EXPECT().SendView(gomock.Any()).Return(failReceipt, nil).Times(1)
 	client.EXPECT().SendView(gomock.Any()).Return(reciept1, nil).Times(1)
 
 	loggers.InitializeLogger(repo.DefaultConfig())
+	// test fail and wrong receipt
+	ids, err := relayAdapter.GetServiceIDList()
+	require.Nil(t, ids)
+	require.NotNil(t, err)
+	require.Contains(t, err.Error(), "info is not exit in bitxhub")
+
 	ids1, err := relayAdapter.GetServiceIDList()
 	require.Nil(t, err)
 	require.Equal(t, 2, len(ids1))
@@ -460,7 +584,7 @@ func TestGetServiceIDList(t *testing.T) {
 }
 
 func TestQueryInterchain(t *testing.T) {
-	adapter, _, client := prepare(t)
+	adapter, _, _, client := prepare(t)
 
 	b := &types.Address{}
 	b.SetBytes([]byte(from))
@@ -507,7 +631,7 @@ func TestQueryInterchain(t *testing.T) {
 	require.Equal(t, originalMeta.InterchainCounter[from], meta.InterchainCounter[from])
 }
 
-func prepare(t *testing.T) (*BxhAdapter, *BxhAdapter, *mock_client.MockClient) {
+func prepare(t *testing.T) (*BxhAdapter, *BxhAdapter, *BxhAdapter, *mock_client.MockClient) {
 	mockCtl := gomock.NewController(t)
 	mockCtl.Finish()
 
@@ -520,7 +644,12 @@ func prepare(t *testing.T) (*BxhAdapter, *BxhAdapter, *mock_client.MockClient) {
 		EnableTSS: false,
 	}
 
-	relayAdapter, err := New(repo.RelayMode, "",
+	relayAdapter1, err := New(repo.RelayMode, "",
+		client, log.NewWithModule("adapter"), config.TSS,
+	)
+	require.Nil(t, err)
+
+	relayAdapter2, err := New(repo.RelayMode, "",
 		client, log.NewWithModule("adapter"), config.TSS,
 	)
 	require.Nil(t, err)
@@ -530,7 +659,7 @@ func prepare(t *testing.T) (*BxhAdapter, *BxhAdapter, *mock_client.MockClient) {
 	)
 	require.Nil(t, err)
 
-	return relayAdapter, unionAdapter, client
+	return relayAdapter1, relayAdapter2, unionAdapter, client
 }
 
 func getBlockHeader(root *types.Hash, number uint64) *pb.BlockHeader {
@@ -545,16 +674,18 @@ func getBlockHeader(root *types.Hash, number uint64) *pb.BlockHeader {
 	return wrapper
 }
 
-func getTxWrapper(t *testing.T, interchainTxs []*pb.BxhTransaction, innerchainTxs []*pb.BxhTransaction, number uint64) (*pb.InterchainTxWrappers, *types.Hash) {
+func getTxWrapper(t *testing.T, interchainTxs []*pb.BxhTransaction, innerchainTxs []*pb.BxhTransaction, timeoutList, multiTxList []string, number uint64, isBatch bool) (*pb.InterchainTxWrappers, *types.Hash) {
 	verifiedTxs := make([]*pb.VerifiedTx, len(interchainTxs))
 	for i, tx := range interchainTxs {
 		verifiedTxs[i] = &pb.VerifiedTx{
-			Tx:    tx,
-			Valid: true,
+			Tx:      tx,
+			Valid:   true,
+			IsBatch: isBatch,
 		}
 	}
 	var l2roots []types.Hash
-	//var interchainTxHashes []types.Hash
+
+	// cal interchain root
 	hashes := make([]merkletree.Content, 0, len(interchainTxs))
 	for i := 0; i < len(verifiedTxs); i++ {
 		//interchainHash, err := verifiedTxs[i].CalculateHash()
@@ -567,6 +698,7 @@ func getTxWrapper(t *testing.T, interchainTxs []*pb.BxhTransaction, innerchainTx
 	require.Nil(t, err)
 	l2roots = append(l2roots, *types.NewHash(tree.MerkleRoot()))
 
+	// cal innerchain root
 	hashes = make([]merkletree.Content, 0, len(innerchainTxs))
 	for i := 0; i < len(innerchainTxs); i++ {
 		hashes = append(hashes, innerchainTxs[i].Hash())
@@ -582,11 +714,21 @@ func getTxWrapper(t *testing.T, interchainTxs []*pb.BxhTransaction, innerchainTx
 	tree, _ = merkletree.NewTree(contents)
 	l1root := tree.MerkleRoot()
 
+	var timeoutRoot types.Hash
+	if len(timeoutList) > 0 {
+		timeoutRoot, err = calcTimeoutL2Root(timeoutList)
+		require.Nil(t, err)
+	}
+	var timeoutL2Roots []types.Hash
+	timeoutL2Roots = append(timeoutL2Roots, timeoutRoot)
 	wrappers := make([]*pb.InterchainTxWrapper, 0, 1)
 	wrapper := &pb.InterchainTxWrapper{
-		Transactions: verifiedTxs,
-		Height:       number,
-		L2Roots:      l2roots,
+		Transactions:   verifiedTxs,
+		Height:         number,
+		L2Roots:        l2roots,
+		TimeoutL2Roots: timeoutL2Roots,
+		TimeoutIbtps:   timeoutList,
+		MultiTxIbtps:   multiTxList,
 	}
 	wrappers = append(wrappers, wrapper)
 	itw := &pb.InterchainTxWrappers{
@@ -595,8 +737,23 @@ func getTxWrapper(t *testing.T, interchainTxs []*pb.BxhTransaction, innerchainTx
 	return itw, types.NewHash(l1root)
 }
 
-func getTx(t *testing.T, index uint64) *pb.BxhTransaction {
-	ibtp := getIBTP(t, index, pb.IBTP_INTERCHAIN)
+func calcTimeoutL2Root(list []string) (types.Hash, error) {
+	hashes := make([]merkletree.Content, 0, len(list))
+	for _, id := range list {
+		hash := sha256.Sum256([]byte(id))
+		hashes = append(hashes, types.NewHash(hash[:]))
+	}
+
+	tree, err := merkletree.NewTree(hashes)
+	if err != nil {
+		return types.Hash{}, fmt.Errorf("init merkle tree: %w", err)
+	}
+
+	return *types.NewHash(tree.MerkleRoot()), nil
+}
+
+func getTx(t *testing.T, index uint64, typ pb.IBTP_Type) *pb.BxhTransaction {
+	ibtp := getIBTP(t, index, typ)
 	body, err := ibtp.Marshal()
 	require.Nil(t, err)
 
@@ -609,6 +766,36 @@ func getTx(t *testing.T, index uint64) *pb.BxhTransaction {
 
 	td := &pb.TransactionData{
 		Type:    pb.TransactionData_INVOKE,
+		Payload: pd,
+	}
+	data, err := td.Marshal()
+	require.Nil(t, err)
+
+	faddr := &types.Address{}
+	faddr.SetBytes([]byte(from))
+	tx := &pb.BxhTransaction{
+		From:    faddr,
+		To:      faddr,
+		IBTP:    ibtp,
+		Payload: data,
+	}
+	tx.TransactionHash = tx.Hash()
+	return tx
+}
+
+func getTxBatch(t *testing.T, index uint64) *pb.BxhTransaction {
+	ibtp := getIBTP(t, index, pb.IBTP_INTERCHAIN)
+	ibtp.Extra = []byte("1")
+
+	tmpIP := &pb.Payload{
+		Encrypted: false,
+		Content:   []byte("test"),
+		Hash:      types.NewHash([]byte("test")).Bytes(),
+	}
+	pd, err := tmpIP.Marshal()
+	require.Nil(t, err)
+
+	td := &pb.TransactionData{
 		Payload: pd,
 	}
 	data, err := td.Marshal()

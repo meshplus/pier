@@ -16,7 +16,7 @@ var logger = hclog.New(&hclog.LoggerOptions{
 	Level:  hclog.Trace,
 })
 
-func CreateClient(appchainConfig *repo.Appchain, extra []byte) (Client, *plugin.Client, error) {
+func CreateClient(appchainConfig *repo.Appchain, extra []byte, mode string) (Client, *plugin.Client, error) {
 	// Pier is the host. Start by launching the plugin process.
 	rootPath, err := repo.PathRoot()
 	if err != nil {
@@ -55,7 +55,7 @@ func CreateClient(appchainConfig *repo.Appchain, extra []byte) (Client, *plugin.
 	}
 
 	// initialize our client plugin
-	err = appchain.Initialize(pluginConfigPath, extra)
+	err = appchain.Initialize(pluginConfigPath, extra, mode)
 	if err != nil {
 		return nil, nil, fmt.Errorf("initialize plugin %s: %w", pluginConfigPath, err)
 	}

@@ -8,7 +8,7 @@ import (
 //go:generate mockgen -destination mock_client/mock_client.go -package mock_client -source interface.go
 type Client interface {
 	// Initialize initialize plugin client
-	Initialize(configPath string, extra []byte) error
+	Initialize(configPath string, extra []byte, mode string) error
 
 	// Start starts to listen appchain event
 	Start() error
@@ -25,8 +25,14 @@ type Client interface {
 	// SubmitIBTP submits the interchain ibtp to appchain
 	SubmitIBTP(from string, index uint64, serviceID string, ibtpType pb.IBTP_Type, content *pb.Content, proof *pb.BxhProof, isEncrypted bool) (*pb.SubmitIBTPResponse, error)
 
-	// SubmitReceipt submit the receipt ibtp to appchain
+	// SubmitIBTPBatch submit the multi interchain ibtps to appchain
+	SubmitIBTPBatch(from []string, index []uint64, serviceID []string, ibtpType []pb.IBTP_Type, content []*pb.Content, proof []*pb.BxhProof, isEncrypted []bool) (*pb.SubmitIBTPResponse, error)
+
+	// SubmitReceipt submit the multi receipt ibtp to appchain
 	SubmitReceipt(to string, index uint64, serviceID string, ibtpType pb.IBTP_Type, result *pb.Result, proof *pb.BxhProof) (*pb.SubmitIBTPResponse, error)
+
+	// SubmitReceiptBatch submit the receipt ibtp to appchain
+	SubmitReceiptBatch(to []string, index []uint64, serviceID []string, ibtpType []pb.IBTP_Type, result []*pb.Result, proof []*pb.BxhProof) (*pb.SubmitIBTPResponse, error)
 
 	// GetOutMessage gets interchain ibtp by service pair and index from broker contract
 	GetOutMessage(servicePair string, idx uint64) (*pb.IBTP, error)

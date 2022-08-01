@@ -17,9 +17,9 @@ require (
 	github.com/hashicorp/go-plugin v1.3.0
 	github.com/ipfs/go-cid v0.0.7
 	github.com/libp2p/go-libp2p-core v0.6.1
-	github.com/meshplus/bitxhub-core v1.3.1-0.20220511024304-f7458609c30a
+	github.com/meshplus/bitxhub-core v1.3.1-0.20220803022926-9a46d4d7ec06
 	github.com/meshplus/bitxhub-kit v1.2.1-0.20220412092457-5836414df781
-	github.com/meshplus/bitxhub-model v1.2.1-0.20220616031805-96a66092bc97
+	github.com/meshplus/bitxhub-model v1.2.1-0.20220803022708-9ab7a71abdbf
 	github.com/meshplus/go-bitxhub-client v1.4.1-0.20220412093230-11ca79f069fc
 	github.com/meshplus/go-lightp2p v0.0.0-20200817105923-6b3aee40fa54
 	github.com/mitchellh/go-homedir v1.1.0
