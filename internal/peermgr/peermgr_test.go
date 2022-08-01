@@ -19,6 +19,19 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestSwarm_Peers(t *testing.T) {
+	logger := log.NewWithModule("swarm")
+	repoRoot, err := ioutil.TempDir("", "node")
+	require.Nil(t, err)
+	defer os.RemoveAll(repoRoot)
+
+	nodeKeys, privKeys, repoConfig, _ := genKeysAndConfig(t, repoRoot, 2)
+
+	swarm1, err := New(repoConfig.Config, nodeKeys[0], privKeys[0], 0, logger)
+
+	swarm1.Peers()
+}
+
 func TestNew(t *testing.T) {
 	logger := log.NewWithModule("swarm")
 	repoRoot, err := ioutil.TempDir("", "node")
@@ -37,6 +50,12 @@ func TestNew(t *testing.T) {
 	_, err = New(repoConfig.Config, nodeKeys[0], privKeys[0], 0, logger)
 	require.Nil(t, err)
 
+	// test wrong RepoRoot
+	nodeKeys, privKeys, repoConfig, _ = genKeysAndConfig(t, repoRoot, 2)
+
+	repoConfig.Config.RepoRoot = "123"
+	_, err = New(repoConfig.Config, nodeKeys[0], privKeys[0], 0, logger)
+	require.NotNil(t, err)
 }
 
 func TestSwarm_Start(t *testing.T) {
