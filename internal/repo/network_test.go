@@ -10,29 +10,60 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func Test_loadNetworkConfig(t *testing.T) {
-	// TODO
-	path := "./testdata"
-	nodePriivKey, err := LoadNodePrivateKey(path)
+const testConfigPath = "./testdata"
+
+func TestLoadNetworkConfig(t *testing.T) {
+	nodePriKey, err := LoadNodePrivateKey(testConfigPath)
 	require.Nil(t, err)
-	libp2pPrivKey, err := convertToLibp2pPrivKey(nodePriivKey)
+	libP2PPriKey, err := convertToLibP2PPriKey(nodePriKey)
 	require.Nil(t, err)
-	networkConfig, err := LoadNetworkConfig(path, libp2pPrivKey)
+	networkConfig, err := LoadNetworkConfig(testConfigPath, libP2PPriKey)
 	require.Nil(t, err)
 	require.Equal(t, 4, len(networkConfig.Piers))
-
 }
 
-func convertToLibp2pPrivKey(privateKey crypto.PrivateKey) (crypto2.PrivKey, error) {
-	ecdsaPrivKey, ok := privateKey.(*ecdsa.PrivateKey)
+func convertToLibP2PPriKey(privateKey crypto.PrivateKey) (crypto2.PrivKey, error) {
+	ecdsaPriKey, ok := privateKey.(*ecdsa.PrivateKey)
 	if !ok {
 		return nil, fmt.Errorf("convert to libp2p private key: not ecdsa private key")
 	}
 
-	libp2pPrivKey, _, err := crypto2.ECDSAKeyPairFromKey(ecdsaPrivKey.K)
+	libP2PPriKey, _, err := crypto2.ECDSAKeyPairFromKey(ecdsaPriKey.K)
 	if err != nil {
 		return nil, err
 	}
 
-	return libp2pPrivKey, nil
+	return libP2PPriKey, nil
+}
+
+func TestGetNetworkPeers(t *testing.T) {
+	path := "./testdata"
+	nodePriKey, err := LoadNodePrivateKey(path)
+	require.Nil(t, err)
+	libP2PPriKey, err := convertToLibP2PPriKey(nodePriKey)
+	require.Nil(t, err)
+	networkConfig, err := LoadNetworkConfig(path, libP2PPriKey)
+	require.Nil(t, err)
+
+	peers, err := GetNetworkPeers(networkConfig)
+	require.Nil(t, err)
+	require.Equal(t, "QmfMVpeCzcMgvsVLojteBf5YxWyPfHkjV67bPz1gUAFX1B",
+		peers["QmfMVpeCzcMgvsVLojteBf5YxWyPfHkjV67bPz1gUAFX1B"].ID.String())
+	require.Equal(t, "/ip4/127.0.0.1/tcp/4321",
+		peers["QmfMVpeCzcMgvsVLojteBf5YxWyPfHkjV67bPz1gUAFX1B"].Addrs[0].String())
+}
+
+func TestWriteNetworkConfig(t *testing.T) {
+	nodePriKey, err := LoadNodePrivateKey(testConfigPath)
+	require.Nil(t, err)
+	libP2PPriKey, err := convertToLibP2PPriKey(nodePriKey)
+	require.Nil(t, err)
+	networkConfig, err := LoadNetworkConfig(testConfigPath, libP2PPriKey)
+	require.Nil(t, err)
+
+	err = WriteNetworkConfig("", testConfigPath, networkConfig)
+	require.Nil(t, err)
+
+	err = WriteNetworkConfig(testConfigPath, testConfigPath, networkConfig)
+	require.Nil(t, err)
 }
