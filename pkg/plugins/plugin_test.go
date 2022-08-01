@@ -90,6 +90,7 @@ func TestGRPCServer(t *testing.T) {
 	cli.EXPECT().GetCallbackMeta().Return(nil, nil).AnyTimes()
 	cli.EXPECT().Name().Return(name).AnyTimes()
 	cli.EXPECT().Type().Return(ty).AnyTimes()
+	cli.EXPECT().GetServices().Return(nil, nil).AnyTimes()
 
 	_, err := grpcServer.Initialize(ctx, initReq)
 	require.Nil(t, err)
@@ -133,6 +134,9 @@ func TestGRPCServer(t *testing.T) {
 	typeRet, err := grpcServer.Type(ctx, nil)
 	require.Nil(t, err)
 	require.Equal(t, ty, typeRet.Type)
+
+	_, err = grpcServer.GetServices(ctx, nil)
+	require.Nil(t, err)
 }
 
 func TestGRPCClient(t *testing.T) {
@@ -143,6 +147,7 @@ func TestGRPCClient(t *testing.T) {
 	require.Nil(t, err)
 
 	require.Nil(t, grpcClient.Initialize(configPath, make([]byte, 0)))
+	require.NotNil(t, grpcClientError.Initialize(configPath, make([]byte, 0)))
 	require.Nil(t, grpcClient.Start())
 	require.NotNil(t, grpcClientError.Start())
 	require.Nil(t, grpcClient.Stop())
@@ -231,19 +236,32 @@ type mockAppchainPluginClient struct {
 }
 
 func (mc *mockAppchainPluginClient) GetOffChainData(ctx context.Context, in *pb.GetDataRequest, opts ...grpc.CallOption) (*pb.GetDataResponse, error) {
-	panic("implement me")
+	if ctx == context.Background() {
+		return nil, nil
+	}
+	return nil, fmt.Errorf("mockAppchainPluginClient GetOffChainData error.")
 }
 
 func (mc *mockAppchainPluginClient) GetOffChainDataReq(ctx context.Context, in *pb.Empty, opts ...grpc.CallOption) (pb.AppchainPlugin_GetOffChainDataReqClient, error) {
-	panic("implement me")
+	if ctx == context.Background() {
+		return nil, nil
+	}
+	return nil, fmt.Errorf("mockAppchainPluginClient GetOffChainData error.")
 }
 
 func (mc *mockAppchainPluginClient) SubmitOffChainData(ctx context.Context, in *pb.GetDataResponse, opts ...grpc.CallOption) (*pb.Empty, error) {
-	panic("implement me")
+	return nil, nil
 }
 
 func (mc *mockAppchainPluginClient) GetDirectTransactionMeta(ctx context.Context, in *pb.DirectTransactionMetaRequest, opts ...grpc.CallOption) (*pb.DirectTransactionMetaResponse, error) {
-	panic("implement me")
+	if ctx == context.Background() {
+		return &pb.DirectTransactionMetaResponse{
+			StartTimestamp:    uint64(0),
+			TimeoutPeriod:     uint64(10),
+			TransactionStatus: uint64(1),
+		}, nil
+	}
+	return nil, fmt.Errorf("mockAppchainPluginClient GetDirectTransactionMeta error.")
 }
 
 func (mc *mockAppchainPluginClient) SubmitReceipt(ctx context.Context, in *pb.SubmitReceiptRequest, opts ...grpc.CallOption) (*pb.SubmitIBTPResponse, error) {
@@ -270,7 +288,10 @@ func (mc *mockAppchainPluginClient) GetReceiptMessage(ctx context.Context, in *p
 }
 
 func (mc *mockAppchainPluginClient) GetUpdateMeta(ctx context.Context, in *pb.Empty, opts ...grpc.CallOption) (pb.AppchainPlugin_GetUpdateMetaClient, error) {
-	panic("implement me")
+	if ctx == context.Background() {
+		return nil, nil
+	}
+	return nil, fmt.Errorf("mockAppchainPluginClient GetUpdateMeta error")
 }
 
 func (mc *mockAppchainPluginClient) UnEscrow(ctx context.Context, in *pb.UnLock, opts ...grpc.CallOption) (*pb.Empty, error) {
@@ -278,11 +299,22 @@ func (mc *mockAppchainPluginClient) UnEscrow(ctx context.Context, in *pb.UnLock,
 }
 
 func (mc *mockAppchainPluginClient) GetServices(ctx context.Context, in *pb.Empty, opts ...grpc.CallOption) (*pb.ServicesResponse, error) {
-	panic("implement me")
+	if ctx == context.Background() {
+		return &pb.ServicesResponse{
+			Service: nil,
+		}, nil
+	}
+	return nil, fmt.Errorf("mockAppchainPluginClient GetServices error.")
 }
 
 func (mc *mockAppchainPluginClient) GetChainID(ctx context.Context, in *pb.Empty, opts ...grpc.CallOption) (*pb.ChainIDResponse, error) {
-	panic("implement me")
+	if ctx == context.Background() {
+		return &pb.ChainIDResponse{
+			BxhID:      "1356",
+			AppchainID: "farbic",
+		}, nil
+	}
+	return nil, fmt.Errorf("mockAppchainPluginClient GetChainID error.")
 }
 
 func (mc *mockAppchainPluginClient) QueryFilterLockStart(ctx context.Context, in *pb.QueryFilterLockStartRequest, opts ...grpc.CallOption) (*pb.QueryFilterLockStartResponse, error) {
@@ -306,11 +338,19 @@ func (mc *mockAppchainPluginClient) GetSrcRollbackMeta(ctx context.Context, in *
 }
 
 func (mc *mockAppchainPluginClient) GetDstRollbackMeta(ctx context.Context, in *pb.Empty, opts ...grpc.CallOption) (*pb.GetMetaResponse, error) {
-	panic("implement me")
+	if ctx == context.Background() {
+		return &pb.GetMetaResponse{
+			Meta: nil,
+		}, nil
+	}
+	return nil, fmt.Errorf("mockAppchainPluginClient GetDstRollbackMeta error.")
 }
 
 func (mc *mockAppchainPluginClient) Initialize(ctx context.Context, in *pb.InitializeRequest, opts ...grpc.CallOption) (*pb.Empty, error) {
-	return nil, nil
+	if ctx == context.Background() {
+		return &pb.Empty{}, nil
+	}
+	return nil, fmt.Errorf("mockAppchainPluginClient Initial error")
 }
 
 func (mc *mockAppchainPluginClient) Start(ctx context.Context, in *pb.Empty, opts ...grpc.CallOption) (*pb.Empty, error) {
@@ -417,7 +457,14 @@ func (mc *mockAppchainPluginClient) GetReceipt(ctx context.Context, in *pb.IBTP,
 }
 
 func (mc *mockAppchainPluginClient) GetAppchainInfo(ctx context.Context, in *pb.ChainInfoRequest, opts ...grpc.CallOption) (*pb.ChainInfoResponse, error) {
-	panic("implement me")
+	if ctx == context.Background() {
+		return &pb.ChainInfoResponse{
+			Broker:      "",
+			TrustedRoot: nil,
+			RuleAddr:    "",
+		}, nil
+	}
+	return nil, fmt.Errorf("mockAppchainPluginClient GetAppchainInfo error.")
 }
 
 func (mc *mockAppchainPluginClient) Name(ctx context.Context, in *pb.Empty, opts ...grpc.CallOption) (*pb.NameResponse, error) {
