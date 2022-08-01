@@ -123,4 +123,8 @@ func TestGrpcClientAll(t *testing.T) {
 	require.Panics(t, func() {
 		grpcClientError.GetOffChainDataReq()
 	})
+
+	require.Panics(t, func() {
+		grpcClientError.GetUpdateMeta()
+	})
 }

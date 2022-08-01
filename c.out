@@ -73,10 +73,10 @@ github.com/meshplus/pier/pkg/plugins/grpc.go:278.67,280.16 2 1
 github.com/meshplus/pier/pkg/plugins/grpc.go:283.2,285.16 3 0
 github.com/meshplus/pier/pkg/plugins/grpc.go:280.16,281.13 1 1
 github.com/meshplus/pier/pkg/plugins/grpc.go:288.77,292.2 3 1
-github.com/meshplus/pier/pkg/plugins/grpc.go:294.58,296.16 2 0
+github.com/meshplus/pier/pkg/plugins/grpc.go:294.58,296.16 2 1
 github.com/meshplus/pier/pkg/plugins/grpc.go:301.2,302.12 2 0
 github.com/meshplus/pier/pkg/plugins/grpc.go:329.2,329.14 1 0
-github.com/meshplus/pier/pkg/plugins/grpc.go:296.16,298.21 1 0
+github.com/meshplus/pier/pkg/plugins/grpc.go:296.16,298.21 1 1
 github.com/meshplus/pier/pkg/plugins/grpc.go:302.12,304.7 2 0
 github.com/meshplus/pier/pkg/plugins/grpc.go:304.7,309.51 2 0
 github.com/meshplus/pier/pkg/plugins/grpc.go:321.4,321.11 1 0
