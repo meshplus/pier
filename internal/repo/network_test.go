@@ -17,6 +17,10 @@ func TestLoadNetworkConfig(t *testing.T) {
 	require.Nil(t, err)
 	libP2PPriKey, err := convertToLibP2PPriKey(nodePriKey)
 	require.Nil(t, err)
+
+	_, err = LoadNetworkConfig("", libP2PPriKey)
+	require.NotNil(t, err)
+
 	networkConfig, err := LoadNetworkConfig(testConfigPath, libP2PPriKey)
 	require.Nil(t, err)
 	require.Equal(t, 4, len(networkConfig.Piers))
@@ -66,4 +70,10 @@ func TestWriteNetworkConfig(t *testing.T) {
 
 	err = WriteNetworkConfig(testConfigPath, testConfigPath, networkConfig)
 	require.Nil(t, err)
+
+	err = WriteNetworkConfig("t", testConfigPath, networkConfig)
+	require.NotNil(t, err)
+
+	err = WriteNetworkConfig("", "", networkConfig)
+	require.NotNil(t, err)
 }
