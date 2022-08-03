@@ -56,17 +56,18 @@ func TestInit(t *testing.T) {
 	require.Nil(t, err)
 }
 
-func TestLoadConfig(t *testing.T) {
+func TestSetPath(t *testing.T) {
 	root, err := ioutil.TempDir("", "TestRepo")
 	require.Nil(t, err)
 	defer os.RemoveAll(root)
 	err = Initialize(root, "Secp256k1")
 	require.Nil(t, err)
 
-	_, err = UnmarshalConfig("")
-	require.NotNil(t, err)
-
-	config, err := UnmarshalConfig(root)
+	SetPath(root)
+	path, err := PathRoot()
 	require.Nil(t, err)
-	require.Equal(t, 4, len(config.Mode.Relay.Addrs))
+	require.Equal(t, root, path)
+	path, err = PathRootWithDefault("")
+	require.Nil(t, err)
+	require.Equal(t, root, path)
 }
