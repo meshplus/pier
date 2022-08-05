@@ -124,9 +124,9 @@ func WriteNetworkConfig(originRoot string, repoRoot string, changeConfig *Networ
 	if originRoot != "" {
 		fileData, err := ioutil.ReadFile(filepath.Join(originRoot, "network.toml"))
 		if err != nil {
-			fmt.Printf("err:  %s", err)
+			return err
 		}
-		err = ioutil.WriteFile(filepath.Join(repoRoot, "network.toml"), fileData, 0644)
+		ioutil.WriteFile(filepath.Join(repoRoot, "network.toml"), fileData, 0644)
 	}
 
 	networkConfig := &NetworkConfig{}

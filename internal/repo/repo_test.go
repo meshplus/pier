@@ -15,12 +15,16 @@ func TestInit(t *testing.T) {
 	require.Nil(t, err)
 	defer os.RemoveAll(root)
 
+	err = Initialize("", "Secp256k1")
+	require.NotNil(t, err)
 	err = Initialize(root, "Secp256k1")
 	require.Nil(t, err)
 
 	_, err = LoadPrivateKey(root)
 	require.Nil(t, err)
 
+	_, err = LoadNodePrivateKey("t")
+	require.NotNil(t, err)
 	_, err = LoadNodePrivateKey(root)
 	require.Nil(t, err)
 
@@ -43,6 +47,8 @@ func TestInit(t *testing.T) {
 	nodeKeyPath := NodeKeyPath(root)
 	require.Equal(t, filepath.Join(root, NodeKeyName), nodeKeyPath)
 
+	_, err = GetAPI("")
+	require.NotNil(t, err)
 	_, err = GetAPI(root)
 	require.Nil(t, err)
 
@@ -50,9 +56,18 @@ func TestInit(t *testing.T) {
 	require.Nil(t, err)
 }
 
-func TestLoadConfig(t *testing.T) {
-	rootPath := "./testdata"
-	config, err := UnmarshalConfig(rootPath)
+func TestSetPath(t *testing.T) {
+	root, err := ioutil.TempDir("", "TestRepo")
 	require.Nil(t, err)
-	require.Equal(t, 2, len(config.Mode.Relay.Addrs))
+	defer os.RemoveAll(root)
+	err = Initialize(root, "Secp256k1")
+	require.Nil(t, err)
+
+	SetPath(root)
+	path, err := PathRoot()
+	require.Nil(t, err)
+	require.Equal(t, root, path)
+	path, err = PathRootWithDefault("")
+	require.Nil(t, err)
+	require.Equal(t, root, path)
 }
