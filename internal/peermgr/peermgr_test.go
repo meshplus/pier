@@ -2,6 +2,7 @@ package peermgr
 
 import (
 	"fmt"
+	"github.com/meshplus/pier/pkg/model"
 	"io/ioutil"
 	"os"
 	"testing"
@@ -18,6 +19,29 @@ import (
 	ma "github.com/multiformats/go-multiaddr"
 	"github.com/stretchr/testify/require"
 )
+
+func TestSwarm_Peers(t *testing.T) {
+	logger := log.NewWithModule("swarm")
+	repoRoot, err := ioutil.TempDir("", "node")
+	require.Nil(t, err)
+	defer os.RemoveAll(repoRoot)
+
+	nodeKeys, privKeys, repoConfig, _ := genKeysAndConfig(t, repoRoot, 2)
+
+	swarm1, err := New(repoConfig.Config, nodeKeys[0], privKeys[0], 0, logger)
+
+	swarm1.Peers()
+}
+
+func TestSwarm_handleMessage(t *testing.T) {
+	_, _, mockSwarm, _, _, _ := prepare(t)
+	mockSwarm.handleMessage(nil, nil)
+}
+
+func TestMessageWithPayload(t *testing.T) {
+	payload := &model.Payload{Ok: true, Data: nil}
+	MessageWithPayload(pb.Message_ACK, payload)
+}
 
 func TestNew(t *testing.T) {
 	logger := log.NewWithModule("swarm")
@@ -37,6 +61,12 @@ func TestNew(t *testing.T) {
 	_, err = New(repoConfig.Config, nodeKeys[0], privKeys[0], 0, logger)
 	require.Nil(t, err)
 
+	// test wrong RepoRoot
+	nodeKeys, privKeys, repoConfig, _ = genKeysAndConfig(t, repoRoot, 2)
+
+	repoConfig.Config.RepoRoot = "123"
+	_, err = New(repoConfig.Config, nodeKeys[0], privKeys[0], 0, logger)
+	require.NotNil(t, err)
 }
 
 func TestSwarm_Start(t *testing.T) {
@@ -65,6 +95,11 @@ func TestSwarm_Start(t *testing.T) {
 	require.Nil(t, err)
 }
 
+func TestSwarm_mockStart(t *testing.T) {
+	_, _, mockSwarm, _, _, _ := prepare(t)
+	mockSwarm.Start()
+}
+
 func TestSwarm_Stop_Wrong(t *testing.T) {
 	_, _, mockSwarm, _, _, _ := prepare(t)
 
@@ -76,6 +111,7 @@ func TestSwarm_Stop_Wrong(t *testing.T) {
 func TestSwarm_AsyncSend(t *testing.T) {
 	_, _, mockSwarm, mockMsg, mockMultiAddr, mockId := prepare(t)
 
+	mockSwarm.Peers()
 	// test with wrong id
 	err := mockSwarm.AsyncSend("123", mockMsg)
 	require.NotNil(t, err)
