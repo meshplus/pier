@@ -26,6 +26,7 @@ type Config struct {
 	Security Security `toml:"security" json:"security"`
 	HA       HA       `toml:"ha" json:"ha"`
 	TSS      *TSS     `toml:"tss" json:"tss"`
+	Batch    Batch    `toml:"batch" json:"batch"`
 }
 
 // Security are certs used to setup connection with tls
@@ -49,6 +50,11 @@ type HA struct {
 
 type TSS struct {
 	EnableTSS bool `mapstructure:"enable_tss" json:"enable_tss"`
+}
+
+type Batch struct {
+	EnableBatch bool `mapstructure:"enable_batch" json:"enable_batch"`
+	BatchSize   int  `mapstructure:"batch_size" json:"batch_size"`
 }
 
 const (
@@ -180,6 +186,10 @@ func DefaultConfig() *Config {
 		},
 		TSS: &TSS{
 			EnableTSS: false,
+		},
+		Batch: Batch{
+			EnableBatch: false,
+			BatchSize:   10,
 		},
 	}
 }

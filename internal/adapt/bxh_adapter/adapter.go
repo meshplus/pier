@@ -48,11 +48,11 @@ type BxhAdapter struct {
 }
 
 func (b *BxhAdapter) MonitorUpdatedMeta() chan *[]byte {
-	panic("implement me")
+	return nil
 }
 
 func (b *BxhAdapter) SendUpdatedMeta(byte []byte) error {
-	panic("implement me")
+	return nil
 }
 
 // New creates instance of WrapperSyncer given agent interacting with bitxhub,
@@ -318,15 +318,16 @@ func (b *BxhAdapter) GetServiceIDList() ([]string, error) {
 		tx, err := b.client.GenerateContractTx(pb.TransactionData_BVM, constant.ServiceMgrContractAddr.Address(),
 			"GetServicesByAppchainID", rpcx.String(b.appchainId))
 		if err != nil {
-			b.logger.Errorf("GetServiceIDList GenerateContractTx err:%s", err)
-			panic(err)
+			panic(fmt.Errorf("GetServiceIDList GenerateContractTx err:%s", err))
 		}
 
 		ret := getTxView(b.client, tx)
 		service := make([]*servicemgr.Service, 0)
+		if ret == nil {
+			return nil, fmt.Errorf("appchain[id:%s] info is not exit in bitxhub", b.appchainId)
+		}
 		if err = json.Unmarshal(ret, &service); err != nil {
-			b.logger.Errorf("GetServiceIDList unmarshal err:%s", err)
-			panic(err)
+			panic(fmt.Errorf("GetServiceIDList unmarshal err:%s", err))
 		}
 		serviceIDList := make([]string, 0)
 		for _, s := range service {
@@ -435,6 +436,7 @@ func (b *BxhAdapter) run() {
 	if err := retry.Retry(func(attempt uint) error {
 		rawCh, err = b.client.Subscribe(b.ctx, subscriptType, []byte(b.appchainId))
 		if err != nil {
+			b.logger.Errorf("subscribe err %s", err)
 			return err
 		}
 		return nil
@@ -447,6 +449,7 @@ func (b *BxhAdapter) run() {
 		case <-b.ctx.Done():
 			close(b.wrappersC)
 			b.wrappersC = nil
+			b.logger.Info("stop bxh adapter running")
 			return
 		case h, ok := <-rawCh:
 			if !ok {
@@ -526,6 +529,10 @@ func (b *BxhAdapter) handleInterchainTxWrapper(w *pb.InterchainTxWrapper, i int)
 			return false
 		}
 		ibtp.Proof = proof
+		if tx.IsBatch && b.mode == repo.RelayMode {
+			ibtp.Extra = []byte("1")
+			b.logger.Info("get batch ibtp")
+		}
 		b.ibtpC <- ibtp
 	}
 
@@ -547,13 +554,13 @@ func (b *BxhAdapter) handleInterchainTxWrapper(w *pb.InterchainTxWrapper, i int)
 		if err := retry.Retry(func(attempt uint) error {
 			ibtp, err := b.QueryIBTP(id, true)
 			if err != nil {
-				b.logger.Warnf("query multitx ibtop %s: %v", ibtp, err)
+				b.logger.Warnf("query multitx ibtp %s: %v", ibtp, err)
 			} else {
 				b.ibtpC <- ibtp
 			}
 			return err
 		}, strategy.Wait(time.Second*3)); err != nil {
-			b.logger.Panicf("retry query timeout ibtp %s failed: %v", id, err)
+			b.logger.Panicf("retry query multitx ibtp %s failed: %v", id, err)
 		}
 	}
 

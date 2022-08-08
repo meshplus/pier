@@ -2,8 +2,6 @@ package appchain_adapter
 
 import (
 	"fmt"
-	"strings"
-
 	"github.com/hashicorp/go-plugin"
 	"github.com/meshplus/bitxhub-model/pb"
 	"github.com/meshplus/pier/internal/adapt"
@@ -13,6 +11,8 @@ import (
 	"github.com/meshplus/pier/internal/utils"
 	"github.com/meshplus/pier/pkg/plugins"
 	"github.com/sirupsen/logrus"
+	"strings"
+	"sync"
 )
 
 var _ adapt.Adapt = (*AppchainAdapter)(nil)
@@ -31,6 +31,10 @@ type AppchainAdapter struct {
 	cryptor      txcrypto.Cryptor
 	logger       logrus.FieldLogger
 	ibtpC        chan *pb.IBTP
+	recvIbtpC    chan *pb.IBTP
+	//recvReceiptC chan *pb.IBTP
+	requestPool *sync.Pool
+	//receiptPool  *sync.Pool
 
 	appchainID string
 	bitxhubID  string
@@ -92,6 +96,11 @@ func (a *AppchainAdapter) Start() error {
 		close(a.ibtpC)
 	}()
 
+	if a.config.Batch.EnableBatch {
+		go a.listenIBTPBatch()
+		//go a.listenReceiptBatch()
+	}
+
 	a.logger.Info("appchain adapter start")
 
 	return nil
@@ -144,6 +153,19 @@ func (a *AppchainAdapter) SendIBTP(ibtp *pb.IBTP) error {
 		return err
 	}
 
+	// handle ibtp batch
+	if a.config.Batch.EnableBatch && a.config.Mode.Type == repo.RelayMode &&
+		string(ibtp.Extra) == "1" {
+		if isReq {
+			a.logger.Info("handle batch IBTP")
+			a.recvIbtpC <- ibtp
+		}
+		//} else {
+		//	a.recvReceiptC <- ibtp
+		//}
+		return nil
+	}
+
 	ibtp, pd, err := a.handlePayload(ibtp, false)
 	if err != nil {
 		return err
@@ -170,6 +192,7 @@ func (a *AppchainAdapter) SendIBTP(ibtp *pb.IBTP) error {
 			return fmt.Errorf("unmarshal content of ibtp %s: %w", ibtp.ID(), err)
 		}
 		_, _, serviceID := ibtp.ParseTo()
+
 		a.logger.WithFields(logrus.Fields{
 			"ibtp": ibtp.ID(),
 			"typ":  ibtp.Type,
@@ -319,7 +342,7 @@ func (a *AppchainAdapter) init() error {
 	var err error
 
 	//if err := retry.Retry(func(attempt uint) error {
-	a.client, a.pluginClient, err = plugins.CreateClient(&a.config.Appchain, nil)
+	a.client, a.pluginClient, err = plugins.CreateClient(&a.config.Appchain, nil, a.config.Mode.Type)
 	if err != nil {
 		a.logger.Errorf("create client plugin", "error", err.Error())
 		return err
@@ -329,6 +352,7 @@ func (a *AppchainAdapter) init() error {
 	//}
 
 	a.ibtpC = make(chan *pb.IBTP, IBTP_CH_SIZE)
+	a.recvIbtpC = make(chan *pb.IBTP, IBTP_CH_SIZE)
 
 	a.bitxhubID, a.appchainID, err = a.client.GetChainID()
 	if err != nil {
@@ -340,6 +364,18 @@ func (a *AppchainAdapter) init() error {
 	} else {
 		a.checker = checker.NewRelayChecker(a.client, a.appchainID, a.bitxhubID, a.logger)
 	}
+
+	a.requestPool = &sync.Pool{
+		New: func() interface{} {
+			return new(pb.BatchRequest)
+		},
+	}
+
+	//a.receiptPool = &sync.Pool{
+	//	New: func() interface{} {
+	//		return new(pb.BatchReceipt)
+	//	},
+	//}
 
 	return nil
 }

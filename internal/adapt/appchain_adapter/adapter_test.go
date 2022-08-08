@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"errors"
 	"fmt"
+	"sync"
 	"testing"
 	"time"
 
@@ -391,6 +392,74 @@ func TestAppchainAdapter_Stop(t *testing.T) {
 	require.Nil(t, appchainAdapter.(*AppchainAdapter).pluginClient)
 }
 
+func TestIBTPBatch(t *testing.T) {
+	appchainAdapter, client, _, checker := mockAppchainAdapter1(t)
+
+	checker.EXPECT().BasicCheck(gomock.Any()).DoAndReturn(func(ibtp *pb.IBTP) (bool, error) {
+		if ibtp.Index == 0 {
+			return false, errors.New("")
+		}
+		return ibtp.Category() == pb.IBTP_REQUEST, nil
+	}).AnyTimes()
+
+	_, payload := genContentPayload(t, "set", false, false)
+	_, payloadResult := genResultPayload(t, []byte{1, 2, 3}, false)
+
+	client.EXPECT().SubmitIBTPBatch(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(
+		func(from []string, index []uint64, serviceID []string, ibtpType []pb.IBTP_Type, content []*pb.Content, proof []*pb.BxhProof, isEncrypted []bool) (*pb.SubmitIBTPResponse, error) {
+			resp := &pb.SubmitIBTPResponse{Status: true}
+			response := &pb.SubmitIBTPResponse{}
+			response = resp
+			return response, nil
+		}).AnyTimes()
+	client.EXPECT().SubmitReceiptBatch(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(
+		func(to []string, index []uint64, serviceID []string, ibtpType []pb.IBTP_Type, result []*pb.Result, proof []*pb.BxhProof) (*pb.SubmitIBTPResponse, error) {
+			resp := &pb.SubmitIBTPResponse{Status: true}
+			response := &pb.SubmitIBTPResponse{}
+			for i := 0; i < len(to); i++ {
+				response = resp
+			}
+			return response, nil
+		}).AnyTimes()
+
+	checker.EXPECT().CheckProof(gomock.Any()).DoAndReturn(func(ibtp *pb.IBTP) error {
+		if ibtp.Proof == nil {
+			return errors.New("")
+		}
+		return nil
+	}).AnyTimes()
+
+	for i := 1; i <= 15; i++ {
+		ibtp := mockBatchedIBTP(pb.IBTP_INTERCHAIN, uint64(i))
+		ibtp.Payload = payload
+		err := appchainAdapter.SendIBTP(ibtp)
+		require.Nil(t, err)
+	}
+
+	for i := 1; i <= 5; i++ {
+		ibtp := mockBatchedIBTP(pb.IBTP_RECEIPT_SUCCESS, uint64(i))
+		ibtp.Payload = payloadResult
+		err := appchainAdapter.SendIBTP(ibtp)
+		require.Nil(t, err)
+	}
+
+	ibtpC := make(chan *pb.IBTP, 1024)
+	client.EXPECT().Start().Return(nil).AnyTimes()
+	client.EXPECT().GetIBTPCh().Return(ibtpC).AnyTimes()
+	go func() {
+		err := appchainAdapter.Start()
+		require.Nil(t, err)
+	}()
+	time.Sleep(10 * time.Millisecond)
+	for i := 16; i <= 35; i++ {
+		ibtp := mockBatchedIBTP(pb.IBTP_INTERCHAIN, uint64(i))
+		ibtp.Payload = payload
+		err := appchainAdapter.SendIBTP(ibtp)
+		require.Nil(t, err)
+	}
+	time.Sleep(1 * time.Second)
+}
+
 func mockAppchainAdapter(t *testing.T) (adapt.Adapt, *mock_client.MockClient, *mock_txcrypto.MockCryptor, *mock_checker.MockChecker) {
 	c := gomock.NewController(t)
 	mockClient := mock_client.NewMockClient(c)
@@ -410,6 +479,56 @@ func mockAppchainAdapter(t *testing.T) (adapt.Adapt, *mock_client.MockClient, *m
 		appchainID:   appchain,
 		bitxhubID:    bxhID,
 	}, mockClient, mockCryptor, mockChecker
+}
+
+func mockAppchainAdapter1(t *testing.T) (adapt.Adapt, *mock_client.MockClient, *mock_txcrypto.MockCryptor, *mock_checker.MockChecker) {
+	c := gomock.NewController(t)
+	mockClient := mock_client.NewMockClient(c)
+	mockCryptor := mock_txcrypto.NewMockCryptor(c)
+	mockChecker := mock_checker.NewMockChecker(c)
+
+	pluginClient := &plugin.Client{}
+
+	appchainAdapter := &AppchainAdapter{
+		config:       repo.DefaultConfig(),
+		client:       mockClient,
+		pluginClient: pluginClient,
+		checker:      mockChecker,
+		cryptor:      mockCryptor,
+		logger:       log.NewWithModule(loggers.App),
+		ibtpC:        make(chan *pb.IBTP, 1024),
+		appchainID:   appchain,
+		bitxhubID:    bxhID,
+		recvIbtpC:    make(chan *pb.IBTP, 1024),
+		//recvReceiptC: make(chan *pb.IBTP, 1024),
+	}
+	appchainAdapter.config.Batch.EnableBatch = true
+
+	appchainAdapter.requestPool = &sync.Pool{
+		New: func() interface{} {
+			return new(pb.BatchRequest)
+		},
+	}
+
+	//appchainAdapter.receiptPool = &sync.Pool{
+	//	New: func() interface{} {
+	//		return new(pb.BatchReceipt)
+	//	},
+	//}
+
+	return appchainAdapter, mockClient, mockCryptor, mockChecker
+}
+
+func mockBatchedIBTP(ibtp_type pb.IBTP_Type, index uint64) *pb.IBTP {
+	ibtp := &pb.IBTP{
+		From:    fmt.Sprintf("%s:%s:service0", bxhID, appchain1),
+		To:      fmt.Sprintf("%s:%s:service1", bxhID, appchain),
+		Type:    ibtp_type,
+		Index:   index,
+		Payload: []byte{1},
+		Extra:   []byte("1"),
+	}
+	return ibtp
 }
 
 func genContentPayload(t *testing.T, function string, isEncrypt bool, badContent bool) ([]byte, []byte) {

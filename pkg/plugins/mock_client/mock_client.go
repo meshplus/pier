@@ -247,17 +247,17 @@ func (mr *MockClientMockRecorder) GetUpdateMeta() *gomock.Call {
 }
 
 // Initialize mocks base method.
-func (m *MockClient) Initialize(configPath string, extra []byte) error {
+func (m *MockClient) Initialize(configPath string, extra []byte, mode string) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Initialize", configPath, extra)
+	ret := m.ctrl.Call(m, "Initialize", configPath, extra, mode)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // Initialize indicates an expected call of Initialize.
-func (mr *MockClientMockRecorder) Initialize(configPath, extra interface{}) *gomock.Call {
+func (mr *MockClientMockRecorder) Initialize(configPath, extra, mode interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Initialize", reflect.TypeOf((*MockClient)(nil).Initialize), configPath, extra)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Initialize", reflect.TypeOf((*MockClient)(nil).Initialize), configPath, extra, mode)
 }
 
 // Name mocks base method.
@@ -317,6 +317,21 @@ func (mr *MockClientMockRecorder) SubmitIBTP(from, index, serviceID, ibtpType, c
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SubmitIBTP", reflect.TypeOf((*MockClient)(nil).SubmitIBTP), from, index, serviceID, ibtpType, content, proof, isEncrypted)
 }
 
+// SubmitIBTPBatch mocks base method.
+func (m *MockClient) SubmitIBTPBatch(from []string, index []uint64, serviceID []string, ibtpType []pb.IBTP_Type, content []*pb.Content, proof []*pb.BxhProof, isEncrypted []bool) (*pb.SubmitIBTPResponse, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SubmitIBTPBatch", from, index, serviceID, ibtpType, content, proof, isEncrypted)
+	ret0, _ := ret[0].(*pb.SubmitIBTPResponse)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// SubmitIBTPBatch indicates an expected call of SubmitIBTPBatch.
+func (mr *MockClientMockRecorder) SubmitIBTPBatch(from, index, serviceID, ibtpType, content, proof, isEncrypted interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SubmitIBTPBatch", reflect.TypeOf((*MockClient)(nil).SubmitIBTPBatch), from, index, serviceID, ibtpType, content, proof, isEncrypted)
+}
+
 // SubmitOffChainData mocks base method.
 func (m *MockClient) SubmitOffChainData(response *pb.GetDataResponse) error {
 	m.ctrl.T.Helper()
@@ -344,6 +359,21 @@ func (m *MockClient) SubmitReceipt(to string, index uint64, serviceID string, ib
 func (mr *MockClientMockRecorder) SubmitReceipt(to, index, serviceID, ibtpType, result, proof interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SubmitReceipt", reflect.TypeOf((*MockClient)(nil).SubmitReceipt), to, index, serviceID, ibtpType, result, proof)
+}
+
+// SubmitReceiptBatch mocks base method.
+func (m *MockClient) SubmitReceiptBatch(to []string, index []uint64, serviceID []string, ibtpType []pb.IBTP_Type, result []*pb.Result, proof []*pb.BxhProof) (*pb.SubmitIBTPResponse, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SubmitReceiptBatch", to, index, serviceID, ibtpType, result, proof)
+	ret0, _ := ret[0].(*pb.SubmitIBTPResponse)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// SubmitReceiptBatch indicates an expected call of SubmitReceiptBatch.
+func (mr *MockClientMockRecorder) SubmitReceiptBatch(to, index, serviceID, ibtpType, result, proof interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SubmitReceiptBatch", reflect.TypeOf((*MockClient)(nil).SubmitReceiptBatch), to, index, serviceID, ibtpType, result, proof)
 }
 
 // Type mocks base method.

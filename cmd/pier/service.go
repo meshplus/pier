@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"path"
+	"strconv"
 
 	"github.com/meshplus/bitxhub-core/governance"
 	service_mgr "github.com/meshplus/bitxhub-core/service-mgr"
@@ -39,6 +40,11 @@ var serviceCommand = cli.Command{
 				cli.StringFlag{
 					Name:     "intro",
 					Usage:    "Specify service description",
+					Required: true,
+				},
+				cli.StringFlag{
+					Name:     "ordered",
+					Usage:    "Use 1 or 0 to specify if the service need ordered, if not, tx support batch transmit",
 					Required: true,
 				},
 				cli.StringFlag{
@@ -341,6 +347,11 @@ func registerService(ctx *cli.Context) error {
 	permit := ctx.String("permit")
 	details := ctx.String("details")
 	reason := ctx.String("reason")
+	ordered := ctx.String("ordered")
+	orderTmp, err := strconv.Atoi(ordered)
+	if err != nil {
+		return fmt.Errorf("ordered input err:%s", err)
+	}
 
 	repoRoot, err := repo.PathRootWithDefault(ctx.GlobalString("repo"))
 	if err != nil {
@@ -360,7 +371,7 @@ func registerService(ctx *cli.Context) error {
 		rpcx.String(name),
 		rpcx.String(typ),
 		rpcx.String(intro),
-		rpcx.Uint64(1),
+		rpcx.Uint64(uint64(orderTmp)),
 		rpcx.String(permit),
 		rpcx.String(details),
 		rpcx.String(reason),
