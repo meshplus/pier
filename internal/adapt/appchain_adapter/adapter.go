@@ -394,11 +394,11 @@ func (a *AppchainAdapter) GetDirectTransactionMeta(IBTPid string) (uint64, uint6
 }
 
 func (a *AppchainAdapter) MonitorUpdatedMeta() chan *[]byte {
-	panic("implement me")
+	return nil
 }
 
 func (a *AppchainAdapter) SendUpdatedMeta(byte []byte) error {
-	panic("implement me")
+	return nil
 }
 
 func (a *AppchainAdapter) handlePayload(ibtp *pb.IBTP, encrypt bool) (*pb.IBTP, *pb.Payload, error) {
