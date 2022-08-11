@@ -238,8 +238,10 @@ type mockAppchainPluginClient struct {
 }
 
 func (mc *mockAppchainPluginClient) SubmitReceiptBatch(ctx context.Context, in *pb.SubmitReceiptRequestBatch, opts ...grpc.CallOption) (*pb.SubmitIBTPResponse, error) {
-	//TODO implement me
-	panic("implement me")
+	if ctx == context.Background() {
+		return &pb.SubmitIBTPResponse{}, nil
+	}
+	return nil, fmt.Errorf("mockAppchainPluginClient GetOffChainData error.")
 }
 
 func (mc *mockAppchainPluginClient) GetOffChainData(ctx context.Context, in *pb.GetDataRequest, opts ...grpc.CallOption) (*pb.GetDataResponse, error) {
@@ -391,7 +393,10 @@ func (mc *mockAppchainPluginClient) SubmitIBTP(ctx context.Context, in *pb.Submi
 }
 
 func (mc *mockAppchainPluginClient) SubmitIBTPBatch(ctx context.Context, in *pb.SubmitIBTPRequestBatch, opts ...grpc.CallOption) (*pb.SubmitIBTPResponse, error) {
-	panic("implement me")
+	if ctx == context.Background() {
+		return &pb.SubmitIBTPResponse{}, nil
+	}
+	return nil, fmt.Errorf("mockAppchainPluginClient error")
 }
 
 func (mc *mockAppchainPluginClient) GetOutMessage(ctx context.Context, in *pb.GetMessageRequest, opts ...grpc.CallOption) (*pb.IBTP, error) {

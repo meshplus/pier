@@ -58,6 +58,21 @@ func TestGrpcServerAll(t *testing.T) {
 	_, err = grpcServer.GetDirectTransactionMeta(ctx, direct)
 	require.Nil(t, err)
 
+	cli.EXPECT().SubmitIBTPBatch(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, nil).AnyTimes()
+	temp := &pb.SubmitIBTPRequestBatch{
+		From:  []string{from},
+		Index: []uint64{1, 2, 3},
+	}
+	_, err = grpcServer.SubmitIBTPBatch(ctx, temp)
+	require.Nil(t, err)
+
+	cli.EXPECT().SubmitReceiptBatch(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, nil).AnyTimes()
+	tt := &pb.SubmitReceiptRequestBatch{
+		To:    []string{to},
+		Index: []uint64{1, 2, 3},
+	}
+	_, err = grpcServer.SubmitReceiptBatch(ctx, tt)
+	require.Nil(t, err)
 }
 
 func TestGrpcClientAll(t *testing.T) {
@@ -127,4 +142,10 @@ func TestGrpcClientAll(t *testing.T) {
 	require.Panics(t, func() {
 		grpcClientError.GetUpdateMeta()
 	})
+
+	_, err = grpcClient.SubmitIBTPBatch([]string{}, []uint64{}, []string{}, []pb.IBTP_Type{}, []*pb.Content{}, []*pb.BxhProof{}, []bool{})
+	require.Nil(t, err)
+
+	_, err = grpcClient.SubmitReceiptBatch([]string{}, []uint64{}, []string{}, []pb.IBTP_Type{}, []*pb.Result{}, []*pb.BxhProof{})
+	require.Nil(t, err)
 }
