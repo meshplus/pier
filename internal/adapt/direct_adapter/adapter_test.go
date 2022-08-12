@@ -24,6 +24,17 @@ const (
 	appChainId = "testAppChain"
 )
 
+func TestLess(t *testing.T) {
+	tree := &MyTree{
+		index: 3,
+	}
+	item := &MyTree{
+		index: 4,
+	}
+	ok := tree.Less(item)
+	require.Equal(t, true, ok)
+}
+
 func TestID(t *testing.T) {
 	adapter, _, _, _ := prepare(t)
 	id := adapter.ID()
@@ -203,8 +214,10 @@ func TestHandleGetIBTPMessage(t *testing.T) {
 	ibtp1 := getIBTP(t, 1, pb.IBTP_INTERCHAIN)
 	id := ibtp1.ID()
 	appchainAdapt.EXPECT().QueryIBTP(gomock.Any(), gomock.Any()).Return(ibtp1, nil).AnyTimes()
-	peerMgr.EXPECT().AsyncSendWithStream(gomock.Any(), gomock.Any()).Return(nil)
+	c1 := peerMgr.EXPECT().AsyncSendWithStream(gomock.Any(), gomock.Any()).Return(nil).MaxTimes(1)
+	peerMgr.EXPECT().AsyncSendWithStream(gomock.Any(), gomock.Any()).Return(nil).After(c1)
 	msg := peermgr.Message(pb.Message_IBTP_GET, true, []byte(id))
+	adapter.handleGetIBTPMessage(stream, msg)
 	adapter.handleGetIBTPMessage(stream, msg)
 }
 
@@ -213,14 +226,26 @@ func TestHandleGetInterchainMessage(t *testing.T) {
 	var stream network.Stream
 	serviceID := fmt.Sprintf(":%s:%s", appChainId, toHash)
 	msg := peermgr.Message(pb.Message_INTERCHAIN_META_GET, true, []byte(serviceID))
-	peerMgr.EXPECT().AsyncSendWithStream(gomock.Any(), gomock.Any()).Return(nil)
+	c1 := peerMgr.EXPECT().AsyncSendWithStream(gomock.Any(), gomock.Any()).Return(nil).MaxTimes(1)
+	peerMgr.EXPECT().AsyncSendWithStream(gomock.Any(), gomock.Any()).Return(fmt.Errorf("connect failed")).After(c1)
 	appchainAdapt.EXPECT().QueryInterchain(serviceID).Return(&pb.Interchain{
 		InterchainCounter:       map[string]uint64{},
 		ReceiptCounter:          map[string]uint64{},
 		SourceInterchainCounter: map[string]uint64{},
 		SourceReceiptCounter:    map[string]uint64{},
-	}, nil)
+	}, nil).AnyTimes()
 	adapter.handleGetInterchainMessage(stream, msg)
+	adapter.handleGetInterchainMessage(stream, msg)
+}
+
+func TestHandleGetAddressMessage(t *testing.T) {
+	adapter, _, peerMgr, _ := prepare(t)
+	var stream network.Stream
+	msg := peermgr.Message(pb.Message_ADDRESS_GET, true, nil)
+	c1 := peerMgr.EXPECT().AsyncSendWithStream(gomock.Any(), gomock.Any()).Return(nil).MaxTimes(1)
+	peerMgr.EXPECT().AsyncSendWithStream(gomock.Any(), gomock.Any()).Return(fmt.Errorf("connect failed")).After(c1)
+	adapter.handleGetAddressMessage(stream, msg)
+	adapter.handleGetAddressMessage(stream, msg)
 }
 
 func prepare(t *testing.T) (*DirectAdapter, *DirectAdapter, *mock_peermgr.MockPeerManager, *mock_adapt.MockAdapt) {

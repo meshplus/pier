@@ -62,7 +62,8 @@ func TestAppchainAdapter_MonitorIBTP(t *testing.T) {
 }
 
 func TestAppchainAdapter_MonitorUpdatedMeta(t *testing.T) {
-
+	adapter, _, _, _ := mockAppchainAdapter(t)
+	_ = adapter.MonitorUpdatedMeta()
 }
 
 func TestAppchainAdapter_Name(t *testing.T) {
@@ -306,7 +307,9 @@ func TestAppchainAdapter_SendIBTP(t *testing.T) {
 }
 
 func TestAppchainAdapter_SendUpdatedMeta(t *testing.T) {
-
+	adapter, _, _, _ := mockAppchainAdapter(t)
+	err := adapter.SendUpdatedMeta(nil)
+	require.Nil(t, err)
 }
 
 func TestAppchainAdapter_Start(t *testing.T) {
@@ -458,6 +461,43 @@ func TestIBTPBatch(t *testing.T) {
 		require.Nil(t, err)
 	}
 	time.Sleep(1 * time.Second)
+}
+
+func TestAppchainAdapter_RollbackInDirectMode(t *testing.T) {
+	adapter, client, _, _ := mockAppchainAdapter(t)
+	ibtp := mockBatchedIBTP(pb.IBTP_INTERCHAIN, 1)
+	client.EXPECT().SubmitReceipt(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, nil).AnyTimes()
+	err := adapter.(*AppchainAdapter).RollbackInDirectMode(ibtp)
+	require.Nil(t, err)
+}
+
+func TestAppchainAdapter_GetDirectTransactionMeta(t *testing.T) {
+	adapter, client, _, _ := mockAppchainAdapter(t)
+	ibtp := mockBatchedIBTP(pb.IBTP_INTERCHAIN, 1)
+	value := uint64(0)
+	client.EXPECT().GetDirectTransactionMeta(gomock.Any()).Return(value, value, value, nil).AnyTimes()
+	_, _, _, err := adapter.(*AppchainAdapter).GetDirectTransactionMeta(ibtp.ID())
+	require.Nil(t, err)
+}
+
+func TestAppchainAdapter_GetChainID(t *testing.T) {
+	adapter, _, _, _ := mockAppchainAdapter(t)
+	chainId := adapter.(*AppchainAdapter).GetChainID()
+	require.Equal(t, appchain, chainId)
+}
+
+func TestAppchainAdapter_GetPluginClient(t *testing.T) {
+	adapter, _, _, _ := mockAppchainAdapter(t)
+	client := adapter.(*AppchainAdapter).GetPluginClient()
+	require.NotNil(t, client)
+}
+
+func TestFindRemoteInterchain(t *testing.T) {
+	inMeta := make(map[string]uint64)
+	outMeta := make(map[string]uint64)
+	callBackMeta := make(map[string]uint64)
+	_, err := findRemoteInterchain("service0", outMeta, callBackMeta, inMeta)
+	require.Nil(t, err)
 }
 
 func mockAppchainAdapter(t *testing.T) (adapt.Adapt, *mock_client.MockClient, *mock_txcrypto.MockCryptor, *mock_checker.MockChecker) {

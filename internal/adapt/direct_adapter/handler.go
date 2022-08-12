@@ -132,7 +132,7 @@ func (d *DirectAdapter) handleGetInterchainMessage(stream network.Stream, msg *p
 	}
 	data, err := interChain.Marshal()
 	if err != nil {
-		panic(err)
+		return
 	}
 
 	retMsg := peermgr.Message(pb.Message_ACK, true, data)
