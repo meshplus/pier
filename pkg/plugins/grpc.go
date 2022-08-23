@@ -6,16 +6,17 @@ import (
 
 	"github.com/Rican7/retry"
 	"github.com/Rican7/retry/strategy"
+	"github.com/meshplus/bitxhub-core/agency"
 	"github.com/meshplus/bitxhub-model/pb"
 )
 
 var _ pb.AppchainPluginServer = (*GRPCServer)(nil)
 
-var _ Client = (*GRPCClient)(nil)
+var _ agency.Client = (*GRPCClient)(nil)
 
 // ---- gRPC Server domain ----
 type GRPCServer struct {
-	Impl Client
+	Impl agency.Client
 }
 
 func (s *GRPCServer) GetUpdateMeta(empty *pb.Empty, server pb.AppchainPlugin_GetUpdateMetaServer) error {

@@ -2,7 +2,11 @@ package appchain_adapter
 
 import (
 	"fmt"
+	"strings"
+	"sync"
+
 	"github.com/hashicorp/go-plugin"
+	"github.com/meshplus/bitxhub-core/agency"
 	"github.com/meshplus/bitxhub-model/pb"
 	"github.com/meshplus/pier/internal/adapt"
 	"github.com/meshplus/pier/internal/checker"
@@ -11,8 +15,6 @@ import (
 	"github.com/meshplus/pier/internal/utils"
 	"github.com/meshplus/pier/pkg/plugins"
 	"github.com/sirupsen/logrus"
-	"strings"
-	"sync"
 )
 
 var _ adapt.Adapt = (*AppchainAdapter)(nil)
@@ -25,16 +27,16 @@ const (
 type AppchainAdapter struct {
 	mode         string
 	config       *repo.Config
-	client       plugins.Client
+	client       agency.Client
 	pluginClient *plugin.Client
 	checker      checker.Checker
 	cryptor      txcrypto.Cryptor
 	logger       logrus.FieldLogger
 	ibtpC        chan *pb.IBTP
 	recvIbtpC    chan *pb.IBTP
-	//recvReceiptC chan *pb.IBTP
+	// recvReceiptC chan *pb.IBTP
 	requestPool *sync.Pool
-	//receiptPool  *sync.Pool
+	// receiptPool  *sync.Pool
 
 	appchainID string
 	bitxhubID  string
@@ -98,7 +100,7 @@ func (a *AppchainAdapter) Start() error {
 
 	if a.config.Batch.EnableBatch {
 		go a.listenIBTPBatch()
-		//go a.listenReceiptBatch()
+		// go a.listenReceiptBatch()
 	}
 
 	a.logger.Info("appchain adapter start")
@@ -160,9 +162,9 @@ func (a *AppchainAdapter) SendIBTP(ibtp *pb.IBTP) error {
 			a.logger.Info("handle batch IBTP")
 			a.recvIbtpC <- ibtp
 		}
-		//} else {
+		// } else {
 		//	a.recvReceiptC <- ibtp
-		//}
+		// }
 		return nil
 	}
 
@@ -341,15 +343,15 @@ func findRemoteInterchain(remoteServiceID string, outMeta map[string]uint64, cal
 func (a *AppchainAdapter) init() error {
 	var err error
 
-	//if err := retry.Retry(func(attempt uint) error {
+	// if err := retry.Retry(func(attempt uint) error {
 	a.client, a.pluginClient, err = plugins.CreateClient(&a.config.Appchain, nil, a.config.Mode.Type)
 	if err != nil {
 		a.logger.Errorf("create client plugin", "error", err.Error())
 		return err
 	}
-	//}, strategy.Wait(3*time.Second)); err != nil {
+	// }, strategy.Wait(3*time.Second)); err != nil {
 	//	return fmt.Errorf("retry error to create plugin: %w", err)
-	//}
+	// }
 
 	a.ibtpC = make(chan *pb.IBTP, IBTP_CH_SIZE)
 	a.recvIbtpC = make(chan *pb.IBTP, IBTP_CH_SIZE)
@@ -371,16 +373,16 @@ func (a *AppchainAdapter) init() error {
 		},
 	}
 
-	//a.receiptPool = &sync.Pool{
+	// a.receiptPool = &sync.Pool{
 	//	New: func() interface{} {
 	//		return new(pb.BatchReceipt)
 	//	},
-	//}
+	// }
 
 	return nil
 }
 
-func (a *AppchainAdapter) GetPluginClient() plugins.Client {
+func (a *AppchainAdapter) GetPluginClient() agency.Client {
 	return a.client
 }
 

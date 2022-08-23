@@ -3,21 +3,21 @@ package checker
 import (
 	"fmt"
 
+	"github.com/meshplus/bitxhub-core/agency"
 	"github.com/meshplus/bitxhub-model/pb"
-	"github.com/meshplus/pier/pkg/plugins"
 	"github.com/sirupsen/logrus"
 )
 
 var _ Checker = (*RelayChecker)(nil)
 
 type RelayChecker struct {
-	client     plugins.Client
+	client     agency.Client
 	chainInfoM map[string]*AppchainInfo
 	bxhID      string
 	appchainID string
 }
 
-func NewRelayChecker(client plugins.Client, appchainID, bxhID string, logger logrus.FieldLogger) Checker {
+func NewRelayChecker(client agency.Client, appchainID, bxhID string, logger logrus.FieldLogger) Checker {
 	return &RelayChecker{
 		client:     client,
 		bxhID:      bxhID,
