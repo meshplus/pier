@@ -23,7 +23,6 @@ import (
 	"github.com/meshplus/pier/internal/peermgr"
 	"github.com/meshplus/pier/internal/repo"
 	"github.com/meshplus/pier/internal/txcrypto"
-	"github.com/meshplus/pier/pkg/plugins"
 	"github.com/meshplus/pier/pkg/single"
 	_ "github.com/meshplus/pier/pkg/single"
 	"github.com/sirupsen/logrus"
@@ -35,7 +34,7 @@ const DEFAULT_UNION_PIER_ID = "default_union_pier_id"
 // Pier represents the necessary data for starting the pier app
 type Pier struct {
 	privateKey  crypto.PrivateKey
-	plugin      plugins.Client
+	plugin      agency.Client
 	grpcPlugin  *plugin.Client
 	pierHA      agency.PierHA
 	storage     storage.Storage

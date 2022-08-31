@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/hashicorp/go-plugin"
+	"github.com/meshplus/bitxhub-core/agency"
 	"github.com/meshplus/bitxhub-model/pb"
 	"google.golang.org/grpc"
 )
@@ -30,7 +31,7 @@ type AppchainGRPCPlugin struct {
 	plugin.Plugin
 	// Concrete implementation, written in Go. This is only used for plugins
 	// that are written in Go.
-	Impl Client
+	Impl agency.Client
 }
 
 func (p *AppchainGRPCPlugin) GRPCServer(broker *plugin.GRPCBroker, s *grpc.Server) error {

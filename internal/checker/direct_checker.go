@@ -5,10 +5,10 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/meshplus/bitxhub-core/agency"
 	"github.com/meshplus/bitxhub-core/validator"
 	"github.com/meshplus/bitxhub-kit/types"
 	"github.com/meshplus/bitxhub-model/pb"
-	"github.com/meshplus/pier/pkg/plugins"
 	"github.com/sirupsen/logrus"
 )
 
@@ -16,7 +16,7 @@ var _ Checker = (*DirectChecker)(nil)
 
 type DirectChecker struct {
 	ve         *validator.ValidationEngine
-	client     plugins.Client
+	client     agency.Client
 	chainInfoM map[string]*AppchainInfo
 	appchainID string
 }
@@ -27,7 +27,7 @@ type AppchainInfo struct {
 	ruleAddr  string
 }
 
-func NewDirectChecker(client plugins.Client, appchainID string, logger logrus.FieldLogger, gasLimit uint64) Checker {
+func NewDirectChecker(client agency.Client, appchainID string, logger logrus.FieldLogger, gasLimit uint64) Checker {
 	ledger := &CodeLedger{
 		validateCode: make(map[string][]byte),
 	}
@@ -112,7 +112,7 @@ func (c *DirectChecker) CheckProof(ibtp *pb.IBTP) error {
 }
 
 type CodeLedger struct {
-	client       plugins.Client
+	client       agency.Client
 	validateCode map[string][]byte
 }
 

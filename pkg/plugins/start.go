@@ -7,6 +7,7 @@ import (
 
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-plugin"
+	"github.com/meshplus/bitxhub-core/agency"
 	"github.com/meshplus/pier/internal/repo"
 )
 
@@ -16,7 +17,7 @@ var logger = hclog.New(&hclog.LoggerOptions{
 	Level:  hclog.Trace,
 })
 
-func CreateClient(appchainConfig *repo.Appchain, extra []byte, mode string) (Client, *plugin.Client, error) {
+func CreateClient(appchainConfig *repo.Appchain, extra []byte, mode string) (agency.Client, *plugin.Client, error) {
 	// Pier is the host. Start by launching the plugin process.
 	rootPath, err := repo.PathRoot()
 	if err != nil {
@@ -46,7 +47,7 @@ func CreateClient(appchainConfig *repo.Appchain, extra []byte, mode string) (Cli
 		return nil, nil, fmt.Errorf("dispense plugin %s: %w", PluginName, err)
 	}
 
-	var appchain Client
+	var appchain agency.Client
 	switch raw.(type) {
 	case *GRPCClient:
 		appchain = raw.(*GRPCClient)
