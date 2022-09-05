@@ -1,6 +1,7 @@
 package txcrypto
 
 import (
+	"encoding/base64"
 	"fmt"
 	"strings"
 	"testing"
@@ -34,7 +35,7 @@ func TestRelayCryptor(t *testing.T) {
 	require.Nil(t, err)
 	addr2 := address2.String()
 	ret := &pb.Receipt{
-		Ret: pubBytes2,
+		Ret: []byte(base64.StdEncoding.EncodeToString(pubBytes2)),
 	}
 
 	rc1, err := NewRelayCryptor(mockClient, privKey1, log.NewWithModule("Cryptor"))

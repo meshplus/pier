@@ -165,11 +165,17 @@ func registerPier(ctx *cli.Context) error {
 		admins = fmt.Sprintf("%s,%s", admins, caller)
 	}
 
+	pubKey, err := getPubKey(keyPath)
+	if err != nil {
+		return err
+	}
+
 	receipt, err := client.InvokeBVMContract(
 		constant.AppchainMgrContractAddr.Address(),
 		"RegisterAppchain", nil,
 		rpcx.String(id),
 		rpcx.String(name),
+		rpcx.Bytes([]byte(pubKey)),
 		rpcx.String(typ),
 		rpcx.Bytes(trustrootData),
 		rpcx.String(broker),
