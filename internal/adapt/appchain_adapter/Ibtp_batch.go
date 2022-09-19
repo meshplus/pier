@@ -2,10 +2,13 @@ package appchain_adapter
 
 import (
 	"fmt"
+	"time"
+
 	"github.com/meshplus/bitxhub-model/pb"
 	"github.com/sirupsen/logrus"
-	"time"
 )
+
+const MaxSize = 10
 
 func (a *AppchainAdapter) listenIBTPBatch() {
 	iBTPBatch := make([]*pb.IBTP, 0)
@@ -24,17 +27,21 @@ func (a *AppchainAdapter) listenIBTPBatch() {
 
 				// control batch size
 				for len(dst) > 0 {
-					if len(dst) <= a.config.Batch.BatchSize {
+					batchSize := a.config.Batch.BatchSize
+					if a.config.Batch.BatchSize > MaxSize {
+						batchSize = MaxSize
+					}
+					if len(dst) <= batchSize {
 						err = a.handleIBTPBatch(dst[:], req)
 						dst = make([]*pb.IBTP, 0)
 					} else {
-						err = a.handleIBTPBatch(dst[:10], req)
+						err = a.handleIBTPBatch(dst[:batchSize], req)
 						if err != nil {
 							a.logger.Errorf("handleIBTPBatch err：%s", err)
-							dst = dst[10:]
+							dst = dst[batchSize:]
 							continue
 						}
-						dst = dst[11:]
+						dst = dst[batchSize:]
 					}
 					a.logger.WithFields(logrus.Fields{
 						"Froms":      req.Froms,
