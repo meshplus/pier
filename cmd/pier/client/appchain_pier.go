@@ -7,7 +7,6 @@ import (
 	"strconv"
 
 	appchainmgr "github.com/meshplus/bitxhub-core/appchain-mgr"
-	"github.com/meshplus/bitxhub-core/wasm"
 	"github.com/meshplus/bitxhub-kit/crypto"
 	"github.com/meshplus/bitxhub-kit/crypto/asym"
 	"github.com/meshplus/bitxhub-kit/types"
@@ -15,6 +14,15 @@ import (
 	"github.com/meshplus/pier/internal/rulemgr"
 	"github.com/urfave/cli"
 )
+
+// Contract represents the smart contract structure used in the wasm vm
+type Contract struct {
+	// contract byte
+	Code []byte
+
+	// contract hash
+	Hash *types.Hash
+}
 
 type Approve struct {
 	Id         string `json:"id"`
@@ -343,7 +351,7 @@ func registerAppchainRule(ctx *cli.Context) error {
 	}
 	addr, _ := pubKey.Address()
 
-	contract := wasm.Contract{
+	contract := Contract{
 		Code: data,
 		Hash: types.NewHash(data),
 	}
