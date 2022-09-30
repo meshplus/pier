@@ -63,6 +63,15 @@ func (u *UnionRouter) Route(ibtp *pb.IBTP) error {
 		return err
 	}
 
+	// begin_fail && begin_rollback need send to srcBitXHub
+	proof := &pb.BxhProof{}
+	if err := proof.Unmarshal(ibtp.Proof); err != nil {
+		return err
+	}
+	if proof.TxStatus == pb.TransactionStatus_BEGIN_FAILURE || proof.TxStatus == pb.TransactionStatus_BEGIN_ROLLBACK {
+		target, _, _, _ = pb.ParseFullServiceID(ibtp.From)
+	}
+
 	handle := func() error {
 		pierId, err := u.peermgr.FindProviders(target)
 		if err != nil {
