@@ -5,12 +5,13 @@ go 1.13
 require (
 	github.com/Rican7/retry v0.1.0
 	github.com/btcsuite/btcd v0.21.0-beta
+	github.com/bytecodealliance/wasmtime-go v0.37.0 // indirect
 	github.com/cavaliercoder/grab v2.0.0+incompatible
 	github.com/cbergoon/merkletree v0.2.0
 	github.com/fatih/color v1.9.0
 	github.com/fsnotify/fsnotify v1.4.9
-	github.com/gobuffalo/packd v1.0.0
-	github.com/gobuffalo/packr v1.30.1
+	github.com/gobuffalo/packd v1.0.1
+	github.com/gobuffalo/packr/v2 v2.8.3
 	github.com/golang/mock v1.6.0
 	github.com/google/btree v1.0.0
 	github.com/hashicorp/go-hclog v0.0.0-20180709165350-ff2cf002a8dd
@@ -24,15 +25,15 @@ require (
 	github.com/meshplus/go-lightp2p v0.0.0-20200817105923-6b3aee40fa54
 	github.com/mitchellh/go-homedir v1.1.0
 	github.com/multiformats/go-multiaddr v0.3.0
-	github.com/pelletier/go-toml v1.8.1
+	github.com/pelletier/go-toml v1.9.3
 	github.com/sirupsen/logrus v1.8.1
-	github.com/spf13/viper v1.7.1
-	github.com/stretchr/testify v1.7.0
+	github.com/spf13/viper v1.8.1
+	github.com/stretchr/testify v1.8.0
 	github.com/tidwall/gjson v1.6.8
 	github.com/urfave/cli v1.22.1
 	github.com/wonderivan/logger v1.0.0
 	go.uber.org/atomic v1.7.0
-	google.golang.org/grpc v1.33.2
+	google.golang.org/grpc v1.38.0
 )
 
 replace github.com/libp2p/go-libp2p-core => github.com/libp2p/go-libp2p-core v0.5.6
