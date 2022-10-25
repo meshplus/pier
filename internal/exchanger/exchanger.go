@@ -3,6 +3,7 @@ package exchanger
 import (
 	"context"
 	"fmt"
+	"go.uber.org/atomic"
 	"strings"
 	"time"
 
@@ -13,7 +14,6 @@ import (
 	"github.com/meshplus/pier/internal/adapt"
 	"github.com/meshplus/pier/internal/repo"
 	"github.com/sirupsen/logrus"
-	"go.uber.org/atomic"
 )
 
 type Exchanger struct {
@@ -300,12 +300,27 @@ func (ex *Exchanger) listenIBTPFromDestAdapt(servicePair string) {
 func (ex *Exchanger) listenIBTPFromSrcAdaptToServicePairCh() {
 	ex.logger.Infof("listenIBTPFromSrcAdaptToServicePairCh %s Start!", ex.srcAdaptName)
 	ch := ex.srcAdapt.MonitorIBTP()
+	//ticker := time.NewTicker(time.Second)
+	//defer ticker.Stop()
+	//count := atomic.NewUint64(0)
+	//go func() {
+	//	for {
+	//		select {
+	//		case <-ticker.C:
+	//			ex.logger.Errorf("!!!count: %d!!!", count.Load())
+	//			count.Store(0)
+	//		case <-ex.ctx.Done():
+	//			break
+	//		}
+	//	}
+	//}()
 	for {
 		select {
 		case <-ex.ctx.Done():
 			ex.logger.Info("listenIBTPFromSrcAdaptToServicePairCh Stop!")
 			return
 		case ibtp, ok := <-ch:
+			ex.logger.Errorf("Receive ibtp from plugin, timestamp: %d", time.Now().UnixNano())
 			if !ok {
 				ex.logger.Warn("Unexpected closed channel while listening on interchain ibtp")
 				return
@@ -324,6 +339,7 @@ func (ex *Exchanger) listenIBTPFromSrcAdaptToServicePairCh() {
 			}
 			ex.srcIBTPMap[key] <- ibtp
 
+			//count.Inc()
 		}
 	}
 }

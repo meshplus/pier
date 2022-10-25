@@ -645,17 +645,17 @@ func prepare(t *testing.T) (*BxhAdapter, *BxhAdapter, *BxhAdapter, *mock_client.
 	}
 
 	relayAdapter1, err := New(repo.RelayMode, "",
-		client, log.NewWithModule("adapter"), config.TSS,
+		client, log.NewWithModule("adapter"), config.TSS, 0,
 	)
 	require.Nil(t, err)
 
 	relayAdapter2, err := New(repo.RelayMode, "",
-		client, log.NewWithModule("adapter"), config.TSS,
+		client, log.NewWithModule("adapter"), config.TSS, 0,
 	)
 	require.Nil(t, err)
 
 	unionAdapter, err := New(repo.UnionMode, defaultUnionPierId,
-		client, log.NewWithModule("adapter"), config.TSS,
+		client, log.NewWithModule("adapter"), config.TSS, 0,
 	)
 	require.Nil(t, err)
 

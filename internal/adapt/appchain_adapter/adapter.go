@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/hashicorp/go-plugin"
 	"github.com/meshplus/bitxhub-core/agency"
@@ -201,6 +202,7 @@ func (a *AppchainAdapter) SendIBTP(ibtp *pb.IBTP) error {
 		}).Info("start submit ibtp")
 		res, err = a.client.SubmitIBTP(ibtp.From, ibtp.Index, serviceID, ibtp.Type, content, proof, pd.Encrypted)
 		a.logger.Info("appchain adapter submit ibtp success")
+		a.logger.Errorf("finish submit ibtp, timestamp: %d", time.Now().UnixNano())
 	} else {
 		result := &pb.Result{}
 		if err := result.Unmarshal(pd.Content); err != nil {
