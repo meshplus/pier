@@ -300,20 +300,20 @@ func (ex *Exchanger) listenIBTPFromDestAdapt(servicePair string) {
 func (ex *Exchanger) listenIBTPFromSrcAdaptToServicePairCh() {
 	ex.logger.Infof("listenIBTPFromSrcAdaptToServicePairCh %s Start!", ex.srcAdaptName)
 	ch := ex.srcAdapt.MonitorIBTP()
-	//ticker := time.NewTicker(time.Second)
-	//defer ticker.Stop()
-	//count := atomic.NewUint64(0)
-	//go func() {
-	//	for {
-	//		select {
-	//		case <-ticker.C:
-	//			ex.logger.Errorf("!!!count: %d!!!", count.Load())
-	//			count.Store(0)
-	//		case <-ex.ctx.Done():
-	//			break
-	//		}
-	//	}
-	//}()
+	ticker := time.NewTicker(time.Second)
+	defer ticker.Stop()
+	count := atomic.NewUint64(0)
+	go func() {
+		for {
+			select {
+			case <-ticker.C:
+				ex.logger.Errorf("!!!count: %d!!!", count.Load())
+				count.Store(0)
+			case <-ex.ctx.Done():
+				break
+			}
+		}
+	}()
 	for {
 		select {
 		case <-ex.ctx.Done():
@@ -339,7 +339,7 @@ func (ex *Exchanger) listenIBTPFromSrcAdaptToServicePairCh() {
 			}
 			ex.srcIBTPMap[key] <- ibtp
 
-			//count.Inc()
+			count.Inc()
 		}
 	}
 }
