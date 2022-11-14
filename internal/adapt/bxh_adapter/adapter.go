@@ -160,7 +160,7 @@ func (b *BxhAdapter) SendIBTP(ibtp *pb.IBTP) error {
 		if err != nil {
 			b.logger.Errorf("Send ibtp failed: %s", err.Error())
 		}
-		b.logger.Errorf("Send ibtp successfully, tx hash: %s, nonce: %d, index: %d, timestamp: %d", hash, nonce, ibtp.Index, time.Now().UnixNano())
+		b.logger.Errorf("[2] Send ibtp successfully, tx hash: %s, nonce: %d, index: %d, timestamp: %d", hash, nonce, ibtp.Index, time.Now().UnixNano())
 	}(nonce)
 	//receipt, err := b.client.SendTransactionWithReceipt(tx, nil)
 	//if err != nil {
@@ -490,7 +490,7 @@ func (b *BxhAdapter) listenInterchainTxWrappers() {
 				continue
 			}
 			for i, wrapper := range wrappers.GetInterchainTxWrappers() {
-				b.logger.Errorf("get interchain tx wrapper with height %d, count %d, timestamp: %d", wrapper.Height, len(wrapper.Transactions), time.Now().UnixNano())
+				b.logger.Errorf("[3] get interchain tx wrapper with height %d, count %d, timestamp: %d", wrapper.Height, len(wrapper.Transactions), time.Now().UnixNano())
 				ok := b.handleInterchainTxWrapper(wrapper, i)
 				if !ok {
 					return
@@ -538,6 +538,7 @@ func (b *BxhAdapter) handleInterchainTxWrapper(w *pb.InterchainTxWrapper, i int)
 		if err != nil {
 			return false
 		}
+		b.logger.Errorf("[4] finish get tx sign, timestamp: %d, ID: %s", time.Now().UnixNano(), ibtp.ID())
 		ibtp.Proof = proof
 		if tx.IsBatch && b.mode == repo.RelayMode {
 			ibtp.Extra = []byte("1")

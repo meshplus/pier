@@ -320,7 +320,7 @@ func (ex *Exchanger) listenIBTPFromSrcAdaptToServicePairCh() {
 			ex.logger.Info("listenIBTPFromSrcAdaptToServicePairCh Stop!")
 			return
 		case ibtp, ok := <-ch:
-			ex.logger.Errorf("Receive ibtp from plugin, timestamp: %d", time.Now().UnixNano())
+			ex.logger.Errorf("[1] Receive ibtp from plugin, timestamp: %d, ID: %s", time.Now().UnixNano(), ibtp.ID())
 			if !ok {
 				ex.logger.Warn("Unexpected closed channel while listening on interchain ibtp")
 				return
