@@ -3,9 +3,10 @@ package exchanger
 import (
 	"context"
 	"fmt"
-	"go.uber.org/atomic"
 	"strings"
 	"time"
+
+	"go.uber.org/atomic"
 
 	"github.com/Rican7/retry"
 	"github.com/Rican7/retry/backoff"
@@ -320,7 +321,8 @@ func (ex *Exchanger) listenIBTPFromSrcAdaptToServicePairCh() {
 			ex.logger.Info("listenIBTPFromSrcAdaptToServicePairCh Stop!")
 			return
 		case ibtp, ok := <-ch:
-			ex.logger.Errorf("[1] Receive ibtp from plugin, timestamp: %d, ID: %s", time.Now().UnixNano(), ibtp.ID())
+			ex.logger.Errorf("[1] Receive ibtp from plugin, timestamp: %f, ID: %s",
+				float64(time.Now().UnixNano()-ibtp.Timestamp)/float64(time.Millisecond), ibtp.ID())
 			if !ok {
 				ex.logger.Warn("Unexpected closed channel while listening on interchain ibtp")
 				return

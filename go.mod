@@ -11,7 +11,6 @@ require (
 	github.com/fatih/color v1.9.0
 	github.com/fsnotify/fsnotify v1.4.9
 	github.com/gobuffalo/packd v1.0.1
-	github.com/gobuffalo/packr v1.30.1
 	github.com/gobuffalo/packr/v2 v2.8.3
 	github.com/golang/mock v1.6.0
 	github.com/google/btree v1.0.0
@@ -46,3 +45,5 @@ replace golang.org/x/net => golang.org/x/net v0.0.0-20210405180319-a5a99cb37ef4
 replace google.golang.org/grpc => google.golang.org/grpc v1.33.0
 
 replace github.com/binance-chain/tss-lib => github.com/dawn-to-dusk/tss-lib v1.3.3-0.20220330081758-f404e10a1268
+
+replace github.com/meshplus/bitxhub-model => github.com/meshplus/bitxhub-model v1.2.1-0.20221114092605-a3d123e63c1f

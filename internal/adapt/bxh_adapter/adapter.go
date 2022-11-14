@@ -160,7 +160,8 @@ func (b *BxhAdapter) SendIBTP(ibtp *pb.IBTP) error {
 		if err != nil {
 			b.logger.Errorf("Send ibtp failed: %s", err.Error())
 		}
-		b.logger.Errorf("[2] Send ibtp successfully, tx hash: %s, nonce: %d, index: %d, timestamp: %d", hash, nonce, ibtp.Index, time.Now().UnixNano())
+		b.logger.Errorf("[2] Send ibtp successfully, tx hash: %s, nonce: %d, index: %d, timestamp: %f",
+			hash, nonce, ibtp.Index, float64(time.Now().UnixNano()-ibtp.Timestamp)/float64(time.Millisecond))
 	}(nonce)
 	//receipt, err := b.client.SendTransactionWithReceipt(tx, nil)
 	//if err != nil {
@@ -490,7 +491,10 @@ func (b *BxhAdapter) listenInterchainTxWrappers() {
 				continue
 			}
 			for i, wrapper := range wrappers.GetInterchainTxWrappers() {
-				b.logger.Errorf("[3] get interchain tx wrapper with height %d, count %d, timestamp: %d", wrapper.Height, len(wrapper.Transactions), time.Now().UnixNano())
+				if len(wrapper.Transactions) != 0 {
+					b.logger.Errorf("[3] get interchain tx wrapper with height %d, count %d, timestamp: %f",
+						wrapper.Height, len(wrapper.Transactions), float64(time.Now().UnixNano()-wrapper.Transactions[0].Tx.IBTP.Timestamp)/float64(time.Millisecond))
+				}
 				ok := b.handleInterchainTxWrapper(wrapper, i)
 				if !ok {
 					return
@@ -510,6 +514,7 @@ func (b *BxhAdapter) handleInterchainTxWrapper(w *pb.InterchainTxWrapper, i int)
 	}
 
 	for _, tx := range w.Transactions {
+		now := time.Now()
 		// if ibtp is failed
 		// 1. this is interchain type of ibtp, increase inCounter index
 		// 2. this is ibtp receipt type, rollback and increase callback index
@@ -538,7 +543,7 @@ func (b *BxhAdapter) handleInterchainTxWrapper(w *pb.InterchainTxWrapper, i int)
 		if err != nil {
 			return false
 		}
-		b.logger.Errorf("[4] finish get tx sign, timestamp: %d, ID: %s", time.Now().UnixNano(), ibtp.ID())
+		b.logger.Errorf("[4] finish get tx sign, time duration: %v, ID: %s", time.Since(now), ibtp.ID())
 		ibtp.Proof = proof
 		if tx.IsBatch && b.mode == repo.RelayMode {
 			ibtp.Extra = []byte("1")
