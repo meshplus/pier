@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strconv"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -18,6 +19,7 @@ import (
 	rpcx "github.com/meshplus/go-bitxhub-client"
 	"github.com/meshplus/pier/internal/adapt"
 	"github.com/meshplus/pier/internal/repo"
+	"github.com/meshplus/pier/internal/utils"
 	"github.com/sirupsen/logrus"
 )
 
@@ -37,6 +39,7 @@ type BxhAdapter struct {
 	logger    logrus.FieldLogger
 	wrappersC chan *pb.InterchainTxWrappers
 	ibtpC     chan *pb.IBTP
+	ibtps     sync.Map
 	nonce     uint64
 
 	mode       string
@@ -139,6 +142,7 @@ func (b *BxhAdapter) QueryIBTP(id string, isReq bool) (*pb.IBTP, error) {
 }
 
 func (b *BxhAdapter) SendIBTP(ibtp *pb.IBTP) error {
+	now := time.Now()
 	proof := ibtp.GetProof()
 	proofHash := sha256.Sum256(proof)
 	ibtp.Proof = proofHash[:]
@@ -163,6 +167,12 @@ func (b *BxhAdapter) SendIBTP(ibtp *pb.IBTP) error {
 		b.logger.Errorf("[2] Send ibtp successfully, tx hash: %s, nonce: %d, index: %d, timestamp: %f",
 			hash, nonce, ibtp.Index, float64(time.Now().UnixNano()-ibtp.Timestamp)/float64(time.Millisecond))
 	}(nonce)
+
+	b.logger.WithFields(logrus.Fields{
+		"index":  ibtp.Index,
+		"type":   ibtp.Type.String(),
+		"elapse": time.Since(now),
+	}).Info("[2.1] bxh Adapter send tx")
 	//receipt, err := b.client.SendTransactionWithReceipt(tx, nil)
 	//if err != nil {
 	//	b.logger.Errorf("Send ibtp with receipt error: %s", err.Error())
@@ -491,10 +501,10 @@ func (b *BxhAdapter) listenInterchainTxWrappers() {
 				continue
 			}
 			for i, wrapper := range wrappers.GetInterchainTxWrappers() {
-				if len(wrapper.Transactions) != 0 {
-					b.logger.Errorf("[3] get interchain tx wrapper with height %d, count %d, timestamp: %f",
-						wrapper.Height, len(wrapper.Transactions), float64(time.Now().UnixNano()-wrapper.Transactions[0].Tx.IBTP.Timestamp)/float64(time.Millisecond))
-				}
+				//if len(wrapper.Transactions) != 0 {
+				//	b.logger.Errorf("[3] get interchain tx wrapper with height %d, count %d, timestamp: %f",
+				//		wrapper.Height, len(wrapper.Transactions), float64(time.Now().UnixNano()-wrapper.Transactions[0].Tx.IBTP.Timestamp)/float64(time.Millisecond))
+				//}
 				ok := b.handleInterchainTxWrapper(wrapper, i)
 				if !ok {
 					return
@@ -508,17 +518,19 @@ func (b *BxhAdapter) listenInterchainTxWrappers() {
 
 // handleInterchainTxWrapper is the handler for interchain tx wrapper
 func (b *BxhAdapter) handleInterchainTxWrapper(w *pb.InterchainTxWrapper, i int) bool {
+	now := time.Now()
 	if w == nil {
 		b.logger.Error("empty interchain tx wrapper")
 		return false
 	}
-
+	wg := sync.WaitGroup{}
+	wg.Add(len(w.Transactions))
 	for _, tx := range w.Transactions {
-		now := time.Now()
+		ibtp := tx.Tx.GetIBTP()
+		b.logger.WithFields(logrus.Fields{"ID": ibtp.ID(), "index": ibtp.Index}).Infof("[3] receive ibtp from bxh")
 		// if ibtp is failed
 		// 1. this is interchain type of ibtp, increase inCounter index
 		// 2. this is ibtp receipt type, rollback and increase callback index
-		ibtp := tx.Tx.GetIBTP()
 		if ibtp == nil {
 			b.logger.Errorf("empty ibtp in tx")
 			continue
@@ -539,19 +551,18 @@ func (b *BxhAdapter) handleInterchainTxWrapper(w *pb.InterchainTxWrapper, i int)
 			return false
 		}
 
-		proof, err := b.getSign(ibtp, isReq)
-		if err != nil {
-			return false
-		}
-		b.logger.Errorf("[4] finish get tx sign, time duration: %v, ID: %s", time.Since(now), ibtp.ID())
-		ibtp.Proof = proof
-		if tx.IsBatch && b.mode == repo.RelayMode {
-			ibtp.Extra = []byte("1")
-			b.logger.Info("get batch ibtp")
-		}
-		b.ibtpC <- ibtp
+		go func(ibtp *pb.IBTP) {
+			defer wg.Done()
+			proof := b.getSign(ibtp, isReq)
+			ibtp.Proof = proof
+			if tx.IsBatch && b.mode == repo.RelayMode {
+				ibtp.Extra = []byte("1")
+				b.logger.Info("get batch ibtp")
+			}
+			b.insertIBTPPool(ibtp)
+		}(ibtp)
 	}
-
+	wg.Wait()
 	for _, id := range w.TimeoutIbtps {
 		if err := retry.Retry(func(attempt uint) error {
 			ibtp, err := b.QueryIBTP(id, true)
@@ -585,8 +596,36 @@ func (b *BxhAdapter) handleInterchainTxWrapper(w *pb.InterchainTxWrapper, i int)
 		"count":       len(w.Transactions),
 		"index":       i,
 		"timeout IDs": w.TimeoutIbtps,
-	}).Info("Handle interchain tx wrapper")
+		"elapse":      time.Since(now),
+	}).Info("[4] Handle interchain tx wrapper")
 	return true
+}
+
+func (b *BxhAdapter) insertIBTPPool(ibtp *pb.IBTP) {
+	servicePair := ibtp.From + ibtp.To + ibtp.Category().String()
+	act, loaded := b.ibtps.LoadOrStore(servicePair, utils.NewPool(utils.RelayDegree))
+	pool := act.(*utils.Pool)
+	if !loaded {
+		pool.CurrentIndex = 1
+	}
+	pool.Lock.Lock()
+	defer pool.Lock.Unlock()
+	pool.Ibtps.ReplaceOrInsert(&utils.MyTree{Ibtp: ibtp, Index: ibtp.Index})
+	for {
+		if item := pool.Ibtps.Min(); item != nil {
+			if item.(*utils.MyTree).Index < pool.CurrentIndex {
+				pool.Ibtps.DeleteMin()
+			} else if item.(*utils.MyTree).Index == pool.CurrentIndex {
+				b.ibtpC <- item.(*utils.MyTree).Ibtp
+				pool.Ibtps.DeleteMin()
+				pool.CurrentIndex++
+			} else {
+				break
+			}
+		} else {
+			break
+		}
+	}
 }
 
 func (b *BxhAdapter) getTxStatus(id string) (pb.TransactionStatus, error) {
@@ -620,59 +659,65 @@ func (b *BxhAdapter) getTxStatus(id string) (pb.TransactionStatus, error) {
 	return pb.TransactionStatus(status), nil
 }
 
-func (b *BxhAdapter) getSign(ibtp *pb.IBTP, isReq bool) ([]byte, error) {
+func (b *BxhAdapter) getSign(ibtp *pb.IBTP, isReq bool) []byte {
 	var (
-		err     error
-		retSign *pb.SignResponse
-		reqTyp  pb.GetSignsRequest_Type
+		err       error
+		retSign   *pb.SignResponse
+		reqTyp    pb.GetSignsRequest_Type
+		retStatus pb.TransactionStatus
+		retProof  []byte
 	)
-
-	if b.tss.EnableTSS {
-		if isReq {
-			reqTyp = pb.GetSignsRequest_TSS_IBTP_REQUEST
+	if err = retry.Retry(func(attempt uint) error {
+		if b.tss.EnableTSS {
+			if isReq {
+				reqTyp = pb.GetSignsRequest_TSS_IBTP_REQUEST
+			} else {
+				reqTyp = pb.GetSignsRequest_TSS_IBTP_RESPONSE
+			}
+			retSign, err = b.client.GetTssSigns(ibtp.ID(), reqTyp, nil)
+			if err != nil {
+				return err
+			}
 		} else {
-			reqTyp = pb.GetSignsRequest_TSS_IBTP_RESPONSE
+			if isReq {
+				reqTyp = pb.GetSignsRequest_MULTI_IBTP_REQUEST
+			} else {
+				reqTyp = pb.GetSignsRequest_MULTI_IBTP_RESPONSE
+			}
+
+			retSign, err = b.client.GetMultiSigns(ibtp.ID(), reqTyp)
+			if err != nil {
+				return err
+			}
 		}
-		retSign, err = b.client.GetTssSigns(ibtp.ID(), reqTyp, nil)
+
+		if retSign == nil || retSign.Sign == nil {
+			return fmt.Errorf("get empty signatures for ibtp %s", ibtp.ID())
+		}
+
+		var signs [][]byte
+		for _, sign := range retSign.Sign {
+			signs = append(signs, sign)
+		}
+
+		retStatus, err = b.getTxStatus(ibtp.ID())
 		if err != nil {
-			return nil, err
-		}
-	} else {
-		if isReq {
-			reqTyp = pb.GetSignsRequest_MULTI_IBTP_REQUEST
-		} else {
-			reqTyp = pb.GetSignsRequest_MULTI_IBTP_RESPONSE
+			return err
 		}
 
-		retSign, err = b.client.GetMultiSigns(ibtp.ID(), reqTyp)
+		proof := &pb.BxhProof{
+			TxStatus:  retStatus,
+			MultiSign: signs,
+		}
+		retProof, err = proof.Marshal()
 		if err != nil {
-			return nil, err
+			return err
 		}
+		return nil
+	}, strategy.Wait(time.Second*2)); err != nil {
+		b.logger.Panicf("get sign err:%s", err)
 	}
-
-	if retSign == nil || retSign.Sign == nil {
-		return nil, fmt.Errorf("get empty signatures for ibtp %s", ibtp.ID())
-	}
-
-	var signs [][]byte
-	for _, sign := range retSign.Sign {
-		signs = append(signs, sign)
-	}
-
-	retStatus, err := b.getTxStatus(ibtp.ID())
-	if err != nil {
-		return nil, err
-	}
-
-	proof := &pb.BxhProof{
-		TxStatus:  retStatus,
-		MultiSign: signs,
-	}
-	retProof, err := proof.Marshal()
-	if err != nil {
-		return nil, err
-	}
-	return retProof, nil
+	return retProof
 }
 
 func (b *BxhAdapter) restartCh() {
@@ -707,10 +752,7 @@ func (b *BxhAdapter) getIBTPByID(id string, isReq bool) (*pb.IBTP, error) {
 	}
 
 	retIBTP := response.Tx.GetIBTP()
-	proof, err := b.getSign(retIBTP, isReq)
-	if err != nil {
-		return nil, err
-	}
+	proof := b.getSign(retIBTP, isReq)
 	// get ibtp proof from bxh
 	retIBTP.Proof = proof
 
