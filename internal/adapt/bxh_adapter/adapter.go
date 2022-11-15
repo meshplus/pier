@@ -553,7 +553,9 @@ func (b *BxhAdapter) handleInterchainTxWrapper(w *pb.InterchainTxWrapper, i int)
 
 		go func(ibtp *pb.IBTP) {
 			defer wg.Done()
+			current := time.Now()
 			proof := b.getSign(ibtp, isReq)
+			b.logger.WithFields(logrus.Fields{"ID": ibtp.ID(), "index": ibtp.Index, "elapse": time.Since(current)}).Infof("[3.1] receive multi sign")
 			ibtp.Proof = proof
 			if tx.IsBatch && b.mode == repo.RelayMode {
 				ibtp.Extra = []byte("1")
@@ -602,6 +604,7 @@ func (b *BxhAdapter) handleInterchainTxWrapper(w *pb.InterchainTxWrapper, i int)
 }
 
 func (b *BxhAdapter) insertIBTPPool(ibtp *pb.IBTP) {
+	now := time.Now()
 	servicePair := ibtp.From + ibtp.To + ibtp.Category().String()
 	act, loaded := b.ibtps.LoadOrStore(servicePair, utils.NewPool(utils.RelayDegree))
 	pool := act.(*utils.Pool)
@@ -616,6 +619,7 @@ func (b *BxhAdapter) insertIBTPPool(ibtp *pb.IBTP) {
 			if item.(*utils.MyTree).Index < pool.CurrentIndex {
 				pool.Ibtps.DeleteMin()
 			} else if item.(*utils.MyTree).Index == pool.CurrentIndex {
+				b.logger.WithFields(logrus.Fields{"ID": ibtp.ID(), "index": ibtp.Index, "elapse": time.Since(now)}).Infof("[3.2] insert pool")
 				b.ibtpC <- item.(*utils.MyTree).Ibtp
 				pool.Ibtps.DeleteMin()
 				pool.CurrentIndex++
