@@ -33,6 +33,7 @@ title = "Pier"
     quorum = 2
     bitxhub_id = "1356"
     enable_offchain_transmission = false
+    grpc_pool_size = 16
 [mode.direct]
     gas_limit = 0x5f5e100
 

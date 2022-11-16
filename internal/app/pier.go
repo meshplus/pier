@@ -330,6 +330,7 @@ func newBitXHubClient(logger logrus.FieldLogger, privateKey crypto.PrivateKey, c
 	opts := []rpcx.Option{
 		rpcx.WithLogger(logger),
 		rpcx.WithPrivateKey(privateKey),
+		rpcx.WithPoolSize(config.Mode.Relay.GrpcPoolSize),
 	}
 	addrs := make([]string, 0)
 	if strings.EqualFold(repo.RelayMode, config.Mode.Type) {
