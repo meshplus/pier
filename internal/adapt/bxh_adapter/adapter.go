@@ -608,19 +608,19 @@ func (b *BxhAdapter) insertIBTPPool(ibtp *pb.IBTP) {
 	servicePair := ibtp.From + ibtp.To + ibtp.Category().String()
 	act, loaded := b.ibtps.LoadOrStore(servicePair, utils.NewPool(utils.RelayDegree))
 	pool := act.(*utils.Pool)
+	pool.Lock.Lock()
+	defer pool.Lock.Unlock()
 	if !loaded {
 		pool.CurrentIndex = 1
 	}
-	pool.Lock.Lock()
-	defer pool.Lock.Unlock()
 	pool.Ibtps.ReplaceOrInsert(&utils.MyTree{Ibtp: ibtp, Index: ibtp.Index})
 	for {
 		if item := pool.Ibtps.Min(); item != nil {
 			if item.(*utils.MyTree).Index < pool.CurrentIndex {
 				pool.Ibtps.DeleteMin()
 			} else if item.(*utils.MyTree).Index == pool.CurrentIndex {
-				b.logger.WithFields(logrus.Fields{"ID": ibtp.ID(), "index": ibtp.Index, "elapse": time.Since(now)}).Infof("[3.2] insert pool")
 				b.ibtpC <- item.(*utils.MyTree).Ibtp
+				b.logger.WithFields(logrus.Fields{"ID": item.(*utils.MyTree).Ibtp.ID(), "index": item.(*utils.MyTree).Ibtp.Index, "elapse": time.Since(now)}).Infof("[3.2] insert pool")
 				pool.Ibtps.DeleteMin()
 				pool.CurrentIndex++
 			} else {
