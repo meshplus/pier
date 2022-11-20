@@ -50,6 +50,19 @@ type BxhAdapter struct {
 	tss        *repo.TSS
 }
 
+func (b *BxhAdapter) InitIbtpPool(from, to string, typ pb.IBTP_Category, index uint64) {
+	servicePair := bxhPoolKey(from, to, typ)
+	act, loaded := b.ibtps.LoadOrStore(servicePair, utils.NewPool(utils.RelayDegree))
+	pool := act.(*utils.Pool)
+	if !loaded {
+		pool.CurrentIndex = index
+	}
+}
+
+func bxhPoolKey(from, to string, typ pb.IBTP_Category) string {
+	return fmt.Sprintf("%s-%s-%s", from, to, typ.String())
+}
+
 func (b *BxhAdapter) MonitorUpdatedMeta() chan *[]byte {
 	return nil
 }
@@ -605,7 +618,7 @@ func (b *BxhAdapter) handleInterchainTxWrapper(w *pb.InterchainTxWrapper, i int)
 
 func (b *BxhAdapter) insertIBTPPool(ibtp *pb.IBTP) {
 	now := time.Now()
-	servicePair := ibtp.From + ibtp.To + ibtp.Category().String()
+	servicePair := bxhPoolKey(ibtp.From, ibtp.To, ibtp.Category())
 	act, loaded := b.ibtps.LoadOrStore(servicePair, utils.NewPool(utils.RelayDegree))
 	pool := act.(*utils.Pool)
 	pool.Lock.Lock()
