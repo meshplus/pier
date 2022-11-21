@@ -56,7 +56,7 @@ func (b *BxhAdapter) InitIbtpPool(from, to string, typ pb.IBTP_Category, index u
 	pool := act.(*utils.Pool)
 	if !loaded {
 		b.logger.WithFields(logrus.Fields{"ID": servicePair, "index": index}).Infof("init pool")
-		pool.CurrentIndex = index
+		pool.CurrentIndex = index + 1
 	}
 }
 
