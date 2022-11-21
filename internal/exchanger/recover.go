@@ -171,8 +171,8 @@ func (ex *Exchanger) initInterchainWrapperPool(interchain *pb.Interchain) {
 		ex.destAdapt.InitIbtpPool(k, interchain.ID, pb.IBTP_REQUEST, srcInterchainCounter)
 	}
 
-	for k, srcReceipCounter := range interchain.SourceReceiptCounter {
-		ex.destAdapt.InitIbtpPool(k, interchain.ID, pb.IBTP_RESPONSE, srcReceipCounter)
+	for k, receipCounter := range interchain.ReceiptCounter {
+		ex.destAdapt.InitIbtpPool(interchain.ID, k, pb.IBTP_RESPONSE, receipCounter)
 	}
 }
 

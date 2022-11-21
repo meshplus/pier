@@ -45,14 +45,10 @@ replace golang.org/x/net => golang.org/x/net v0.0.0-20210405180319-a5a99cb37ef4
 
 replace google.golang.org/grpc => google.golang.org/grpc v1.33.0
 
-replace github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.2-alpha.regen.4
-
-replace github.com/golang/protobuf => github.com/golang/protobuf v1.3.2
-
 replace github.com/grpc-ecosystem/grpc-gateway => github.com/grpc-ecosystem/grpc-gateway v1.16.0
 
 replace github.com/binance-chain/tss-lib => github.com/dawn-to-dusk/tss-lib v1.3.3-0.20220330081758-f404e10a1268
 
-replace github.com/meshplus/bitxhub-model => github.com/meshplus/bitxhub-model v1.2.1-0.20221121055555-176cbbb27d82
+replace github.com/meshplus/bitxhub-model => github.com/meshplus/bitxhub-model v1.2.1-0.20221121062805-16b02217a48e
 
 replace github.com/meshplus/go-bitxhub-client => github.com/meshplus/go-bitxhub-client v1.4.1-0.20221118022536-c821301838c8
