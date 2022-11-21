@@ -53,7 +53,7 @@ func (ex *Exchanger) listenIBTPFromDestAdaptForRelay(servicePair string) {
 				return
 			}
 			ex.logger.WithFields(logrus.Fields{"index": ibtp.Index, "type": ibtp.Type, "ibtp_id": ibtp.ID(),
-				"timestamp": time.Now().UnixNano()}).Info("[5] Receive ibtp from :", ex.destAdaptName)
+				"timestamp": time.Now().UnixNano()}).Info("[step5] Receive ibtp from :", ex.destAdaptName)
 			if err := retry.Retry(func(attempt uint) error {
 				if err := ex.srcAdapt.SendIBTP(ibtp); err != nil {
 					// if err occurs, try to get new ibtp and resend

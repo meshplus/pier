@@ -303,26 +303,14 @@ func (ex *Exchanger) listenIBTPFromSrcAdaptToServicePairCh() {
 	ch := ex.srcAdapt.MonitorIBTP()
 	ticker := time.NewTicker(time.Second)
 	defer ticker.Stop()
-	count := atomic.NewUint64(0)
-	go func() {
-		for {
-			select {
-			case <-ticker.C:
-				ex.logger.Errorf("!!!count: %d!!!", count.Load())
-				count.Store(0)
-			case <-ex.ctx.Done():
-				break
-			}
-		}
-	}()
 	for {
 		select {
 		case <-ex.ctx.Done():
 			ex.logger.Info("listenIBTPFromSrcAdaptToServicePairCh Stop!")
 			return
 		case ibtp, ok := <-ch:
-			ex.logger.WithFields(logrus.Fields{"index": ibtp.Index, "typ": ibtp.Type}).Errorf("[1] Receive ibtp from plugin, timestamp: %f, ID: %s",
-				float64(time.Now().UnixNano()-ibtp.Timestamp)/float64(time.Millisecond))
+			ex.logger.WithFields(logrus.Fields{"index": ibtp.Index, "typ": ibtp.Type, "timestamp": ibtp.Timestamp}).
+				Errorf("[step1] Receive ibtp from plugin")
 			if !ok {
 				ex.logger.Warn("Unexpected closed channel while listening on interchain ibtp")
 				return
@@ -340,8 +328,6 @@ func (ex *Exchanger) listenIBTPFromSrcAdaptToServicePairCh() {
 				}
 			}
 			ex.srcIBTPMap[key] <- ibtp
-
-			count.Inc()
 		}
 	}
 }
