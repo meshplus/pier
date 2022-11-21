@@ -55,6 +55,7 @@ func (b *BxhAdapter) InitIbtpPool(from, to string, typ pb.IBTP_Category, index u
 	act, loaded := b.ibtps.LoadOrStore(servicePair, utils.NewPool(utils.RelayDegree))
 	pool := act.(*utils.Pool)
 	if !loaded {
+		b.logger.WithFields(logrus.Fields{"ID": servicePair, "index": index}).Infof("init pool")
 		pool.CurrentIndex = index
 	}
 }
@@ -67,7 +68,7 @@ func (b *BxhAdapter) MonitorUpdatedMeta() chan *[]byte {
 	return nil
 }
 
-func (b *BxhAdapter) SendUpdatedMeta(byte []byte) error {
+func (b *BxhAdapter) SendUpdatedMeta(_ []byte) error {
 	return nil
 }
 
@@ -513,11 +514,8 @@ func (b *BxhAdapter) listenInterchainTxWrappers() {
 				b.logger.Errorf("InterchainTxWrapper is nil")
 				continue
 			}
+
 			for i, wrapper := range wrappers.GetInterchainTxWrappers() {
-				//if len(wrapper.Transactions) != 0 {
-				//	b.logger.Errorf("[3] get interchain tx wrapper with height %d, count %d, timestamp: %f",
-				//		wrapper.Height, len(wrapper.Transactions), float64(time.Now().UnixNano()-wrapper.Transactions[0].Tx.IBTP.Timestamp)/float64(time.Millisecond))
-				//}
 				ok := b.handleInterchainTxWrapper(wrapper, i)
 				if !ok {
 					return
@@ -540,7 +538,7 @@ func (b *BxhAdapter) handleInterchainTxWrapper(w *pb.InterchainTxWrapper, i int)
 	wg.Add(len(w.Transactions))
 	for _, tx := range w.Transactions {
 		ibtp := tx.Tx.GetIBTP()
-		b.logger.WithFields(logrus.Fields{"ID": ibtp.ID(), "index": ibtp.Index}).Infof("[3] receive ibtp from bxh")
+		b.logger.WithFields(logrus.Fields{"height": w.Height, "ID": ibtp.ID(), "index": ibtp.Index}).Infof("[3] receive ibtp from bxh")
 		// if ibtp is failed
 		// 1. this is interchain type of ibtp, increase inCounter index
 		// 2. this is ibtp receipt type, rollback and increase callback index
@@ -564,7 +562,7 @@ func (b *BxhAdapter) handleInterchainTxWrapper(w *pb.InterchainTxWrapper, i int)
 			return false
 		}
 
-		go func(ibtp *pb.IBTP) {
+		go func(ibtp *pb.IBTP, tx *pb.VerifiedTx) {
 			defer wg.Done()
 			current := time.Now()
 			proof := b.getSign(ibtp, isReq)
@@ -575,7 +573,7 @@ func (b *BxhAdapter) handleInterchainTxWrapper(w *pb.InterchainTxWrapper, i int)
 				b.logger.Info("get batch ibtp")
 			}
 			b.insertIBTPPool(ibtp)
-		}(ibtp)
+		}(ibtp, tx)
 	}
 	wg.Wait()
 	for _, id := range w.TimeoutIbtps {
@@ -626,6 +624,8 @@ func (b *BxhAdapter) insertIBTPPool(ibtp *pb.IBTP) {
 	if !loaded {
 		pool.CurrentIndex = 1
 	}
+	b.logger.WithFields(logrus.Fields{"current index": pool.CurrentIndex, "ID": ibtp.ID(), "index": ibtp.Index, "elapse": time.Since(now)}).Infof("[3.2.1] start insert pool")
+
 	pool.Ibtps.ReplaceOrInsert(&utils.MyTree{Ibtp: ibtp, Index: ibtp.Index})
 	for {
 		if item := pool.Ibtps.Min(); item != nil {
@@ -633,7 +633,7 @@ func (b *BxhAdapter) insertIBTPPool(ibtp *pb.IBTP) {
 				pool.Ibtps.DeleteMin()
 			} else if item.(*utils.MyTree).Index == pool.CurrentIndex {
 				b.ibtpC <- item.(*utils.MyTree).Ibtp
-				b.logger.WithFields(logrus.Fields{"ID": item.(*utils.MyTree).Ibtp.ID(), "index": item.(*utils.MyTree).Ibtp.Index, "elapse": time.Since(now)}).Infof("[3.2] insert pool")
+				b.logger.WithFields(logrus.Fields{"ID": item.(*utils.MyTree).Ibtp.ID(), "index": item.(*utils.MyTree).Ibtp.Index, "elapse": time.Since(now)}).Infof("[3.2] end insert pool")
 				pool.Ibtps.DeleteMin()
 				pool.CurrentIndex++
 			} else {

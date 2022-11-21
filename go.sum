@@ -949,8 +949,8 @@ github.com/meshplus/bitxhub-model v1.2.1-0.20221114093529-5cde998c7253 h1:oNRc7G
 github.com/meshplus/bitxhub-model v1.2.1-0.20221114093529-5cde998c7253/go.mod h1:BDlfyLxXfOYO6sXw4/2tOgdAUzwJA4epjeXhnXCNvvE=
 github.com/meshplus/eth-kit v0.0.0-20221028095005-bdda18e64555 h1:0NQ9VVEzCgIHPbHzE1b8sfRZh2o42XujXlFEdU9Rnv4=
 github.com/meshplus/eth-kit v0.0.0-20221028095005-bdda18e64555/go.mod h1:L8hBjGF/0W9oHfHgs3HoG/OxWn9cVUKDlAwHBKiiIUY=
-github.com/meshplus/go-bitxhub-client v1.4.1-0.20221108063953-670196d4a9fd h1:Ay7eZGafc1yz1f/CCEZwS6Me1tvgw9B6lvnS3v1V+KY=
-github.com/meshplus/go-bitxhub-client v1.4.1-0.20221108063953-670196d4a9fd/go.mod h1:JkqT07G/omHqlOYUu7y1hWVyW7AjnmRrsGXqXQfWAxA=
+github.com/meshplus/go-bitxhub-client v1.4.1-0.20221118022536-c821301838c8 h1:3VSwLJ1aGR4vgLGs0o8dGdKNh8OrSFO2nG93Ax1kccc=
+github.com/meshplus/go-bitxhub-client v1.4.1-0.20221118022536-c821301838c8/go.mod h1:JkqT07G/omHqlOYUu7y1hWVyW7AjnmRrsGXqXQfWAxA=
 github.com/meshplus/go-lightp2p v0.0.0-20200817105923-6b3aee40fa54 h1:5Ip5AB7SxxQHg5SRtf2cCOI2wy1p75MQB12soPtPyf8=
 github.com/meshplus/go-lightp2p v0.0.0-20200817105923-6b3aee40fa54/go.mod h1:G89UJaeqCQFxFdp8wzy1AdKfMtDEhpySau0pjDNeeaw=
 github.com/miekg/dns v1.0.14/go.mod h1:W1PPwlIAgtquWBMBEV9nkV9Cazfe8ScdGz/Lj7v3Nrg=
