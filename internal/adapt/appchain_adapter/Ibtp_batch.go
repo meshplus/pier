@@ -55,7 +55,7 @@ func (a *AppchainAdapter) listenIBTPBatch() {
 					}).Info("start submit ibtpBatch")
 
 					now := time.Now()
-					response, err := a.client.SubmitIBTPBatch(
+					_, err = a.client.SubmitIBTPBatch(
 						req.Froms, req.Indexs, req.ServiceIDs, req.IbtpTypes, req.Contents, req.Proofs, req.IsEncrypted)
 					if err != nil {
 						a.logger.WithFields(logrus.Fields{"Froms": req.Froms, "indexs": req.Indexs,
@@ -63,13 +63,16 @@ func (a *AppchainAdapter) listenIBTPBatch() {
 						continue
 					}
 
-					if !response.Status {
-						a.logger.Errorf("fail to send ibtp: %s",
-							response.Message)
-					}
+					//if !response.Status {
+					//	a.logger.Errorf("fail to send ibtp: %s",
+					//		response.Message)
+					//}
 
 					a.logger.WithFields(logrus.Fields{
-						"time": time.Since(now),
+						"batchSize": len(req.Froms),
+						"indexs":    req.Indexs,
+						"ibtpTypes": req.IbtpTypes,
+						"time":      time.Since(now),
 					}).Info("appchain adapter submit ibtp batch success")
 
 					// release instance after clean it

@@ -163,11 +163,11 @@ func (a *AppchainAdapter) SendIBTP(ibtp *pb.IBTP) error {
 		if isReq {
 			a.logger.Info("handle batch IBTP")
 			a.recvIbtpC <- ibtp
+			return nil
 		}
 		// } else {
 		//	a.recvReceiptC <- ibtp
 		// }
-		return nil
 	}
 
 	ibtp, pd, err := a.handlePayload(ibtp, false)
