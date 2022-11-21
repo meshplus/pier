@@ -2,6 +2,9 @@ package exchanger
 
 import (
 	"fmt"
+	"strings"
+	"time"
+
 	"github.com/Rican7/retry"
 	"github.com/Rican7/retry/backoff"
 	"github.com/Rican7/retry/strategy"
@@ -11,8 +14,6 @@ import (
 	"github.com/meshplus/pier/internal/adapt/appchain_adapter"
 	"github.com/meshplus/pier/internal/repo"
 	"github.com/sirupsen/logrus"
-	"strings"
-	"time"
 )
 
 func (ex *Exchanger) handleMissingIBTPByServicePair(begin, end uint64, fromAdapt, toAdapt adapt.Adapt, srcService, targetService string, isReq bool) {
@@ -149,8 +150,16 @@ func (ex *Exchanger) recover(srcServiceMeta map[string]*pb.Interchain, destServi
 					}
 				}
 			}
-			// init ibtp pool
-			ex.initInterchainWrapperPool(interchain)
+			_, chainID, _, err := ParseFullServiceID(serviceID)
+			if err != nil {
+				ex.logger.Errorf("ParseFullServiceID err:%s", err)
+			}
+
+			if chainID == ex.srcChainId {
+				// init ibtp pool
+				ex.initInterchainWrapperPool(interchain)
+			}
+
 		}
 	}
 

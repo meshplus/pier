@@ -47,8 +47,11 @@ func (a *AppchainAdapter) listenIBTPBatch() {
 						"Froms":      req.Froms,
 						"indexs":     req.Indexs,
 						"serviceIDs": req.ServiceIDs,
-						"batchSize":  len(req.Froms),
+						"ibtpTypes":  req.IbtpTypes,
+						"Contents":   req.Contents,
 						"proofs":     req.Proofs,
+						"isEncrypt":  req.IsEncrypted,
+						"batchSize":  len(req.Froms),
 					}).Info("start submit ibtpBatch")
 
 					now := time.Now()
