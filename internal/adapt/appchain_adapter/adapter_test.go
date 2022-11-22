@@ -201,8 +201,8 @@ func TestAppchainAdapter_SendIBTP(t *testing.T) {
 	contentEnc, payloadEnc := genContentPayload(t, "set", true, false)
 	_, payload := genContentPayload(t, "set", false, false)
 	_, payloadBad := genContentPayload(t, "set", false, true)
-	_, payloadResultBad := genResultPayload(t, []byte{1, 2, 3}, true)
-	_, payloadResult := genResultPayload(t, []byte{1, 2, 3}, false)
+	_, payloadResultBad := genResultPayload(t, [][]byte{{1, 2, 3}, {1, 2, 3}}, []bool{true, true, true}, true)
+	_, payloadResult := genResultPayload(t, [][]byte{{1, 2, 3}, {1, 2, 3}}, []bool{true, true, true}, false)
 	cryptor.EXPECT().Decrypt(contentDecFail, gomock.Any()).Return(nil, errors.New("")).AnyTimes()
 	cryptor.EXPECT().Decrypt(contentEnc, gomock.Any()).Return(contentEnc, nil).AnyTimes()
 
@@ -406,7 +406,7 @@ func TestIBTPBatch(t *testing.T) {
 	}).AnyTimes()
 
 	_, payload := genContentPayload(t, "set", false, false)
-	_, payloadResult := genResultPayload(t, []byte{1, 2, 3}, false)
+	_, payloadResult := genResultPayload(t, [][]byte{{1, 2, 3}, {1, 2, 3}}, []bool{true, true, true}, false)
 
 	client.EXPECT().SubmitIBTPBatch(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(
 		func(from []string, index []uint64, serviceID []string, ibtpType []pb.IBTP_Type, content []*pb.Content, proof []*pb.BxhProof, isEncrypted []bool) (*pb.SubmitIBTPResponse, error) {
@@ -597,12 +597,15 @@ func genContentPayload(t *testing.T, function string, isEncrypt bool, badContent
 	return ct, pd
 }
 
-func genResultPayload(t *testing.T, data []byte, badResult bool) ([]byte, []byte) {
-	result := pb.Result{
-		Data: [][]byte{data},
+func genResultPayload(t *testing.T, data [][]byte, multistatus []bool, badResult bool) ([]byte, []byte) {
+	value := make([]*pb.ResultRes, 0)
+	value = append(value, &pb.ResultRes{Data: data})
+	results := pb.Result{
+		Data:        value,
+		MultiStatus: multistatus,
 	}
 
-	ct, err := result.Marshal()
+	ct, err := results.Marshal()
 	require.Nil(t, err)
 
 	if badResult {
