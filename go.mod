@@ -11,7 +11,6 @@ require (
 	github.com/fatih/color v1.9.0
 	github.com/fsnotify/fsnotify v1.4.9
 	github.com/gobuffalo/packd v1.0.1
-	github.com/gobuffalo/packr v1.30.1
 	github.com/gobuffalo/packr/v2 v2.8.3
 	github.com/golang/mock v1.6.0
 	github.com/google/btree v1.0.0
@@ -21,7 +20,7 @@ require (
 	github.com/libp2p/go-libp2p-core v0.6.1
 	github.com/meshplus/bitxhub-core v1.3.1-0.20220803022926-9a46d4d7ec06
 	github.com/meshplus/bitxhub-kit v1.2.1-0.20220412092457-5836414df781
-	github.com/meshplus/bitxhub-model v1.2.1-0.20221122014813-2c1530ccda80
+	github.com/meshplus/bitxhub-model v1.2.1-0.20221122030632-27f43e713e6b
 	github.com/meshplus/go-bitxhub-client v1.4.1-0.20220412093230-11ca79f069fc
 	github.com/meshplus/go-lightp2p v0.0.0-20200817105923-6b3aee40fa54
 	github.com/mitchellh/go-homedir v1.1.0
@@ -34,7 +33,7 @@ require (
 	github.com/urfave/cli v1.22.1
 	github.com/wonderivan/logger v1.0.0
 	go.uber.org/atomic v1.7.0
-	google.golang.org/grpc v1.48.0
+	google.golang.org/grpc v1.50.1
 )
 
 replace github.com/libp2p/go-libp2p-core => github.com/libp2p/go-libp2p-core v0.5.6
