@@ -174,12 +174,18 @@ func (b *BxhAdapter) SendIBTP(ibtp *pb.IBTP) error {
 	//if err := retry.Retry(func(attempt uint) error {
 	nonce := atomic.AddUint64(&b.nonce, 1) - 1
 	go func(nonce uint64) {
-		hash, err := b.client.SendTransaction(tx, &rpcx.TransactOpts{Nonce: nonce})
-		if err != nil {
-			b.logger.Errorf("Send ibtp failed: %s", err.Error())
+		if err := retry.Retry(func(attempt uint) error {
+			hash, err := b.client.SendTransaction(tx, &rpcx.TransactOpts{Nonce: nonce})
+			if err != nil {
+				b.logger.Errorf("Send ibtp failed: %s", err.Error())
+				return err
+			}
+			b.logger.Errorf("[2] Send ibtp successfully, tx hash: %s, nonce: %d, index: %d, timestamp: %f",
+				hash, nonce, ibtp.Index, float64(time.Now().UnixNano()-ibtp.Timestamp)/float64(time.Millisecond))
+			return nil
+		}, strategy.Wait(1*time.Second)); err != nil {
+			b.logger.Errorf("retry error to get serviceIdList from srcAdapt: %w", err)
 		}
-		b.logger.Errorf("[2] Send ibtp successfully, tx hash: %s, nonce: %d, index: %d, timestamp: %f",
-			hash, nonce, ibtp.Index, float64(time.Now().UnixNano()-ibtp.Timestamp)/float64(time.Millisecond))
 	}(nonce)
 
 	b.logger.WithFields(logrus.Fields{
