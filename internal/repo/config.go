@@ -76,7 +76,8 @@ type Relay struct {
 	TimeoutLimit               time.Duration `mapstructure:"timeout_limit" json:"timeout_limit"`
 	Quorum                     uint64        `toml:"quorum" json:"quorum"`
 	BitXHubID                  string        `mapstructure:"bitxhub_id" json:"bitxhub_id"`
-	EnableOffChainTransmission bool          `mapstructure:"enable_offchain_transmission"`
+	EnableOffChainTransmission bool          `mapstructure:"enable_offchain_transmission" json:"enable_offchain_transmission"`
+	SavePath				   string		 `mapstructure:"save_path" json:"save_path"`
 }
 
 type Direct struct {

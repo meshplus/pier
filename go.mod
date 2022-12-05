@@ -19,22 +19,22 @@ require (
 	github.com/hashicorp/go-plugin v1.3.0
 	github.com/ipfs/go-cid v0.0.7
 	github.com/libp2p/go-libp2p-core v0.6.1
-	github.com/meshplus/bitxhub-core v1.3.1-0.20220803022926-9a46d4d7ec06
+	github.com/meshplus/bitxhub-core v1.3.1-0.20221216095518-2b59e2647227
 	github.com/meshplus/bitxhub-kit v1.2.1-0.20220412092457-5836414df781
-	github.com/meshplus/bitxhub-model v1.2.1-0.20220803022708-9ab7a71abdbf
+	github.com/meshplus/bitxhub-model v1.2.1-0.20221216071442-fd226b10045c
 	github.com/meshplus/go-bitxhub-client v1.4.1-0.20220412093230-11ca79f069fc
-	github.com/meshplus/go-lightp2p v0.0.0-20200817105923-6b3aee40fa54
+	github.com/meshplus/go-lightp2p v0.0.0-20221205091217-47f605aa3067
 	github.com/mitchellh/go-homedir v1.1.0
 	github.com/multiformats/go-multiaddr v0.3.0
 	github.com/pelletier/go-toml v1.9.3
 	github.com/sirupsen/logrus v1.8.1
 	github.com/spf13/viper v1.8.1
-	github.com/stretchr/testify v1.7.0
+	github.com/stretchr/testify v1.8.0
 	github.com/tidwall/gjson v1.6.8
 	github.com/urfave/cli v1.22.1
 	github.com/wonderivan/logger v1.0.0
 	go.uber.org/atomic v1.7.0
-	google.golang.org/grpc v1.38.0
+	google.golang.org/grpc v1.50.1
 )
 
 replace github.com/libp2p/go-libp2p-core => github.com/libp2p/go-libp2p-core v0.5.6

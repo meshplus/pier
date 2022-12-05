@@ -244,7 +244,7 @@ func (mc *mockAppchainPluginClient) SubmitReceiptBatch(ctx context.Context, in *
 	return nil, fmt.Errorf("mockAppchainPluginClient GetOffChainData error.")
 }
 
-func (mc *mockAppchainPluginClient) GetOffChainData(ctx context.Context, in *pb.GetDataRequest, opts ...grpc.CallOption) (*pb.GetDataResponse, error) {
+func (mc *mockAppchainPluginClient) GetOffChainData(ctx context.Context, in *pb.GetDataRequest, opts ...grpc.CallOption) (*pb.OffChainDataInfo, error) {
 	if ctx == context.Background() {
 		return nil, nil
 	}

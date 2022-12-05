@@ -64,7 +64,7 @@ func (s *GRPCServer) GetIBTPCh(_ *pb.Empty, conn pb.AppchainPlugin_GetIBTPChServ
 	}
 }
 
-func (s *GRPCServer) GetOffChainData(ctx context.Context, req *pb.GetDataRequest) (*pb.GetDataResponse, error) {
+func (s *GRPCServer) GetOffChainData(ctx context.Context, req *pb.GetDataRequest) (*pb.OffChainDataInfo, error) {
 	return s.Impl.GetOffChainData(req)
 }
 
@@ -281,7 +281,7 @@ func (g *GRPCClient) GetIBTPCh() chan *pb.IBTP {
 	return ibtpQ
 }
 
-func (g *GRPCClient) GetOffChainData(request *pb.GetDataRequest) (*pb.GetDataResponse, error) {
+func (g *GRPCClient) GetOffChainData(request *pb.GetDataRequest) (*pb.OffChainDataInfo, error) {
 	return g.client.GetOffChainData(g.doneContext, request)
 }
 
