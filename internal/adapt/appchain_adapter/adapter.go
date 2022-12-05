@@ -204,7 +204,7 @@ func (a *AppchainAdapter) SendIBTP(ibtp *pb.IBTP) error {
 		a.logger.Info("appchain adapter submit ibtp success")
 	} else {
 		result := &pb.Result{}
-		if proof.TxStatus != pb.TransactionStatus_BEGIN {
+		if proof.TxStatus == pb.TransactionStatus_BEGIN_FAILURE || proof.TxStatus == pb.TransactionStatus_BEGIN_ROLLBACK {
 			content := &pb.Content{}
 			if err := content.Unmarshal(pd.Content); err != nil {
 				return fmt.Errorf("unmarshal content of ibtp %s: %w", ibtp.ID(), err)
