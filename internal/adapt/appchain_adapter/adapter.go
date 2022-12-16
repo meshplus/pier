@@ -1,6 +1,7 @@
 package appchain_adapter
 
 import (
+	"encoding/binary"
 	"fmt"
 	"strings"
 	"sync"
@@ -203,8 +204,19 @@ func (a *AppchainAdapter) SendIBTP(ibtp *pb.IBTP) error {
 		a.logger.Info("appchain adapter submit ibtp success")
 	} else {
 		result := &pb.Result{}
-		if err := result.Unmarshal(pd.Content); err != nil {
-			return fmt.Errorf("unmarshal result of ibtp %s: %w", ibtp.ID(), err)
+		if proof.TxStatus != pb.TransactionStatus_BEGIN {
+			content := &pb.Content{}
+			if err := content.Unmarshal(pd.Content); err != nil {
+				return fmt.Errorf("unmarshal content of ibtp %s: %w", ibtp.ID(), err)
+			}
+			//Judging whether it is MultiTransfer(1) or Transfer(0)
+			if binary.BigEndian.Uint64(content.Args[0]) == 0 {
+				result.MultiStatus = append(result.MultiStatus, false)
+			}
+		} else {
+			if err := result.Unmarshal(pd.Content); err != nil {
+				return fmt.Errorf("unmarshal result of ibtp %s: %w", ibtp.ID(), err)
+			}
 		}
 		_, _, serviceID := ibtp.ParseFrom()
 		a.logger.WithFields(logrus.Fields{

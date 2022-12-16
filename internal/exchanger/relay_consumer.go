@@ -55,6 +55,7 @@ func (ex *Exchanger) listenIBTPFromDestAdaptForRelay(servicePair string) {
 			ex.logger.WithFields(logrus.Fields{"index": ibtp.Index, "type": ibtp.Type, "ibtp_id": ibtp.ID()}).Info("Receive ibtp from :", ex.destAdaptName)
 			if err := retry.Retry(func(attempt uint) error {
 				if err := ex.srcAdapt.SendIBTP(ibtp); err != nil {
+					ex.logger.Error(err)
 					// if err occurs, try to get new ibtp and resend
 					if err, ok := err.(*adapt.SendIbtpError); ok {
 						if err.NeedRetry() {
