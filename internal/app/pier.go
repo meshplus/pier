@@ -183,7 +183,7 @@ func NewPier(repoRoot string, config *repo.Config) (*Pier, error) {
 			if err != nil {
 				return nil, fmt.Errorf("peerMgr create: %w", err)
 			}
-			offChainTransmissionMgr := offChainTransmissionConstructor(appchainAdapter.ID(), peerManager, appchainAdapter.(*appchain_adapter.AppchainAdapter).GetPluginClient())
+			offChainTransmissionMgr := offChainTransmissionConstructor(appchainAdapter.ID(), config.Mode.Relay.SavePath, peerManager, appchainAdapter.(*appchain_adapter.AppchainAdapter).GetPluginClient())
 			if err := offChainTransmissionMgr.Start(); err != nil {
 				return nil, fmt.Errorf("start offchain transmission: %w", err)
 			}
