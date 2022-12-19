@@ -20,7 +20,7 @@ require (
 	github.com/libp2p/go-libp2p-core v0.6.1
 	github.com/meshplus/bitxhub-core v1.3.1-0.20220803022926-9a46d4d7ec06
 	github.com/meshplus/bitxhub-kit v1.2.1-0.20220412092457-5836414df781
-	github.com/meshplus/bitxhub-model v1.2.1-0.20221114093529-5cde998c7253
+	github.com/meshplus/bitxhub-model v1.2.1-0.20221219032258-3c54b5c5946e
 	github.com/meshplus/go-bitxhub-client v1.4.1-0.20220412093230-11ca79f069fc
 	github.com/meshplus/go-lightp2p v0.0.0-20200817105923-6b3aee40fa54
 	github.com/mitchellh/go-homedir v1.1.0
@@ -49,6 +49,6 @@ replace github.com/grpc-ecosystem/grpc-gateway => github.com/grpc-ecosystem/grpc
 
 replace github.com/binance-chain/tss-lib => github.com/dawn-to-dusk/tss-lib v1.3.3-0.20220330081758-f404e10a1268
 
-replace github.com/meshplus/bitxhub-model => github.com/meshplus/bitxhub-model v1.2.1-0.20221121062805-16b02217a48e
+replace github.com/meshplus/bitxhub-model => github.com/meshplus/bitxhub-model v1.2.1-0.20221219033735-9b8a3466ad8e
 
 replace github.com/meshplus/go-bitxhub-client => github.com/meshplus/go-bitxhub-client v1.4.1-0.20221118022536-c821301838c8

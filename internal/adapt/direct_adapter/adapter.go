@@ -10,6 +10,7 @@ import (
 	"github.com/meshplus/pier/internal/adapt"
 	"github.com/meshplus/pier/internal/adapt/appchain_adapter"
 	"github.com/meshplus/pier/internal/peermgr"
+	"github.com/meshplus/pier/internal/utils"
 	"github.com/sirupsen/logrus"
 	"go.uber.org/atomic"
 )
@@ -36,7 +37,7 @@ type DirectAdapter struct {
 	remotePierID    string
 	ctx             context.Context
 	cancel          context.CancelFunc
-	gopool          *pool
+	gopool          *utils.GoPool
 }
 
 func (d *DirectAdapter) InitIbtpPool(_, _ string, _ pb.IBTP_Category, _ uint64) {
@@ -70,7 +71,7 @@ func New(peerMgr peermgr.PeerManager, appchainAdapt adapt.Adapt, logger logrus.F
 		lock:          &sync.Mutex{},
 		ibtpC:         make(chan *pb.IBTP, maxChSize),
 		appchainID:    appchainID,
-		gopool:        NewGoPool(runtime.GOMAXPROCS(runtime.NumCPU())),
+		gopool:        utils.NewGoPool(runtime.GOMAXPROCS(runtime.NumCPU())),
 		ctx:           ctx,
 		cancel:        cancel,
 	}
