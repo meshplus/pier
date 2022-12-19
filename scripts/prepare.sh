@@ -16,8 +16,8 @@ function print_blue() {
   printf "${BLUE}%s${NC}\n" "$1"
 }
 
-print_blue "===> 1. Install packr"
-if ! type packr >/dev/null 2>&1; then
+print_blue "===> 1. Install packr2"
+if ! type packr2 >/dev/null 2>&1; then
   go_install github.com/gobuffalo/packr/v2/packr2@v2.8.3
 fi
 

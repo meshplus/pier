@@ -35,4 +35,7 @@ type Adapt interface {
 	// SendUpdatedMeta send validators change or block header change to bitXHub on relay mode
 	// 中继模式发送给appchain，bxh，直连模式发送给DirectAdapt，appchain，union模式发送给unionAdapt
 	SendUpdatedMeta(byte []byte) error
+
+	// InitIbtpPool when bxhAdapter handleInterchainWrapper from bxh
+	InitIbtpPool(from, to string, typ pb.IBTP_Category, index uint64)
 }

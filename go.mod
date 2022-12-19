@@ -11,7 +11,6 @@ require (
 	github.com/fatih/color v1.9.0
 	github.com/fsnotify/fsnotify v1.4.9
 	github.com/gobuffalo/packd v1.0.1
-	github.com/gobuffalo/packr v1.30.1
 	github.com/gobuffalo/packr/v2 v2.8.3
 	github.com/golang/mock v1.6.0
 	github.com/google/btree v1.0.0
@@ -21,20 +20,21 @@ require (
 	github.com/libp2p/go-libp2p-core v0.6.1
 	github.com/meshplus/bitxhub-core v1.3.1-0.20220803022926-9a46d4d7ec06
 	github.com/meshplus/bitxhub-kit v1.2.1-0.20220412092457-5836414df781
-	github.com/meshplus/bitxhub-model v1.2.1-0.20220803022708-9ab7a71abdbf
+	github.com/meshplus/bitxhub-model v1.2.1-0.20221114093529-5cde998c7253
 	github.com/meshplus/go-bitxhub-client v1.4.1-0.20220412093230-11ca79f069fc
 	github.com/meshplus/go-lightp2p v0.0.0-20200817105923-6b3aee40fa54
 	github.com/mitchellh/go-homedir v1.1.0
 	github.com/multiformats/go-multiaddr v0.3.0
+	github.com/otiai10/copy v1.9.0
 	github.com/pelletier/go-toml v1.9.3
 	github.com/sirupsen/logrus v1.8.1
 	github.com/spf13/viper v1.8.1
-	github.com/stretchr/testify v1.7.0
+	github.com/stretchr/testify v1.8.0
 	github.com/tidwall/gjson v1.6.8
 	github.com/urfave/cli v1.22.1
 	github.com/wonderivan/logger v1.0.0
 	go.uber.org/atomic v1.7.0
-	google.golang.org/grpc v1.38.0
+	google.golang.org/grpc v1.50.1
 )
 
 replace github.com/libp2p/go-libp2p-core => github.com/libp2p/go-libp2p-core v0.5.6
@@ -45,4 +45,10 @@ replace golang.org/x/net => golang.org/x/net v0.0.0-20210405180319-a5a99cb37ef4
 
 replace google.golang.org/grpc => google.golang.org/grpc v1.33.0
 
+replace github.com/grpc-ecosystem/grpc-gateway => github.com/grpc-ecosystem/grpc-gateway v1.16.0
+
 replace github.com/binance-chain/tss-lib => github.com/dawn-to-dusk/tss-lib v1.3.3-0.20220330081758-f404e10a1268
+
+replace github.com/meshplus/bitxhub-model => github.com/meshplus/bitxhub-model v1.2.1-0.20221121062805-16b02217a48e
+
+replace github.com/meshplus/go-bitxhub-client => github.com/meshplus/go-bitxhub-client v1.4.1-0.20221118022536-c821301838c8

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/hashicorp/go-plugin"
 	"github.com/meshplus/bitxhub-core/agency"
@@ -42,7 +43,7 @@ type AppchainAdapter struct {
 	bitxhubID  string
 }
 
-const IBTP_CH_SIZE = 1024
+const IbtpChSize = 1024
 
 func NewAppchainAdapter(mode string, config *repo.Config, logger logrus.FieldLogger, crypto txcrypto.Cryptor) (adapt.Adapt, error) {
 	adapter := &AppchainAdapter{
@@ -123,6 +124,7 @@ func (a *AppchainAdapter) Stop() error {
 func (a *AppchainAdapter) ID() string {
 	return fmt.Sprintf("%s", a.appchainID)
 }
+
 func (a *AppchainAdapter) Name() string {
 	return fmt.Sprintf("appchain:%s", a.appchainID)
 }
@@ -161,11 +163,11 @@ func (a *AppchainAdapter) SendIBTP(ibtp *pb.IBTP) error {
 		if isReq {
 			a.logger.Info("handle batch IBTP")
 			a.recvIbtpC <- ibtp
+			return nil
 		}
 		// } else {
 		//	a.recvReceiptC <- ibtp
 		// }
-		return nil
 	}
 
 	ibtp, pd, err := a.handlePayload(ibtp, false)
@@ -201,6 +203,7 @@ func (a *AppchainAdapter) SendIBTP(ibtp *pb.IBTP) error {
 		}).Info("start submit ibtp")
 		res, err = a.client.SubmitIBTP(ibtp.From, ibtp.Index, serviceID, ibtp.Type, content, proof, pd.Encrypted)
 		a.logger.Info("appchain adapter submit ibtp success")
+		a.logger.Errorf("finish submit ibtp, timestamp: %d", time.Now().UnixNano())
 	} else {
 		result := &pb.Result{}
 		if err := result.Unmarshal(pd.Content); err != nil {
@@ -353,8 +356,8 @@ func (a *AppchainAdapter) init() error {
 	//	return fmt.Errorf("retry error to create plugin: %w", err)
 	// }
 
-	a.ibtpC = make(chan *pb.IBTP, IBTP_CH_SIZE)
-	a.recvIbtpC = make(chan *pb.IBTP, IBTP_CH_SIZE)
+	a.ibtpC = make(chan *pb.IBTP, IbtpChSize)
+	a.recvIbtpC = make(chan *pb.IBTP, IbtpChSize)
 
 	a.bitxhubID, a.appchainID, err = a.client.GetChainID()
 	if err != nil {
@@ -399,8 +402,12 @@ func (a *AppchainAdapter) MonitorUpdatedMeta() chan *[]byte {
 	return nil
 }
 
-func (a *AppchainAdapter) SendUpdatedMeta(byte []byte) error {
+func (a *AppchainAdapter) SendUpdatedMeta(_ []byte) error {
 	return nil
+}
+
+func (a *AppchainAdapter) InitIbtpPool(_, _ string, _ pb.IBTP_Category, _ uint64) {
+	return
 }
 
 func (a *AppchainAdapter) handlePayload(ibtp *pb.IBTP, encrypt bool) (*pb.IBTP, *pb.Payload, error) {

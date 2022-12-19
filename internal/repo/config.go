@@ -77,6 +77,7 @@ type Relay struct {
 	Quorum                     uint64        `toml:"quorum" json:"quorum"`
 	BitXHubID                  string        `mapstructure:"bitxhub_id" json:"bitxhub_id"`
 	EnableOffChainTransmission bool          `mapstructure:"enable_offchain_transmission"`
+	GrpcPoolSize               int           `mapstructure:"grpc_pool_size" json:"grpc_pool_size"`
 }
 
 type Direct struct {
@@ -138,6 +139,7 @@ func DefaultConfig() *Config {
 				Quorum:                     2,
 				BitXHubID:                  "1356",
 				EnableOffChainTransmission: false,
+				GrpcPoolSize:               16,
 			},
 			Direct: Direct{
 				GasLimit: 0x5f5e100,

@@ -39,20 +39,24 @@ type DirectAdapter struct {
 	gopool          *pool
 }
 
+func (d *DirectAdapter) InitIbtpPool(_, _ string, _ pb.IBTP_Category, _ uint64) {
+	return
+}
+
 func (d *DirectAdapter) ID() string {
 	return fmt.Sprintf("%s", d.appchainID)
 }
 
 func (d *DirectAdapter) MonitorUpdatedMeta() chan *[]byte {
-	panic("implement me")
+	return nil
 }
 
-func (d *DirectAdapter) SendUpdatedMeta(byte []byte) error {
-	panic("implement me")
+func (d *DirectAdapter) SendUpdatedMeta(_ []byte) error {
+	return nil
 }
 
 func (d *DirectAdapter) GetServiceIDList() ([]string, error) {
-	panic("implement me")
+	return nil, nil
 }
 
 func New(peerMgr peermgr.PeerManager, appchainAdapt adapt.Adapt, logger logrus.FieldLogger) (*DirectAdapter, error) {
@@ -105,7 +109,7 @@ func (d *DirectAdapter) Start() error {
 		return fmt.Errorf("direct adapter connect just 1 remote pier, the actual remote num is : %d",
 			connectedNum)
 	}
-	for pierID, _ := range d.peerMgr.Peers() {
+	for pierID := range d.peerMgr.Peers() {
 		d.remotePierID = pierID
 	}
 

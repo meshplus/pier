@@ -6,6 +6,8 @@ import (
 	"strings"
 	"time"
 
+	"go.uber.org/atomic"
+
 	"github.com/Rican7/retry"
 	"github.com/Rican7/retry/backoff"
 	"github.com/Rican7/retry/strategy"
@@ -13,7 +15,6 @@ import (
 	"github.com/meshplus/pier/internal/adapt"
 	"github.com/meshplus/pier/internal/repo"
 	"github.com/sirupsen/logrus"
-	"go.uber.org/atomic"
 )
 
 type Exchanger struct {
@@ -300,12 +301,16 @@ func (ex *Exchanger) listenIBTPFromDestAdapt(servicePair string) {
 func (ex *Exchanger) listenIBTPFromSrcAdaptToServicePairCh() {
 	ex.logger.Infof("listenIBTPFromSrcAdaptToServicePairCh %s Start!", ex.srcAdaptName)
 	ch := ex.srcAdapt.MonitorIBTP()
+	ticker := time.NewTicker(time.Second)
+	defer ticker.Stop()
 	for {
 		select {
 		case <-ex.ctx.Done():
 			ex.logger.Info("listenIBTPFromSrcAdaptToServicePairCh Stop!")
 			return
 		case ibtp, ok := <-ch:
+			ex.logger.WithFields(logrus.Fields{"index": ibtp.Index, "typ": ibtp.Type, "timestamp": ibtp.Timestamp}).
+				Errorf("[step1] Receive ibtp from plugin")
 			if !ok {
 				ex.logger.Warn("Unexpected closed channel while listening on interchain ibtp")
 				return
@@ -323,7 +328,6 @@ func (ex *Exchanger) listenIBTPFromSrcAdaptToServicePairCh() {
 				}
 			}
 			ex.srcIBTPMap[key] <- ibtp
-
 		}
 	}
 }
