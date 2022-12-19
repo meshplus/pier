@@ -155,6 +155,7 @@ func (ex *Exchanger) recover(srcServiceMeta map[string]*pb.Interchain, destServi
 				ex.logger.Errorf("ParseFullServiceID err:%s", err)
 			}
 
+			ex.logger.WithFields(logrus.Fields{"srcChainId": ex.srcChainId, "serviceID": serviceID, "interchain": interchain}).Info("start init pool")
 			if chainID == ex.srcChainId {
 				// init ibtp pool
 				ex.initInterchainWrapperPool(interchain)
