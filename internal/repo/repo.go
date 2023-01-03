@@ -14,7 +14,7 @@ import (
 
 	"github.com/fsnotify/fsnotify"
 	"github.com/gobuffalo/packd"
-	"github.com/gobuffalo/packr"
+	packr2 "github.com/gobuffalo/packr/v2"
 	"github.com/meshplus/bitxhub-kit/crypto"
 	"github.com/meshplus/bitxhub-kit/crypto/asym"
 	"github.com/mitchellh/go-homedir"
@@ -70,7 +70,7 @@ func Initialize(repoRoot, algo string) error {
 		}
 	}
 
-	box := packr.NewBox(ConfigPath)
+	box := packr2.New("box", ConfigPath)
 
 	cryptoType, err := crypto.CryptoNameToType(algo)
 	if err != nil {
