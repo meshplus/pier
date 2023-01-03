@@ -18,7 +18,7 @@ linux-amd64)
     pier-ubuntu/compile \
     /bin/bash -c "go env -w GO111MODULE=on &&
       go env -w GOPROXY=https://goproxy.cn,direct &&
-      go get -u github.com/gobuffalo/packr/packr &&
+      go install github.com/gobuffalo/packr/v2/packr2@v2.8.3 &&
       cd /code/pier-client-fabric && make fabric1.4 &&
       cd /code/pier-client-ethereum && make eth &&
       cd /code/pier && make install &&

@@ -49,33 +49,33 @@ test-coverage:
 	@go test -short -coverprofile cover.out -covermode=atomic ${TEST_PKGS}
 	@cat cover.out >> coverage.txt
 
-packr:
-	cd internal/repo && packr
+packr2:
+	cd internal/repo && packr2
 
 prepare:
 	cd scripts && bash prepare.sh
 
 ## make install: Go install the project (hpc)
-install: packr
+install: packr2
 	rm -f imports/imports.go
 	$(GO) install $(GOFLAG) -ldflags '${GOLDFLAGS}' ./cmd/${APP_NAME}
 	@printf "${GREEN}Install pier successfully${NC}\n"
 
-build: packr
+build: packr2
 	@mkdir -p bin
 	rm -f imports/imports.go
 	$(GO) build $(GOFLAG) -ldflags '${GOLDFLAGS}' ./cmd/${APP_NAME}
 	@mv ./pier bin
 	@printf "${GREEN}Build Pier successfully!${NC}\n"
 
-installent: packr
+installent: packr2
 	cp imports/imports.go.template imports/imports.go
 	@sed "s?)?$(MODS))?" go.mod  | tr '@' '\n' > goent.mod
 	@cat goent.diff | grep '^replace' >> goent.mod
 	$(GO) install $(GOFLAG) -tags ent -ldflags '${GOLDFLAGS}' -modfile goent.mod ./cmd/${APP_NAME}
 	@printf "${GREEN}Install pier ent successfully${NC}\n"
 
-buildent: packr
+buildent: packr2
 	@mkdir -p bin
 	cp imports/imports.go.template imports/imports.go
 	@sed "s?)?$(MODS)@)?" go.mod  | tr '@' '\n' > goent.mod
@@ -86,7 +86,7 @@ buildent: packr
 mod:
 	sed "s?)?$(MODS)\n)?" go.mod
 
-docker-build: packr
+docker-build: packr2
 	$(GO) install $(GOFLAG) -ldflags '${STATIC_LDFLAGS}' ./cmd/${APP_NAME}
 	@echo "Build pier successfully"
 

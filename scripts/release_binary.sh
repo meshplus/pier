@@ -8,9 +8,17 @@ PROJECT_PATH=$(dirname "${CURRENT_PATH}")
 RELEASE_PATH=${PROJECT_PATH}/bin
 APP_VERSION=$(if [ `git rev-parse --abbrev-ref HEAD` == 'HEAD' ];then git describe --tags HEAD ; else echo "dev" ; fi)
 
-print_blue "===> 1. Install packr"
-if ! type packr >/dev/null 2>&1; then
-  go get -u github.com/gobuffalo/packr/packr@v1.30.1
+function go_install() {
+  version=$(go env GOVERSION)
+  if [[ ! "$version" < "go1.16" ]];then
+      go install "$@"
+  else
+      go get "$@"
+  fi
+}
+print_blue "===> 1. Install packr2"
+if ! type packr2 >/dev/null 2>&1; then
+  go_install github.com/gobuffalo/packr/v2/packr2@v2.8.3
 fi
 
 print_blue "===> 2. build pier"
