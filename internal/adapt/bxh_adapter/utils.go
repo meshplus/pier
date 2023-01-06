@@ -25,6 +25,8 @@ const (
 	noBindRule           = "appchain didn't register rule"
 	InvalidTargetService = "invalid target service"
 	ibtpRollback         = "state BEGIN_ROLLBACK get unexpected receipt"
+	ibtpDstRollback      = "state BEGIN_FAILURE get unexpected receipt"
+	otherRollback        = "state ROLLBACK get unexpected receipt"
 )
 
 func getTxView(client rpcx.Client, tx *pb.BxhTransaction) []byte {

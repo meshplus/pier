@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/meshplus/pier/internal/adapt"
-
 	"github.com/meshplus/pier/internal/repo"
 
 	"github.com/hashicorp/go-plugin"

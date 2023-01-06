@@ -354,7 +354,7 @@ func (ex *Exchanger) listenIBTPFromSrcAdapt(servicePair string) {
 					// if err occurs, try to get new ibtp and resend
 					if err, ok := err.(*adapt.SendIbtpError); ok {
 						if err.NeedRetry() {
-							ex.logger.Errorf("send IBTP to Adapt:%s", ex.destAdaptName, "error", err.Error())
+							ex.logger.Errorf("send IBTP to Adapt:%s err:%s", ex.destAdaptName, err.Error())
 							// query to new ibtp
 							ibtp = ex.queryIBTP(ex.srcAdapt, ibtp.ID(), ex.isIBTPBelongSrc(ibtp))
 							return fmt.Errorf("retry sending ibtp")
