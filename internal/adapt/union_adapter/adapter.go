@@ -30,28 +30,31 @@ type UnionAdapter struct {
 	cancel     context.CancelFunc
 }
 
-func (b *UnionAdapter) MonitorUpdatedMeta() chan *[]byte {
-	panic("implement me")
+func (u *UnionAdapter) InitIbtpPool(_, _ string, _ pb.IBTP_Category, _ uint64) {
+	return
 }
 
-func (b *UnionAdapter) SendUpdatedMeta(byte []byte) error {
-	panic("implement me")
+func (u *UnionAdapter) MonitorUpdatedMeta() chan *[]byte {
+	return nil
 }
 
-func (b *UnionAdapter) GetServiceIDList() ([]string, error) {
-	panic("implement me")
+func (u *UnionAdapter) SendUpdatedMeta(_ []byte) error {
+	return nil
 }
 
-func (b *UnionAdapter) Name() string {
-	return fmt.Sprintf("union:%s", b.bxhId)
+func (u *UnionAdapter) GetServiceIDList() ([]string, error) {
+	return nil, nil
 }
 
-func (b *UnionAdapter) ID() string {
-	return fmt.Sprintf("%s", b.bxhId)
+func (u *UnionAdapter) Name() string {
+	return fmt.Sprintf("union:%s", u.bxhId)
+}
+
+func (u *UnionAdapter) ID() string {
+	return fmt.Sprintf("%s", u.bxhId)
 }
 
 func New(peerMgr peermgr.PeerManager, bxh adapt.Adapt, logger logrus.FieldLogger) (*UnionAdapter, error) {
-
 	router := router.New(peerMgr, loggers.Logger(loggers.Router))
 	ctx, cancel := context.WithCancel(context.Background())
 	da := &UnionAdapter{
@@ -116,32 +119,32 @@ func (u *UnionAdapter) Start() error {
 	return nil
 }
 
-func (b *UnionAdapter) Stop() error {
-	err := b.peerMgr.Stop()
+func (u *UnionAdapter) Stop() error {
+	err := u.peerMgr.Stop()
 	if err != nil {
 		return err
 	}
-	err = b.router.Stop()
+	err = u.router.Stop()
 	if err != nil {
 		return err
 	}
-	close(b.ibtpC)
-	b.ibtpC = nil
+	close(u.ibtpC)
+	u.ibtpC = nil
 
-	b.cancel()
-	b.logger.Info("UnionAdapter stopped")
+	u.cancel()
+	u.logger.Info("UnionAdapter stopped")
 	return nil
 }
 
-func (b *UnionAdapter) SendIBTP(ibtp *pb.IBTP) error {
-	entry := b.logger.WithFields(logrus.Fields{
+func (u *UnionAdapter) SendIBTP(ibtp *pb.IBTP) error {
+	entry := u.logger.WithFields(logrus.Fields{
 		"type": ibtp.Type,
 		"id":   ibtp.ID(),
 	})
 	// todo get multiSigns from bxhAdapt
 	//ibtp.Proof = signs
 
-	err := b.router.Route(ibtp)
+	err := u.router.Route(ibtp)
 	if err != nil {
 		entry.WithField("err", err).Warn("Send union IBTP failed")
 		return err
@@ -150,20 +153,20 @@ func (b *UnionAdapter) SendIBTP(ibtp *pb.IBTP) error {
 	return nil
 }
 
-func (b *UnionAdapter) MonitorIBTP() chan *pb.IBTP {
-	return b.ibtpC
+func (u *UnionAdapter) MonitorIBTP() chan *pb.IBTP {
+	return u.ibtpC
 }
 
-func (b *UnionAdapter) QueryIBTP(id string, isReq bool) (*pb.IBTP, error) {
-	ibtp, err := b.router.QueryIBTP(id, isReq)
+func (u *UnionAdapter) QueryIBTP(id string, isReq bool) (*pb.IBTP, error) {
+	ibtp, err := u.router.QueryIBTP(id, isReq)
 	return ibtp, err
 }
 
-func (b *UnionAdapter) QueryInterchain(fullServiceId string) (*pb.Interchain, error) {
+func (u *UnionAdapter) QueryInterchain(fullServiceId string) (*pb.Interchain, error) {
 	bxhId, _, _, err := pb.ParseFullServiceID(fullServiceId)
 	if err != nil {
 		return nil, err
 	}
-	interchain, err := b.router.QueryInterchain(bxhId, fullServiceId)
+	interchain, err := u.router.QueryInterchain(bxhId, fullServiceId)
 	return interchain, err
 }

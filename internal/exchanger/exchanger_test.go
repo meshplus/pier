@@ -2,10 +2,11 @@ package exchanger
 
 import (
 	"fmt"
-	"github.com/meshplus/pier/internal/adapt"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/meshplus/pier/internal/adapt"
 
 	"github.com/meshplus/bitxhub-kit/hexutil"
 
@@ -74,6 +75,7 @@ func testNormalStartRelay(t *testing.T) {
 	mockAdaptAppchain.EXPECT().Start().Return(nil).AnyTimes()
 	mockAdaptAppchain.EXPECT().Stop().Return(nil).AnyTimes()
 	mockAdaptAppchain.EXPECT().Name().Return("fabric").AnyTimes()
+	mockAdaptRelay.EXPECT().InitIbtpPool(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes()
 
 	//adapt0ServiceID_1 := fmt.Sprintf("1356:%s:%s", chain0, from)
 	//adapt0ServiceID_2 := fmt.Sprintf("1356:%s:%s", chain0, from)
@@ -233,7 +235,7 @@ func testNormalStartDirectError(t *testing.T) {
 
 	error := &adapt.SendIbtpError{
 		Err:    "err",
-		Status: adapt.SrcChainService_Unavailable,
+		Status: adapt.SrcChainServiceUnavailable,
 	}
 	mockAdaptDirect.EXPECT().SendIBTP(gomock.Any()).Return(error).Times(1)
 	mockAdaptAppchain.EXPECT().SendIBTP(gomock.Any()).Return(error).Times(1)
@@ -462,39 +464,43 @@ func getIBTP(t *testing.T, index uint64, typ pb.IBTP_Type, isDestToSrc bool) *pb
 	require.Nil(t, err)
 	if strings.EqualFold(typ.String(), pb.IBTP_INTERCHAIN.String()) && !isDestToSrc {
 		return &pb.IBTP{
-			From:    fmt.Sprintf("1356:fabric:%s1", to),
-			To:      fmt.Sprintf("1356:ether:%s", from),
-			Payload: ibtppd,
-			Index:   index,
-			Type:    typ,
+			From:      fmt.Sprintf("1356:fabric:%s1", to),
+			To:        fmt.Sprintf("1356:ether:%s", from),
+			Payload:   ibtppd,
+			Index:     index,
+			Type:      typ,
+			Timestamp: time.Now().UnixNano(),
 		}
 	}
 
 	if strings.EqualFold(typ.String(), pb.IBTP_RECEIPT_SUCCESS.String()) && !isDestToSrc {
 		return &pb.IBTP{
-			From:    fmt.Sprintf("1356:ether:%s", to),
-			To:      fmt.Sprintf("1356:fabric:%s2", from),
-			Payload: ibtppd,
-			Index:   index,
-			Type:    typ,
+			From:      fmt.Sprintf("1356:ether:%s", to),
+			To:        fmt.Sprintf("1356:fabric:%s2", from),
+			Payload:   ibtppd,
+			Index:     index,
+			Type:      typ,
+			Timestamp: time.Now().UnixNano(),
 		}
 	}
 
 	if strings.EqualFold(typ.String(), pb.IBTP_INTERCHAIN.String()) {
 		return &pb.IBTP{
-			From:    fmt.Sprintf("1356:ether:%s", from),
-			To:      fmt.Sprintf("1356:fabric:%s", to),
-			Payload: ibtppd,
-			Index:   index,
-			Type:    typ,
+			From:      fmt.Sprintf("1356:ether:%s", from),
+			To:        fmt.Sprintf("1356:fabric:%s", to),
+			Payload:   ibtppd,
+			Index:     index,
+			Type:      typ,
+			Timestamp: time.Now().UnixNano(),
 		}
 	} else {
 		return &pb.IBTP{
-			From:    fmt.Sprintf("1356:fabric:%s", to),
-			To:      fmt.Sprintf("1356:ether:%s", from),
-			Payload: ibtppd,
-			Index:   index,
-			Type:    typ,
+			From:      fmt.Sprintf("1356:fabric:%s", to),
+			To:        fmt.Sprintf("1356:ether:%s", from),
+			Payload:   ibtppd,
+			Index:     index,
+			Type:      typ,
+			Timestamp: time.Now().UnixNano(),
 		}
 	}
 

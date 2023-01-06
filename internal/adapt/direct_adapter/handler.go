@@ -2,29 +2,13 @@ package direct_adapter
 
 import (
 	"fmt"
-	"sync"
 	"time"
 
-	"github.com/google/btree"
 	"github.com/meshplus/bitxhub-model/pb"
 	network "github.com/meshplus/go-lightp2p"
 	"github.com/meshplus/pier/internal/peermgr"
+	"github.com/meshplus/pier/internal/utils"
 )
-
-type Pool struct {
-	ibtps *btree.BTree
-	lock  *sync.Mutex
-	time  time.Time
-}
-
-type MyTree struct {
-	ibtp  *pb.IBTP
-	index uint64
-}
-
-func (m *MyTree) Less(item btree.Item) bool {
-	return m.index < (item.(*MyTree)).index
-}
 
 func (d *DirectAdapter) handleGetIBTPMessage(stream network.Stream, msg *pb.Message) {
 	ibtpID := string(peermgr.DataToPayload(msg).Data)
@@ -53,15 +37,7 @@ func (d *DirectAdapter) handleGetIBTPMessage(stream network.Stream, msg *pb.Mess
 	}
 }
 
-func NewPool() *Pool {
-	return &Pool{
-		ibtps: btree.New(4),
-		lock:  &sync.Mutex{},
-		time:  time.Now(),
-	}
-}
-
-func (d *DirectAdapter) handleSendIBTPMessage(stream network.Stream, msg *pb.Message) {
+func (d *DirectAdapter) handleSendIBTPMessage(_ network.Stream, msg *pb.Message) {
 	d.gopool.Add()
 	go func() {
 		ibtp := &pb.IBTP{}
@@ -70,11 +46,11 @@ func (d *DirectAdapter) handleSendIBTPMessage(stream network.Stream, msg *pb.Mes
 			return
 		}
 		servicePair := ibtp.From + ibtp.To + ibtp.Category().String()
-		act, loaded := d.ibtps.LoadOrStore(servicePair, NewPool())
-		pool := act.(*Pool)
+		act, loaded := d.ibtps.LoadOrStore(servicePair, utils.NewPool(utils.DirectDegree))
+		pool := act.(*utils.Pool)
 
 		if !loaded {
-			go func(pool *Pool, ibtp *pb.IBTP) {
+			go func(pool *utils.Pool, ibtp *pb.IBTP) {
 				defer func() {
 					if e := recover(); e != nil {
 						d.logger.Error(fmt.Errorf("%v", e))
@@ -87,37 +63,37 @@ func (d *DirectAdapter) handleSendIBTPMessage(stream network.Stream, msg *pb.Mes
 				for {
 					select {
 					case <-ticker.C:
-						pool.lock.Lock()
-						if item := pool.ibtps.Min(); item != nil {
-							if item.(*MyTree).index < index+1 {
-								pool.ibtps.DeleteMin()
+						pool.Lock.Lock()
+						if item := pool.Ibtps.Min(); item != nil {
+							if item.(*utils.MyTree).Index < index+1 {
+								pool.Ibtps.DeleteMin()
 							}
 
-							if item.(*MyTree).index == index+1 {
-								d.ibtpC <- item.(*MyTree).ibtp
-								pool.ibtps.DeleteMin()
+							if item.(*utils.MyTree).Index == index+1 {
+								d.ibtpC <- item.(*utils.MyTree).Ibtp
+								pool.Ibtps.DeleteMin()
 								index++
-								pool.time = time.Now()
+								pool.Time = time.Now()
 							}
 
 							// By default, the index will be equalized after 5 seconds
-							if time.Now().Sub(pool.time).Seconds() > 5.0 {
-								d.ibtpC <- item.(*MyTree).ibtp
-								pool.ibtps.DeleteMin()
-								index = item.(*MyTree).index
-								pool.time = time.Now()
+							if time.Now().Sub(pool.Time).Seconds() > 5.0 {
+								d.ibtpC <- item.(*utils.MyTree).Ibtp
+								pool.Ibtps.DeleteMin()
+								index = item.(*utils.MyTree).Index
+								pool.Time = time.Now()
 							}
 						}
-						pool.lock.Unlock()
+						pool.Lock.Unlock()
 					case <-d.ctx.Done():
 						return
 					}
 				}
 			}(pool, ibtp)
 		} else {
-			pool.lock.Lock()
-			pool.ibtps.ReplaceOrInsert(&MyTree{ibtp: ibtp, index: ibtp.Index})
-			pool.lock.Unlock()
+			pool.Lock.Lock()
+			pool.Ibtps.ReplaceOrInsert(&utils.MyTree{Ibtp: ibtp, Index: ibtp.Index})
+			pool.Lock.Unlock()
 		}
 		d.gopool.Done()
 	}()
@@ -142,7 +118,7 @@ func (d *DirectAdapter) handleGetInterchainMessage(stream network.Stream, msg *p
 	}
 }
 
-func (d *DirectAdapter) handleGetAddressMessage(stream network.Stream, message *pb.Message) {
+func (d *DirectAdapter) handleGetAddressMessage(stream network.Stream, _ *pb.Message) {
 	addr := d.appchainID
 
 	retMsg := peermgr.Message(pb.Message_ACK, true, []byte(addr))

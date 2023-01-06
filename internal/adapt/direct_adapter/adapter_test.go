@@ -24,17 +24,6 @@ const (
 	appChainId = "testAppChain"
 )
 
-func TestLess(t *testing.T) {
-	tree := &MyTree{
-		index: 3,
-	}
-	item := &MyTree{
-		index: 4,
-	}
-	ok := tree.Less(item)
-	require.Equal(t, true, ok)
-}
-
 func TestID(t *testing.T) {
 	adapter, _, _, _ := prepare(t)
 	id := adapter.ID()

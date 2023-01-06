@@ -10,6 +10,7 @@ import (
 	"github.com/meshplus/pier/internal/adapt"
 	"github.com/meshplus/pier/internal/adapt/appchain_adapter"
 	"github.com/meshplus/pier/internal/peermgr"
+	"github.com/meshplus/pier/internal/utils"
 	"github.com/sirupsen/logrus"
 	"go.uber.org/atomic"
 )
@@ -36,7 +37,11 @@ type DirectAdapter struct {
 	remotePierID    string
 	ctx             context.Context
 	cancel          context.CancelFunc
-	gopool          *pool
+	gopool          *utils.GoPool
+}
+
+func (d *DirectAdapter) InitIbtpPool(_, _ string, _ pb.IBTP_Category, _ uint64) {
+	return
 }
 
 func (d *DirectAdapter) ID() string {
@@ -44,15 +49,15 @@ func (d *DirectAdapter) ID() string {
 }
 
 func (d *DirectAdapter) MonitorUpdatedMeta() chan *[]byte {
-	panic("implement me")
+	return nil
 }
 
-func (d *DirectAdapter) SendUpdatedMeta(byte []byte) error {
-	panic("implement me")
+func (d *DirectAdapter) SendUpdatedMeta(_ []byte) error {
+	return nil
 }
 
 func (d *DirectAdapter) GetServiceIDList() ([]string, error) {
-	panic("implement me")
+	return nil, nil
 }
 
 func New(peerMgr peermgr.PeerManager, appchainAdapt adapt.Adapt, logger logrus.FieldLogger) (*DirectAdapter, error) {
@@ -66,7 +71,7 @@ func New(peerMgr peermgr.PeerManager, appchainAdapt adapt.Adapt, logger logrus.F
 		lock:          &sync.Mutex{},
 		ibtpC:         make(chan *pb.IBTP, maxChSize),
 		appchainID:    appchainID,
-		gopool:        NewGoPool(runtime.GOMAXPROCS(runtime.NumCPU())),
+		gopool:        utils.NewGoPool(runtime.GOMAXPROCS(runtime.NumCPU())),
 		ctx:           ctx,
 		cancel:        cancel,
 	}
@@ -105,7 +110,7 @@ func (d *DirectAdapter) Start() error {
 		return fmt.Errorf("direct adapter connect just 1 remote pier, the actual remote num is : %d",
 			connectedNum)
 	}
-	for pierID, _ := range d.peerMgr.Peers() {
+	for pierID := range d.peerMgr.Peers() {
 		d.remotePierID = pierID
 	}
 
@@ -188,7 +193,7 @@ func (d *DirectAdapter) SendIBTP(ibtp *pb.IBTP) error {
 
 		return &adapt.SendIbtpError{
 			Err:    fmt.Sprintf("fail to send ibtp %s with type %v: %v", ibtp.ID(), ibtp.Type, err),
-			Status: adapt.PierConnect_Error,
+			Status: adapt.PierConnectError,
 		}
 	}
 	d.logger.WithFields(logrus.Fields{

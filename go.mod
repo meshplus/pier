@@ -11,7 +11,6 @@ require (
 	github.com/fatih/color v1.9.0
 	github.com/fsnotify/fsnotify v1.4.9
 	github.com/gobuffalo/packd v1.0.1
-	github.com/gobuffalo/packr v1.30.1
 	github.com/gobuffalo/packr/v2 v2.8.3
 	github.com/golang/mock v1.6.0
 	github.com/google/btree v1.0.0
@@ -21,11 +20,12 @@ require (
 	github.com/libp2p/go-libp2p-core v0.6.1
 	github.com/meshplus/bitxhub-core v1.3.1-0.20221216095518-2b59e2647227
 	github.com/meshplus/bitxhub-kit v1.2.1-0.20220412092457-5836414df781
-	github.com/meshplus/bitxhub-model v1.2.1-0.20230103095329-f8638b97544e
-	github.com/meshplus/go-bitxhub-client v1.4.1-0.20220412093230-11ca79f069fc
+	github.com/meshplus/bitxhub-model v1.20.2-0.20230113083618-3407ac676767
+	github.com/meshplus/go-bitxhub-client v1.4.1-0.20221118022536-c821301838c8
 	github.com/meshplus/go-lightp2p v0.0.0-20221205091217-47f605aa3067
 	github.com/mitchellh/go-homedir v1.1.0
 	github.com/multiformats/go-multiaddr v0.3.0
+	github.com/otiai10/copy v1.9.0
 	github.com/pelletier/go-toml v1.9.3
 	github.com/sirupsen/logrus v1.8.1
 	github.com/spf13/viper v1.8.1
