@@ -19,13 +19,11 @@ import (
 )
 
 const (
-	chain0          = "chain0"
-	chain1          = "chain1"
-	from            = "0x3f9d18f7c3a6e5e4c0b877fe3e688ab08840b997"
-	to              = "0x3f9d18f7c3a6e5e4c0b877fe3e688ab08840b998"
-	pierID          = "0x892eedc032948be00722038a29f2a90d0e05352f"
-	fullFromService = "1356:fabric:0x3f9d18f7c3a6e5e4c0b877fe3e688ab08840b998"
-	fullToService   = "1356:ether:0x3f9d18f7c3a6e5e4c0b877fe3e688ab08840b997"
+	from              = "0x3f9d18f7c3a6e5e4c0b877fe3e688ab08840b997"
+	to                = "0x3f9d18f7c3a6e5e4c0b877fe3e688ab08840b998"
+	destFullToService = "1356:ether:0x3f9d18f7c3a6e5e4c0b877fe3e688ab08840b998"
+	fullFromService   = "1356:fabric:0x3f9d18f7c3a6e5e4c0b877fe3e688ab08840b998"
+	fullToService     = "1356:ether:0x3f9d18f7c3a6e5e4c0b877fe3e688ab08840b997"
 )
 
 var errorUnhappy = fmt.Errorf("nil")
@@ -103,6 +101,9 @@ func testNormalStartRelay(t *testing.T) {
 			InterchainCounter:       map[string]uint64{fullToService: 1}}, nil).AnyTimes()
 	//mockAdaptAppchain.EXPECT().QueryInterchain(gomock.Eq("1356:fabric:data")).
 	//	Return(&pb.Interchain{ID: "1356:fabric:transfer"}, nil).AnyTimes()
+
+	mockAdaptRelay.EXPECT().GetServiceIDList().Return([]string{fullFromService}, nil).AnyTimes()
+
 	mockAdaptRelay.EXPECT().QueryInterchain(gomock.Eq(fullFromService)).
 		Return(&pb.Interchain{ID: fullFromService,
 			SourceInterchainCounter: map[string]uint64{fullToService: 1},
@@ -110,7 +111,8 @@ func testNormalStartRelay(t *testing.T) {
 			SourceReceiptCounter:    make(map[string]uint64),
 			InterchainCounter:       make(map[string]uint64)}, nil).AnyTimes()
 
-	mockAdaptRelay.EXPECT().GetServiceIDList().Return([]string{to}, nil).AnyTimes()
+	mockAdaptAppchain.EXPECT().GetLocalServiceIDList().Return([]string{destFullToService}, nil).AnyTimes()
+	mockAdaptRelay.EXPECT().GetLocalServiceIDList().Return([]string{to}, nil).AnyTimes()
 	//mockAdaptRelay.EXPECT().QueryInterchain(gomock.Eq("1356:fabric:data")).
 	//	Return(&pb.Interchain{ID: "1356:fabric:transfer"}, nil).AnyTimes()
 
@@ -165,7 +167,7 @@ func testNormalStartDirect(t *testing.T) {
 	mockAdaptDirect.EXPECT().SendIBTP(gomock.Any()).Return(nil).AnyTimes()
 	mockAdaptAppchain.EXPECT().SendIBTP(gomock.Any()).Return(nil).AnyTimes()
 
-	mockAdaptAppchain.EXPECT().GetServiceIDList().Return([]string{fullFromService}, nil).AnyTimes()
+	mockAdaptAppchain.EXPECT().GetLocalServiceIDList().Return([]string{fullFromService}, nil).AnyTimes()
 	mockAdaptAppchain.EXPECT().QueryInterchain(gomock.Eq(fullFromService)).
 		Return(&pb.Interchain{ID: fullFromService,
 			SourceInterchainCounter: make(map[string]uint64),
@@ -181,7 +183,7 @@ func testNormalStartDirect(t *testing.T) {
 			SourceReceiptCounter:    make(map[string]uint64),
 			InterchainCounter:       make(map[string]uint64)}, nil).AnyTimes()
 
-	mockAdaptDirect.EXPECT().GetServiceIDList().Return([]string{to}, nil).AnyTimes()
+	mockAdaptDirect.EXPECT().GetLocalServiceIDList().Return([]string{to}, nil).AnyTimes()
 	//mockAdaptDirect.EXPECT().QueryInterchain(gomock.Eq("1356:fabric:data")).
 	//	Return(&pb.Interchain{ID: "1356:fabric:transfer"}, nil).AnyTimes()
 
@@ -242,7 +244,7 @@ func testNormalStartDirectError(t *testing.T) {
 	mockAdaptDirect.EXPECT().SendIBTP(gomock.Any()).Return(nil).AnyTimes()
 	mockAdaptAppchain.EXPECT().SendIBTP(gomock.Any()).Return(nil).AnyTimes()
 
-	mockAdaptAppchain.EXPECT().GetServiceIDList().Return([]string{fullFromService}, nil).AnyTimes()
+	mockAdaptAppchain.EXPECT().GetLocalServiceIDList().Return([]string{fullFromService}, nil).AnyTimes()
 	mockAdaptAppchain.EXPECT().QueryInterchain(gomock.Eq(fullFromService)).
 		Return(&pb.Interchain{ID: fullFromService,
 			SourceInterchainCounter: make(map[string]uint64),

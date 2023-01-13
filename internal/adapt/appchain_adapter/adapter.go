@@ -44,6 +44,10 @@ type AppchainAdapter struct {
 	bitxhubID  string
 }
 
+func (a *AppchainAdapter) GetLocalServiceIDList() ([]string, error) {
+	return a.client.GetServices()
+}
+
 const IBTP_CH_SIZE = 1024
 
 func NewAppchainAdapter(mode string, config *repo.Config, logger logrus.FieldLogger, crypto txcrypto.Cryptor) (adapt.Adapt, error) {
@@ -203,7 +207,6 @@ func (a *AppchainAdapter) SendIBTP(ibtp *pb.IBTP) error {
 			"typ":  ibtp.Type,
 		}).Info("start submit ibtp")
 		res, err = a.client.SubmitIBTP(ibtp.From, ibtp.Index, serviceID, ibtp.Type, content, proof, pd.Encrypted)
-		a.logger.Info("appchain adapter submit ibtp success")
 	} else {
 		result := &pb.Result{}
 		// in direct mode, if src pier notify src rollback, will modify ibtp type from INTERCHAIN to RECEIPT_ROLLBACK
@@ -241,7 +244,6 @@ func (a *AppchainAdapter) SendIBTP(ibtp *pb.IBTP) error {
 			"typ":  ibtp.Type,
 		}).Info("start submit receipt")
 		res, err = a.client.SubmitReceipt(ibtp.To, ibtp.Index, serviceID, ibtp.Type, result, proof)
-		a.logger.Debug("appchain adapter submit receipt success")
 	}
 
 	if err != nil {
@@ -250,6 +252,12 @@ func (a *AppchainAdapter) SendIBTP(ibtp *pb.IBTP) error {
 			Err:    fmt.Sprintf("fail to send ibtp %s with type %v: %v", ibtp.ID(), ibtp.Type, err),
 			Status: adapt.OtherError,
 		}
+	}
+
+	if isReq {
+		a.logger.Info("appchain adapter submit ibtp success")
+	} else {
+		a.logger.Info("appchain adapter submit receipt success")
 	}
 
 	var genFailReceipt bool
@@ -274,7 +282,52 @@ func (a *AppchainAdapter) SendIBTP(ibtp *pb.IBTP) error {
 }
 
 func (a *AppchainAdapter) GetServiceIDList() ([]string, error) {
-	return a.client.GetServices()
+	inServiceIDM, err := a.client.GetInMeta()
+	if err != nil {
+		return nil, err
+	}
+	outServiceIDM, err := a.client.GetOutMeta()
+	if err != nil {
+		return nil, err
+	}
+	serviceIDList := make([]string, 0)
+
+	allServiceM := make(map[string]struct{}, 0)
+	for servicePair := range inServiceIDM {
+		_, dstServiceID, err := utils.ParseServicePair(servicePair)
+		if err != nil {
+			return nil, err
+		}
+		if _, ok := allServiceM[dstServiceID]; !ok {
+			allServiceM[dstServiceID] = struct{}{}
+		}
+	}
+
+	for servicePair := range outServiceIDM {
+		srcServiceID, _, err := utils.ParseServicePair(servicePair)
+		if err != nil {
+			return nil, err
+		}
+		if _, ok := allServiceM[srcServiceID]; !ok {
+			allServiceM[srcServiceID] = struct{}{}
+		}
+	}
+
+	localServices, err := a.client.GetServices()
+	if err != nil {
+		return nil, err
+	}
+	for _, localService := range localServices {
+		if _, ok := allServiceM[localService]; !ok {
+			allServiceM[localService] = struct{}{}
+		}
+	}
+
+	for service := range allServiceM {
+		serviceIDList = append(serviceIDList, service)
+	}
+
+	return serviceIDList, nil
 }
 
 func (a *AppchainAdapter) QueryInterchain(serviceID string) (*pb.Interchain, error) {

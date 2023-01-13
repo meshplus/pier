@@ -26,7 +26,9 @@ const (
 	InvalidTargetService = "invalid target service"
 	ibtpRollback         = "state BEGIN_ROLLBACK get unexpected receipt"
 	ibtpDstRollback      = "state BEGIN_FAILURE get unexpected receipt"
-	otherRollback        = "state ROLLBACK get unexpected receipt"
+	FinalRollback        = "state ROLLBACK get unexpected receipt"
+	FinalFailStatus      = "state FAILURE get unexpected receipt"
+	FinalSuccessStatus   = "state SUCCESS get unexpected receipt"
 )
 
 func getTxView(client rpcx.Client, tx *pb.BxhTransaction) []byte {

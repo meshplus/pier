@@ -20,6 +20,7 @@ import (
 	"github.com/meshplus/bitxhub-model/pb"
 	rpcx "github.com/meshplus/go-bitxhub-client"
 	"github.com/meshplus/pier/internal/adapt"
+	"github.com/meshplus/pier/internal/checker"
 	"github.com/meshplus/pier/internal/repo"
 	"github.com/meshplus/pier/internal/utils"
 	"github.com/sirupsen/logrus"
@@ -54,6 +55,39 @@ type BxhAdapter struct {
 	cancel     context.CancelFunc
 	tss        *repo.TSS
 	goPool     *utils.GoPool
+	checker    checker.Checker
+}
+
+func (b *BxhAdapter) GetServiceIDList() ([]string, error) {
+	tx, err := b.client.GenerateContractTx(pb.TransactionData_BVM, constant.InterchainContractAddr.Address(),
+		"GetAllServiceIDs")
+	if err != nil {
+		panic(err)
+	}
+
+	ret := getTxView(b.client, tx)
+
+	if ret == nil {
+		b.logger.Warning("bxh adapter get no serviceID in bitxhub")
+		return nil, nil
+	}
+
+	allServices := make([]string, 0)
+	if err := json.Unmarshal(ret, &allServices); err != nil {
+		panic(err)
+	}
+	services := make([]string, 0)
+	for _, service := range allServices {
+		_, chainID, _, err := utils.ParseFullServiceID(service)
+		if err != nil {
+			return nil, err
+		}
+		if chainID == b.appchainId {
+			services = append(services, service)
+		}
+	}
+
+	return services, nil
 }
 
 func (b *BxhAdapter) InitIbtpPool(from, to string, typ pb.IBTP_Category, index uint64) {
@@ -61,9 +95,26 @@ func (b *BxhAdapter) InitIbtpPool(from, to string, typ pb.IBTP_Category, index u
 	act, loaded := b.ibtps.LoadOrStore(servicePair, utils.NewPool(utils.RelayDegree))
 	pool := act.(*utils.Pool)
 	if !loaded {
-		b.logger.WithFields(logrus.Fields{"ID": servicePair, "index": index}).Infof("init pool")
 		pool.CurrentIndex = index + 1
+		b.logger.WithFields(logrus.Fields{"ID": servicePair, "key": servicePair, "CurrentIndex": index + 1}).Infof("init pool")
 	}
+}
+
+func (b *BxhAdapter) UpdateIbtpPool(from, to string, typ pb.IBTP_Category, index uint64) error {
+	servicePair := bxhPoolKey(from, to, typ)
+	act, loaded := b.ibtps.LoadOrStore(servicePair, utils.NewPool(utils.RelayDegree))
+	pool := act.(*utils.Pool)
+	if !loaded {
+		if index != 1 {
+			return fmt.Errorf("not find pool, but update index is not 1")
+		}
+		pool.CurrentIndex = 2
+		b.logger.WithFields(logrus.Fields{"ID": servicePair, "key": servicePair, "CurrentIndex": pool.CurrentIndex}).Infof("update pool")
+		return nil
+	}
+	pool.CurrentIndex = index + 1
+	b.logger.WithFields(logrus.Fields{"ID": servicePair, "key": servicePair, "CurrentIndex": pool.CurrentIndex}).Infof("update pool")
+	return nil
 }
 
 func bxhPoolKey(from, to string, typ pb.IBTP_Category) string {
@@ -74,7 +125,7 @@ func (b *BxhAdapter) MonitorUpdatedMeta() chan *[]byte {
 	return nil
 }
 
-func (b *BxhAdapter) SendUpdatedMeta(byte []byte) error {
+func (b *BxhAdapter) SendUpdatedMeta(_ []byte) error {
 	return nil
 }
 
@@ -86,7 +137,7 @@ func New(mode, appchainId string, client rpcx.Client, logger logrus.FieldLogger,
 		return nil, fmt.Errorf("new bxh adapter err: %w", err)
 	}
 	ctx, cancel := context.WithCancel(context.Background())
-	
+
 	ba := &BxhAdapter{
 		wrappersC:  make(chan *pb.InterchainTxWrappers, maxChSize),
 		ibtpC:      make(chan *pb.IBTP, maxChSize),
@@ -101,6 +152,8 @@ func New(mode, appchainId string, client rpcx.Client, logger logrus.FieldLogger,
 		nonce:      nonce,
 		goPool:     utils.NewGoPool(goroutinesSize),
 	}
+
+	ba.checker = checker.NewRelayChecker(nil, ba.appchainId, fmt.Sprintf("%d", ba.bxhID), ba.logger)
 
 	return ba, nil
 }
@@ -293,8 +346,10 @@ func (b *BxhAdapter) SendIBTP(ibtp *pb.IBTP) error {
 					return nil
 				}
 
-				// if the receipt had already rollback need not to rollback
-				if strings.Contains(errMsg, otherRollback) {
+				// if the receipt had already rollback need not to rollback or had already reach filnal status, need not handle this error
+				if strings.Contains(errMsg, FinalSuccessStatus) || strings.Contains(errMsg, FinalFailStatus) ||
+					strings.Contains(errMsg, FinalRollback) {
+					b.logger.Warning("ibtp had already reach final status, ignore this err")
 					retErr = &adapt.SendIbtpError{
 						Err:    errMsg,
 						Status: adapt.OtherError,
@@ -345,12 +400,12 @@ func (b *BxhAdapter) SendIBTP(ibtp *pb.IBTP) error {
 	return retErr
 }
 
-func (b *BxhAdapter) GetServiceIDList() ([]string, error) {
+func (b *BxhAdapter) GetLocalServiceIDList() ([]string, error) {
 	if b.mode == repo.RelayMode {
 		tx, err := b.client.GenerateContractTx(pb.TransactionData_BVM, constant.ServiceMgrContractAddr.Address(),
 			"GetServicesByAppchainID", rpcx.String(b.appchainId))
 		if err != nil {
-			panic(fmt.Errorf("GetServiceIDList GenerateContractTx err:%s", err))
+			panic(fmt.Errorf("GetLocalServiceIDList GenerateContractTx err:%s", err))
 		}
 
 		ret := getTxView(b.client, tx)
@@ -359,7 +414,7 @@ func (b *BxhAdapter) GetServiceIDList() ([]string, error) {
 			return nil, fmt.Errorf("appchain[id:%s] info is not exit in bitxhub", b.appchainId)
 		}
 		if err = json.Unmarshal(ret, &service); err != nil {
-			panic(fmt.Errorf("GetServiceIDList unmarshal err:%s", err))
+			panic(fmt.Errorf("GetLocalServiceIDList unmarshal err:%s", err))
 		}
 		serviceIDList := make([]string, 0)
 		for _, s := range service {
@@ -376,6 +431,11 @@ func (b *BxhAdapter) GetServiceIDList() ([]string, error) {
 	}
 
 	ret := getTxView(b.client, tx)
+
+	if ret == nil {
+		b.logger.Warning("bxh adapter get no serviceID in bitxhub")
+		return nil, nil
+	}
 
 	services := make([]string, 0)
 	if err := json.Unmarshal(ret, &services); err != nil {
@@ -562,13 +622,28 @@ func (b *BxhAdapter) handleInterchainTxWrapper(w *pb.InterchainTxWrapper, i int)
 			defer b.goPool.Done()
 			current := time.Now()
 			proof := b.getSign(ibtp, isReq)
+			retProof, err := proof.Marshal()
+			if err != nil {
+				b.logger.WithFields(logrus.Fields{"id": ibtp.ID()}).Errorf("marshal ibtp proof err")
+				return
+			}
 			b.logger.WithFields(logrus.Fields{"ID": ibtp.ID(), "index": ibtp.Index, "elapse": time.Since(current)}).Infof("[3.1] receive multi sign")
-			ibtp.Proof = proof
+			ibtp.Proof = retProof
 			if tx.IsBatch && b.mode == repo.RelayMode {
 				ibtp.Extra = []byte("1")
 				b.logger.Info("get batch ibtp")
 			}
-			b.insertIBTPPool(ibtp)
+			isDestPier, err := b.checker.BasicCheck(ibtp)
+			if err != nil {
+				b.logger.WithFields(logrus.Fields{"id": ibtp.ID()}).Errorf("check ibtp err")
+			}
+
+			// handle src chain rollback
+			var srcRollback bool
+			if !isDestPier && (proof.TxStatus == pb.TransactionStatus_BEGIN_FAILURE || proof.TxStatus == pb.TransactionStatus_BEGIN_ROLLBACK) {
+				srcRollback = true
+			}
+			b.insertIBTPPool(ibtp, srcRollback)
 		}(ibtp, tx)
 	}
 
@@ -578,6 +653,11 @@ func (b *BxhAdapter) handleInterchainTxWrapper(w *pb.InterchainTxWrapper, i int)
 			if err != nil {
 				b.logger.Warnf("query timeout ibtp %s: %v", id, err)
 			} else {
+				// if receive timeout ibtp, src chain need rollback, so src pool need update current index
+				err = b.UpdateIbtpPool(ibtp.From, ibtp.To, pb.IBTP_RESPONSE, ibtp.Index)
+				if err != nil {
+					b.logger.Errorf("update pool err:%s", err)
+				}
 				b.ibtpC <- ibtp
 			}
 			return err
@@ -591,22 +671,25 @@ func (b *BxhAdapter) handleInterchainTxWrapper(w *pb.InterchainTxWrapper, i int)
 			var isReq bool
 			// if dest pier get MultiTxIbtps, need dst chain Rollback
 			// so query child Interchain ibtp
-			_, to, _, err := utils.ParseIBTPID(id)
+			from, to, index, err := utils.ParseIBTPID(id)
 			if err != nil {
 				b.logger.Errorf("MultiTxIbtps parse ibtp id[%s] err:%s", id, err)
 				return err
 			}
-			_, chainID, _, err := utils.ParseFullServiceID(to)
+			_, toChainID, _, err := utils.ParseFullServiceID(to)
 			if err != nil {
 				b.logger.Errorf("MultiTxIbtps parse fullServiceid[%s] err:%s", to, err)
 				return err
 			}
-			if chainID == b.appchainId {
+			if toChainID == b.appchainId {
 				isReq = true
 				b.logger.Warningf("dest pier get MultiTxIbtps [%s], "+
 					"need query interchain for dest chain rollback", id)
+			} else {
+				// if one 2 multi, receipt and rollback interchain need update pool current index
+				b.logger.WithFields(logrus.Fields{"to": to, "pool curIndex": index + 1}).Warning("src need rollback, update pool index")
+				b.UpdateIbtpPool(from, to, pb.IBTP_RESPONSE, index)
 			}
-
 			// for src pier, need handle all MultiIBTPs
 			// so query child ibtp receipt
 			ibtp, err := b.QueryIBTP(id, isReq)
@@ -632,9 +715,12 @@ func (b *BxhAdapter) handleInterchainTxWrapper(w *pb.InterchainTxWrapper, i int)
 	return true
 }
 
-func (b *BxhAdapter) insertIBTPPool(ibtp *pb.IBTP) {
+func (b *BxhAdapter) insertIBTPPool(ibtp *pb.IBTP, srcRollback bool) {
 	now := time.Now()
 	servicePair := bxhPoolKey(ibtp.From, ibtp.To, ibtp.Category())
+	if srcRollback {
+		servicePair = bxhPoolKey(ibtp.From, ibtp.To, pb.IBTP_RESPONSE)
+	}
 	act, loaded := b.ibtps.LoadOrStore(servicePair, utils.NewPool(utils.RelayDegree))
 	pool := act.(*utils.Pool)
 	pool.Lock.Lock()
@@ -642,7 +728,7 @@ func (b *BxhAdapter) insertIBTPPool(ibtp *pb.IBTP) {
 	if !loaded {
 		pool.CurrentIndex = 1
 	}
-	b.logger.WithFields(logrus.Fields{"current index": pool.CurrentIndex, "ID": ibtp.ID(), "index": ibtp.Index, "elapse": time.Since(now)}).Infof("[3.2.1] start insert pool")
+	b.logger.WithFields(logrus.Fields{"current index": pool.CurrentIndex, "ID": ibtp.ID(), "index": ibtp.Index, "key": servicePair, "elapse": time.Since(now)}).Infof("[3.2.1] start insert pool")
 
 	pool.Ibtps.ReplaceOrInsert(&utils.MyTree{Ibtp: ibtp, Index: ibtp.Index})
 	for {
@@ -655,6 +741,7 @@ func (b *BxhAdapter) insertIBTPPool(ibtp *pb.IBTP) {
 				pool.Ibtps.DeleteMin()
 				pool.CurrentIndex++
 			} else {
+				b.logger.WithFields(logrus.Fields{"ID": item.(*utils.MyTree).Ibtp.ID(), "want index": pool.CurrentIndex, "receive index": item.(*utils.MyTree).Ibtp.Index, "elapse": time.Since(now)}).Warning("receive bigger index ibtp")
 				break
 			}
 		} else {
@@ -694,13 +781,13 @@ func (b *BxhAdapter) getTxStatus(id string) (pb.TransactionStatus, error) {
 	return pb.TransactionStatus(status), nil
 }
 
-func (b *BxhAdapter) getSign(ibtp *pb.IBTP, isReq bool) []byte {
+func (b *BxhAdapter) getSign(ibtp *pb.IBTP, isReq bool) *pb.BxhProof {
 	var (
 		err       error
 		retSign   *pb.SignResponse
 		reqTyp    pb.GetSignsRequest_Type
 		retStatus pb.TransactionStatus
-		retProof  []byte
+		proof     *pb.BxhProof
 	)
 	if err = retry.Retry(func(attempt uint) error {
 		if b.tss.EnableTSS {
@@ -740,19 +827,15 @@ func (b *BxhAdapter) getSign(ibtp *pb.IBTP, isReq bool) []byte {
 			return err
 		}
 
-		proof := &pb.BxhProof{
+		proof = &pb.BxhProof{
 			TxStatus:  retStatus,
 			MultiSign: signs,
-		}
-		retProof, err = proof.Marshal()
-		if err != nil {
-			return err
 		}
 		return nil
 	}, strategy.Wait(time.Second*2)); err != nil {
 		b.logger.Panicf("get sign err:%s", err)
 	}
-	return retProof
+	return proof
 }
 
 func (b *BxhAdapter) restartCh() {
@@ -788,8 +871,13 @@ func (b *BxhAdapter) getIBTPByID(id string, isReq bool) (*pb.IBTP, error) {
 
 	retIBTP := response.Tx.GetIBTP()
 	proof := b.getSign(retIBTP, isReq)
+
+	retProof, err := proof.Marshal()
+	if err != nil {
+		return nil, err
+	}
 	// get ibtp proof from bxh
-	retIBTP.Proof = proof
+	retIBTP.Proof = retProof
 
 	return retIBTP, nil
 }

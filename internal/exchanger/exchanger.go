@@ -91,8 +91,9 @@ func (ex *Exchanger) checkService(appServiceList, bxhServiceList []string) error
 func (ex *Exchanger) Start() error {
 	// init meta info
 	var (
-		serviceList []string
-		err         error
+		serviceList     []string
+		destServiceList []string
+		err             error
 	)
 
 	// start get ibtp to channel
@@ -107,11 +108,20 @@ func (ex *Exchanger) Start() error {
 	ex.srcAdaptName = ex.srcAdapt.Name()
 	ex.destAdaptName = ex.destAdapt.Name()
 
+	// todo: union and direct mode handlemissing wrong service
 	if err := retry.Retry(func(attempt uint) error {
-		if serviceList, err = ex.srcAdapt.GetServiceIDList(); err != nil {
-			ex.logger.Errorf("get serviceIdList from srcAdapt", "error", err.Error())
-			return err
+		if repo.RelayMode == ex.mode {
+			if serviceList, err = ex.srcAdapt.GetServiceIDList(); err != nil {
+				ex.logger.Errorf("get serviceIdList from srcAdapt", "error", err.Error())
+				return err
+			}
+		} else {
+			if serviceList, err = ex.srcAdapt.GetLocalServiceIDList(); err != nil {
+				ex.logger.Errorf("get serviceIdList from srcAdapt", "error", err.Error())
+				return err
+			}
 		}
+		ex.logger.WithFields(logrus.Fields{"serviveIdList": serviceList}).Info("get appchain all services")
 		return nil
 	}, strategy.Wait(3*time.Second)); err != nil {
 		return fmt.Errorf("retry error to get serviceIdList from srcAdapt: %w", err)
@@ -122,22 +132,60 @@ func (ex *Exchanger) Start() error {
 		if err != nil {
 			return fmt.Errorf("queryInterchain from srcAdapt: %w", err)
 		}
-
-		if err := retry.Retry(func(attempt uint) error {
-			if ex.destServiceMeta[serviceId], err = ex.destAdapt.QueryInterchain(serviceId); err != nil {
-				// maybe peerMgr err cause QueryInterchain err, so retry it
-				ex.logger.Errorf("queryInterchain from destAdapt: %w", err)
+		if ex.mode != repo.RelayMode {
+			if err := retry.Retry(func(attempt uint) error {
+				if ex.destServiceMeta[serviceId], err = ex.destAdapt.QueryInterchain(serviceId); err != nil {
+					// maybe peerMgr err cause QueryInterchain err, so retry it
+					ex.logger.Errorf("queryInterchain from destAdapt: %w", err)
+				}
+				return err
+			}, strategy.Backoff(backoff.Fibonacci(1*time.Second))); err != nil {
+				ex.logger.Errorf("retry err with queryInterchain: %w", err)
 			}
-			return err
-		}, strategy.Backoff(backoff.Fibonacci(1*time.Second))); err != nil {
-			ex.logger.Errorf("retry err with queryInterchain: %w", err)
 		}
 	}
 
-	if repo.RelayMode == ex.mode {
+	if ex.mode == repo.RelayMode {
+		// get all services from bxh (including illegal service which not registered)
+		if err := retry.Retry(func(attempt uint) error {
+			if destServiceList, err = ex.destAdapt.GetServiceIDList(); err != nil {
+				// maybe peerMgr err cause GetServiceIDList err, so retry it
+				ex.logger.Errorf("GetServiceIDList from destAdapt: %w", err)
+			}
+			return err
+		}, strategy.Backoff(backoff.Fibonacci(1*time.Second))); err != nil {
+			ex.logger.Errorf("retry err with getServiceIDList: %w", err)
+		}
+
+		ex.logger.WithFields(logrus.Fields{"destServiceList": destServiceList}).Info("get bitxhub all services")
+
+		for _, serviceId := range destServiceList {
+			if err := retry.Retry(func(attempt uint) error {
+				if ex.destServiceMeta[serviceId], err = ex.destAdapt.QueryInterchain(serviceId); err != nil {
+					// maybe peerMgr err cause QueryInterchain err, so retry it
+					ex.logger.Errorf("queryInterchain from destAdapt: %w", err)
+				}
+				return err
+			}, strategy.Backoff(backoff.Fibonacci(1*time.Second))); err != nil {
+				ex.logger.Errorf("retry err with queryInterchain: %w", err)
+			}
+		}
+
+		// check all src services had been registered in bxh
+		appchainServiceList := make([]string, 0)
+		if err := retry.Retry(func(attempt uint) error {
+			if appchainServiceList, err = ex.srcAdapt.GetLocalServiceIDList(); err != nil {
+				ex.logger.Errorf("get serviceIdList from srcAdapt", "error", err.Error())
+				return err
+			}
+			return nil
+		}, strategy.Wait(3*time.Second)); err != nil {
+			return fmt.Errorf("retry error to get serviceIdList from srcAdapt: %w", err)
+		}
+
 		bxhServiceList := make([]string, 0)
 		if err = retry.Retry(func(attempt uint) error {
-			bxhServiceList, err = ex.destAdapt.GetServiceIDList()
+			bxhServiceList, err = ex.destAdapt.GetLocalServiceIDList()
 			if err != nil {
 				ex.logger.Errorf("bxhAdapter GetServiceIDList err:%s", err)
 				return err
@@ -147,7 +195,7 @@ func (ex *Exchanger) Start() error {
 			return err
 		}
 
-		err = ex.checkService(serviceList, bxhServiceList)
+		err = ex.checkService(appchainServiceList, bxhServiceList)
 		if err != nil {
 			panic(err)
 		}
@@ -310,8 +358,8 @@ func (ex *Exchanger) listenIBTPFromSrcAdaptToServicePairCh() {
 				ex.logger.Warn("Unexpected closed channel while listening on interchain ibtp")
 				return
 			}
-			ex.logger.WithFields(logrus.Fields{"index": ibtp.Index, "typ": ibtp.Type, "timestamp": ibtp.Timestamp}).
-				Errorf("[step1] Receive ibtp from plugin")
+			ex.logger.WithFields(logrus.Fields{"id": ibtp.ID(), "index": ibtp.Index, "typ": ibtp.Type, "timestamp": ibtp.Timestamp}).
+				Info("[step1] Receive ibtp from plugin")
 			key := ibtp.From + ibtp.To
 			_, ok2 := ex.srcIBTPMap[key]
 			if !ok2 {
@@ -339,15 +387,15 @@ func (ex *Exchanger) listenIBTPFromSrcAdapt(servicePair string) {
 				ex.logger.Warn("Unexpected closed channel while listening on interchain ibtp")
 				return
 			}
-			ex.logger.WithFields(logrus.Fields{"index": ibtp.Index, "type": ibtp.Type, "ibtp_id": ibtp.ID()}).Info("Receive ibtp from :", ex.srcAdaptName)
+			ex.logger.WithFields(logrus.Fields{"index": ibtp.Index, "type": ibtp.Type, "ibtp_id": ibtp.ID()}).Debug("Receive ibtp from :", ex.srcAdaptName)
 			index := ex.getCurrentIndexFromSrc(ibtp)
 			if index >= ibtp.Index {
-				ex.logger.WithFields(logrus.Fields{"index": ibtp.Index, "to_counter": index, "ibtp_id": ibtp.ID()}).Info("Ignore ibtp")
+				ex.logger.WithFields(logrus.Fields{"index": ibtp.Index, "to_counter": index, "ibtp_id": ibtp.ID()}).Warning("Ignore ibtp")
 				continue
 			}
 
 			if index+1 < ibtp.Index {
-				ex.logger.WithFields(logrus.Fields{"index": ibtp.Index, "to": ibtp.To}).Info("Get missing ibtp")
+				ex.logger.WithFields(logrus.Fields{"index": ibtp.Index, "to": ibtp.To}).Warning("Get missing ibtp")
 				ex.handleMissingIBTPByServicePair(index+1, ibtp.Index-1, ex.srcAdapt, ex.destAdapt, ibtp.From, ibtp.To, ex.isIBTPBelongSrc(ibtp))
 			}
 			if err := retry.Retry(func(attempt uint) error {

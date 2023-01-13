@@ -24,11 +24,15 @@ import (
 )
 
 const (
-	appchain  = "appchain"
-	appchain1 = "appchain1"
-	appchain2 = "appchain2"
-	bxhID     = "1356"
-	bxhID1    = "1357"
+	appchain     = "appchain"
+	appchain1    = "appchain1"
+	appchain2    = "appchain2"
+	bxhID        = "1356"
+	bxhID1       = "1357"
+	fullService1 = "1356:appchain:0x8553E27aD914D68356aeB4104f3dC1a09284460D"
+	fullService2 = "1356:appchain:0xD7Ba097ad6d498A0CAD0ee741b3Cdd0db1C50103"
+	fullService3 = "1356:appchain2:0xac5BC86a58F6aEef2D30C81aDf7C05b3DFc2Ae84"
+	fullService4 = "1356:appchain2:0x2AE186C49E8b7F74B82Fd034Dc60bC35f5fb805A"
 )
 
 func TestAppchainAdapter_GetAppchainID(t *testing.T) {
@@ -38,19 +42,56 @@ func TestAppchainAdapter_GetAppchainID(t *testing.T) {
 	require.Equal(t, appchain, appchainID)
 }
 
-func TestAppchainAdapter_GetServiceIDList(t *testing.T) {
+func TestAppchainAdapter_GetLocalServiceIDList(t *testing.T) {
 	appchainAdapter, client, _, _ := mockAppchainAdapter(t)
 
 	client.EXPECT().GetServices().Return(nil, fmt.Errorf("not found")).MaxTimes(1)
-	serviceList, err := appchainAdapter.GetServiceIDList()
+	serviceList, err := appchainAdapter.GetLocalServiceIDList()
 	require.NotNil(t, err)
 	require.Nil(t, serviceList)
 
 	services := []string{"service0", "service1"}
 	client.EXPECT().GetServices().Return(services, nil).MaxTimes(1)
-	serviceList, err = appchainAdapter.GetServiceIDList()
+	serviceList, err = appchainAdapter.GetLocalServiceIDList()
 	require.Nil(t, err)
 	require.Equal(t, services, serviceList)
+}
+
+func TestAppchainAdapter_GetServiceIDList(t *testing.T) {
+	appchainAdapter, client, _, _ := mockAppchainAdapter(t)
+	client.EXPECT().GetInMeta().Return(nil, fmt.Errorf("not found")).MaxTimes(1)
+	serviceList, err := appchainAdapter.GetServiceIDList()
+	require.NotNil(t, err)
+	require.Nil(t, serviceList)
+
+	inMeta := make(map[string]uint64, 0)
+	destServicePair1 := fmt.Sprintf("%s-%s", fullService3, fullService1)
+	destServicePair2 := fmt.Sprintf("%s-%s", fullService4, fullService1)
+	inMeta[destServicePair1] = 1
+	inMeta[destServicePair2] = 2
+	client.EXPECT().GetInMeta().Return(inMeta, nil).AnyTimes()
+	client.EXPECT().GetOutMeta().Return(nil, fmt.Errorf("not found")).MaxTimes(1)
+	serviceList, err = appchainAdapter.GetServiceIDList()
+	require.NotNil(t, err)
+	require.Nil(t, serviceList)
+
+	outMeta := make(map[string]uint64, 0)
+	srcServicePair1 := fmt.Sprintf("%s-%s", fullService2, fullService3)
+	srcServicePair2 := fmt.Sprintf("%s-%s", fullService2, fullService4)
+	outMeta[srcServicePair1] = 3
+	outMeta[srcServicePair2] = 4
+	client.EXPECT().GetOutMeta().Return(outMeta, nil).AnyTimes()
+	client.EXPECT().GetServices().Return(nil, fmt.Errorf("not found")).Times(1)
+	serviceList, err = appchainAdapter.GetServiceIDList()
+	require.NotNil(t, err)
+	require.Nil(t, serviceList)
+
+	localServices := []string{fullService1, fullService2}
+	client.EXPECT().GetServices().Return(localServices, nil).AnyTimes()
+	serviceList, err = appchainAdapter.GetServiceIDList()
+	require.Nil(t, err)
+	expectedServiceList := []string{fullService1, fullService2}
+	require.Equal(t, expectedServiceList, serviceList)
 }
 
 func TestAppchainAdapter_MonitorIBTP(t *testing.T) {
