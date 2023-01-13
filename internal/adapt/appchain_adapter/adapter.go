@@ -21,8 +21,9 @@ import (
 var _ adapt.Adapt = (*AppchainAdapter)(nil)
 
 const (
-	DirectSrcRegisterErr = "remote service is not registered"
-	DirectDestAuditErr   = "remote service is not allowed to call dest address"
+	DirectChainRegisterErr = "this appchain is not registered"
+	DirectSrcRegisterErr   = "remote service is not registered"
+	DirectDestAuditErr     = "remote service is not allowed to call dest address"
 )
 
 type AppchainAdapter struct {
@@ -204,7 +205,9 @@ func (a *AppchainAdapter) SendIBTP(ibtp *pb.IBTP) error {
 		a.logger.Info("appchain adapter submit ibtp success")
 	} else {
 		result := &pb.Result{}
-		if proof.TxStatus == pb.TransactionStatus_BEGIN_FAILURE || proof.TxStatus == pb.TransactionStatus_BEGIN_ROLLBACK {
+		// in direct mode, if src pier notify src rollback, will modify ibtp type from INTERCHAIN to RECEIPT_ROLLBACK
+		// so the content should be interchain type
+		if a.mode == repo.DirectMode && ibtp.Type == pb.IBTP_RECEIPT_ROLLBACK {
 			content := &pb.Content{}
 			if err := content.Unmarshal(pd.Content); err != nil {
 				return fmt.Errorf("unmarshal content of ibtp %s: %w", ibtp.ID(), err)
@@ -214,8 +217,21 @@ func (a *AppchainAdapter) SendIBTP(ibtp *pb.IBTP) error {
 				result.MultiStatus = append(result.MultiStatus, false)
 			}
 		} else {
-			if err := result.Unmarshal(pd.Content); err != nil {
-				return fmt.Errorf("unmarshal result of ibtp %s: %w", ibtp.ID(), err)
+			// if type is interchain( maybe status is begin_rollback or begin_fail),the content should be interchain type
+			if ibtp.Type == pb.IBTP_INTERCHAIN {
+				content := &pb.Content{}
+				if err := content.Unmarshal(pd.Content); err != nil {
+					return fmt.Errorf("unmarshal content of ibtp %s: %w", ibtp.ID(), err)
+				}
+				a.logger.WithFields(logrus.Fields{"type": ibtp.Type, "status": proof.TxStatus}).Info("src chain need rollback interchain")
+				//Judging whether it is MultiTransfer(1) or Transfer(0)
+				if binary.BigEndian.Uint64(content.Args[0]) == 0 {
+					result.MultiStatus = append(result.MultiStatus, false)
+				}
+			} else {
+				if err := result.Unmarshal(pd.Content); err != nil {
+					return fmt.Errorf("unmarshal result of ibtp %s: %w", ibtp.ID(), err)
+				}
 			}
 		}
 		_, _, serviceID := ibtp.ParseFrom()

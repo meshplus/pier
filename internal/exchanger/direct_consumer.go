@@ -2,6 +2,8 @@ package exchanger
 
 import (
 	"fmt"
+	"time"
+
 	"github.com/Rican7/retry"
 	"github.com/Rican7/retry/backoff"
 	"github.com/Rican7/retry/strategy"
@@ -9,7 +11,6 @@ import (
 	"github.com/meshplus/pier/internal/adapt"
 	"github.com/meshplus/pier/internal/adapt/appchain_adapter"
 	"github.com/sirupsen/logrus"
-	"time"
 )
 
 func (ex *Exchanger) listenIBTPFromDestAdaptForDirect(servicePair string) {
@@ -117,10 +118,10 @@ func (ex *Exchanger) isIBTPRollbackForDirect(ibtp *pb.IBTP) bool {
 }
 
 func (ex *Exchanger) rollbackIBTPForDirect(ibtp *pb.IBTP) {
+	ex.logger.WithFields(logrus.Fields{"typ": ibtp.Type}).Infof("src chain start rollback %s", ibtp.ID())
 	ibtp.Type = pb.IBTP_RECEIPT_ROLLBACK
 
 	// src chain rollback
-	ex.logger.Infof("src chain start rollback %s", ibtp.ID())
 	ex.sendIBTPForDirect(ex.srcAdapt, ex.srcAdapt, ibtp, ex.isIBTPBelongSrc(ibtp), true)
 	ex.logger.Infof("src chain rollback %s end", ibtp.ID())
 
@@ -133,6 +134,7 @@ func (ex *Exchanger) sendIBTPForDirect(fromAdapt, toAdapt adapt.Adapt, ibtp *pb.
 	if err := retry.Retry(func(attempt uint) error {
 		ex.logger.Infof("start sendIBTP to Adapt:%s", toAdapt.Name())
 		if err := toAdapt.SendIBTP(ibtp); err != nil {
+			ex.logger.Errorf("sendIBTP to adapter:%s err:%s", toAdapt.Name(), err)
 			// if err occurs, try to get new ibtp and resend
 			if err, ok := err.(*adapt.SendIbtpError); ok {
 				if err.NeedRetry() {
