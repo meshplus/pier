@@ -63,6 +63,18 @@ func (mr *MockAdaptMockRecorder) ID() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ID", reflect.TypeOf((*MockAdapt)(nil).ID))
 }
 
+// InitIbtpPool mocks base method.
+func (m *MockAdapt) InitIbtpPool(from, to string, typ pb.IBTP_Category, index uint64) {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "InitIbtpPool", from, to, typ, index)
+}
+
+// InitIbtpPool indicates an expected call of InitIbtpPool.
+func (mr *MockAdaptMockRecorder) InitIbtpPool(from, to, typ, index interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "InitIbtpPool", reflect.TypeOf((*MockAdapt)(nil).InitIbtpPool), from, to, typ, index)
+}
+
 // MonitorIBTP mocks base method.
 func (m *MockAdapt) MonitorIBTP() chan *pb.IBTP {
 	m.ctrl.T.Helper()

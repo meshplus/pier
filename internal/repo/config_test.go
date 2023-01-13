@@ -11,7 +11,10 @@ import (
 func TestUnmarshalConfig(t *testing.T) {
 	root, err := ioutil.TempDir("", "TestRepo")
 	require.Nil(t, err)
-	defer os.RemoveAll(root)
+	defer func() {
+		err = os.RemoveAll(root)
+		require.Nil(t, err)
+	}()
 	err = Initialize(root, "Secp256k1")
 	require.Nil(t, err)
 

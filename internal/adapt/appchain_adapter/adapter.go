@@ -125,6 +125,7 @@ func (a *AppchainAdapter) Stop() error {
 func (a *AppchainAdapter) ID() string {
 	return fmt.Sprintf("%s", a.appchainID)
 }
+
 func (a *AppchainAdapter) Name() string {
 	return fmt.Sprintf("appchain:%s", a.appchainID)
 }
@@ -247,16 +248,13 @@ func (a *AppchainAdapter) SendIBTP(ibtp *pb.IBTP) error {
 		// solidity broker cannot get detailed error info
 		return &adapt.SendIbtpError{
 			Err:    fmt.Sprintf("fail to send ibtp %s with type %v: %v", ibtp.ID(), ibtp.Type, err),
-			Status: adapt.Other_Error,
+			Status: adapt.OtherError,
 		}
 	}
 
 	var genFailReceipt bool
 	if !res.Status {
 		err := &adapt.SendIbtpError{Err: fmt.Sprintf("fail to send ibtp %s with type %v: %s", ibtp.ID(), ibtp.Type, res.Message)}
-		if strings.Contains(res.Message, "invalid multi-signature") {
-			err.Status = adapt.Proof_Invalid
-		}
 		if a.config.Mode.Type == repo.DirectMode &&
 			(strings.Contains(res.Message, DirectSrcRegisterErr) ||
 				strings.Contains(res.Message, DirectDestAuditErr)) {
@@ -265,9 +263,9 @@ func (a *AppchainAdapter) SendIBTP(ibtp *pb.IBTP) error {
 		if genFailReceipt {
 			ibtp.Type = pb.IBTP_RECEIPT_FAILURE
 			a.ibtpC <- ibtp
-			err.Status = adapt.Other_Error
+			err.Status = adapt.OtherError
 		} else {
-			err.Status = adapt.Other_Error
+			err.Status = adapt.OtherError
 		}
 		return err
 	}
@@ -427,8 +425,12 @@ func (a *AppchainAdapter) MonitorUpdatedMeta() chan *[]byte {
 	return nil
 }
 
-func (a *AppchainAdapter) SendUpdatedMeta(byte []byte) error {
+func (a *AppchainAdapter) SendUpdatedMeta(_ []byte) error {
 	return nil
+}
+
+func (a *AppchainAdapter) InitIbtpPool(_, _ string, _ pb.IBTP_Category, _ uint64) {
+	return
 }
 
 func (a *AppchainAdapter) handlePayload(ibtp *pb.IBTP, encrypt bool) (*pb.IBTP, *pb.Payload, error) {

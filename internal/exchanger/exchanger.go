@@ -310,6 +310,8 @@ func (ex *Exchanger) listenIBTPFromSrcAdaptToServicePairCh() {
 				ex.logger.Warn("Unexpected closed channel while listening on interchain ibtp")
 				return
 			}
+			ex.logger.WithFields(logrus.Fields{"index": ibtp.Index, "typ": ibtp.Type, "timestamp": ibtp.Timestamp}).
+				Errorf("[step1] Receive ibtp from plugin")
 			key := ibtp.From + ibtp.To
 			_, ok2 := ex.srcIBTPMap[key]
 			if !ok2 {
@@ -323,7 +325,6 @@ func (ex *Exchanger) listenIBTPFromSrcAdaptToServicePairCh() {
 				}
 			}
 			ex.srcIBTPMap[key] <- ibtp
-
 		}
 	}
 }

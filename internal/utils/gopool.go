@@ -1,34 +1,34 @@
-package direct_adapter
+package utils
 
 import (
 	"sync"
 )
 
-type pool struct {
+type GoPool struct {
 	queue chan struct{}
 	wg    *sync.WaitGroup
 }
 
-func NewGoPool(size int) *pool {
+func NewGoPool(size int) *GoPool {
 	if size <= 0 {
 		size = 1
 	}
-	return &pool{
+	return &GoPool{
 		queue: make(chan struct{}, size),
 		wg:    &sync.WaitGroup{},
 	}
 }
 
-func (p *pool) Add() {
+func (p *GoPool) Add() {
 	p.queue <- struct{}{}
 	p.wg.Add(1)
 }
 
-func (p *pool) Done() {
+func (p *GoPool) Done() {
 	<-p.queue
 	p.wg.Done()
 }
 
-func (p *pool) Wait() {
+func (p *GoPool) Wait() {
 	p.wg.Wait()
 }
