@@ -74,7 +74,7 @@ func (b *BxhAdapter) MonitorUpdatedMeta() chan *[]byte {
 	return nil
 }
 
-func (b *BxhAdapter) SendUpdatedMeta(byte []byte) error {
+func (b *BxhAdapter) SendUpdatedMeta(_ []byte) error {
 	return nil
 }
 
@@ -86,7 +86,7 @@ func New(mode, appchainId string, client rpcx.Client, logger logrus.FieldLogger,
 		return nil, fmt.Errorf("new bxh adapter err: %w", err)
 	}
 	ctx, cancel := context.WithCancel(context.Background())
-	
+
 	ba := &BxhAdapter{
 		wrappersC:  make(chan *pb.InterchainTxWrappers, maxChSize),
 		ibtpC:      make(chan *pb.IBTP, maxChSize),
@@ -293,13 +293,14 @@ func (b *BxhAdapter) SendIBTP(ibtp *pb.IBTP) error {
 					return nil
 				}
 
-				// if the receipt had already rollback need not to rollback
-				if strings.Contains(errMsg, otherRollback) {
+				// if the receipt had already rollback need not to rollback or had already reach filnal status, need not handle this error
+				if strings.Contains(errMsg, FinalSuccessStatus) || strings.Contains(errMsg, FinalFailStatus) ||
+					strings.Contains(errMsg, FinalRollback) {
+					b.logger.Warning("ibtp had already reach final status, ignore this err")
 					retErr = &adapt.SendIbtpError{
 						Err:    errMsg,
 						Status: adapt.OtherError,
 					}
-					return nil
 				}
 
 				// when bxh trigger timeout rollback, destPier's bxhAdapter want to send receipt to bxh.
