@@ -311,7 +311,7 @@ func (ex *Exchanger) listenIBTPFromSrcAdaptToServicePairCh() {
 				return
 			}
 			ex.logger.WithFields(logrus.Fields{"index": ibtp.Index, "typ": ibtp.Type, "timestamp": ibtp.Timestamp}).
-				Errorf("[step1] Receive ibtp from plugin")
+				Info("[step1] Receive ibtp from plugin")
 			key := ibtp.From + ibtp.To
 			_, ok2 := ex.srcIBTPMap[key]
 			if !ok2 {

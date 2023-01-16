@@ -592,7 +592,7 @@ func (b *BxhAdapter) handleInterchainTxWrapper(w *pb.InterchainTxWrapper, i int)
 			var isReq bool
 			// if dest pier get MultiTxIbtps, need dst chain Rollback
 			// so query child Interchain ibtp
-			_, to, _, err := utils.ParseIBTPID(id)
+			from, to, index, err := utils.ParseIBTPID(id)
 			if err != nil {
 				b.logger.Errorf("MultiTxIbtps parse ibtp id[%s] err:%s", id, err)
 				return err
@@ -606,6 +606,11 @@ func (b *BxhAdapter) handleInterchainTxWrapper(w *pb.InterchainTxWrapper, i int)
 				isReq = true
 				b.logger.Warningf("dest pier get MultiTxIbtps [%s], "+
 					"need query interchain for dest chain rollback", id)
+			}
+
+			// if one 2 multi, receipt need update pool current index
+			if !isReq {
+				b.InitIbtpPool(from, to, pb.IBTP_RESPONSE, index)
 			}
 
 			// for src pier, need handle all MultiIBTPs

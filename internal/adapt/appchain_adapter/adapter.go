@@ -203,7 +203,6 @@ func (a *AppchainAdapter) SendIBTP(ibtp *pb.IBTP) error {
 			"typ":  ibtp.Type,
 		}).Info("start submit ibtp")
 		res, err = a.client.SubmitIBTP(ibtp.From, ibtp.Index, serviceID, ibtp.Type, content, proof, pd.Encrypted)
-		a.logger.Info("appchain adapter submit ibtp success")
 	} else {
 		result := &pb.Result{}
 		// in direct mode, if src pier notify src rollback, will modify ibtp type from INTERCHAIN to RECEIPT_ROLLBACK
@@ -241,7 +240,6 @@ func (a *AppchainAdapter) SendIBTP(ibtp *pb.IBTP) error {
 			"typ":  ibtp.Type,
 		}).Info("start submit receipt")
 		res, err = a.client.SubmitReceipt(ibtp.To, ibtp.Index, serviceID, ibtp.Type, result, proof)
-		a.logger.Debug("appchain adapter submit receipt success")
 	}
 
 	if err != nil {
@@ -250,6 +248,12 @@ func (a *AppchainAdapter) SendIBTP(ibtp *pb.IBTP) error {
 			Err:    fmt.Sprintf("fail to send ibtp %s with type %v: %v", ibtp.ID(), ibtp.Type, err),
 			Status: adapt.OtherError,
 		}
+	}
+
+	if isReq {
+		a.logger.Info("appchain adapter submit ibtp success")
+	} else {
+		a.logger.Info("appchain adapter submit receipt success")
 	}
 
 	var genFailReceipt bool
