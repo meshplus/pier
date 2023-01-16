@@ -310,7 +310,7 @@ func (ex *Exchanger) listenIBTPFromSrcAdaptToServicePairCh() {
 				ex.logger.Warn("Unexpected closed channel while listening on interchain ibtp")
 				return
 			}
-			ex.logger.WithFields(logrus.Fields{"index": ibtp.Index, "typ": ibtp.Type, "timestamp": ibtp.Timestamp}).
+			ex.logger.WithFields(logrus.Fields{"id": ibtp.ID(), "index": ibtp.Index, "typ": ibtp.Type, "timestamp": ibtp.Timestamp}).
 				Info("[step1] Receive ibtp from plugin")
 			key := ibtp.From + ibtp.To
 			_, ok2 := ex.srcIBTPMap[key]
@@ -339,15 +339,15 @@ func (ex *Exchanger) listenIBTPFromSrcAdapt(servicePair string) {
 				ex.logger.Warn("Unexpected closed channel while listening on interchain ibtp")
 				return
 			}
-			ex.logger.WithFields(logrus.Fields{"index": ibtp.Index, "type": ibtp.Type, "ibtp_id": ibtp.ID()}).Info("Receive ibtp from :", ex.srcAdaptName)
+			ex.logger.WithFields(logrus.Fields{"index": ibtp.Index, "type": ibtp.Type, "ibtp_id": ibtp.ID()}).Debug("Receive ibtp from :", ex.srcAdaptName)
 			index := ex.getCurrentIndexFromSrc(ibtp)
 			if index >= ibtp.Index {
-				ex.logger.WithFields(logrus.Fields{"index": ibtp.Index, "to_counter": index, "ibtp_id": ibtp.ID()}).Info("Ignore ibtp")
+				ex.logger.WithFields(logrus.Fields{"index": ibtp.Index, "to_counter": index, "ibtp_id": ibtp.ID()}).Warning("Ignore ibtp")
 				continue
 			}
 
 			if index+1 < ibtp.Index {
-				ex.logger.WithFields(logrus.Fields{"index": ibtp.Index, "to": ibtp.To}).Info("Get missing ibtp")
+				ex.logger.WithFields(logrus.Fields{"index": ibtp.Index, "to": ibtp.To}).Warning("Get missing ibtp")
 				ex.handleMissingIBTPByServicePair(index+1, ibtp.Index-1, ex.srcAdapt, ex.destAdapt, ibtp.From, ibtp.To, ex.isIBTPBelongSrc(ibtp))
 			}
 			if err := retry.Retry(func(attempt uint) error {

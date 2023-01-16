@@ -20,6 +20,7 @@ import (
 	"github.com/meshplus/bitxhub-model/pb"
 	rpcx "github.com/meshplus/go-bitxhub-client"
 	"github.com/meshplus/pier/internal/adapt"
+	"github.com/meshplus/pier/internal/checker"
 	"github.com/meshplus/pier/internal/repo"
 	"github.com/meshplus/pier/internal/utils"
 	"github.com/sirupsen/logrus"
@@ -54,6 +55,7 @@ type BxhAdapter struct {
 	cancel     context.CancelFunc
 	tss        *repo.TSS
 	goPool     *utils.GoPool
+	checker    checker.Checker
 }
 
 func (b *BxhAdapter) InitIbtpPool(from, to string, typ pb.IBTP_Category, index uint64) {
@@ -101,6 +103,8 @@ func New(mode, appchainId string, client rpcx.Client, logger logrus.FieldLogger,
 		nonce:      nonce,
 		goPool:     utils.NewGoPool(goroutinesSize),
 	}
+
+	ba.checker = checker.NewRelayChecker(nil, ba.appchainId, fmt.Sprintf("%d", ba.bxhID), ba.logger)
 
 	return ba, nil
 }
@@ -563,13 +567,28 @@ func (b *BxhAdapter) handleInterchainTxWrapper(w *pb.InterchainTxWrapper, i int)
 			defer b.goPool.Done()
 			current := time.Now()
 			proof := b.getSign(ibtp, isReq)
+			retProof, err := proof.Marshal()
+			if err != nil {
+				b.logger.WithFields(logrus.Fields{"id": ibtp.ID()}).Errorf("marshal ibtp proof err")
+				return
+			}
 			b.logger.WithFields(logrus.Fields{"ID": ibtp.ID(), "index": ibtp.Index, "elapse": time.Since(current)}).Infof("[3.1] receive multi sign")
-			ibtp.Proof = proof
+			ibtp.Proof = retProof
 			if tx.IsBatch && b.mode == repo.RelayMode {
 				ibtp.Extra = []byte("1")
 				b.logger.Info("get batch ibtp")
 			}
-			b.insertIBTPPool(ibtp)
+			isSrcPier, err := b.checker.BasicCheck(ibtp)
+			if err != nil {
+				b.logger.WithFields(logrus.Fields{"id": ibtp.ID()}).Errorf("check ibtp err")
+			}
+
+			// handle src chain rollback
+			var srcRollback bool
+			if isSrcPier && (proof.TxStatus == pb.TransactionStatus_BEGIN_FAILURE || proof.TxStatus == pb.TransactionStatus_BEGIN_ROLLBACK) {
+				srcRollback = true
+			}
+			b.insertIBTPPool(ibtp, srcRollback)
 		}(ibtp, tx)
 	}
 
@@ -579,6 +598,8 @@ func (b *BxhAdapter) handleInterchainTxWrapper(w *pb.InterchainTxWrapper, i int)
 			if err != nil {
 				b.logger.Warnf("query timeout ibtp %s: %v", id, err)
 			} else {
+				// if receive timeout ibtp, src chain need rollback, so src pool need update current index
+				b.InitIbtpPool(ibtp.From, ibtp.To, pb.IBTP_RESPONSE, ibtp.Index)
 				b.ibtpC <- ibtp
 			}
 			return err
@@ -597,22 +618,19 @@ func (b *BxhAdapter) handleInterchainTxWrapper(w *pb.InterchainTxWrapper, i int)
 				b.logger.Errorf("MultiTxIbtps parse ibtp id[%s] err:%s", id, err)
 				return err
 			}
-			_, chainID, _, err := utils.ParseFullServiceID(to)
+			_, toChainID, _, err := utils.ParseFullServiceID(to)
 			if err != nil {
 				b.logger.Errorf("MultiTxIbtps parse fullServiceid[%s] err:%s", to, err)
 				return err
 			}
-			if chainID == b.appchainId {
+			if toChainID == b.appchainId {
 				isReq = true
 				b.logger.Warningf("dest pier get MultiTxIbtps [%s], "+
 					"need query interchain for dest chain rollback", id)
-			}
-
-			// if one 2 multi, receipt need update pool current index
-			if !isReq {
+			} else {
+				// if one 2 multi, receipt and rollback interchain need update pool current index
 				b.InitIbtpPool(from, to, pb.IBTP_RESPONSE, index)
 			}
-
 			// for src pier, need handle all MultiIBTPs
 			// so query child ibtp receipt
 			ibtp, err := b.QueryIBTP(id, isReq)
@@ -638,9 +656,12 @@ func (b *BxhAdapter) handleInterchainTxWrapper(w *pb.InterchainTxWrapper, i int)
 	return true
 }
 
-func (b *BxhAdapter) insertIBTPPool(ibtp *pb.IBTP) {
+func (b *BxhAdapter) insertIBTPPool(ibtp *pb.IBTP, srcRollback bool) {
 	now := time.Now()
 	servicePair := bxhPoolKey(ibtp.From, ibtp.To, ibtp.Category())
+	if srcRollback {
+		servicePair = bxhPoolKey(ibtp.From, ibtp.To, pb.IBTP_RESPONSE)
+	}
 	act, loaded := b.ibtps.LoadOrStore(servicePair, utils.NewPool(utils.RelayDegree))
 	pool := act.(*utils.Pool)
 	pool.Lock.Lock()
@@ -700,13 +721,13 @@ func (b *BxhAdapter) getTxStatus(id string) (pb.TransactionStatus, error) {
 	return pb.TransactionStatus(status), nil
 }
 
-func (b *BxhAdapter) getSign(ibtp *pb.IBTP, isReq bool) []byte {
+func (b *BxhAdapter) getSign(ibtp *pb.IBTP, isReq bool) *pb.BxhProof {
 	var (
 		err       error
 		retSign   *pb.SignResponse
 		reqTyp    pb.GetSignsRequest_Type
 		retStatus pb.TransactionStatus
-		retProof  []byte
+		proof     *pb.BxhProof
 	)
 	if err = retry.Retry(func(attempt uint) error {
 		if b.tss.EnableTSS {
@@ -746,19 +767,15 @@ func (b *BxhAdapter) getSign(ibtp *pb.IBTP, isReq bool) []byte {
 			return err
 		}
 
-		proof := &pb.BxhProof{
+		proof = &pb.BxhProof{
 			TxStatus:  retStatus,
 			MultiSign: signs,
-		}
-		retProof, err = proof.Marshal()
-		if err != nil {
-			return err
 		}
 		return nil
 	}, strategy.Wait(time.Second*2)); err != nil {
 		b.logger.Panicf("get sign err:%s", err)
 	}
-	return retProof
+	return proof
 }
 
 func (b *BxhAdapter) restartCh() {
@@ -794,8 +811,13 @@ func (b *BxhAdapter) getIBTPByID(id string, isReq bool) (*pb.IBTP, error) {
 
 	retIBTP := response.Tx.GetIBTP()
 	proof := b.getSign(retIBTP, isReq)
+
+	retProof, err := proof.Marshal()
+	if err != nil {
+		return nil, err
+	}
 	// get ibtp proof from bxh
-	retIBTP.Proof = proof
+	retIBTP.Proof = retProof
 
 	return retIBTP, nil
 }
