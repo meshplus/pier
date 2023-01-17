@@ -278,7 +278,15 @@ func (a *AppchainAdapter) SendIBTP(ibtp *pb.IBTP) error {
 }
 
 func (a *AppchainAdapter) GetServiceIDList() ([]string, error) {
-	return a.client.GetServices()
+	serviceIDM, err := a.client.GetInMeta()
+	if err != nil {
+		return nil, err
+	}
+	serviceIDList := make([]string, len(serviceIDM))
+	for s := range serviceIDM {
+		serviceIDList = append(serviceIDList, s)
+	}
+	return serviceIDList, nil
 }
 
 func (a *AppchainAdapter) QueryInterchain(serviceID string) (*pb.Interchain, error) {
