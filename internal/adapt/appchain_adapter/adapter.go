@@ -290,14 +290,23 @@ func (a *AppchainAdapter) GetServiceIDList() ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	serviceIDList := make([]string, len(inServiceIDM)+len(outServiceIDM))
+	serviceIDList := make([]string, 0)
 
 	for servicePair := range inServiceIDM {
 		_, dstServiceID, err := utils.ParseServicePair(servicePair)
 		if err != nil {
 			return nil, err
 		}
-		serviceIDList = append(serviceIDList, dstServiceID)
+		var exist bool
+		for _, v := range serviceIDList {
+			if v == dstServiceID {
+				exist = true
+				continue
+			}
+		}
+		if !exist {
+			serviceIDList = append(serviceIDList, dstServiceID)
+		}
 	}
 
 	for servicePair := range outServiceIDM {
@@ -305,8 +314,18 @@ func (a *AppchainAdapter) GetServiceIDList() ([]string, error) {
 		if err != nil {
 			return nil, err
 		}
-		serviceIDList = append(serviceIDList, srcServiceID)
+		var exist bool
+		for _, v := range serviceIDList {
+			if v == srcServiceID {
+				exist = true
+				continue
+			}
+		}
+		if !exist {
+			serviceIDList = append(serviceIDList, srcServiceID)
+		}
 	}
+
 	return serviceIDList, nil
 }
 

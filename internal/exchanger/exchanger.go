@@ -108,10 +108,18 @@ func (ex *Exchanger) Start() error {
 	ex.destAdaptName = ex.destAdapt.Name()
 
 	if err := retry.Retry(func(attempt uint) error {
-		if serviceList, err = ex.srcAdapt.GetServiceIDList(); err != nil {
-			ex.logger.Errorf("get serviceIdList from srcAdapt", "error", err.Error())
-			return err
+		if repo.RelayMode == ex.mode {
+			if serviceList, err = ex.srcAdapt.GetServiceIDList(); err != nil {
+				ex.logger.Errorf("get serviceIdList from srcAdapt", "error", err.Error())
+				return err
+			}
+		} else {
+			if serviceList, err = ex.srcAdapt.GetLocalServiceIDList(); err != nil {
+				ex.logger.Errorf("get serviceIdList from srcAdapt", "error", err.Error())
+				return err
+			}
 		}
+		ex.logger.WithFields(logrus.Fields{"serviveIdList": serviceList}).Info("get appchain all service")
 		return nil
 	}, strategy.Wait(3*time.Second)); err != nil {
 		return fmt.Errorf("retry error to get serviceIdList from srcAdapt: %w", err)
@@ -150,7 +158,7 @@ func (ex *Exchanger) Start() error {
 
 		bxhServiceList := make([]string, 0)
 		if err = retry.Retry(func(attempt uint) error {
-			bxhServiceList, err = ex.destAdapt.GetServiceIDList()
+			bxhServiceList, err = ex.destAdapt.GetLocalServiceIDList()
 			if err != nil {
 				ex.logger.Errorf("bxhAdapter GetServiceIDList err:%s", err)
 				return err

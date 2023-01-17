@@ -58,8 +58,31 @@ type BxhAdapter struct {
 	checker    checker.Checker
 }
 
-func (b *BxhAdapter) GetLocalServiceIDList() ([]string, error) {
-	return b.GetServiceIDList()
+func (b *BxhAdapter) GetServiceIDList() ([]string, error) {
+	tx, err := b.client.GenerateContractTx(pb.TransactionData_BVM, constant.InterchainContractAddr.Address(),
+		"GetAllServiceIDs")
+	if err != nil {
+		panic(err)
+	}
+
+	ret := getTxView(b.client, tx)
+
+	allServices := make([]string, 0)
+	if err := json.Unmarshal(ret, &allServices); err != nil {
+		panic(err)
+	}
+	services := make([]string, 0)
+	for _, service := range allServices {
+		_, chainID, _, err := utils.ParseFullServiceID(service)
+		if err != nil {
+			return nil, err
+		}
+		if chainID == b.appchainId {
+			services = append(services, service)
+		}
+	}
+
+	return services, nil
 }
 
 func (b *BxhAdapter) InitIbtpPool(from, to string, typ pb.IBTP_Category, index uint64) {
@@ -371,7 +394,7 @@ func (b *BxhAdapter) SendIBTP(ibtp *pb.IBTP) error {
 	return retErr
 }
 
-func (b *BxhAdapter) GetServiceIDList() ([]string, error) {
+func (b *BxhAdapter) GetLocalServiceIDList() ([]string, error) {
 	if b.mode == repo.RelayMode {
 		tx, err := b.client.GenerateContractTx(pb.TransactionData_BVM, constant.ServiceMgrContractAddr.Address(),
 			"GetServicesByAppchainID", rpcx.String(b.appchainId))
