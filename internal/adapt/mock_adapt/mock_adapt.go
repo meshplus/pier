@@ -34,6 +34,21 @@ func (m *MockAdapt) EXPECT() *MockAdaptMockRecorder {
 	return m.recorder
 }
 
+// GetLocalServiceIDList mocks base method.
+func (m *MockAdapt) GetLocalServiceIDList() ([]string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetLocalServiceIDList")
+	ret0, _ := ret[0].([]string)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetLocalServiceIDList indicates an expected call of GetLocalServiceIDList.
+func (mr *MockAdaptMockRecorder) GetLocalServiceIDList() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetLocalServiceIDList", reflect.TypeOf((*MockAdapt)(nil).GetLocalServiceIDList))
+}
+
 // GetServiceIDList mocks base method.
 func (m *MockAdapt) GetServiceIDList() ([]string, error) {
 	m.ctrl.T.Helper()

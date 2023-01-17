@@ -40,6 +40,10 @@ type DirectAdapter struct {
 	gopool          *utils.GoPool
 }
 
+func (d *DirectAdapter) GetLocalServiceIDList() ([]string, error) {
+	return nil, nil
+}
+
 func (d *DirectAdapter) InitIbtpPool(_, _ string, _ pb.IBTP_Category, _ uint64) {
 	return
 }

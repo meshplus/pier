@@ -44,6 +44,10 @@ type AppchainAdapter struct {
 	bitxhubID  string
 }
 
+func (a *AppchainAdapter) GetLocalServiceIDList() ([]string, error) {
+	return a.client.GetServices()
+}
+
 const IBTP_CH_SIZE = 1024
 
 func NewAppchainAdapter(mode string, config *repo.Config, logger logrus.FieldLogger, crypto txcrypto.Cryptor) (adapt.Adapt, error) {
@@ -278,13 +282,30 @@ func (a *AppchainAdapter) SendIBTP(ibtp *pb.IBTP) error {
 }
 
 func (a *AppchainAdapter) GetServiceIDList() ([]string, error) {
-	serviceIDM, err := a.client.GetInMeta()
+	inServiceIDM, err := a.client.GetInMeta()
 	if err != nil {
 		return nil, err
 	}
-	serviceIDList := make([]string, len(serviceIDM))
-	for s := range serviceIDM {
-		serviceIDList = append(serviceIDList, s)
+	outServiceIDM, err := a.client.GetOutMeta()
+	if err != nil {
+		return nil, err
+	}
+	serviceIDList := make([]string, len(inServiceIDM)+len(outServiceIDM))
+
+	for servicePair := range inServiceIDM {
+		_, dstServiceID, err := utils.ParseServicePair(servicePair)
+		if err != nil {
+			return nil, err
+		}
+		serviceIDList = append(serviceIDList, dstServiceID)
+	}
+
+	for servicePair := range outServiceIDM {
+		srcServiceID, _, err := utils.ParseServicePair(servicePair)
+		if err != nil {
+			return nil, err
+		}
+		serviceIDList = append(serviceIDList, srcServiceID)
 	}
 	return serviceIDList, nil
 }

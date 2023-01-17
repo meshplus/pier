@@ -58,6 +58,10 @@ type BxhAdapter struct {
 	checker    checker.Checker
 }
 
+func (b *BxhAdapter) GetLocalServiceIDList() ([]string, error) {
+	return b.GetServiceIDList()
+}
+
 func (b *BxhAdapter) InitIbtpPool(from, to string, typ pb.IBTP_Category, index uint64) {
 	servicePair := bxhPoolKey(from, to, typ)
 	act, loaded := b.ibtps.LoadOrStore(servicePair, utils.NewPool(utils.RelayDegree))

@@ -135,6 +135,17 @@ func (ex *Exchanger) Start() error {
 	}
 
 	if repo.RelayMode == ex.mode {
+		appchainServiceList := make([]string, 0)
+		if err := retry.Retry(func(attempt uint) error {
+			if appchainServiceList, err = ex.srcAdapt.GetLocalServiceIDList(); err != nil {
+				ex.logger.Errorf("get serviceIdList from srcAdapt", "error", err.Error())
+				return err
+			}
+			return nil
+		}, strategy.Wait(3*time.Second)); err != nil {
+			return fmt.Errorf("retry error to get serviceIdList from srcAdapt: %w", err)
+		}
+
 		bxhServiceList := make([]string, 0)
 		if err = retry.Retry(func(attempt uint) error {
 			bxhServiceList, err = ex.destAdapt.GetServiceIDList()
@@ -147,7 +158,7 @@ func (ex *Exchanger) Start() error {
 			return err
 		}
 
-		err = ex.checkService(serviceList, bxhServiceList)
+		err = ex.checkService(appchainServiceList, bxhServiceList)
 		if err != nil {
 			panic(err)
 		}
