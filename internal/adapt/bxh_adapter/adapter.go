@@ -623,12 +623,14 @@ func (b *BxhAdapter) handleInterchainTxWrapper(w *pb.InterchainTxWrapper, i int)
 				b.logger.Errorf("MultiTxIbtps parse fullServiceid[%s] err:%s", to, err)
 				return err
 			}
+			b.logger.WithFields(logrus.Fields{"toChainID": toChainID, "bxh adapter chainid": b.appchainId}).Warning("1111111111")
 			if toChainID == b.appchainId {
 				isReq = true
 				b.logger.Warningf("dest pier get MultiTxIbtps [%s], "+
 					"need query interchain for dest chain rollback", id)
 			} else {
 				// if one 2 multi, receipt and rollback interchain need update pool current index
+				b.logger.WithFields(logrus.Fields{"to": to, "pool curIndex": index + 1}).Warning("src need rollback, update pool index")
 				b.InitIbtpPool(from, to, pb.IBTP_RESPONSE, index)
 			}
 			// for src pier, need handle all MultiIBTPs
@@ -669,7 +671,7 @@ func (b *BxhAdapter) insertIBTPPool(ibtp *pb.IBTP, srcRollback bool) {
 	if !loaded {
 		pool.CurrentIndex = 1
 	}
-	b.logger.WithFields(logrus.Fields{"current index": pool.CurrentIndex, "ID": ibtp.ID(), "index": ibtp.Index, "elapse": time.Since(now)}).Infof("[3.2.1] start insert pool")
+	b.logger.WithFields(logrus.Fields{"current index": pool.CurrentIndex, "ID": ibtp.ID(), "index": ibtp.Index, "key": servicePair, "elapse": time.Since(now)}).Infof("[3.2.1] start insert pool")
 
 	pool.Ibtps.ReplaceOrInsert(&utils.MyTree{Ibtp: ibtp, Index: ibtp.Index})
 	for {
