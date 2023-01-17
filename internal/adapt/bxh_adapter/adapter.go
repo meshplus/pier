@@ -68,6 +68,23 @@ func (b *BxhAdapter) InitIbtpPool(from, to string, typ pb.IBTP_Category, index u
 	}
 }
 
+func (b *BxhAdapter) UpdateIbtpPool(from, to string, typ pb.IBTP_Category, index uint64) error {
+	servicePair := bxhPoolKey(from, to, typ)
+	act, loaded := b.ibtps.LoadOrStore(servicePair, utils.NewPool(utils.RelayDegree))
+	pool := act.(*utils.Pool)
+	if !loaded {
+		if index != 1 {
+			return fmt.Errorf("not find pool, but index is not 1")
+		}
+		pool.CurrentIndex = 2
+		b.logger.WithFields(logrus.Fields{"ID": servicePair, "key": servicePair, "CurrentIndex": pool.CurrentIndex}).Infof("update pool")
+		return nil
+	}
+	pool.CurrentIndex = index + 1
+	b.logger.WithFields(logrus.Fields{"ID": servicePair, "key": servicePair, "CurrentIndex": pool.CurrentIndex}).Infof("update pool")
+	return nil
+}
+
 func bxhPoolKey(from, to string, typ pb.IBTP_Category) string {
 	return fmt.Sprintf("%s-%s-%s", from, to, typ.String())
 }
@@ -599,7 +616,10 @@ func (b *BxhAdapter) handleInterchainTxWrapper(w *pb.InterchainTxWrapper, i int)
 				b.logger.Warnf("query timeout ibtp %s: %v", id, err)
 			} else {
 				// if receive timeout ibtp, src chain need rollback, so src pool need update current index
-				b.InitIbtpPool(ibtp.From, ibtp.To, pb.IBTP_RESPONSE, ibtp.Index)
+				err = b.UpdateIbtpPool(ibtp.From, ibtp.To, pb.IBTP_RESPONSE, ibtp.Index)
+				if err != nil {
+					b.logger.Errorf("update pool err:%s", err)
+				}
 				b.ibtpC <- ibtp
 			}
 			return err
