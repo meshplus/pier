@@ -578,14 +578,14 @@ func (b *BxhAdapter) handleInterchainTxWrapper(w *pb.InterchainTxWrapper, i int)
 				ibtp.Extra = []byte("1")
 				b.logger.Info("get batch ibtp")
 			}
-			isSrcPier, err := b.checker.BasicCheck(ibtp)
+			isDestPier, err := b.checker.BasicCheck(ibtp)
 			if err != nil {
 				b.logger.WithFields(logrus.Fields{"id": ibtp.ID()}).Errorf("check ibtp err")
 			}
 
 			// handle src chain rollback
 			var srcRollback bool
-			if isSrcPier && (proof.TxStatus == pb.TransactionStatus_BEGIN_FAILURE || proof.TxStatus == pb.TransactionStatus_BEGIN_ROLLBACK) {
+			if !isDestPier && (proof.TxStatus == pb.TransactionStatus_BEGIN_FAILURE || proof.TxStatus == pb.TransactionStatus_BEGIN_ROLLBACK) {
 				srcRollback = true
 			}
 			b.insertIBTPPool(ibtp, srcRollback)
