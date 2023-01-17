@@ -650,7 +650,7 @@ func (b *BxhAdapter) handleInterchainTxWrapper(w *pb.InterchainTxWrapper, i int)
 			} else {
 				// if one 2 multi, receipt and rollback interchain need update pool current index
 				b.logger.WithFields(logrus.Fields{"to": to, "pool curIndex": index + 1}).Warning("src need rollback, update pool index")
-				b.InitIbtpPool(from, to, pb.IBTP_RESPONSE, index)
+				b.UpdateIbtpPool(from, to, pb.IBTP_RESPONSE, index)
 			}
 			// for src pier, need handle all MultiIBTPs
 			// so query child ibtp receipt
@@ -703,6 +703,7 @@ func (b *BxhAdapter) insertIBTPPool(ibtp *pb.IBTP, srcRollback bool) {
 				pool.Ibtps.DeleteMin()
 				pool.CurrentIndex++
 			} else {
+				b.logger.WithFields(logrus.Fields{"ID": item.(*utils.MyTree).Ibtp.ID(), "want index": pool.CurrentIndex, "receive index": item.(*utils.MyTree).Ibtp.Index, "elapse": time.Since(now)}).Warning("receive bigger index ibtp")
 				break
 			}
 		} else {
