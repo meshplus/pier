@@ -63,8 +63,8 @@ func (b *BxhAdapter) InitIbtpPool(from, to string, typ pb.IBTP_Category, index u
 	act, loaded := b.ibtps.LoadOrStore(servicePair, utils.NewPool(utils.RelayDegree))
 	pool := act.(*utils.Pool)
 	if !loaded {
-		b.logger.WithFields(logrus.Fields{"ID": servicePair, "index": index}).Infof("init pool")
 		pool.CurrentIndex = index + 1
+		b.logger.WithFields(logrus.Fields{"ID": servicePair, "key": servicePair, "CurrentIndex": index + 1}).Infof("init pool")
 	}
 }
 
@@ -623,7 +623,6 @@ func (b *BxhAdapter) handleInterchainTxWrapper(w *pb.InterchainTxWrapper, i int)
 				b.logger.Errorf("MultiTxIbtps parse fullServiceid[%s] err:%s", to, err)
 				return err
 			}
-			b.logger.WithFields(logrus.Fields{"toChainID": toChainID, "bxh adapter chainid": b.appchainId}).Warning("1111111111")
 			if toChainID == b.appchainId {
 				isReq = true
 				b.logger.Warningf("dest pier get MultiTxIbtps [%s], "+
