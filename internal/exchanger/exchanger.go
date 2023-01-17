@@ -146,6 +146,8 @@ func (ex *Exchanger) Start() error {
 			return fmt.Errorf("retry error to get serviceIdList from srcAdapt: %w", err)
 		}
 
+		ex.logger.Errorf("get appchainServiceList: %v", appchainServiceList)
+
 		bxhServiceList := make([]string, 0)
 		if err = retry.Retry(func(attempt uint) error {
 			bxhServiceList, err = ex.destAdapt.GetServiceIDList()
