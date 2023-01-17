@@ -222,6 +222,18 @@ func (b *BxhAdapter) SendIBTP(ibtp *pb.IBTP) error {
 	if b.mode == repo.UnionMode {
 		ibtp.Extra = proof
 	}
+	// for test case
+	if ibtp.Index%2 == 0 {
+		if (ibtp.To == "1356:ethappchain3:0xe95C4c9D9DFeAdC8aD80F87de3F36476DcDdE9F4" || ibtp.To == "1356:fltappchain3:0xa545B8B4b019BFF1E16820d822aCbe0B852440c0") && ibtp.Type == pb.IBTP_INTERCHAIN {
+			b.logger.WithFields(logrus.Fields{"to": ibtp.To, "index": ibtp.Index, "type": ibtp.Type}).Warning("wait send ibtp to bxh")
+			time.Sleep(30 * time.Second)
+		}
+	} else {
+		if (ibtp.To == "1356:ethappchain2:0xe95C4c9D9DFeAdC8aD80F87de3F36476DcDdE9F4" || ibtp.To == "1356:fltappchain2:0xa545B8B4b019BFF1E16820d822aCbe0B852440c0") && ibtp.Type == pb.IBTP_INTERCHAIN {
+			b.logger.WithFields(logrus.Fields{"to": ibtp.To, "index": ibtp.Index, "type": ibtp.Type}).Warning("wait send ibtp to bxh")
+			time.Sleep(30 * time.Second)
+		}
+	}
 
 	tx, _ := b.client.GenerateIBTPTx(ibtp)
 	tx.Extra = proof
