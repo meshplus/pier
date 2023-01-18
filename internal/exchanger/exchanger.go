@@ -91,8 +91,9 @@ func (ex *Exchanger) checkService(appServiceList, bxhServiceList []string) error
 func (ex *Exchanger) Start() error {
 	// init meta info
 	var (
-		serviceList []string
-		err         error
+		serviceList        []string
+		destAllServiceList []string
+		err                error
 	)
 
 	// start get ibtp to channel
@@ -130,7 +131,33 @@ func (ex *Exchanger) Start() error {
 		if err != nil {
 			return fmt.Errorf("queryInterchain from srcAdapt: %w", err)
 		}
+	}
 
+	// get all services from bxh (including illegal service which not registered)
+	if err := retry.Retry(func(attempt uint) error {
+		if destAllServiceList, err = ex.destAdapt.GetServiceIDList(); err != nil {
+			// maybe peerMgr err cause GetServiceIDList err, so retry it
+			ex.logger.Errorf("GetServiceIDList from destAdapt: %w", err)
+		}
+		return err
+	}, strategy.Backoff(backoff.Fibonacci(1*time.Second))); err != nil {
+		ex.logger.Errorf("retry err with getServiceIDList: %w", err)
+	}
+
+	// filter services
+	destServiceList := make([]string, 0)
+	for _, serviceId := range destAllServiceList {
+		_, chainId, _, err := ParseFullServiceID(serviceId)
+		if err != nil {
+			ex.logger.Errorf("ParseFullServiceID from destAllServiceList: %w", err)
+			return err
+		}
+		if chainId == ex.srcChainId {
+			destServiceList = append(destServiceList, serviceId)
+		}
+	}
+
+	for _, serviceId := range destServiceList {
 		if err := retry.Retry(func(attempt uint) error {
 			if ex.destServiceMeta[serviceId], err = ex.destAdapt.QueryInterchain(serviceId); err != nil {
 				// maybe peerMgr err cause QueryInterchain err, so retry it
