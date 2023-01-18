@@ -349,6 +349,7 @@ func (b *BxhAdapter) SendIBTP(ibtp *pb.IBTP) error {
 						Err:    errMsg,
 						Status: adapt.OtherError,
 					}
+					return nil
 				}
 
 				// when bxh trigger timeout rollback, destPier's bxhAdapter want to send receipt to bxh.
