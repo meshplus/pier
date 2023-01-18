@@ -326,6 +326,24 @@ func (a *AppchainAdapter) GetServiceIDList() ([]string, error) {
 		}
 	}
 
+	localServices, err := a.client.GetServices()
+	if err != nil {
+		return nil, err
+	}
+	for _, localService := range localServices {
+		var exist bool
+		for _, v := range serviceIDList {
+			if v == localService {
+				exist = true
+				continue
+			}
+		}
+
+		if !exist {
+			serviceIDList = append(serviceIDList, localService)
+		}
+	}
+
 	return serviceIDList, nil
 }
 
