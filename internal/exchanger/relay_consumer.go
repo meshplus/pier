@@ -24,10 +24,10 @@ func (ex *Exchanger) listenIBTPFromSrcAdaptForRelay(servicePair string) {
 			ex.logger.WithFields(logrus.Fields{"index": ibtp.Index, "type": ibtp.Type, "ibtp_id": ibtp.ID()}).Info("Receive ibtp from :", ex.srcAdaptName)
 			if err := retry.Retry(func(attempt uint) error {
 				if err := ex.destAdapt.SendIBTP(ibtp); err != nil {
+					ex.logger.Errorf("send IBTP to Adapt:%s", ex.destAdaptName, "error", err.Error())
 					// if err occurs, try to get new ibtp and resend
 					if err, ok := err.(*adapt.SendIbtpError); ok {
 						if err.NeedRetry() {
-							ex.logger.Errorf("send IBTP to Adapt:%s", ex.destAdaptName, "error", err.Error())
 							// query to new ibtp
 							ibtp = ex.queryIBTP(ex.srcAdapt, ibtp.ID(), ex.isIBTPBelongSrc(ibtp))
 							return fmt.Errorf("retry sending ibtp")
@@ -56,11 +56,10 @@ func (ex *Exchanger) listenIBTPFromDestAdaptForRelay(servicePair string) {
 				"timestamp": time.Now().UnixNano()}).Info("[step5] Receive ibtp from :", ex.destAdaptName)
 			if err := retry.Retry(func(attempt uint) error {
 				if err := ex.srcAdapt.SendIBTP(ibtp); err != nil {
-					ex.logger.Error(err)
+					ex.logger.Errorf("send IBTP to Adapt:%s", ex.srcAdaptName, "error", err.Error())
 					// if err occurs, try to get new ibtp and resend
 					if err, ok := err.(*adapt.SendIbtpError); ok {
 						if err.NeedRetry() {
-							ex.logger.Errorf("send IBTP to Adapt:%s", ex.srcAdaptName, "error", err.Error())
 							// query to new ibtp
 							ibtp = ex.queryIBTP(ex.destAdapt, ibtp.ID(), !ex.isIBTPBelongSrc(ibtp))
 							return fmt.Errorf("retry sending ibtp")

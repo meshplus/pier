@@ -25,6 +25,9 @@ type Adapt interface {
 	// GetServiceIDList relay/direct: AppChainAdapt, union:BxhAdapt
 	GetServiceIDList() ([]string, error)
 
+	// GetLocalServiceIDList return appchain local ServiceIDList
+	GetLocalServiceIDList() ([]string, error)
+
 	// QueryInterchain  queryInterchain from dest chain
 	QueryInterchain(serviceID string) (*pb.Interchain, error)
 

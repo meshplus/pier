@@ -32,7 +32,7 @@ func (ex *Exchanger) handleMissingIBTPByServicePair(begin, end uint64, fromAdapt
 				// src pier notify src and dest rollback, ibtp should always be interchain
 				if isReq == false {
 					isReq = true
-					ibtp = ex.queryIBTP(fromAdapt, fmt.Sprintf("%s-%s-%d", srcService, targetService, begin), isReq)
+					ibtp = ex.queryIBTP(ex.srcAdapt, fmt.Sprintf("%s-%s-%d", srcService, targetService, begin), isReq)
 				}
 				ex.rollbackIBTPForDirect(ibtp)
 				return
@@ -65,9 +65,20 @@ func (ex *Exchanger) recover(srcServiceMeta map[string]*pb.Interchain, destServi
 	ex.logger.Info("Start To Recover IBTPs!")
 	for _, interchain := range srcServiceMeta {
 		for k, count := range interchain.InterchainCounter {
-			destCount, ok := destServiceMeta[interchain.ID].InterchainCounter[k]
-			if !ok {
+			var destCount uint64
+			if _, ok := destServiceMeta[interchain.ID]; !ok {
+				destServiceMeta[interchain.ID] = &pb.Interchain{
+					InterchainCounter:       make(map[string]uint64, 0),
+					ReceiptCounter:          make(map[string]uint64, 0),
+					SourceInterchainCounter: make(map[string]uint64, 0),
+					SourceReceiptCounter:    make(map[string]uint64, 0),
+				}
 				destCount = 0
+			} else {
+				destCount, ok = destServiceMeta[interchain.ID].InterchainCounter[k]
+				if !ok {
+					destCount = 0
+				}
 			}
 
 			// handle the situation that dst chain rollback failed but interchainCounter is balanced
@@ -91,14 +102,6 @@ func (ex *Exchanger) recover(srcServiceMeta map[string]*pb.Interchain, destServi
 			// Some Interchain from interchain.ID to k have not reached the bxh
 			// handle unsentIBTP : query IBTP -> sendIBTP
 			if destCount < count {
-				// if Some Interchain from interchain.ID to k have not reached the bxh,
-				// need handleMissing interchain from index: destCount+1,
-				// so src chain's pier bxh adapter need init pool to ensure handle IBTP receipt correctly before handleMissing
-				if ex.mode == repo.RelayMode {
-					ex.logger.WithFields(logrus.Fields{"from": interchain.ID, "to": k, "current bxh Count": destCount}).
-						Info("start init pool when interchain have not reached the bxh")
-					ex.destAdapt.InitIbtpPool(interchain.ID, k, pb.IBTP_REQUEST, destCount)
-				}
 				ex.handleMissingIBTPByServicePair(destCount+1, count, ex.srcAdapt, ex.destAdapt, interchain.ID, k, true)
 				// success then equal index
 				destServiceMeta[interchain.ID].InterchainCounter[k] = count
@@ -107,9 +110,20 @@ func (ex *Exchanger) recover(srcServiceMeta map[string]*pb.Interchain, destServi
 
 		// Some Receipt from k to interchain.ID have not reached the bxh
 		for k, count := range interchain.SourceReceiptCounter {
-			destCount, ok := destServiceMeta[interchain.ID].SourceReceiptCounter[k]
-			if !ok {
+			var destCount uint64
+			if _, ok := destServiceMeta[interchain.ID]; !ok {
+				destServiceMeta[interchain.ID] = &pb.Interchain{
+					InterchainCounter:       make(map[string]uint64, 0),
+					ReceiptCounter:          make(map[string]uint64, 0),
+					SourceInterchainCounter: make(map[string]uint64, 0),
+					SourceReceiptCounter:    make(map[string]uint64, 0),
+				}
 				destCount = 0
+			} else {
+				destCount, ok = destServiceMeta[interchain.ID].SourceReceiptCounter[k]
+				if !ok {
+					destCount = 0
+				}
 			}
 			// handle unsentIBTP : query IBTP -> sendIBTP
 			if destCount < count {
@@ -122,14 +136,27 @@ func (ex *Exchanger) recover(srcServiceMeta map[string]*pb.Interchain, destServi
 	// handle dest -> src
 	for _, interchain := range destServiceMeta {
 		for k, count := range interchain.SourceInterchainCounter {
-			srcCount := srcServiceMeta[interchain.ID].SourceInterchainCounter[k]
+			var srcCount uint64
+			if _, ok := srcServiceMeta[interchain.ID]; !ok {
+				srcServiceMeta[interchain.ID] = &pb.Interchain{
+					InterchainCounter:       make(map[string]uint64, 0),
+					ReceiptCounter:          make(map[string]uint64, 0),
+					SourceInterchainCounter: make(map[string]uint64, 0),
+					SourceReceiptCounter:    make(map[string]uint64, 0),
+				}
+			} else {
+				srcCount, ok = srcServiceMeta[interchain.ID].SourceInterchainCounter[k]
+				if !ok {
+					srcCount = 0
+				}
+			}
 
 			// srcCount means the count of Interchain from k to interchain.ID
 			// handle unsentIBTP : query IBTP -> sendIBTP
 			if srcCount < count {
 				if ex.mode == repo.RelayMode {
 					ex.logger.WithFields(logrus.Fields{"from": interchain.ID, "to": k, "current dest chain Count": srcCount}).
-						Info("start init pool when interchain have not reached the bxh")
+						Info("start init pool when interchain have not reached the dest appchain")
 					ex.destAdapt.InitIbtpPool(interchain.ID, k, pb.IBTP_REQUEST, srcCount)
 				}
 				ex.handleMissingIBTPByServicePair(srcCount+1, count, ex.destAdapt, ex.srcAdapt, k, interchain.ID, true)
@@ -138,10 +165,31 @@ func (ex *Exchanger) recover(srcServiceMeta map[string]*pb.Interchain, destServi
 		}
 
 		for k, count := range interchain.ReceiptCounter {
-			srcCount := srcServiceMeta[interchain.ID].ReceiptCounter[k]
+			var srcCount uint64
+			if _, ok := srcServiceMeta[interchain.ID]; !ok {
+				srcServiceMeta[interchain.ID] = &pb.Interchain{
+					InterchainCounter:       make(map[string]uint64, 0),
+					ReceiptCounter:          make(map[string]uint64, 0),
+					SourceInterchainCounter: make(map[string]uint64, 0),
+					SourceReceiptCounter:    make(map[string]uint64, 0),
+				}
+			} else {
+				srcCount = srcServiceMeta[interchain.ID].ReceiptCounter[k]
+				if !ok {
+					srcCount = 0
+				}
+			}
 
 			// handle unsentIBTP : query IBTP -> sendIBTP
 			if srcCount < count {
+				// if Some receipt from k to interchain.ID have not reached the src appchain,
+				// need handleMissing receipt from index: srcCount+1,
+				// so src chain's pier bxh adapter need init pool to ensure handle IBTP receipt correctly before handleMissing
+				if ex.mode == repo.RelayMode {
+					ex.logger.WithFields(logrus.Fields{"from": interchain.ID, "to": k, "current bxh Count": count}).
+						Info("start init pool when interchain have not reached the bxh")
+					ex.destAdapt.InitIbtpPool(k, interchain.ID, pb.IBTP_RESPONSE, srcCount)
+				}
 				ex.handleMissingIBTPByServicePair(srcCount+1, count, ex.destAdapt, ex.srcAdapt, interchain.ID, k, false)
 				srcServiceMeta[interchain.ID].ReceiptCounter[k] = count
 			}
@@ -152,7 +200,20 @@ func (ex *Exchanger) recover(srcServiceMeta map[string]*pb.Interchain, destServi
 		for serviceID, interchain := range destServiceMeta {
 			// deal with source appchain rollback
 			for k, interchainCounter := range interchain.InterchainCounter {
-				receiptCounter := srcServiceMeta[serviceID].ReceiptCounter[k]
+				var receiptCounter uint64
+				if _, ok := srcServiceMeta[interchain.ID]; !ok {
+					srcServiceMeta[interchain.ID] = &pb.Interchain{
+						InterchainCounter:       make(map[string]uint64, 0),
+						ReceiptCounter:          make(map[string]uint64, 0),
+						SourceInterchainCounter: make(map[string]uint64, 0),
+						SourceReceiptCounter:    make(map[string]uint64, 0),
+					}
+				} else {
+					receiptCounter, ok = srcServiceMeta[serviceID].ReceiptCounter[k]
+					if !ok {
+						receiptCounter = 0
+					}
+				}
 
 				ex.logger.Infof("check txStatus for service pair %s-%s from %d to %d for rollback", serviceID, k, receiptCounter+1, interchainCounter)
 				for i := receiptCounter + 1; i <= interchainCounter; i++ {

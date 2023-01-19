@@ -16,6 +16,8 @@ import (
 
 const maxChSize = 1 << 10
 
+var _ adapt.Adapt = (*UnionAdapter)(nil)
+
 // UnionAdapter represents the necessary data for sync tx from bitxhub
 type UnionAdapter struct {
 	client rpcx.Client
@@ -28,6 +30,10 @@ type UnionAdapter struct {
 	bxhId      string
 	ctx        context.Context
 	cancel     context.CancelFunc
+}
+
+func (u *UnionAdapter) GetLocalServiceIDList() ([]string, error) {
+	return nil, nil
 }
 
 func (u *UnionAdapter) InitIbtpPool(_, _ string, _ pb.IBTP_Category, _ uint64) {

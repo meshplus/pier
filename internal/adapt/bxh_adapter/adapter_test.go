@@ -536,7 +536,7 @@ func TestSendIBTP(t *testing.T) {
 	require.Nil(t, err)
 }
 
-func TestGetServiceIDList(t *testing.T) {
+func TestGetLocalServiceIDList(t *testing.T) {
 	relayAdapter, _, unionAdapter, client := prepare(t)
 	// get serviceID
 	services := getServiceID(t)
@@ -561,12 +561,12 @@ func TestGetServiceIDList(t *testing.T) {
 
 	loggers.InitializeLogger(repo.DefaultConfig())
 	// test fail and wrong receipt
-	ids, err := relayAdapter.GetServiceIDList()
+	ids, err := relayAdapter.GetLocalServiceIDList()
 	require.Nil(t, ids)
 	require.NotNil(t, err)
 	require.Contains(t, err.Error(), "info is not exit in bitxhub")
 
-	ids1, err := relayAdapter.GetServiceIDList()
+	ids1, err := relayAdapter.GetLocalServiceIDList()
 	require.Nil(t, err)
 	require.Equal(t, 2, len(ids1))
 	require.Equal(t, serviceId1, ids1[0])
@@ -594,9 +594,41 @@ func TestGetServiceIDList(t *testing.T) {
 		Status: pb.Receipt_SUCCESS,
 	}
 	client.EXPECT().SendView(gomock.Any()).Return(reciept3, nil).Times(1)
-	ids2, err := unionAdapter.GetServiceIDList()
+	ids2, err := unionAdapter.GetLocalServiceIDList()
 	require.Nil(t, err)
 	require.Equal(t, 1, len(ids2))
+}
+
+func TestGetServiceIDList(t *testing.T) {
+	relayAdapter, _, _, client := prepare(t)
+	// get all serviceID
+	fullServices := getInterchainServiceID(t)
+	data, err := json.Marshal(fullServices)
+	require.Nil(t, err)
+	reciept1 := &pb.Receipt{
+		Ret:    data,
+		Status: pb.Receipt_SUCCESS,
+	}
+
+	client.EXPECT().GenerateContractTx(gomock.Any(), gomock.Any(),
+		gomock.Any(), gomock.Any()).Return(&pb.BxhTransaction{}, nil).AnyTimes()
+
+	client.EXPECT().SendView(gomock.Any()).Return(reciept1, nil).AnyTimes()
+
+	loggers.InitializeLogger(repo.DefaultConfig())
+
+	// test fail and wrong receipt
+	relayAdapter.appchainId = "appchain1"
+	ids, err := relayAdapter.GetServiceIDList()
+	require.Nil(t, err)
+	require.Equal(t, 1, len(ids))
+	require.Equal(t, from, ids[0])
+
+	relayAdapter.appchainId = "appchain2"
+	ids, err = relayAdapter.GetServiceIDList()
+	require.Nil(t, err)
+	require.Equal(t, 1, len(ids))
+	require.Equal(t, to, ids[0])
 }
 
 func TestQueryInterchain(t *testing.T) {
@@ -863,6 +895,13 @@ func getServiceID(t *testing.T) []*service_mgr.Service {
 		ServiceID: serviceId2,
 	}
 	services = append(services, service1, service2)
+	require.Equal(t, 2, len(services))
+
+	return services
+}
+
+func getInterchainServiceID(t *testing.T) []string {
+	services := []string{from, to}
 	require.Equal(t, 2, len(services))
 
 	return services

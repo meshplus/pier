@@ -58,7 +58,7 @@ func testNormalStartUnion(t *testing.T) {
 	mockAdaptRelay.EXPECT().SendIBTP(gomock.Any()).Return(nil).AnyTimes()
 	mockAdaptUnion.EXPECT().SendIBTP(gomock.Any()).Return(nil).AnyTimes()
 
-	mockAdaptRelay.EXPECT().GetServiceIDList().Return([]string{fullFromService}, nil).AnyTimes()
+	mockAdaptRelay.EXPECT().GetLocalServiceIDList().Return([]string{fullFromService}, nil).AnyTimes()
 	mockAdaptUnion.EXPECT().QueryInterchain(gomock.Eq(fullFromService)).
 		Return(&pb.Interchain{ID: fullFromService,
 			SourceInterchainCounter: make(map[string]uint64),
