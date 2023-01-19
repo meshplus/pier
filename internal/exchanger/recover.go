@@ -32,7 +32,7 @@ func (ex *Exchanger) handleMissingIBTPByServicePair(begin, end uint64, fromAdapt
 				// src pier notify src and dest rollback, ibtp should always be interchain
 				if isReq == false {
 					isReq = true
-					ibtp = ex.queryIBTP(fromAdapt, fmt.Sprintf("%s-%s-%d", srcService, targetService, begin), isReq)
+					ibtp = ex.queryIBTP(ex.srcAdapt, fmt.Sprintf("%s-%s-%d", srcService, targetService, begin), isReq)
 				}
 				ex.rollbackIBTPForDirect(ibtp)
 				return
