@@ -17,12 +17,13 @@ require (
 	github.com/hashicorp/go-hclog v0.0.0-20180709165350-ff2cf002a8dd
 	github.com/hashicorp/go-plugin v1.3.0
 	github.com/ipfs/go-cid v0.0.7
+	github.com/libp2p/go-libp2p v0.9.2
 	github.com/libp2p/go-libp2p-core v0.6.1
-	github.com/meshplus/bitxhub-core v1.3.1-0.20221216095518-2b59e2647227
-	github.com/meshplus/bitxhub-kit v1.2.1-0.20220412092457-5836414df781
-	github.com/meshplus/bitxhub-model v1.20.2-0.20230113083618-3407ac676767
-	github.com/meshplus/go-bitxhub-client v1.4.1-0.20221118022536-c821301838c8
-	github.com/meshplus/go-lightp2p v0.0.0-20221205091217-47f605aa3067
+	github.com/meshplus/bitxhub-core v1.28.0
+	github.com/meshplus/bitxhub-kit v1.28.0
+	github.com/meshplus/bitxhub-model v1.28.0
+	github.com/meshplus/go-bitxhub-client v1.28.0
+	github.com/meshplus/go-lightp2p v1.28.0
 	github.com/mitchellh/go-homedir v1.1.0
 	github.com/multiformats/go-multiaddr v0.3.0
 	github.com/otiai10/copy v1.9.0

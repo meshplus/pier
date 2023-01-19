@@ -1,12 +1,15 @@
 package peermgr
 
 import (
+	"context"
 	"fmt"
-	"github.com/meshplus/pier/pkg/model"
 	"io/ioutil"
 	"os"
 	"testing"
 	"time"
+
+	"github.com/libp2p/go-libp2p/p2p/protocol/ping"
+	"github.com/meshplus/pier/pkg/model"
 
 	libp2pcry "github.com/libp2p/go-libp2p-core/crypto"
 	peer2 "github.com/libp2p/go-libp2p-core/peer"
@@ -404,7 +407,7 @@ func (ms *MockStream) Send(data []byte) ([]byte, error) {
 			return nil, nil
 		}
 	}
-	return nil, fmt.Errorf("Send: invalid message type")
+	return nil, fmt.Errorf("send: invalid message type")
 }
 
 func (ms *MockStream) Read(time.Duration) ([]byte, error) {
@@ -520,6 +523,16 @@ type MockNetwork struct {
 	MockPeerHandler
 
 	MockDHTHandler
+}
+
+func (mn *MockNetwork) GetStream(peerID string) (network.Stream, error) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (mn *MockNetwork) Ping(ctx context.Context, peerID string) (<-chan ping.Result, error) {
+	//TODO implement me
+	panic("implement me")
 }
 
 // Start start the network service.
