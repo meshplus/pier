@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"errors"
 	"fmt"
+	"sort"
 	"sync"
 	"testing"
 	"time"
@@ -91,6 +92,9 @@ func TestAppchainAdapter_GetServiceIDList(t *testing.T) {
 	serviceList, err = appchainAdapter.GetServiceIDList()
 	require.Nil(t, err)
 	expectedServiceList := []string{fullService1, fullService2}
+
+	sort.Strings(expectedServiceList)
+	sort.Strings(serviceList)
 	require.Equal(t, expectedServiceList, serviceList)
 }
 
