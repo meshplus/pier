@@ -5,7 +5,6 @@ go 1.13
 require (
 	github.com/Rican7/retry v0.1.0
 	github.com/btcsuite/btcd v0.21.0-beta
-	github.com/bytecodealliance/wasmtime-go v0.37.0 // indirect
 	github.com/cavaliercoder/grab v2.0.0+incompatible
 	github.com/cbergoon/merkletree v0.2.0
 	github.com/fatih/color v1.9.0
@@ -26,7 +25,6 @@ require (
 	github.com/meshplus/go-lightp2p v1.28.0
 	github.com/mitchellh/go-homedir v1.1.0
 	github.com/multiformats/go-multiaddr v0.3.0
-	github.com/otiai10/copy v1.9.0
 	github.com/pelletier/go-toml v1.9.3
 	github.com/sirupsen/logrus v1.8.1
 	github.com/spf13/viper v1.8.1

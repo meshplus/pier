@@ -3,7 +3,7 @@ SHELL := /bin/bash
 CURRENT_PATH = $(shell pwd)
 APP_NAME = pier
 
-# build with verison infos
+# build with version infos
 VERSION_DIR = github.com/meshplus/${APP_NAME}
 BUILD_DATE = $(shell date +%FT%T)
 GIT_COMMIT = $(shell git log --pretty=format:'%h' -n 1)
@@ -39,12 +39,12 @@ help: Makefile
 	@sed -n 's/^##//p' $< | column -t -s ':' | sed -e 's/^/ /'
 
 ## make test: Run go unittest
-test:
+test: prepare
 	go generate ./...
 	@$(GO) test ${TEST_PKGS} -count=1
 
 ## make test-coverage: Test project with cover
-test-coverage:
+test-coverage: prepare
 	go generate ./...
 	@go test -short -coverprofile cover.out -covermode=atomic ${TEST_PKGS}
 	@cat cover.out >> coverage.txt
@@ -52,6 +52,7 @@ test-coverage:
 packr2:
 	cd internal/repo && packr2
 
+## make prepare: Preparation before development
 prepare:
 	cd scripts && bash prepare.sh
 
