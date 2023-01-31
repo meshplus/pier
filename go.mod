@@ -4,7 +4,6 @@ go 1.13
 
 require (
 	github.com/Rican7/retry v0.1.0
-	github.com/btcsuite/btcd v0.21.0-beta
 	github.com/cavaliercoder/grab v2.0.0+incompatible
 	github.com/cbergoon/merkletree v0.2.0
 	github.com/fatih/color v1.9.0
