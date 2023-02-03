@@ -6,18 +6,22 @@ source x.sh
 CURRENT_PATH=$(pwd)
 PROJECT_PATH=$(dirname "${CURRENT_PATH}")
 RELEASE_PATH=${PROJECT_PATH}/bin
-APP_VERSION=$(if [ `git rev-parse --abbrev-ref HEAD` == 'HEAD' ];then git describe --tags HEAD ; else echo "dev" ; fi)
-
+HEAD=$(git rev-parse --abbrev-ref HEAD)
+if [ "$HEAD" == 'HEAD' ]; then
+  APP_VERSION=$(git describe --tags HEAD)
+else
+  APP_VERSION="dev"
+fi
 function go_install() {
   version=$(go env GOVERSION)
-  if [[ ! "$version" < "go1.16" ]];then
-      go install "$@"
+  if [[ ! "$version" < "go1.16" ]]; then
+    go install "$@"
   else
-      go get "$@"
+    go get "$@"
   fi
 }
-print_blue "===> 1. Install packr"
-if ! type packr >/dev/null 2>&1; then
+print_blue "===> 1. Install packr2"
+if ! type packr2 >/dev/null 2>&1; then
   go_install github.com/gobuffalo/packr/v2/packr2@v2.8.3
 fi
 
