@@ -188,41 +188,14 @@ func ListService(ctx *cli.Context) error {
 }
 
 func LogoutService(ctx *cli.Context) error {
-	chainID := ctx.String("appchain-id")
-	serviceID := ctx.String("service-id")
-	reason := ctx.String("reason")
-
-	repoRoot, err := repo.PathRootWithDefault(ctx.GlobalString("repo"))
-	if err != nil {
-		return err
-	}
-
-	client, _, err := initClientWithKeyPath(ctx, path.Join(repoRoot, repo.KeyName))
-	if err != nil {
-		return err
-	}
-	// init method registry with this admin key
-	receipt, err := client.InvokeBVMContract(
-		constant.ServiceMgrContractAddr.Address(),
-		"LogoutService", nil,
-		rpcx.String(fmt.Sprintf("%s:%s", chainID, serviceID)),
-		rpcx.String(reason),
-	)
-	if err != nil {
-		return fmt.Errorf("invoke bvm contract: %w", err)
-	}
-	if !receipt.IsSuccess() {
-		return fmt.Errorf("logout service info faild: %s", string(receipt.Ret))
-	}
-	ret := &governance.GovernanceResult{}
-	if err := json.Unmarshal(receipt.Ret, ret); err != nil {
-		return err
-	}
-	fmt.Printf("Logout appchain service for %s successfully, wait for proposal %s to finish.\n", serviceID, ret.ProposalID)
-	return nil
+	return invokeBVM(ctx, "LogoutService")
 }
 
 func ActivateService(ctx *cli.Context) error {
+	return invokeBVM(ctx, "ActivateService")
+}
+
+func invokeBVM(ctx *cli.Context, action string) error {
 	chainID := ctx.String("appchain-id")
 	serviceID := ctx.String("service-id")
 	reason := ctx.String("reason")
@@ -239,7 +212,7 @@ func ActivateService(ctx *cli.Context) error {
 	// init method registry with this admin key
 	receipt, err := client.InvokeBVMContract(
 		constant.ServiceMgrContractAddr.Address(),
-		"ActivateService", nil,
+		action, nil,
 		rpcx.String(fmt.Sprintf("%s:%s", chainID, serviceID)),
 		rpcx.String(reason),
 	)
@@ -247,13 +220,13 @@ func ActivateService(ctx *cli.Context) error {
 		return fmt.Errorf("invoke bvm contract: %w", err)
 	}
 	if !receipt.IsSuccess() {
-		return fmt.Errorf("activate service info faild: %s", string(receipt.Ret))
+		return fmt.Errorf("%s service info faild: %s", action, string(receipt.Ret))
 	}
 	ret := &governance.GovernanceResult{}
 	if err := json.Unmarshal(receipt.Ret, ret); err != nil {
 		return err
 	}
-	fmt.Printf("Activate appchain service for %s successfully, wait for proposal %s to finish.\n", serviceID, ret.ProposalID)
+	fmt.Printf("%s appchain service for %s successfully, wait for proposal %s to finish.\n", action, serviceID, ret.ProposalID)
 	return nil
 }
 
@@ -306,7 +279,7 @@ func updateService(ctx *cli.Context) error {
 	}
 
 	var oldPermit string
-	for i, _ := range serviceInfo.Permission {
+	for i := range serviceInfo.Permission {
 		oldPermit = oldPermit + "," + i
 	}
 	// init method registry with this admin key

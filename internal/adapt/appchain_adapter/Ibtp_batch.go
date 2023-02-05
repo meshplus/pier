@@ -33,6 +33,11 @@ func (a *AppchainAdapter) listenIBTPBatch() {
 					}
 					if len(dst) <= batchSize {
 						err = a.handleIBTPBatch(dst[:], req)
+						if err != nil {
+							a.logger.WithFields(logrus.Fields{"Froms": req.Froms, "indexs": req.Indexs,
+								"serviceIDs": req.ServiceIDs, "proofs": req.Proofs, "err": err}).Errorf("handleIBTPBatch err")
+							continue
+						}
 						dst = make([]*pb.IBTP, 0)
 					} else {
 						err = a.handleIBTPBatch(dst[:batchSize], req)

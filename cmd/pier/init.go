@@ -16,6 +16,12 @@ import (
 	"github.com/urfave/cli"
 )
 
+const (
+	relayStr  = "relay"
+	directStr = "direct"
+	unionStr  = "union"
+)
+
 var initCMD = cli.Command{
 	Name:  "init",
 	Usage: "Initialize pier local configuration",
@@ -64,7 +70,7 @@ var initCMD = cli.Command{
 	},
 	Subcommands: []cli.Command{
 		{
-			Name:  "relay",
+			Name:  relayStr,
 			Usage: "Initialize pier relay mode configuration",
 			Flags: []cli.Flag{
 				cli.StringSliceFlag{
@@ -83,7 +89,7 @@ var initCMD = cli.Command{
 			Action: initPier,
 		},
 		{
-			Name:  "direct",
+			Name:  directStr,
 			Usage: "Initialize pier direct mode configuration",
 			Flags: []cli.Flag{
 				cli.StringSliceFlag{
@@ -95,7 +101,7 @@ var initCMD = cli.Command{
 			Action: initPier,
 		},
 		{
-			Name:  "union",
+			Name:  unionStr,
 			Usage: "Initialize pier union mode configuration",
 			Flags: []cli.Flag{
 				cli.StringSliceFlag{
@@ -149,8 +155,8 @@ func initPier(ctx *cli.Context) error {
 
 	mode := ctx.Command.Name
 	switch mode {
-	case "relay":
-		vpr.Set("mode.type", "relay")
+	case relayStr:
+		vpr.Set("mode.type", relayStr)
 
 		addrs := ctx.StringSlice("addrs")
 		defaltaddrs := repo.DefaultConfig().Mode.Relay.Addrs
@@ -166,13 +172,13 @@ func initPier(ctx *cli.Context) error {
 			return fmt.Errorf("quorum type err: %w", err)
 		}
 		vpr.Set("mode.relay.quorum", in)
-	case "direct":
+	case directStr:
 		if err := updateNetworkAddrs(ctx, nil, repoRoot, mode); err != nil {
 			return err
 		}
-		vpr.Set("mode.type", "direct")
+		vpr.Set("mode.type", directStr)
 
-	case "union":
+	case unionStr:
 		addrs := ctx.StringSlice("addrs")
 		defaltaddrs := repo.DefaultConfig().Mode.Union.Addrs
 		// if user input addr on Command, remove default addr
@@ -184,7 +190,7 @@ func initPier(ctx *cli.Context) error {
 		if err := updateNetworkAddrs(ctx, nil, repoRoot, mode); err != nil {
 			return err
 		}
-		vpr.Set("mode.type", "union")
+		vpr.Set("mode.type", unionStr)
 
 	}
 
@@ -196,6 +202,7 @@ func initPier(ctx *cli.Context) error {
 }
 
 func updateInitOptions(ctx *cli.Context, vpr *viper.Viper, repoRoot string) error {
+	_ = repoRoot
 	httpPort := ctx.GlobalUint64("http-port")
 	pprofPort := ctx.GlobalUint64("pprof-port")
 	enableTls := ctx.GlobalBool("enable-tls")

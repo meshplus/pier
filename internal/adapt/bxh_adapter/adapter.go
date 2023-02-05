@@ -193,7 +193,7 @@ func (b *BxhAdapter) MonitorIBTP() chan *pb.IBTP {
 func (b *BxhAdapter) QueryIBTP(id string, isReq bool) (*pb.IBTP, error) {
 	ibtp, err := b.getIBTPByID(id, isReq)
 	if err != nil {
-		if isReq == true {
+		if isReq {
 			return nil, err
 		}
 		txStatus, err := b.getTxStatus(id)
@@ -512,7 +512,6 @@ func (b *BxhAdapter) getBitXHubChainIDs() ([]string, error) {
 	return bitXHubChainIDs, nil
 }
 
-//  move interchainWrapper into wrappers channel
 func (b *BxhAdapter) run() {
 	var (
 		err           error
@@ -688,7 +687,10 @@ func (b *BxhAdapter) handleInterchainTxWrapper(w *pb.InterchainTxWrapper, i int)
 			} else {
 				// if one 2 multi, receipt and rollback interchain need update pool current index
 				b.logger.WithFields(logrus.Fields{"to": to, "pool curIndex": index + 1}).Warning("src need rollback, update pool index")
-				b.UpdateIbtpPool(from, to, pb.IBTP_RESPONSE, index)
+				err := b.UpdateIbtpPool(from, to, pb.IBTP_RESPONSE, index)
+				if err != nil {
+					b.logger.Errorln(err)
+				}
 			}
 			// for src pier, need handle all MultiIBTPs
 			// so query child ibtp receipt

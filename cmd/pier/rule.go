@@ -77,9 +77,9 @@ func deployRule(ctx *cli.Context) error {
 	rulePath := ctx.String("path")
 
 	keyPath := filepath.Join(repoRoot, "key.json")
-	client, _, err := initClientWithKeyPath(ctx, keyPath)
+	client, addr, err := initClientWithKeyPath(ctx, keyPath)
 	if err != nil {
-		return fmt.Errorf("Load client: %w", err)
+		return fmt.Errorf("Load %s client: %w", addr, err)
 	}
 
 	contract, err := ioutil.ReadFile(rulePath)

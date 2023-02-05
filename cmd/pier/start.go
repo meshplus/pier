@@ -85,7 +85,7 @@ func start(ctx *cli.Context) error {
 }
 
 func handleShutdown(pier *app.Pier, wg *sync.WaitGroup) {
-	var stop = make(chan os.Signal)
+	var stop = make(chan os.Signal, 1)
 	signal.Notify(stop, syscall.SIGTERM)
 	signal.Notify(stop, syscall.SIGINT)
 

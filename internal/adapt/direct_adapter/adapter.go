@@ -12,7 +12,6 @@ import (
 	"github.com/meshplus/pier/internal/peermgr"
 	"github.com/meshplus/pier/internal/utils"
 	"github.com/sirupsen/logrus"
-	"go.uber.org/atomic"
 )
 
 var _ adapt.Adapt = (*DirectAdapter)(nil)
@@ -22,22 +21,22 @@ const (
 )
 
 type DirectAdapter struct {
-	maxIndexMap        sync.Map
-	maxIndexReceiptMap sync.Map
+	// maxIndexMap        sync.Map
+	// maxIndexReceiptMap sync.Map
 
-	logger          logrus.FieldLogger
-	ibtpC           chan *pb.IBTP
-	peerMgr         peermgr.PeerManager
-	appchainadapt   adapt.Adapt
-	lock            *sync.Mutex //control the concurrent count
-	sendIBTPCounter atomic.Uint64
-	sendIBTPTimer   atomic.Duration
-	ibtps           sync.Map
-	appchainID      string
-	remotePierID    string
-	ctx             context.Context
-	cancel          context.CancelFunc
-	gopool          *utils.GoPool
+	logger        logrus.FieldLogger
+	ibtpC         chan *pb.IBTP
+	peerMgr       peermgr.PeerManager
+	appchainadapt adapt.Adapt
+	lock          *sync.Mutex //control the concurrent count
+	// sendIBTPCounter atomic.Uint64
+	// sendIBTPTimer   atomic.Duration
+	ibtps        sync.Map
+	appchainID   string
+	remotePierID string
+	ctx          context.Context
+	cancel       context.CancelFunc
+	gopool       *utils.GoPool
 }
 
 func (d *DirectAdapter) GetLocalServiceIDList() ([]string, error) {
@@ -45,11 +44,10 @@ func (d *DirectAdapter) GetLocalServiceIDList() ([]string, error) {
 }
 
 func (d *DirectAdapter) InitIbtpPool(_, _ string, _ pb.IBTP_Category, _ uint64) {
-	return
 }
 
 func (d *DirectAdapter) ID() string {
-	return fmt.Sprintf("%s", d.appchainID)
+	return d.appchainID
 }
 
 func (d *DirectAdapter) MonitorUpdatedMeta() chan *[]byte {

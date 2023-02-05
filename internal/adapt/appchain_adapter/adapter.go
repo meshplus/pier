@@ -127,7 +127,7 @@ func (a *AppchainAdapter) Stop() error {
 }
 
 func (a *AppchainAdapter) ID() string {
-	return fmt.Sprintf("%s", a.appchainID)
+	return a.appchainID
 }
 
 func (a *AppchainAdapter) Name() string {
@@ -483,7 +483,7 @@ func (a *AppchainAdapter) SendUpdatedMeta(_ []byte) error {
 }
 
 func (a *AppchainAdapter) InitIbtpPool(_, _ string, _ pb.IBTP_Category, _ uint64) {
-	return
+	// return
 }
 
 func (a *AppchainAdapter) handlePayload(ibtp *pb.IBTP, encrypt bool) (*pb.IBTP, *pb.Payload, error) {

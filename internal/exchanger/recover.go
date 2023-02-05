@@ -30,7 +30,7 @@ func (ex *Exchanger) handleMissingIBTPByServicePair(begin, end uint64, fromAdapt
 		if strings.EqualFold(ex.mode, repo.DirectMode) {
 			if isRollback := ex.isIBTPRollbackForDirect(ibtp); isRollback {
 				// src pier notify src and dest rollback, ibtp should always be interchain
-				if isReq == false {
+				if !isReq {
 					isReq = true
 					ibtp = ex.queryIBTP(ex.srcAdapt, fmt.Sprintf("%s-%s-%d", srcService, targetService, begin), isReq)
 				}
@@ -60,9 +60,8 @@ func (ex *Exchanger) sendIBTP(srcAdapt, destAdapt adapt.Adapt, ibtp *pb.IBTP) {
 	}
 }
 
-func (ex *Exchanger) recover(srcServiceMeta map[string]*pb.Interchain, destServiceMeta map[string]*pb.Interchain) {
+func (ex *Exchanger) recoverSrc(srcServiceMeta map[string]*pb.Interchain, destServiceMeta map[string]*pb.Interchain) {
 	// handle src -> dest
-	ex.logger.Info("Start To Recover IBTPs!")
 	for _, interchain := range srcServiceMeta {
 		for k, count := range interchain.InterchainCounter {
 			var destCount uint64
@@ -132,7 +131,9 @@ func (ex *Exchanger) recover(srcServiceMeta map[string]*pb.Interchain, destServi
 			}
 		}
 	}
+}
 
+func (ex *Exchanger) recoverDest(srcServiceMeta map[string]*pb.Interchain, destServiceMeta map[string]*pb.Interchain) {
 	// handle dest -> src
 	for _, interchain := range destServiceMeta {
 		for k, count := range interchain.SourceInterchainCounter {
@@ -195,6 +196,12 @@ func (ex *Exchanger) recover(srcServiceMeta map[string]*pb.Interchain, destServi
 			}
 		}
 	}
+}
+
+func (ex *Exchanger) recover(srcServiceMeta map[string]*pb.Interchain, destServiceMeta map[string]*pb.Interchain) {
+	ex.logger.Info("Start To Recover IBTPs!")
+	ex.recoverSrc(srcServiceMeta, destServiceMeta)
+	ex.recoverDest(srcServiceMeta, destServiceMeta)
 
 	if ex.mode == repo.RelayMode {
 		for serviceID, interchain := range destServiceMeta {

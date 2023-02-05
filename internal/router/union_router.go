@@ -49,7 +49,6 @@ func (u *UnionRouter) Stop() error {
 	return nil
 }
 
-//Route sends ibtp to the union pier in target relay chain
 func (u *UnionRouter) Route(ibtp *pb.IBTP) error {
 	data, err := ibtp.Marshal()
 	if err != nil {
@@ -105,7 +104,7 @@ func (u *UnionRouter) Route(ibtp *pb.IBTP) error {
 	return nil
 }
 
-//Broadcast broadcasts current BitXHub Chain ID to the union network
+// Broadcast broadcasts current BitXHub Chain ID to the union network
 func (u *UnionRouter) Broadcast(bxhID string) error {
 	// Construct v0 cid
 	format := cid.V0Builder{}

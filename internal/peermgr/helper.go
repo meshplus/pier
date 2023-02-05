@@ -2,6 +2,7 @@ package peermgr
 
 import (
 	"encoding/json"
+
 	"github.com/meshplus/bitxhub-model/pb"
 	"github.com/meshplus/pier/pkg/model"
 )

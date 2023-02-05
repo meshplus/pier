@@ -399,7 +399,7 @@ func (g *GRPCClient) handleOffChainDataReqStream(conn pb.AppchainPlugin_GetOffCh
 func (g *GRPCClient) SubmitIBTP(from string, index uint64, serviceID string, ibtpType pb.IBTP_Type, content *pb.Content, proof *pb.BxhProof, isEncrypted bool) (*pb.SubmitIBTPResponse, error) {
 	var err error
 	response := &pb.SubmitIBTPResponse{}
-	retry.Retry(func(attempt uint) error {
+	err = retry.Retry(func(attempt uint) error {
 		response, err = g.client.SubmitIBTP(g.doneContext, &pb.SubmitIBTPRequest{
 			From:        from,
 			Index:       index,
@@ -416,6 +416,9 @@ func (g *GRPCClient) SubmitIBTP(from string, index uint64, serviceID string, ibt
 		}
 		return nil
 	}, strategy.Wait(1*time.Second))
+	if err != nil {
+		return nil, err
+	}
 
 	return response, nil
 }
@@ -423,7 +426,7 @@ func (g *GRPCClient) SubmitIBTP(from string, index uint64, serviceID string, ibt
 func (g *GRPCClient) SubmitIBTPBatch(from []string, index []uint64, serviceID []string, ibtpType []pb.IBTP_Type, content []*pb.Content, proof []*pb.BxhProof, isEncrypted []bool) (*pb.SubmitIBTPResponse, error) {
 	var err error
 	response := &pb.SubmitIBTPResponse{}
-	retry.Retry(func(attempt uint) error {
+	err = retry.Retry(func(attempt uint) error {
 		response, err = g.client.SubmitIBTPBatch(g.doneContext, &pb.SubmitIBTPRequestBatch{
 			From:        from,
 			Index:       index,
@@ -440,6 +443,9 @@ func (g *GRPCClient) SubmitIBTPBatch(from []string, index []uint64, serviceID []
 		}
 		return nil
 	}, strategy.Wait(1*time.Second))
+	if err != nil {
+		return nil, err
+	}
 
 	return response, nil
 }
@@ -447,7 +453,7 @@ func (g *GRPCClient) SubmitIBTPBatch(from []string, index []uint64, serviceID []
 func (g *GRPCClient) SubmitReceipt(to string, index uint64, serviceID string, ibtpType pb.IBTP_Type, result *pb.Result, proof *pb.BxhProof) (*pb.SubmitIBTPResponse, error) {
 	var err error
 	response := &pb.SubmitIBTPResponse{}
-	retry.Retry(func(attempt uint) error {
+	err = retry.Retry(func(attempt uint) error {
 		response, err = g.client.SubmitReceipt(g.doneContext, &pb.SubmitReceiptRequest{
 			To:        to,
 			Index:     index,
@@ -463,6 +469,9 @@ func (g *GRPCClient) SubmitReceipt(to string, index uint64, serviceID string, ib
 		}
 		return nil
 	}, strategy.Wait(1*time.Second))
+	if err != nil {
+		return nil, err
+	}
 
 	return response, nil
 }
@@ -470,7 +479,7 @@ func (g *GRPCClient) SubmitReceipt(to string, index uint64, serviceID string, ib
 func (g *GRPCClient) SubmitReceiptBatch(to []string, index []uint64, serviceID []string, ibtpType []pb.IBTP_Type, result []*pb.Result, proof []*pb.BxhProof) (*pb.SubmitIBTPResponse, error) {
 	var err error
 	response := &pb.SubmitIBTPResponse{}
-	retry.Retry(func(attempt uint) error {
+	err = retry.Retry(func(attempt uint) error {
 		response, err = g.client.SubmitReceiptBatch(g.doneContext, &pb.SubmitReceiptRequestBatch{
 			To:        to,
 			Index:     index,
@@ -486,6 +495,9 @@ func (g *GRPCClient) SubmitReceiptBatch(to []string, index []uint64, serviceID [
 		}
 		return nil
 	}, strategy.Wait(1*time.Second))
+	if err != nil {
+		return nil, err
+	}
 
 	return response, nil
 }

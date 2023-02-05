@@ -77,7 +77,7 @@ func (d *DirectAdapter) handleSendIBTPMessage(_ network.Stream, msg *pb.Message)
 							}
 
 							// By default, the index will be equalized after 5 seconds
-							if time.Now().Sub(pool.Time).Seconds() > 5.0 {
+							if time.Since(pool.Time).Seconds() > 5.0 {
 								d.ibtpC <- item.(*utils.MyTree).Ibtp
 								pool.Ibtps.DeleteMin()
 								index = item.(*utils.MyTree).Index

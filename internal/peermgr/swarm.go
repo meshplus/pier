@@ -73,6 +73,9 @@ func New(config *repo.Config, nodePrivKey crypto.PrivateKey, privKey crypto.Priv
 
 	remotes := make(map[string]*peer.AddrInfo)
 	id, err := peer.IDFromPrivateKey(libp2pPrivKey)
+	if err != nil {
+		return nil, fmt.Errorf("get private key: %w", err)
+	}
 	p2pPeers, _ := repo.GetNetworkPeers(networkConfiig)
 	var localAddrInfo peer.AddrInfo
 	for pid, addrInfo := range p2pPeers {

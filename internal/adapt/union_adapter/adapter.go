@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/meshplus/bitxhub-model/pb"
-	rpcx "github.com/meshplus/go-bitxhub-client"
 	"github.com/meshplus/pier/internal/adapt"
 	"github.com/meshplus/pier/internal/loggers"
 	"github.com/meshplus/pier/internal/peermgr"
@@ -20,7 +19,7 @@ var _ adapt.Adapt = (*UnionAdapter)(nil)
 
 // UnionAdapter represents the necessary data for sync tx from bitxhub
 type UnionAdapter struct {
-	client rpcx.Client
+	// client rpcx.Client
 	logger logrus.FieldLogger
 	ibtpC  chan *pb.IBTP
 
@@ -37,7 +36,7 @@ func (u *UnionAdapter) GetLocalServiceIDList() ([]string, error) {
 }
 
 func (u *UnionAdapter) InitIbtpPool(_, _ string, _ pb.IBTP_Category, _ uint64) {
-	return
+	// return
 }
 
 func (u *UnionAdapter) MonitorUpdatedMeta() chan *[]byte {
@@ -57,7 +56,7 @@ func (u *UnionAdapter) Name() string {
 }
 
 func (u *UnionAdapter) ID() string {
-	return fmt.Sprintf("%s", u.bxhId)
+	return u.bxhId
 }
 
 func New(peerMgr peermgr.PeerManager, bxh adapt.Adapt, logger logrus.FieldLogger) (*UnionAdapter, error) {

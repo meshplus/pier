@@ -13,7 +13,6 @@ import (
 	"github.com/meshplus/pier/internal/adapt"
 	"github.com/meshplus/pier/internal/repo"
 	"github.com/sirupsen/logrus"
-	"go.uber.org/atomic"
 )
 
 type Exchanger struct {
@@ -33,11 +32,11 @@ type Exchanger struct {
 	srcIBTPMap  map[string]chan *pb.IBTP
 	destIBTPMap map[string]chan *pb.IBTP
 
-	sendIBTPCounter atomic.Uint64
-	sendIBTPTimer   atomic.Duration
-	logger          logrus.FieldLogger
-	ctx             context.Context
-	cancel          context.CancelFunc
+	// sendIBTPCounter atomic.Uint64
+	// sendIBTPTimer   atomic.Duration
+	logger logrus.FieldLogger
+	ctx    context.Context
+	cancel context.CancelFunc
 }
 
 func New(typ, srcChainId, srcBxhId string, opts ...Option) (*Exchanger, error) {
@@ -221,28 +220,28 @@ func (ex *Exchanger) Start() error {
 func (ex *Exchanger) fillSelfInterchain() {
 	result := make(map[string]*pb.Interchain)
 	for _, v := range ex.srcServiceMeta {
-		for s, _ := range v.InterchainCounter {
+		for s := range v.InterchainCounter {
 			interchain, err := ex.srcAdapt.QueryInterchain(s)
 			if err != nil {
 				panic(fmt.Sprintf("queryInterchain from srcAdapt: %s", err.Error()))
 			}
 			result[interchain.ID] = interchain
 		}
-		for s, _ := range v.ReceiptCounter {
+		for s := range v.ReceiptCounter {
 			interchain, err := ex.srcAdapt.QueryInterchain(s)
 			if err != nil {
 				panic(fmt.Sprintf("queryInterchain from srcAdapt: %s", err.Error()))
 			}
 			result[interchain.ID] = interchain
 		}
-		for s, _ := range v.SourceInterchainCounter {
+		for s := range v.SourceInterchainCounter {
 			interchain, err := ex.srcAdapt.QueryInterchain(s)
 			if err != nil {
 				panic(fmt.Sprintf("queryInterchain from srcAdapt: %s", err.Error()))
 			}
 			result[interchain.ID] = interchain
 		}
-		for s, _ := range v.SourceReceiptCounter {
+		for s := range v.SourceReceiptCounter {
 			interchain, err := ex.srcAdapt.QueryInterchain(s)
 			if err != nil {
 				panic(fmt.Sprintf("queryInterchain from srcAdapt: %s", err.Error()))
@@ -256,7 +255,7 @@ func (ex *Exchanger) fillSelfInterchain() {
 	}
 }
 
-func initInterchain(serviceMeta map[string]*pb.Interchain, fullServiceId string) *pb.Interchain {
+func initInterchain(serviceMeta map[string]*pb.Interchain, fullServiceId string) {
 	serviceMeta[fullServiceId] = &pb.Interchain{
 		ID:                      fullServiceId,
 		InterchainCounter:       make(map[string]uint64),
@@ -264,7 +263,6 @@ func initInterchain(serviceMeta map[string]*pb.Interchain, fullServiceId string)
 		SourceInterchainCounter: make(map[string]uint64),
 		SourceReceiptCounter:    make(map[string]uint64),
 	}
-	return serviceMeta[fullServiceId]
 }
 
 func (ex *Exchanger) listenIBTPFromDestAdaptToServicePairCh() {
