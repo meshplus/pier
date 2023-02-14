@@ -8,6 +8,7 @@ import (
 	"github.com/Rican7/retry/strategy"
 	"github.com/meshplus/bitxhub-core/agency"
 	"github.com/meshplus/bitxhub-model/pb"
+	"github.com/sirupsen/logrus"
 )
 
 var _ pb.AppchainPluginServer = (*GRPCServer)(nil)
@@ -239,7 +240,7 @@ type GRPCClient struct {
 	doneContext context.Context
 }
 
-func (g *GRPCClient) Initialize(configPath string, extra []byte, mode string) error {
+func (g *GRPCClient) Initialize(configPath string, extra []byte, mode string, logger logrus.FieldLogger) error {
 	_, err := g.client.Initialize(g.doneContext, &pb.InitializeRequest{
 		ConfigPath: configPath,
 		Extra:      extra,

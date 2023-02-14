@@ -24,6 +24,7 @@ title = "Pier"
     direct_adapter = "info"
     union_adapter = "info"
     appchain_adapter = "info"
+    client = "info"
 
 [mode]
     type = "relay" # relay, direct or union

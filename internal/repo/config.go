@@ -115,6 +115,7 @@ type LogModule struct {
 	Direct      string `mapstructure:"direct_adapter" toml:"direct_adapter" json:"direct_adapter"`
 	Union       string `toml:"union_adapter" json:"union_adapter"`
 	Cryptor     string `toml:"cryptor" json:"cryptor"`
+	Client      string `toml:"client" json:"client"`
 }
 
 // Appchain are configs about appchain

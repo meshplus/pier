@@ -422,15 +422,11 @@ func findRemoteInterchain(remoteServiceID string, outMeta map[string]uint64, cal
 func (a *AppchainAdapter) init() error {
 	var err error
 
-	// if err := retry.Retry(func(attempt uint) error {
 	a.client, a.pluginClient, err = plugins.CreateClient(&a.config.Appchain, nil, a.config.Mode.Type)
 	if err != nil {
 		a.logger.Errorf("create client plugin", "error", err.Error())
 		return err
 	}
-	// }, strategy.Wait(3*time.Second)); err != nil {
-	//	return fmt.Errorf("retry error to create plugin: %w", err)
-	// }
 
 	a.ibtpC = make(chan *pb.IBTP, IBTP_CH_SIZE)
 	a.recvIbtpC = make(chan *pb.IBTP, IBTP_CH_SIZE)

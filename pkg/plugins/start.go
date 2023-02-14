@@ -8,6 +8,7 @@ import (
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-plugin"
 	"github.com/meshplus/bitxhub-core/agency"
+	"github.com/meshplus/pier/internal/loggers"
 	"github.com/meshplus/pier/internal/repo"
 )
 
@@ -56,7 +57,8 @@ func CreateClient(appchainConfig *repo.Appchain, extra []byte, mode string) (age
 	}
 
 	// initialize our client plugin
-	err = appchain.Initialize(pluginConfigPath, extra, mode)
+	clientLogger := loggers.Logger(loggers.Client)
+	err = appchain.Initialize(pluginConfigPath, extra, mode, clientLogger)
 	if err != nil {
 		return nil, nil, fmt.Errorf("initialize plugin %s: %w", pluginConfigPath, err)
 	}

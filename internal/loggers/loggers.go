@@ -23,6 +23,7 @@ const (
 	Direct      = "direct_adapter"
 	Union       = "union_adapter"
 	Cryptor     = "cryptor"
+	Client      = "client"
 )
 
 var w *loggerWrapper
@@ -65,6 +66,8 @@ func InitializeLogger(config *repo.Config) {
 	m[Union].Logger.SetLevel(log.ParseLevel(config.Log.Module.Union))
 	m[Cryptor] = log.NewWithModule(Cryptor)
 	m[Cryptor].Logger.SetLevel(log.ParseLevel(config.Log.Module.Cryptor))
+	m[Client] = log.NewWithModule(Client)
+	m[Client].Logger.SetLevel(log.ParseLevel(config.Log.Module.Client))
 	w = &loggerWrapper{loggers: m}
 }
 
