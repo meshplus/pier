@@ -1,7 +1,6 @@
 package appchain_adapter
 
 import (
-	"encoding/binary"
 	"fmt"
 	"strings"
 	"sync"
@@ -36,9 +35,9 @@ type AppchainAdapter struct {
 	logger       logrus.FieldLogger
 	ibtpC        chan *pb.IBTP
 	recvIbtpC    chan *pb.IBTP
-	// recvReceiptC chan *pb.IBTP
-	requestPool *sync.Pool
-	// receiptPool  *sync.Pool
+	recvReceiptC chan *pb.IBTP
+	requestPool  *sync.Pool
+	receiptPool  *sync.Pool
 
 	appchainID string
 	bitxhubID  string
@@ -48,7 +47,7 @@ func (a *AppchainAdapter) GetLocalServiceIDList() ([]string, error) {
 	return a.client.GetServices()
 }
 
-const IBTP_CH_SIZE = 1024
+const IBTP_CH_SIZE = 102400
 
 func NewAppchainAdapter(mode string, config *repo.Config, logger logrus.FieldLogger, crypto txcrypto.Cryptor) (adapt.Adapt, error) {
 	adapter := &AppchainAdapter{
@@ -106,7 +105,7 @@ func (a *AppchainAdapter) Start() error {
 
 	if a.config.Batch.EnableBatch {
 		go a.listenIBTPBatch()
-		// go a.listenReceiptBatch()
+		go a.listenReceiptBatch()
 	}
 
 	a.logger.Info("appchain adapter start")
@@ -168,10 +167,10 @@ func (a *AppchainAdapter) SendIBTP(ibtp *pb.IBTP) error {
 		if isReq {
 			a.logger.Info("handle batch IBTP")
 			a.recvIbtpC <- ibtp
+		} else {
+			a.logger.Info("handle batch Receipt")
+			a.recvReceiptC <- ibtp
 		}
-		// } else {
-		//	a.recvReceiptC <- ibtp
-		// }
 		return nil
 	}
 
@@ -216,10 +215,6 @@ func (a *AppchainAdapter) SendIBTP(ibtp *pb.IBTP) error {
 			if err := content.Unmarshal(pd.Content); err != nil {
 				return fmt.Errorf("unmarshal content of ibtp %s: %w", ibtp.ID(), err)
 			}
-			//Judging whether it is MultiTransfer(1) or Transfer(0)
-			if binary.BigEndian.Uint64(content.Args[0]) == 0 {
-				result.MultiStatus = append(result.MultiStatus, false)
-			}
 		} else {
 			// if type is interchain( maybe status is begin_rollback or begin_fail),the content should be interchain type
 			if ibtp.Type == pb.IBTP_INTERCHAIN {
@@ -228,10 +223,6 @@ func (a *AppchainAdapter) SendIBTP(ibtp *pb.IBTP) error {
 					return fmt.Errorf("unmarshal content of ibtp %s: %w", ibtp.ID(), err)
 				}
 				a.logger.WithFields(logrus.Fields{"type": ibtp.Type, "status": proof.TxStatus}).Info("src chain need rollback interchain")
-				//Judging whether it is MultiTransfer(1) or Transfer(0)
-				if binary.BigEndian.Uint64(content.Args[0]) == 0 {
-					result.MultiStatus = append(result.MultiStatus, false)
-				}
 			} else {
 				if err := result.Unmarshal(pd.Content); err != nil {
 					return fmt.Errorf("unmarshal result of ibtp %s: %w", ibtp.ID(), err)
@@ -434,6 +425,7 @@ func (a *AppchainAdapter) init() error {
 
 	a.ibtpC = make(chan *pb.IBTP, IBTP_CH_SIZE)
 	a.recvIbtpC = make(chan *pb.IBTP, IBTP_CH_SIZE)
+	a.recvReceiptC = make(chan *pb.IBTP, IBTP_CH_SIZE)
 
 	a.bitxhubID, a.appchainID, err = a.client.GetChainID()
 	if err != nil {
@@ -452,11 +444,11 @@ func (a *AppchainAdapter) init() error {
 		},
 	}
 
-	// a.receiptPool = &sync.Pool{
-	//	New: func() interface{} {
-	//		return new(pb.BatchReceipt)
-	//	},
-	// }
+	a.receiptPool = &sync.Pool{
+		New: func() interface{} {
+			return new(pb.BatchReceipt)
+		},
+	}
 
 	return nil
 }
@@ -511,7 +503,7 @@ func (a *AppchainAdapter) handlePayload(ibtp *pb.IBTP, encrypt bool) (*pb.IBTP, 
 			} else {
 				chainID = srcChainID
 			}
-			a.logger.Info(string(pd.Content))
+			a.logger.Debug(string(pd.Content))
 			newContent, err = a.cryptor.Encrypt(pd.Content, chainID)
 			if err != nil {
 				a.logger.Errorln(err)
@@ -528,7 +520,7 @@ func (a *AppchainAdapter) handlePayload(ibtp *pb.IBTP, encrypt bool) (*pb.IBTP, 
 				chainID = dstChainID
 			}
 			newContent, err = a.cryptor.Decrypt(pd.Content, chainID)
-			a.logger.Info(string(newContent))
+			a.logger.Debug(string(newContent))
 			if err != nil {
 				return nil, nil, fmt.Errorf("cannot encrypt content for monitored ibtp %s", ibtp.ID())
 			}
