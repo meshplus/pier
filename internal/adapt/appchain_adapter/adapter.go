@@ -212,7 +212,7 @@ func (a *AppchainAdapter) SendIBTP(ibtp *pb.IBTP) error {
 			if err := content.Unmarshal(pd.Content); err != nil {
 				return fmt.Errorf("unmarshal content of ibtp %s: %w", ibtp.ID(), err)
 			}
-			//Judging whether it is MultiTransfer(1) or Transfer(0)
+			// Judging whether it is MultiTransfer(1) or Transfer(0)
 			if binary.BigEndian.Uint64(content.Args[0]) == 0 {
 				result.MultiStatus = append(result.MultiStatus, false)
 			}
@@ -224,7 +224,7 @@ func (a *AppchainAdapter) SendIBTP(ibtp *pb.IBTP) error {
 					return fmt.Errorf("unmarshal content of ibtp %s: %w", ibtp.ID(), err)
 				}
 				a.logger.WithFields(logrus.Fields{"type": ibtp.Type, "status": proof.TxStatus}).Info("src chain need rollback interchain")
-				//Judging whether it is MultiTransfer(1) or Transfer(0)
+				// Judging whether it is MultiTransfer(1) or Transfer(0)
 				if binary.BigEndian.Uint64(content.Args[0]) == 0 {
 					result.MultiStatus = append(result.MultiStatus, false)
 				}
@@ -372,7 +372,7 @@ func (a *AppchainAdapter) init() error {
 	var err error
 
 	// if err := retry.Retry(func(attempt uint) error {
-	a.client, a.pluginClient, err = plugins.CreateClient(&a.config.Appchain, nil, a.config.Mode.Type)
+	a.client, a.pluginClient, err = plugins.CreateClient(&a.config.Appchain, a.logger, nil, a.config.Mode.Type)
 	if err != nil {
 		a.logger.Errorf("create client plugin", "error", err.Error())
 		return err

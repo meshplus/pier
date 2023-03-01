@@ -9,15 +9,23 @@ import (
 	"github.com/hashicorp/go-plugin"
 	"github.com/meshplus/bitxhub-core/agency"
 	"github.com/meshplus/pier/internal/repo"
+	"github.com/sirupsen/logrus"
 )
 
-var logger = hclog.New(&hclog.LoggerOptions{
-	Name:   "plugin",
-	Output: hclog.DefaultOutput,
-	Level:  hclog.Trace,
-})
+var logger hclog.Logger
 
-func CreateClient(appchainConfig *repo.Appchain, extra []byte, mode string) (agency.Client, *plugin.Client, error) {
+type pluginLogger struct {
+	logger logrus.FieldLogger
+}
+
+func (l *pluginLogger) Write(b []byte) (n int, err error) {
+	l.logger.Info(string(b))
+	return len(b), nil
+}
+
+func CreateClient(appchainConfig *repo.Appchain, l logrus.FieldLogger,
+	extra []byte, mode string) (agency.Client, *plugin.Client, error) {
+
 	// Pier is the host. Start by launching the plugin process.
 	rootPath, err := repo.PathRoot()
 	if err != nil {
@@ -26,6 +34,12 @@ func CreateClient(appchainConfig *repo.Appchain, extra []byte, mode string) (age
 	pluginConfigPath := filepath.Join(rootPath, appchainConfig.Config)
 	pluginPath := filepath.Join(rootPath, "plugins", appchainConfig.Plugin)
 
+	logger = hclog.New(&hclog.LoggerOptions{
+		// Name:   "plugin",
+		Output:     &pluginLogger{logger: l},
+		Level:      hclog.Trace,
+		TimeFormat: "plugin:", // time already print in pluginLogger
+	})
 	client := plugin.NewClient(&plugin.ClientConfig{
 		HandshakeConfig: Handshake,
 		Plugins:         PluginMap,
