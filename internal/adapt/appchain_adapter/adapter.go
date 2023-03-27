@@ -1,7 +1,6 @@
 package appchain_adapter
 
 import (
-	"encoding/binary"
 	"fmt"
 	"strings"
 	"sync"
@@ -216,10 +215,11 @@ func (a *AppchainAdapter) SendIBTP(ibtp *pb.IBTP) error {
 			if err := content.Unmarshal(pd.Content); err != nil {
 				return fmt.Errorf("unmarshal content of ibtp %s: %w", ibtp.ID(), err)
 			}
-			//Judging whether it is MultiTransfer(1) or Transfer(0)
-			if binary.BigEndian.Uint64(content.Args[0]) == 0 {
-				result.MultiStatus = append(result.MultiStatus, false)
-			}
+			//TODO direct
+			////Judging whether it is MultiTransfer(1) or Transfer(0)
+			//if binary.BigEndian.Uint64(content.Args[0]) == 0 {
+			//	result.MultiStatus = append(result.MultiStatus, false)
+			//}
 		} else {
 			// if type is interchain( maybe status is begin_rollback or begin_fail),the content should be interchain type
 			if ibtp.Type == pb.IBTP_INTERCHAIN {
@@ -228,10 +228,10 @@ func (a *AppchainAdapter) SendIBTP(ibtp *pb.IBTP) error {
 					return fmt.Errorf("unmarshal content of ibtp %s: %w", ibtp.ID(), err)
 				}
 				a.logger.WithFields(logrus.Fields{"type": ibtp.Type, "status": proof.TxStatus}).Info("src chain need rollback interchain")
-				//Judging whether it is MultiTransfer(1) or Transfer(0)
-				if binary.BigEndian.Uint64(content.Args[0]) == 0 {
-					result.MultiStatus = append(result.MultiStatus, false)
-				}
+				////Judging whether it is MultiTransfer(1) or Transfer(0)
+				//if binary.BigEndian.Uint64(content.Args[0]) == 0 {
+				//	result.MultiStatus = append(result.MultiStatus, false)
+				//}
 			} else {
 				if err := result.Unmarshal(pd.Content); err != nil {
 					return fmt.Errorf("unmarshal result of ibtp %s: %w", ibtp.ID(), err)
