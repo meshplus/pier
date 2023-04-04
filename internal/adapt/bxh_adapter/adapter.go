@@ -214,14 +214,14 @@ func (b *BxhAdapter) SendIBTP(ibtp *pb.IBTP) error {
 			** There is no need for pier actively handle error.
 			 */
 
-			//// if target service is unavailable(maybe enter wrong format serviceID), just throw error
-			//if strings.Contains(errMsg, InvalidTargetService) {
+			// // if target service is unavailable(maybe enter wrong format serviceID), just throw error
+			// if strings.Contains(errMsg, InvalidTargetService) {
 			//	b.logger.Errorf("ignore invalid IBTP ID: invalid target service: %s", errMsg)
 			//	return nil
-			//}
+			// }
 
-			//// if target chain is not available, this ibtp should be rollback
-			//if strings.Contains(errMsg, TargetAppchainNotAvailable) ||
+			// // if target chain is not available, this ibtp should be rollback
+			// if strings.Contains(errMsg, TargetAppchainNotAvailable) ||
 			//	strings.Contains(errMsg, TargetServiceNotAvailable) ||
 			//	strings.Contains(errMsg, TargetBitXHubNotAvailable) {
 			//	var isReq bool
@@ -249,7 +249,7 @@ func (b *BxhAdapter) SendIBTP(ibtp *pb.IBTP) error {
 			//
 			//	b.ibtpC <- ibtp
 			//	return nil
-			//}
+			// }
 
 			// check index
 			if strings.Contains(errMsg, ibtpIndexExist) {
@@ -589,56 +589,63 @@ func (b *BxhAdapter) getTxStatus(id string) (pb.TransactionStatus, error) {
 
 func (b *BxhAdapter) getSign(ibtp *pb.IBTP, isReq bool) ([]byte, error) {
 	var (
-		err     error
-		retSign *pb.SignResponse
-		reqTyp  pb.GetSignsRequest_Type
+		err      error
+		retSign  *pb.SignResponse
+		reqTyp   pb.GetSignsRequest_Type
+		retProof []byte
 	)
 
-	if b.tss.EnableTSS {
-		if isReq {
-			reqTyp = pb.GetSignsRequest_TSS_IBTP_REQUEST
+	if err = retry.Retry(func(attempt uint) error {
+		if b.tss.EnableTSS {
+			if isReq {
+				reqTyp = pb.GetSignsRequest_TSS_IBTP_REQUEST
+			} else {
+				reqTyp = pb.GetSignsRequest_TSS_IBTP_RESPONSE
+			}
+			retSign, err = b.client.GetTssSigns(ibtp.ID(), reqTyp, nil)
+			if err != nil {
+				return err
+			}
 		} else {
-			reqTyp = pb.GetSignsRequest_TSS_IBTP_RESPONSE
+			if isReq {
+				reqTyp = pb.GetSignsRequest_MULTI_IBTP_REQUEST
+			} else {
+				reqTyp = pb.GetSignsRequest_MULTI_IBTP_RESPONSE
+			}
+
+			retSign, err = b.client.GetMultiSigns(ibtp.ID(), reqTyp)
+			if err != nil {
+				return err
+			}
 		}
-		retSign, err = b.client.GetTssSigns(ibtp.ID(), reqTyp, nil)
+
+		if retSign == nil || retSign.Sign == nil {
+			return fmt.Errorf("get empty signatures for ibtp %s", ibtp.ID())
+		}
+
+		var signs [][]byte
+		for _, sign := range retSign.Sign {
+			signs = append(signs, sign)
+		}
+
+		retStatus, err := b.getTxStatus(ibtp.ID())
 		if err != nil {
-			return nil, err
-		}
-	} else {
-		if isReq {
-			reqTyp = pb.GetSignsRequest_MULTI_IBTP_REQUEST
-		} else {
-			reqTyp = pb.GetSignsRequest_MULTI_IBTP_RESPONSE
+			return err
 		}
 
-		retSign, err = b.client.GetMultiSigns(ibtp.ID(), reqTyp)
+		proof := &pb.BxhProof{
+			TxStatus:  retStatus,
+			MultiSign: signs,
+		}
+		retProof, err = proof.Marshal()
 		if err != nil {
-			return nil, err
+			return err
 		}
+		return nil
+	}, strategy.Wait(time.Second*2)); err != nil {
+		b.logger.Panicf("get sign err:%s", err)
 	}
 
-	if retSign == nil || retSign.Sign == nil {
-		return nil, fmt.Errorf("get empty signatures for ibtp %s", ibtp.ID())
-	}
-
-	var signs [][]byte
-	for _, sign := range retSign.Sign {
-		signs = append(signs, sign)
-	}
-
-	retStatus, err := b.getTxStatus(ibtp.ID())
-	if err != nil {
-		return nil, err
-	}
-
-	proof := &pb.BxhProof{
-		TxStatus:  retStatus,
-		MultiSign: signs,
-	}
-	retProof, err := proof.Marshal()
-	if err != nil {
-		return nil, err
-	}
 	return retProof, nil
 }
 
