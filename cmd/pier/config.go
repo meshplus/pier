@@ -15,7 +15,7 @@ import (
 	"github.com/cavaliercoder/grab"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/gobuffalo/packd"
-	"github.com/gobuffalo/packr"
+	"github.com/gobuffalo/packr/v2"
 	"github.com/meshplus/bitxhub-kit/fileutil"
 	"github.com/meshplus/pier/internal/repo"
 	"github.com/spf13/viper"
@@ -499,7 +499,7 @@ func updateAppchainType(repoRoot, chainType string) error {
 }
 
 func copyDir(srcDir, dstDir string) error {
-	box := packr.NewBox(srcDir)
+	box := packr.New("config", srcDir)
 	return box.Walk(func(s string, file packd.File) error {
 		p := filepath.Join(dstDir, s)
 		dir := filepath.Dir(p)

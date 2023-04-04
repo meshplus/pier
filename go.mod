@@ -11,8 +11,9 @@ require (
 	github.com/fatih/color v1.9.0
 	github.com/fsnotify/fsnotify v1.4.9
 	github.com/gin-gonic/gin v1.6.3
-	github.com/gobuffalo/packd v1.0.0
+	github.com/gobuffalo/packd v1.0.1
 	github.com/gobuffalo/packr v1.30.1
+	github.com/gobuffalo/packr/v2 v2.8.3
 	github.com/gogo/protobuf v1.3.2
 	github.com/golang/mock v1.5.0
 	github.com/hashicorp/go-hclog v0.0.0-20180709165350-ff2cf002a8dd
@@ -28,7 +29,7 @@ require (
 	github.com/mitchellh/go-homedir v1.1.0
 	github.com/multiformats/go-multiaddr v0.3.0
 	github.com/sirupsen/logrus v1.8.1
-	github.com/spf13/viper v1.7.1
+	github.com/spf13/viper v1.8.1
 	github.com/stretchr/testify v1.7.0
 	github.com/tidwall/gjson v1.6.8
 	github.com/urfave/cli v1.22.1
@@ -40,3 +41,5 @@ require (
 replace github.com/libp2p/go-libp2p-core => github.com/libp2p/go-libp2p-core v0.5.6
 
 replace golang.org/x/net => golang.org/x/net v0.0.0-20210405180319-a5a99cb37ef4
+
+replace google.golang.org/grpc => google.golang.org/grpc v1.33.0

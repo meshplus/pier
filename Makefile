@@ -50,7 +50,7 @@ test-coverage:
 	@cat cover.out >> coverage.txt
 
 packr:
-	cd internal/repo && packr
+	cd internal/repo && packr2
 
 prepare:
 	cd scripts && bash prepare.sh

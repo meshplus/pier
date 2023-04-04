@@ -12,7 +12,7 @@ import (
 
 	"github.com/fsnotify/fsnotify"
 	"github.com/gobuffalo/packd"
-	"github.com/gobuffalo/packr"
+	"github.com/gobuffalo/packr/v2"
 	"github.com/meshplus/bitxhub-kit/crypto"
 	"github.com/meshplus/bitxhub-kit/crypto/asym"
 	"github.com/mitchellh/go-homedir"
@@ -63,7 +63,7 @@ func Initialize(repoRoot string) error {
 		}
 	}
 
-	box := packr.NewBox(ConfigPath)
+	box := packr.New("", ConfigPath)
 
 	privKey, err := asym.GenerateKeyPair(crypto.Secp256k1)
 	if err != nil {
