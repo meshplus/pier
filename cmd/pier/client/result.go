@@ -1,19 +1,12 @@
 package client
 
-import (
-	"encoding/base64"
-	"fmt"
+// func parseResponse(data []byte) (string, error) {
+// 	res := gjson.Get(string(data), "data")
 
-	"github.com/tidwall/gjson"
-)
+// 	ret, err := base64.StdEncoding.DecodeString(res.String())
+// 	if err != nil {
+// 		return "", fmt.Errorf("wrong data: %w", err)
+// 	}
 
-func parseResponse(data []byte) (string, error) {
-	res := gjson.Get(string(data), "data")
-
-	ret, err := base64.StdEncoding.DecodeString(res.String())
-	if err != nil {
-		return "", fmt.Errorf("wrong data: %w", err)
-	}
-
-	return string(ret), nil
-}
+// 	return string(ret), nil
+// }

@@ -37,7 +37,6 @@ func (u *UnionAdapter) handleGetAddressMessage(stream network.Stream, message *p
 	}
 }
 
-//handleRouterSendIBTPMessage handles IBTP from union interchain network
 func (u *UnionAdapter) handleRouterSendIBTPMessage(stream network.Stream, msg *pb.Message) {
 	handle := func() error {
 		ibtp := &pb.IBTP{}
@@ -67,19 +66,17 @@ func (u *UnionAdapter) handleRouterSendIBTPMessage(stream network.Stream, msg *p
 	}
 }
 
-//handleRouterSendIBTPMessage handles get IBTP request from union interchain network
 func (u *UnionAdapter) handleRouterGetIBTPMessage(stream network.Stream, msg *pb.Message) {
 	if err := u.queryIBTPFromBitXHubAndSend(stream, string(peermgr.DataToPayload(msg).Data), true); err != nil {
 		u.logger.Error(err)
 	}
 }
 
-//handleRouterGetIBTPReceiptMessage handles get IBTP receipt request from union interchain network
-func (u *UnionAdapter) handleRouterGetIBTPReceiptMessage(stream network.Stream, msg *pb.Message) {
-	if err := u.queryIBTPFromBitXHubAndSend(stream, string(peermgr.DataToPayload(msg).Data), false); err != nil {
-		u.logger.Error(err)
-	}
-}
+// func (u *UnionAdapter) handleRouterGetIBTPReceiptMessage(stream network.Stream, msg *pb.Message) {
+// 	if err := u.queryIBTPFromBitXHubAndSend(stream, string(peermgr.DataToPayload(msg).Data), false); err != nil {
+// 		u.logger.Error(err)
+// 	}
+// }
 
 func (u *UnionAdapter) queryIBTPFromBitXHubAndSend(stream network.Stream, id string, isReq bool) error {
 	ibtp, err := u.bxhAdapter.QueryIBTP(id, isReq)

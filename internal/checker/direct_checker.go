@@ -77,8 +77,14 @@ func (c *DirectChecker) BasicCheck(ibtp *pb.IBTP) (bool, error) {
 func (c *DirectChecker) CheckProof(ibtp *pb.IBTP) error {
 	var chainID string
 
-	_, chainID0, _, _ := pb.ParseFullServiceID(ibtp.From)
-	_, chainID1, _, _ := pb.ParseFullServiceID(ibtp.To)
+	_, chainID0, _, err := pb.ParseFullServiceID(ibtp.From)
+	if err != nil {
+		return err
+	}
+	_, chainID1, _, err := pb.ParseFullServiceID(ibtp.To)
+	if err != nil {
+		return err
+	}
 
 	if c.appchainID == chainID0 {
 		chainID = chainID1
@@ -101,7 +107,7 @@ func (c *DirectChecker) CheckProof(ibtp *pb.IBTP) error {
 	}
 
 	// todo: need validate direct mode
-	ok, _, err := c.ve.Validate(appchainInfo.ruleAddr, chainID, ibtp.Proof, ibtp.Payload, string(appchainInfo.trustRoot))
+	ok, _, err = c.ve.Validate(appchainInfo.ruleAddr, chainID, ibtp.Proof, ibtp.Payload, string(appchainInfo.trustRoot))
 	if err != nil {
 		return err
 	}
@@ -112,12 +118,12 @@ func (c *DirectChecker) CheckProof(ibtp *pb.IBTP) error {
 }
 
 type CodeLedger struct {
-	client       agency.Client
+	// client       agency.Client
 	validateCode map[string][]byte
 }
 
 func (l *CodeLedger) GetCode(address *types.Address) []byte {
-	code, _ := l.validateCode[address.String()]
+	code := l.validateCode[address.String()]
 	return code
 }
 

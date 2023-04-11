@@ -298,7 +298,12 @@ func updateAppchainConfig(ctx *cli.Context, configDir, chainType string) error {
 	if err := v.ReadInConfig(); err != nil {
 		return err
 	}
-	defer v.WriteConfig()
+	defer func() {
+		err := v.WriteConfig()
+		if err != nil {
+			fmt.Println(err)
+		}
+	}()
 
 	switch chainType {
 	case "fabric":

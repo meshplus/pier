@@ -53,12 +53,12 @@ func TestRelayChecker_BasicCheck(t *testing.T) {
 	require.False(t, isReq)
 
 	ibtp.To = fmt.Sprintf("%s:%s:service1", bxhID, appchain1)
-	isReq, err = checker.BasicCheck(ibtp)
+	_, err = checker.BasicCheck(ibtp)
 	require.NotNil(t, err)
 
 	ibtp.From = fmt.Sprintf("%s:%s:service0", bxhID, appchain0)
 	ibtp.To = fmt.Sprintf("%s:%s:service1", bxhID1, appchain1)
-	isReq, err = checker.BasicCheck(ibtp)
+	_, err = checker.BasicCheck(ibtp)
 	require.NotNil(t, err)
 }
 
@@ -109,35 +109,35 @@ func TestDirectChecker_BasicCheck(t *testing.T) {
 	require.True(t, isReq)
 
 	ibtp.From = fmt.Sprintf("%s:%s:service0", bxhID, appchain1)
-	isReq, err = checker.BasicCheck(ibtp)
+	_, err = checker.BasicCheck(ibtp)
 	require.NotNil(t, err)
 
 	ibtp.From = fmt.Sprintf(":%s:service0", appchain1)
 	ibtp.To = fmt.Sprintf("%s:%s:service0", bxhID, appchain0)
-	isReq, err = checker.BasicCheck(ibtp)
+	_, err = checker.BasicCheck(ibtp)
 	require.NotNil(t, err)
 
 	ibtp.From = fmt.Sprintf(":%s:service0", appchain1)
 	ibtp.To = fmt.Sprintf(":%s:service1", appchain1)
-	isReq, err = checker.BasicCheck(ibtp)
+	_, err = checker.BasicCheck(ibtp)
 	require.NotNil(t, err)
 
 	ibtp.From = fmt.Sprintf(":%s:service0", appchain1)
 	ibtp.To = fmt.Sprintf(":%s:service1", appchain0)
 	ibtp.Type = pb.IBTP_INTERCHAIN
-	isReq, err = checker.BasicCheck(ibtp)
+	_, err = checker.BasicCheck(ibtp)
 	require.NotNil(t, err)
 
 	ibtp.From = fmt.Sprintf(":%s:service0", appchain0)
 	ibtp.To = fmt.Sprintf(":%s:service1", appchain1)
 	ibtp.Type = pb.IBTP_RECEIPT_SUCCESS
-	isReq, err = checker.BasicCheck(ibtp)
+	_, err = checker.BasicCheck(ibtp)
 	require.NotNil(t, err)
 
 	ibtp.From = fmt.Sprintf(":%s:service0", appchain0)
 	ibtp.To = fmt.Sprintf(":%s:service1", appchain1)
 	ibtp.Type = pb.IBTP_RECEIPT_ROLLBACK_END
-	isReq, err = checker.BasicCheck(ibtp)
+	_, err = checker.BasicCheck(ibtp)
 	require.NotNil(t, err)
 }
 

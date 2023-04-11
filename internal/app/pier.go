@@ -6,11 +6,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/hashicorp/go-plugin"
 	"github.com/meshplus/bitxhub-core/agency"
-	appchainmgr "github.com/meshplus/bitxhub-core/appchain-mgr"
 	"github.com/meshplus/bitxhub-kit/crypto"
-	"github.com/meshplus/bitxhub-kit/storage"
 	"github.com/meshplus/bitxhub-model/pb"
 	rpcx "github.com/meshplus/go-bitxhub-client"
 	_ "github.com/meshplus/pier/imports"
@@ -33,15 +30,15 @@ const DEFAULT_UNION_PIER_ID = "default_union_pier_id"
 
 // Pier represents the necessary data for starting the pier app
 type Pier struct {
-	privateKey  crypto.PrivateKey
-	plugin      agency.Client
-	grpcPlugin  *plugin.Client
-	pierHA      agency.PierHA
-	storage     storage.Storage
-	exchanger   exchanger.IExchanger
-	ctx         context.Context
-	cancel      context.CancelFunc
-	appchain    *appchainmgr.Appchain
+	privateKey crypto.PrivateKey
+	plugin     agency.Client
+	// grpcPlugin  *plugin.Client
+	pierHA agency.PierHA
+	// storage     storage.Storage
+	exchanger exchanger.IExchanger
+	ctx       context.Context
+	cancel    context.CancelFunc
+	// appchain    *appchainmgr.Appchain
 	serviceMeta map[string]*pb.Interchain
 	config      *repo.Config
 	logger      logrus.FieldLogger
@@ -132,6 +129,9 @@ func NewPier(repoRoot string, config *repo.Config) (*Pier, error) {
 			return nil, fmt.Errorf("peerMgr create: %w", err)
 		}
 		cryptor, err := txcrypto.NewDirectCryptor(peerManager, privateKey, loggers.Logger(loggers.Cryptor))
+		if err != nil {
+			return nil, fmt.Errorf("new direct cryptor: %w", err)
+		}
 		appchainAdapter, err := appchain_adapter.NewAppchainAdapter(repo.DirectMode, config, loggers.Logger(loggers.Appchain), cryptor)
 		if err != nil {
 			return nil, fmt.Errorf("new appchain adapter: %w", err)
@@ -158,6 +158,9 @@ func NewPier(repoRoot string, config *repo.Config) (*Pier, error) {
 		}
 
 		cryptor, err := txcrypto.NewRelayCryptor(client, privateKey, loggers.Logger(loggers.Cryptor))
+		if err != nil {
+			return nil, fmt.Errorf("new relay cryptor: %w", err)
+		}
 		appchainAdapter, err := appchain_adapter.NewAppchainAdapter(repo.RelayMode, config, loggers.Logger(loggers.Appchain), cryptor)
 		if err != nil {
 			return nil, fmt.Errorf("new appchain adapter: %w", err)
@@ -305,26 +308,26 @@ func (pier *Pier) Type() string {
 	return repo.UnionMode
 }
 
-func filterServiceMeta(serviceInterchain map[string]*pb.Interchain, bxhID, appchainID string, serviceIDs []string) map[string]*pb.Interchain {
-	result := make(map[string]*pb.Interchain)
+// func filterServiceMeta(serviceInterchain map[string]*pb.Interchain, bxhID, appchainID string, serviceIDs []string) map[string]*pb.Interchain {
+// 	result := make(map[string]*pb.Interchain)
 
-	for _, id := range serviceIDs {
-		fullServiceID := fmt.Sprintf("%s:%s:%s", bxhID, appchainID, id)
-		val, ok := serviceInterchain[fullServiceID]
-		if !ok {
-			val = &pb.Interchain{
-				ID:                      fullServiceID,
-				InterchainCounter:       make(map[string]uint64),
-				ReceiptCounter:          make(map[string]uint64),
-				SourceInterchainCounter: make(map[string]uint64),
-				SourceReceiptCounter:    make(map[string]uint64),
-			}
-		}
-		result[fullServiceID] = val
-	}
+// 	for _, id := range serviceIDs {
+// 		fullServiceID := fmt.Sprintf("%s:%s:%s", bxhID, appchainID, id)
+// 		val, ok := serviceInterchain[fullServiceID]
+// 		if !ok {
+// 			val = &pb.Interchain{
+// 				ID:                      fullServiceID,
+// 				InterchainCounter:       make(map[string]uint64),
+// 				ReceiptCounter:          make(map[string]uint64),
+// 				SourceInterchainCounter: make(map[string]uint64),
+// 				SourceReceiptCounter:    make(map[string]uint64),
+// 			}
+// 		}
+// 		result[fullServiceID] = val
+// 	}
 
-	return result
-}
+// 	return result
+// }
 
 func newBitXHubClient(logger logrus.FieldLogger, privateKey crypto.PrivateKey, config *repo.Config) (rpcx.Client, error) {
 	opts := []rpcx.Option{

@@ -11,8 +11,8 @@ import (
 var _ Checker = (*RelayChecker)(nil)
 
 type RelayChecker struct {
-	client     agency.Client
-	chainInfoM map[string]*AppchainInfo
+	client agency.Client
+	// chainInfoM map[string]*AppchainInfo
 	bxhID      string
 	appchainID string
 }

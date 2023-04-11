@@ -48,9 +48,9 @@ func CreateClient(appchainConfig *repo.Appchain, extra []byte, mode string) (age
 	}
 
 	var appchain agency.Client
-	switch raw.(type) {
+	switch raw := raw.(type) {
 	case *GRPCClient:
-		appchain = raw.(*GRPCClient)
+		appchain = raw
 	default:
 		return nil, nil, fmt.Errorf("unsupported client type")
 	}
