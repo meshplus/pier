@@ -584,13 +584,18 @@ func mockAppchainAdapter1(t *testing.T) (adapt.Adapt, *mock_client.MockClient, *
 		appchainID:   appchain,
 		bitxhubID:    bxhID,
 		recvIbtpC:    make(chan *pb.IBTP, 1024),
-		//recvReceiptC: make(chan *pb.IBTP, 1024),
+		recvReceiptC: make(chan *pb.IBTP, 1024),
 	}
 	appchainAdapter.config.Batch.EnableBatch = true
 
 	appchainAdapter.requestPool = &sync.Pool{
 		New: func() interface{} {
 			return new(pb.BatchRequest)
+		},
+	}
+	appchainAdapter.receiptPool = &sync.Pool{
+		New: func() interface{} {
+			return new(pb.BatchReceipt)
 		},
 	}
 

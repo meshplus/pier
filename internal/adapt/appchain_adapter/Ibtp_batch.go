@@ -1,10 +1,12 @@
 package appchain_adapter
 
 import (
+	"encoding/binary"
 	"fmt"
 	"time"
 
 	"github.com/meshplus/bitxhub-model/pb"
+	"github.com/meshplus/pier/internal/repo"
 	"github.com/sirupsen/logrus"
 )
 
@@ -49,14 +51,14 @@ func (a *AppchainAdapter) listenIBTPBatch() {
 						dst = dst[batchSize:]
 					}
 					a.logger.WithFields(logrus.Fields{
-						"Froms":      req.Froms,
+						//"Froms":      req.Froms,
 						"indexs":     req.Indexs,
 						"serviceIDs": req.ServiceIDs,
 						"ibtpTypes":  req.IbtpTypes,
-						"Contents":   req.Contents,
-						"proofs":     req.Proofs,
-						"isEncrypt":  req.IsEncrypted,
-						"batchSize":  len(req.Froms),
+						//"Contents":   req.Contents,
+						//"proofs":     req.Proofs,
+						//"isEncrypt":  req.IsEncrypted,
+						"batchSize": len(req.Froms),
 					}).Info("start submit ibtpBatch")
 
 					now := time.Now()
@@ -67,11 +69,6 @@ func (a *AppchainAdapter) listenIBTPBatch() {
 							"serviceIDs": req.ServiceIDs, "proofs": req.Proofs, "err": err}).Errorf("SubmitIBTPBatch err")
 						continue
 					}
-
-					//if !response.Status {
-					//	a.logger.Errorf("fail to send ibtp: %s",
-					//		response.Message)
-					//}
 
 					a.logger.WithFields(logrus.Fields{
 						"batchSize": len(req.Froms),
@@ -122,103 +119,131 @@ func (a *AppchainAdapter) handleIBTPBatch(batch []*pb.IBTP, req *pb.BatchRequest
 	return nil
 }
 
-//func (a *AppchainAdapter) listenReceiptBatch() {
-//	receiptBatch := make([]*pb.IBTP, 0)
-//	for {
-//		select {
-//		case receipt := <-a.recvReceiptC:
-//			receiptBatch = append(receiptBatch, receipt)
-//
-//		default:
-//			// if receive receipt, start handle and submit
-//			if len(receiptBatch) > 0 {
-//				dst := make([]*pb.IBTP, len(receiptBatch))
-//				copy(dst, receiptBatch)
-//				receipts := a.receiptPool.Get().(*pb.BatchReceipt)
-//				var err error
-//
-//				// control batch size
-//				for len(dst) > 0 {
-//					if len(dst) <= a.config.Batch.BatchSize {
-//						err = a.handleReceiptBatch(dst[:], receipts)
-//						dst = make([]*pb.IBTP, 0)
-//					} else {
-//						err = a.handleReceiptBatch(dst[:9], receipts)
-//						if err != nil {
-//							a.logger.Errorf("handleReceiptBatch err：%s", err)
-//							dst = dst[10:]
-//							continue
-//						}
-//						dst = dst[10:]
-//					}
-//					a.logger.WithFields(logrus.Fields{
-//						"Tos":        receipts.Tos,
-//						"indexs":     receipts.Indexs,
-//						"serviceIDs": receipts.ServiceIDs,
-//						"batchSize":  len(receipts.Tos),
-//					}).Info("start submit receiptBatch")
-//
-//					now := time.Now()
-//					responses, err := a.client.SubmitReceiptBatch(
-//						receipts.Tos, receipts.Indexs, receipts.ServiceIDs, receipts.IbtpTypes, receipts.Results, receipts.Proofs)
-//					if err != nil {
-//						a.logger.WithFields(logrus.Fields{
-//							"Tos":        receipts.Tos,
-//							"indexs":     receipts.Indexs,
-//							"serviceIDs": receipts.ServiceIDs,
-//							"proofs":     receipts.Proofs,
-//							"err":        err,
-//						}).Errorf("SubmitReceiptBatch err")
-//						continue
-//					}
-//
-//					for i, res := range responses.Response {
-//						if !res.Status {
-//							a.logger.Errorf("fail to send receipt To:%s with Service:%s, index:%d: \n%s",
-//								receipts.Tos[i], receipts.ServiceIDs[i], receipts.Indexs[i], res.Message)
-//						}
-//					}
-//
-//					a.logger.WithFields(logrus.Fields{
-//						"time": time.Since(now),
-//					}).Info("appchain adapter submit receipt batch success")
-//				}
-//
-//				// release instance batch after clean them
-//				receiptBatch = make([]*pb.IBTP, 0)
-//				receipts.Reset()
-//				a.receiptPool.Put(receipts)
-//			}
-//		}
-//	}
-//}
-//
-//func (a *AppchainAdapter) handleReceiptBatch(batch []*pb.IBTP, receipts *pb.BatchReceipt) error {
-//
-//	result := &pb.Result{}
-//	proof := &pb.BxhProof{}
-//
-//	for _, ibtp := range batch {
-//		_, _, serviceID := ibtp.ParseTo()
-//		ibtp, pd, err := a.handlePayload(ibtp, false)
-//		if err != nil {
-//			return err
-//		}
-//
-//		if err := result.Unmarshal(pd.Content); err != nil {
-//			return fmt.Errorf("unmarshal result of receipt %s: %w", ibtp.ID(), err)
-//		}
-//
-//		if err := proof.Unmarshal(ibtp.Proof); err != nil {
-//			return fmt.Errorf("fail to unmarshal proof of ibtp %s: %w", ibtp.ID(), err)
-//		}
-//
-//		receipts.Tos = append(receipts.Tos, ibtp.From)
-//		receipts.Indexs = append(receipts.Indexs, ibtp.Index)
-//		receipts.ServiceIDs = append(receipts.ServiceIDs, serviceID)
-//		receipts.IbtpTypes = append(receipts.IbtpTypes, ibtp.Type)
-//		receipts.Results = append(receipts.Results, result)
-//		receipts.Proofs = append(receipts.Proofs, proof)
-//	}
-//	return nil
-//}
+func (a *AppchainAdapter) listenReceiptBatch() {
+	receiptBatch := make([]*pb.IBTP, 0)
+	batchSize := a.config.Batch.BatchSize
+	// control batch size
+	if batchSize > MaxSize {
+		batchSize = MaxSize
+	}
+
+	for {
+		select {
+		case receipt := <-a.recvReceiptC:
+			receiptBatch = append(receiptBatch, receipt)
+
+		default:
+			// if receive receipt, start handle and submit
+			if len(receiptBatch) > 0 {
+				dst := make([]*pb.IBTP, len(receiptBatch))
+				copy(dst, receiptBatch)
+				receipts := a.receiptPool.Get().(*pb.BatchReceipt)
+				var err error
+				for len(dst) > 0 {
+					if len(dst) <= batchSize {
+						err = a.handleReceiptBatch(dst[:], receipts)
+						dst = make([]*pb.IBTP, 0)
+					} else {
+						err = a.handleReceiptBatch(dst[:batchSize], receipts)
+						if err != nil {
+							a.logger.Errorf("handleReceiptBatch err：%s", err)
+							dst = dst[batchSize:]
+							continue
+						}
+						dst = dst[batchSize:]
+					}
+
+					a.logger.WithFields(logrus.Fields{
+						//"Tos":        receipts.Tos,
+						"indexs":     receipts.Indexs,
+						"serviceIDs": receipts.ServiceIDs,
+						"type":       receipts.IbtpTypes,
+						"batchSize":  len(receipts.Tos),
+						"maxSize":    batchSize,
+						"results":    receipts.Results,
+					}).Info("start submit receiptBatch")
+
+					now := time.Now()
+					_, err := a.client.SubmitReceiptBatch(
+						receipts.Tos, receipts.Indexs, receipts.ServiceIDs, receipts.IbtpTypes, receipts.Results, receipts.Proofs)
+					if err != nil {
+						a.logger.WithFields(logrus.Fields{
+							"indexs":     receipts.Indexs,
+							"serviceIDs": receipts.ServiceIDs,
+							"proofs":     receipts.Proofs,
+							"err":        err,
+						}).Errorf("SubmitReceiptBatch err")
+						continue
+					}
+
+					a.logger.WithFields(logrus.Fields{
+						"indexs":     receipts.Indexs,
+						"serviceIDs": receipts.ServiceIDs,
+						"type":       receipts.IbtpTypes,
+						"batchSize":  len(receipts.Tos),
+						"time":       time.Since(now),
+					}).Info("appchain adapter submit receipt batch success")
+
+					// release instance batch after clean them
+					receipts.Reset()
+					a.receiptPool.Put(receipts)
+				}
+				// clean batch
+				receiptBatch = make([]*pb.IBTP, 0)
+			}
+		}
+	}
+}
+
+func (a *AppchainAdapter) handleReceiptBatch(batch []*pb.IBTP, receipts *pb.BatchReceipt) error {
+	for _, ibtp := range batch {
+		result := &pb.Result{}
+		proof := &pb.BxhProof{}
+		_, _, FromServiceID := ibtp.ParseFrom()
+		ibtp, pd, err := a.handlePayload(ibtp, false)
+		if err != nil {
+			return err
+		}
+		// in direct mode, if src pier notify src rollback, will modify ibtp type from INTERCHAIN to RECEIPT_ROLLBACK
+		// so the content should be interchain type
+		if a.mode == repo.DirectMode && ibtp.Type == pb.IBTP_RECEIPT_ROLLBACK {
+			content := &pb.Content{}
+			if err := content.Unmarshal(pd.Content); err != nil {
+				return fmt.Errorf("unmarshal content of ibtp %s: %w", ibtp.ID(), err)
+			}
+			//Judging whether it is MultiTransfer(1) or Transfer(0)
+			if binary.BigEndian.Uint64(content.Args[0]) == 0 {
+				result.MultiStatus = append(result.MultiStatus, false)
+			}
+		} else {
+			// if type is interchain( maybe status is begin_rollback or begin_fail),the content should be interchain type
+			if ibtp.Type == pb.IBTP_INTERCHAIN {
+				content := &pb.Content{}
+				if err := content.Unmarshal(pd.Content); err != nil {
+					return fmt.Errorf("unmarshal content of ibtp %s: %w", ibtp.ID(), err)
+				}
+				a.logger.WithFields(logrus.Fields{"type": ibtp.Type, "status": proof.TxStatus}).Info("src chain need rollback interchain")
+				//Judging whether it is MultiTransfer(1) or Transfer(0)
+				if binary.BigEndian.Uint64(content.Args[0]) == 0 {
+					result.MultiStatus = append(result.MultiStatus, false)
+				}
+			} else {
+				if err := result.Unmarshal(pd.Content); err != nil {
+					return fmt.Errorf("unmarshal result of ibtp %s: %w", ibtp.ID(), err)
+				}
+			}
+		}
+
+		if err := proof.Unmarshal(ibtp.Proof); err != nil {
+			return fmt.Errorf("fail to unmarshal proof of ibtp %s: %w", ibtp.ID(), err)
+		}
+
+		receipts.Tos = append(receipts.Tos, ibtp.To)
+		receipts.Indexs = append(receipts.Indexs, ibtp.Index)
+		receipts.ServiceIDs = append(receipts.ServiceIDs, FromServiceID)
+		receipts.IbtpTypes = append(receipts.IbtpTypes, ibtp.Type)
+		receipts.Results = append(receipts.Results, result)
+		receipts.Proofs = append(receipts.Proofs, proof)
+	}
+	return nil
+}

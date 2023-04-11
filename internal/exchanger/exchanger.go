@@ -120,7 +120,7 @@ func (ex *Exchanger) Start() error {
 				return err
 			}
 		}
-		ex.logger.WithFields(logrus.Fields{"serviveIdList": serviceList}).Info("get appchain all services")
+		ex.logger.WithFields(logrus.Fields{"serviveIdList": serviceList}).Debug("get appchain all services")
 		return nil
 	}, strategy.Wait(3*time.Second)); err != nil {
 		return fmt.Errorf("retry error to get serviceIdList from srcAdapt: %w", err)
@@ -156,7 +156,7 @@ func (ex *Exchanger) Start() error {
 			ex.logger.Errorf("retry err with getServiceIDList: %w", err)
 		}
 
-		ex.logger.WithFields(logrus.Fields{"destServiceList": destServiceList}).Info("get bitxhub all services")
+		ex.logger.WithFields(logrus.Fields{"destServiceList": destServiceList}).Debug("get bitxhub all services")
 
 		for _, serviceId := range destServiceList {
 			if err := retry.Retry(func(attempt uint) error {
@@ -318,7 +318,7 @@ func (ex *Exchanger) listenIBTPFromDestAdapt(servicePair string) {
 				ex.handleMissingIBTPByServicePair(index+1, ibtp.Index-1, ex.destAdapt, ex.srcAdapt, ibtp.From, ibtp.To, !ex.isIBTPBelongSrc(ibtp))
 			}
 			if err := retry.Retry(func(attempt uint) error {
-				ex.logger.Infof("start sendIBTP to adapter: %s", ex.srcAdaptName)
+				ex.logger.Debugf("start sendIBTP to adapter: %s", ex.srcAdaptName)
 				if err := ex.srcAdapt.SendIBTP(ibtp); err != nil {
 					ex.logger.Errorf("send IBTP to Adapt, from:%s, error:%s", ex.srcAdaptName, err.Error())
 					// if err occurs, try to get new ibtp and resend
@@ -352,11 +352,13 @@ func (ex *Exchanger) listenIBTPFromSrcAdaptToServicePairCh() {
 			ex.logger.Info("listenIBTPFromSrcAdaptToServicePairCh Stop!")
 			return
 		case ibtp, ok := <-ch:
+			start := time.Now()
 			if !ok {
 				ex.logger.Warn("Unexpected closed channel while listening on interchain ibtp")
 				return
 			}
-			ex.logger.WithFields(logrus.Fields{"id": ibtp.ID(), "index": ibtp.Index, "typ": ibtp.Type, "timestamp": ibtp.Timestamp}).
+			ex.logger.WithFields(logrus.Fields{"id": ibtp.ID(), "index": ibtp.Index, "typ": ibtp.Type,
+				"timestamp": ibtp.Timestamp, "cost Time": float64(start.UnixNano()-ibtp.Timestamp) / float64(time.Millisecond)}).
 				Info("[step1] Receive ibtp from plugin")
 			key := ibtp.From + ibtp.To
 			_, ok2 := ex.srcIBTPMap[key]
@@ -371,6 +373,7 @@ func (ex *Exchanger) listenIBTPFromSrcAdaptToServicePairCh() {
 				}
 			}
 			ex.srcIBTPMap[key] <- ibtp
+			ex.logger.WithFields(logrus.Fields{"cost time": time.Since(start)}).Debug("[step1.2] handle appchain ibtp from channel")
 		}
 	}
 }

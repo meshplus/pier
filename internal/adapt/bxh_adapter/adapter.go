@@ -35,7 +35,7 @@ var (
 )
 
 const (
-	maxChSize      = 1024
+	maxChSize      = 102400
 	goroutinesSize = 200
 )
 
@@ -239,13 +239,16 @@ func (b *BxhAdapter) SendIBTP(ibtp *pb.IBTP) error {
 		nonce := atomic.AddUint64(&b.nonce, 1) - 1
 		go func(nonce uint64) {
 			if err := retry.Retry(func(attempt uint) error {
+				start := time.Now()
+				b.logger.Infof("[22] Start Send ibtp to bxh, nonce: %d, index: %d, startTimestamp: %f",
+					nonce, ibtp.Index, float64(start.UnixNano()-ibtp.Timestamp)/float64(time.Millisecond))
 				hash, err := b.client.SendTransaction(tx, &rpcx.TransactOpts{Nonce: nonce})
 				if err != nil {
 					b.logger.Errorf("Send ibtp failed: %s", err.Error())
 					return err
 				}
-				b.logger.Infof("[2] Send ibtp successfully, tx hash: %s, nonce: %d, index: %d, timestamp: %f",
-					hash, nonce, ibtp.Index, float64(time.Now().UnixNano()-ibtp.Timestamp)/float64(time.Millisecond))
+				b.logger.Infof("[2] Send ibtp successfully, tx hash: %s, nonce: %d, index: %d, costTime: %v",
+					hash, nonce, ibtp.Index, time.Since(start))
 				return nil
 			}, strategy.Wait(1*time.Second)); err != nil {
 				b.logger.Errorf("retry error to get serviceIdList from srcAdapt: %w", err)
@@ -395,7 +398,7 @@ func (b *BxhAdapter) SendIBTP(ibtp *pb.IBTP) error {
 		"index":  ibtp.Index,
 		"type":   ibtp.Type.String(),
 		"elapse": time.Since(now),
-	}).Info("[2.1] bxh Adapter send tx")
+	}).Debug("[2.1] bxh Adapter send tx")
 
 	return retErr
 }
@@ -603,7 +606,7 @@ func (b *BxhAdapter) handleInterchainTxWrapper(w *pb.InterchainTxWrapper, i int)
 		b.logger.WithFields(logrus.Fields{
 			"ibtp_id": ibtp.ID(),
 			"type":    ibtp.Type,
-		}).Info("Sync IBTP from bitxhub")
+		}).Debug("Sync IBTP from bitxhub")
 
 		var isReq bool
 		switch ibtp.Category() {
@@ -626,7 +629,7 @@ func (b *BxhAdapter) handleInterchainTxWrapper(w *pb.InterchainTxWrapper, i int)
 				b.logger.WithFields(logrus.Fields{"id": ibtp.ID()}).Errorf("marshal ibtp proof err")
 				return
 			}
-			b.logger.WithFields(logrus.Fields{"ID": ibtp.ID(), "index": ibtp.Index, "elapse": time.Since(current)}).Infof("[3.1] receive multi sign")
+			b.logger.WithFields(logrus.Fields{"ID": ibtp.ID(), "index": ibtp.Index, "elapse": time.Since(current)}).Debug("[3.1] receive multi sign")
 			ibtp.Proof = retProof
 			if tx.IsBatch && b.mode == repo.RelayMode {
 				ibtp.Extra = []byte("1")
@@ -730,7 +733,7 @@ func (b *BxhAdapter) insertIBTPPool(ibtp *pb.IBTP, srcRollback bool) {
 	if !loaded {
 		pool.CurrentIndex = 1
 	}
-	b.logger.WithFields(logrus.Fields{"current index": pool.CurrentIndex, "ID": ibtp.ID(), "index": ibtp.Index, "key": servicePair, "elapse": time.Since(now)}).Infof("[3.2.1] start insert pool")
+	b.logger.WithFields(logrus.Fields{"current index": pool.CurrentIndex, "ID": ibtp.ID(), "index": ibtp.Index, "key": servicePair, "elapse": time.Since(now)}).Debug("[3.2.1] start insert pool")
 
 	pool.Ibtps.ReplaceOrInsert(&utils.MyTree{Ibtp: ibtp, Index: ibtp.Index})
 	for {
@@ -739,7 +742,7 @@ func (b *BxhAdapter) insertIBTPPool(ibtp *pb.IBTP, srcRollback bool) {
 				pool.Ibtps.DeleteMin()
 			} else if item.(*utils.MyTree).Index == pool.CurrentIndex {
 				b.ibtpC <- item.(*utils.MyTree).Ibtp
-				b.logger.WithFields(logrus.Fields{"ID": item.(*utils.MyTree).Ibtp.ID(), "index": item.(*utils.MyTree).Ibtp.Index, "elapse": time.Since(now)}).Infof("[3.2] end insert pool")
+				b.logger.WithFields(logrus.Fields{"ID": item.(*utils.MyTree).Ibtp.ID(), "index": item.(*utils.MyTree).Ibtp.Index, "elapse": time.Since(now)}).Debug("[3.2] end insert pool")
 				pool.Ibtps.DeleteMin()
 				pool.CurrentIndex++
 			} else {
