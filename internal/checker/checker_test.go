@@ -162,7 +162,7 @@ func TestDirectChecker_CheckProof(t *testing.T) {
 	}
 	mockClient.EXPECT().GetAppchainInfo(appchain2).Return("", nil, "", fmt.Errorf("no appchain found")).MaxTimes(1)
 	err := checker.CheckProof(ibtp)
-	require.NotNil(t, err)
+	require.Nil(t, err)
 
 	mockClient.EXPECT().GetAppchainInfo(appchain2).Return("", nil, validator.FabricRuleAddr, nil).MaxTimes(1)
 	err = checker.CheckProof(ibtp)

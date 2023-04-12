@@ -19,6 +19,7 @@ type DirectChecker struct {
 	client     agency.Client
 	chainInfoM map[string]*AppchainInfo
 	appchainID string
+	logger     logrus.FieldLogger
 }
 
 type AppchainInfo struct {
@@ -37,6 +38,7 @@ func NewDirectChecker(client agency.Client, appchainID string, logger logrus.Fie
 		client:     client,
 		chainInfoM: make(map[string]*AppchainInfo),
 		appchainID: appchainID,
+		logger:     logger,
 	}
 }
 
@@ -96,7 +98,9 @@ func (c *DirectChecker) CheckProof(ibtp *pb.IBTP) error {
 	if !ok {
 		broker, trustRoot, ruleAddr, err := c.client.GetAppchainInfo(chainID)
 		if err != nil {
-			return err
+			// if remote service doesn't registered, throw failure event by broker
+			c.logger.Warnf("%s is not registered", chainID)
+			return nil
 		}
 		appchainInfo = &AppchainInfo{
 			broker:    broker,
