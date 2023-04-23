@@ -3,7 +3,7 @@
 package imports
 
 import (
-	_ "github.com/bitxhub/pier-ha"
-	_ "github.com/bitxhub/crypto-gm"
-	_ "github.com/bitxhub/offchain-transmission"
+	_ "git.hyperchain.cn/dmlab/pier-ha"
+	_ "git.hyperchain.cn/dmlab/bxh-crypto-gm"
+	_ "git.hyperchain.cn/dmlab/offchain-transmission"
 )
