@@ -192,7 +192,7 @@ func DefaultConfig() *Config {
 		},
 		Batch: Batch{
 			EnableBatch: false,
-			BatchSize:   10,
+			BatchSize:   7,
 		},
 	}
 }
