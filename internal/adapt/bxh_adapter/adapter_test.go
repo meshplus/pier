@@ -686,23 +686,29 @@ func prepare(t *testing.T) (*BxhAdapter, *BxhAdapter, *BxhAdapter, *mock_client.
 	client := mock_client.NewMockClient(mockCtl)
 	client.EXPECT().GetChainID().Return(uint64(bxhId1), nil).AnyTimes()
 
-	config := &repo.Config{}
-	config.Mode.Type = repo.RelayMode
-	config.TSS = &repo.TSS{
-		EnableTSS: false,
+	config := &repo.Config{
+		Mode: repo.Mode{
+			Type: repo.RelayMode,
+		},
+		TSS: &repo.TSS{
+			EnableTSS: false,
+		},
+		Batch: repo.Batch{
+			EnableBatch: false,
+		},
 	}
 
-	relayAdapter1, err := New(repo.RelayMode, "",
+	relayAdapter1, err := New(repo.RelayMode, "", config,
 		client, log.NewWithModule("adapter"), config.TSS, 0,
 	)
 	require.Nil(t, err)
 
-	relayAdapter2, err := New(repo.RelayMode, "",
+	relayAdapter2, err := New(repo.RelayMode, "", config,
 		client, log.NewWithModule("adapter"), config.TSS, 0,
 	)
 	require.Nil(t, err)
 
-	unionAdapter, err := New(repo.UnionMode, defaultUnionPierId,
+	unionAdapter, err := New(repo.UnionMode, defaultUnionPierId, config,
 		client, log.NewWithModule("adapter"), config.TSS, 0,
 	)
 	require.Nil(t, err)

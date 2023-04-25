@@ -202,8 +202,13 @@ func (a *AppchainAdapter) SendIBTP(ibtp *pb.IBTP) error {
 		_, _, serviceID := ibtp.ParseTo()
 
 		a.logger.WithFields(logrus.Fields{
-			"ibtp": ibtp.ID(),
-			"typ":  ibtp.Type,
+			"from":      ibtp.From,
+			"index":     ibtp.Index,
+			"serviceID": serviceID,
+			"type":      ibtp.Type,
+			"content":   content,
+			"proof":     proof,
+			"encrypted": pd.Encrypted,
 		}).Info("start submit ibtp")
 		res, err = a.client.SubmitIBTP(ibtp.From, ibtp.Index, serviceID, ibtp.Type, content, proof, pd.Encrypted)
 	} else {
@@ -233,6 +238,7 @@ func (a *AppchainAdapter) SendIBTP(ibtp *pb.IBTP) error {
 		a.logger.WithFields(logrus.Fields{
 			"ibtp": ibtp.ID(),
 			"typ":  ibtp.Type,
+			"res":  result,
 		}).Info("start submit receipt")
 		res, err = a.client.SubmitReceipt(ibtp.To, ibtp.Index, serviceID, ibtp.Type, result, proof)
 	}

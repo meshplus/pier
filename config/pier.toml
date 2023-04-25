@@ -61,5 +61,5 @@ title = "Pier"
     enable_tss = false
 
 [batch]
-    enable_batch = true
-    batch_size = 10
+    enable_batch = false
+    batch_size = 7
