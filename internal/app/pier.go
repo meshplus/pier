@@ -44,57 +44,6 @@ type Pier struct {
 	logger      logrus.FieldLogger
 }
 
-func NewUnionPier(repoRoot string, config *repo.Config) (*Pier, error) {
-	logger := loggers.Logger(loggers.App)
-	privateKey, err := repo.LoadPrivateKey(repoRoot)
-	if err != nil {
-		return nil, fmt.Errorf("repo load key: %w", err)
-	}
-
-	client, err := newBitXHubClient(logger, privateKey, config)
-	if err != nil {
-		return nil, fmt.Errorf("create bitxhub client: %w", err)
-	}
-
-	bxhAdapter, err := bxh_adapter.New(repo.UnionMode, DEFAULT_UNION_PIER_ID, client, loggers.Logger(loggers.Syncer), config.TSS, 0)
-	if err != nil {
-		return nil, fmt.Errorf("new bitxhub adapter: %w", err)
-	}
-
-	nodePrivKey, err := repo.LoadNodePrivateKey(repoRoot)
-	if err != nil {
-		return nil, fmt.Errorf("repo load node key: %w", err)
-	}
-
-	peerManager, err := peermgr.New(config, nodePrivKey, privateKey, config.Mode.Union.Providers, loggers.Logger(loggers.PeerMgr))
-	if err != nil {
-		return nil, fmt.Errorf("peerMgr create: %w", err)
-	}
-
-	unionAdapt, err := union_adapter.New(peerManager, bxhAdapter, loggers.Logger(loggers.Union))
-	if err != nil {
-		return nil, fmt.Errorf("new union adapter: %w", err)
-	}
-
-	ex, err := exchanger.New(repo.UnionMode, "", bxhAdapter.ID(),
-		exchanger.WithSrcAdapt(bxhAdapter),
-		exchanger.WithDestAdapt(unionAdapt),
-		exchanger.WithLogger(loggers.Logger(loggers.Exchanger)))
-	if err != nil {
-		return nil, fmt.Errorf("exchanger create: %w", err)
-	}
-
-	ctx, cancel := context.WithCancel(context.Background())
-	return &Pier{
-		privateKey: privateKey,
-		exchanger:  ex,
-		logger:     logger,
-		ctx:        ctx,
-		cancel:     cancel,
-		config:     config,
-	}, nil
-}
-
 // Start starts three main components of pier app
 func (pier *Pier) Start() error {
 	if err := pier.pierHA.Start(); err != nil {
@@ -169,7 +118,7 @@ func NewPier(repoRoot string, config *repo.Config) (*Pier, error) {
 		addr, _ := privateKey.PublicKey().Address()
 		nonce, _ := client.GetPendingNonceByAccount(addr.String())
 
-		bxhAdapter, err := bxh_adapter.New(repo.RelayMode, appchainAdapter.ID(), client, loggers.Logger(loggers.Syncer), config.TSS, nonce)
+		bxhAdapter, err := bxh_adapter.New(repo.RelayMode, appchainAdapter.ID(), config, client, loggers.Logger(loggers.Syncer), config.TSS, nonce)
 		if err != nil {
 			return nil, fmt.Errorf("new bxh adapter: %w", err)
 		}
@@ -208,7 +157,7 @@ func NewPier(repoRoot string, config *repo.Config) (*Pier, error) {
 			return nil, fmt.Errorf("create bitxhub client: %w", err)
 		}
 
-		bxhAdapter, err := bxh_adapter.New(repo.UnionMode, DEFAULT_UNION_PIER_ID, client, loggers.Logger(loggers.Syncer), config.TSS, 0)
+		bxhAdapter, err := bxh_adapter.New(repo.UnionMode, DEFAULT_UNION_PIER_ID, config, client, loggers.Logger(loggers.Syncer), config.TSS, 0)
 		if err != nil {
 			return nil, fmt.Errorf("new bitxhub adapter: %w", err)
 		}

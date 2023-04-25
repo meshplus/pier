@@ -9,10 +9,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hashicorp/go-plugin"
 	"github.com/meshplus/pier/internal/adapt"
 	"github.com/meshplus/pier/internal/repo"
-
-	"github.com/hashicorp/go-plugin"
 	"github.com/stretchr/testify/require"
 
 	"github.com/golang/mock/gomock"

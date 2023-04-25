@@ -56,6 +56,7 @@ type BxhAdapter struct {
 	tss        *repo.TSS
 	goPool     *utils.GoPool
 	checker    checker.Checker
+	isBatch    bool
 }
 
 func (b *BxhAdapter) GetServiceIDList() ([]string, error) {
@@ -131,7 +132,7 @@ func (b *BxhAdapter) SendUpdatedMeta(_ []byte) error {
 
 // New creates instance of WrapperSyncer given agent interacting with bitxhub,
 // validators addresses of bitxhub and local storage
-func New(mode, appchainId string, client rpcx.Client, logger logrus.FieldLogger, tss *repo.TSS, nonce uint64) (*BxhAdapter, error) {
+func New(mode, appchainId string, config *repo.Config, client rpcx.Client, logger logrus.FieldLogger, tss *repo.TSS, nonce uint64) (*BxhAdapter, error) {
 	bxhID, err := client.GetChainID()
 	if err != nil {
 		return nil, fmt.Errorf("new bxh adapter err: %w", err)
@@ -151,6 +152,7 @@ func New(mode, appchainId string, client rpcx.Client, logger logrus.FieldLogger,
 		tss:        tss,
 		nonce:      nonce,
 		goPool:     utils.NewGoPool(goroutinesSize),
+		isBatch:    config.Batch.EnableBatch,
 	}
 
 	ba.checker = checker.NewRelayChecker(nil, ba.appchainId, fmt.Sprintf("%d", ba.bxhID), ba.logger)
@@ -631,7 +633,7 @@ func (b *BxhAdapter) handleInterchainTxWrapper(w *pb.InterchainTxWrapper, i int)
 			}
 			b.logger.WithFields(logrus.Fields{"ID": ibtp.ID(), "index": ibtp.Index, "elapse": time.Since(current)}).Debug("[3.1] receive multi sign")
 			ibtp.Proof = retProof
-			if tx.IsBatch && b.mode == repo.RelayMode {
+			if tx.IsBatch && b.mode == repo.RelayMode && b.isBatch {
 				ibtp.Extra = []byte("1")
 				b.logger.Info("get batch ibtp")
 			}
