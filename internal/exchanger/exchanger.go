@@ -1,7 +1,9 @@
 package exchanger
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -91,11 +93,14 @@ func (ex *Exchanger) Start() error {
 	}
 
 	for _, serviceId := range serviceList {
+		ex.logger.Errorf("query interchain-info from chain", "serviceId", serviceId)
 		ex.srcServiceMeta[serviceId], err = ex.srcAdapt.QueryInterchain(serviceId)
 		if err != nil {
 			return fmt.Errorf("queryInterchain from srcAdapt: %w", err)
 		}
+		ex.PrettyPrint(ex.srcServiceMeta[serviceId])
 
+		ex.logger.Errorf("query interchain-info from bitxhub", "serviceId", serviceId)
 		if err := retry.Retry(func(attempt uint) error {
 			if ex.destServiceMeta[serviceId], err = ex.destAdapt.QueryInterchain(serviceId); err != nil {
 				// maybe peerMgr err cause QueryInterchain err, so retry it
@@ -105,6 +110,7 @@ func (ex *Exchanger) Start() error {
 		}, strategy.Backoff(backoff.Fibonacci(1*time.Second))); err != nil {
 			ex.logger.Errorf("retry err with queryInterchain: %w", err)
 		}
+		ex.PrettyPrint(ex.destServiceMeta[serviceId])
 	}
 
 	if repo.UnionMode == ex.mode {
@@ -122,6 +128,22 @@ func (ex *Exchanger) Start() error {
 	ex.logger.Info("Exchanger started")
 	//go ex.analysisDirectTPS()
 	return nil
+}
+
+func (ex *Exchanger) PrettyPrint(v interface{}) {
+	b, err := json.Marshal(v)
+	if err != nil {
+		fmt.Println(v)
+		return
+	}
+
+	var out bytes.Buffer
+	err = json.Indent(&out, b, "", "  ")
+	if err != nil {
+		fmt.Println(v)
+		return
+	}
+	ex.logger.Error(out.String())
 }
 
 func (ex *Exchanger) fillSelfInterchain() {
