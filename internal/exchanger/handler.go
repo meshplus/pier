@@ -38,9 +38,11 @@ func (ex *Exchanger) handleIBTP(wIbtp *model.WrappedIBTP) {
 	}
 
 	receipt, err := ex.exec.ExecuteIBTP(wIbtp)
+	ex.logger.Errorf("execute ibtp receipt==nil: %v, error==nil: %v", receipt == nil, err == nil)
 	if err != nil {
 		ex.logger.Errorf("execute ibtp error:%s", err.Error())
-		// todo: 如果是index error，跳过后面的处理，直接更新seqNo；
+		//如果是index error，receipt一定会是nil
+		// incorrect index, expect
 	}
 	if receipt == nil {
 		ex.logger.WithFields(logrus.Fields{"type": ibtp.Type, "id": ibtp.ID()}).Info("Handle ibtp receipt success")
