@@ -44,7 +44,10 @@ func (ex *Exchanger) recoverRelay() {
 		if !ok {
 			beginIndex = 0
 		}
+		ex.logger.Infof("handle InterchainMeta: from[%s] has appchain.InMeta: %d, bitxhub.sourceReceiptCounter: %d",
+			from, idx, beginIndex)
 
+		// todo：这里可能会卡死
 		if err := ex.handleMissingReceipt(from, beginIndex+1, idx+1); err != nil {
 			ex.logger.WithFields(logrus.Fields{"address": from, "error": err.Error()}).Panic("Get missing receipt from contract")
 		}
@@ -86,10 +89,13 @@ func (ex *Exchanger) handleMissingIBTPFromMnt(to string, begin, end uint64) erro
 			return fmt.Errorf("fetch ibtp:%w", err)
 		}
 
-		if err := ex.sendIBTP(ibtp); err != nil {
+		err = ex.sendIBTP(ibtp)
+		ex.interchainCounter[ibtp.To] = ibtp.Index
+		ex.logger.Infof("handleMissingIBTPFromMnt: set ex.interchainCounter[%s]=%d", ibtp.To, ibtp.Index)
+		if err != nil {
+			ex.logger.Errorf("handleMissingIBTPFromMnt: handle[%s] sendIBTP error: %s", ibtp.ID(), err.Error())
 			return err
 		}
-		ex.interchainCounter[ibtp.To] = ibtp.Index
 	}
 
 	return nil
@@ -125,7 +131,8 @@ func (ex *Exchanger) handleMissingCallback(to string, begin, end uint64) error {
 	return nil
 }
 
-func (ex *Exchanger) handleMissingIBTPFromSyncer(from string, begin, end uint64) error {
+// 从中继链拉ibtp过来交给应用链去处理
+func (ex *Exchanger) handleMissingIBTPFromSyncer(from string, begin, end uint64, entry logrus.FieldLogger) error {
 	if begin < 1 {
 		return fmt.Errorf("begin index for missing ibtp is required >= 1")
 	}
@@ -150,6 +157,7 @@ func (ex *Exchanger) handleMissingIBTPFromSyncer(from string, begin, end uint64)
 		}, strategy.Wait(1*time.Second))
 
 		ex.handleIBTP(&model.WrappedIBTP{Ibtp: ibtp, IsValid: isValid})
+		entry.Infof("update exchanger.executorCounter[%s]=%d", from, ibtp.Index)
 		ex.executorCounter[ibtp.From] = ibtp.Index
 	}
 
@@ -177,11 +185,12 @@ func (ex *Exchanger) handleMissingReceipt(from string, begin uint64, end uint64)
 				return err
 			}
 			// send receipt back to counterpart chain
-			if err := ex.sendIBTP(receipt); err != nil {
+			err = ex.sendIBTP(receipt)
+			ex.sourceReceiptCounter[from] = receipt.Index
+			if err != nil {
 				entry.WithField("error", err).Error("Send execution receipt to counterpart chain")
 				return err
 			}
-			ex.sourceReceiptCounter[from] = receipt.Index
 			return nil
 		}, strategy.Wait(1*time.Second))
 	}

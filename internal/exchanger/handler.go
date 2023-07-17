@@ -40,6 +40,7 @@ func (ex *Exchanger) handleIBTP(wIbtp *model.WrappedIBTP) {
 	receipt, err := ex.exec.ExecuteIBTP(wIbtp)
 	if err != nil {
 		ex.logger.Errorf("execute ibtp error:%s", err.Error())
+		// todo: 如果是index error，跳过后面的处理，直接更新seqNo；
 	}
 	if receipt == nil {
 		ex.logger.WithFields(logrus.Fields{"type": ibtp.Type, "id": ibtp.ID()}).Info("Handle ibtp receipt success")
@@ -66,10 +67,11 @@ func (ex *Exchanger) applyInterchain(wIbtp *model.WrappedIBTP, entry logrus.Fiel
 		return
 	}
 
+	// 应用链的inCounter比中继链上小不止1，那么裂开了
 	if index+1 < ibtp.Index {
 		entry.Info("Get missing ibtp")
 
-		if err := ex.handleMissingIBTPFromSyncer(from, index+1, ibtp.Index); err != nil {
+		if err := ex.handleMissingIBTPFromSyncer(from, index+1, ibtp.Index, entry); err != nil {
 			entry.WithField("err", err).Error("Handle missing ibtp")
 			return
 		}
@@ -79,6 +81,7 @@ func (ex *Exchanger) applyInterchain(wIbtp *model.WrappedIBTP, entry logrus.Fiel
 	} else {
 		ex.handleIBTP(wIbtp)
 	}
+	entry.Infof("update exchanger.executorCounter[%s]=%d", from, ibtp.Index)
 	ex.executorCounter[from] = ibtp.Index
 
 }

@@ -221,6 +221,7 @@ func (syncer *WrapperSyncer) SendIBTP(ibtp *pb.IBTP) error {
 			syncer.rollbackHandler(ibtp)
 			return nil
 		}
+		// 如果是ibtpIndexExist， 这里直接返回了nil，外面可以直接进入正常处理逻辑
 		if strings.Contains(errMsg, ibtpIndexExist) {
 			// if ibtp index is lower than index recorded on bitxhub, then ignore this ibtp
 			return nil

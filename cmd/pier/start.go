@@ -11,10 +11,12 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/bitxhub/pier-ha"
 	"github.com/meshplus/bitxhub-kit/log"
 	"github.com/meshplus/pier/internal/app"
 	"github.com/meshplus/pier/internal/loggers"
 	"github.com/meshplus/pier/internal/repo"
+
 	"github.com/urfave/cli"
 )
 
@@ -28,7 +30,7 @@ var (
 
 func start(ctx *cli.Context) error {
 	fmt.Println(getVersion(true))
-
+	_ = hamng.PierMng{}
 	repoRoot, err := repo.PathRootWithDefault(ctx.GlobalString("repo"))
 	if err != nil {
 		return err

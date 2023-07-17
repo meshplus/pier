@@ -196,6 +196,8 @@ func (ex *Exchanger) listenAndSendIBTPFromMnt() {
 				ex.logger.Warn("Unexpected closed channel while listening on interchain ibtp")
 				return
 			}
+			ex.logger.Infof("receive ibtp[%s] from appChain, typ: %s, current ex.interchainCounter[ibtp.To]=%d",
+				ibtp.ID(), ibtp.Type, ibtp.To, ex.interchainCounter[ibtp.To])
 			index := ex.interchainCounter[ibtp.To]
 			if index >= ibtp.Index {
 				ex.logger.WithFields(logrus.Fields{"index": ibtp.Index, "to_counter": index, "ibtp_id": ibtp.ID()}).Info("Ignore ibtp")
@@ -212,6 +214,7 @@ func (ex *Exchanger) listenAndSendIBTPFromMnt() {
 
 			if err := retry.Retry(func(attempt uint) error {
 				if err := ex.sendIBTP(ibtp); err != nil {
+					// index Exist的error，现在已经不返回error了，直接进入下面的计数+1
 					ex.logger.Errorf("Send ibtp: %s", err.Error())
 					// if err occurs, try to get new ibtp and resend
 					if err := retry.Retry(func(attempt uint) error {

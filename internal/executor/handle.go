@@ -153,7 +153,7 @@ func (e *ChannelExecutor) Rollback(ibtp *pb.IBTP, isSrcChain bool) {
 			return fmt.Errorf("execute callback tx: %w", err)
 		}
 		return nil
-	}, strategy.Wait(1*time.Second)); err != nil {
+	}, strategy.Wait(1*time.Second), strategy.Limit(10)); err != nil {
 		e.logger.Errorf("Execution of callback function failed: %s", err.Error())
 	}
 }
