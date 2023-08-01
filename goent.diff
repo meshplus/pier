@@ -2,4 +2,10 @@
     github.com/bitxhub/crypto-gm v0.0.0-20210825015341-e035b646648d
     github.com/bitxhub/offchain-transmission v0.0.0-20220616032739-b2eba23f65b7
 
-replace github.com/ultramesh/crypto-gm => git.hyperchain.cn/dmlab/crypto-gm v0.2.14
+replace github.com/bitxhub/crypto-gm => git.hyperchain.cn/bitxhub/bxh-crypto-gm v0.0.0-20210825015341-e035b646648d
+
+replace github.com/bitxhub/offchain-transmission => git.hyperchain.cn/bitxhub/offchain-transmission v0.0.0-20220616032739-b2eba23f65b7
+
+replace github.com/bitxhub/pier-ha => git.hyperchain.cn/bitxhub/pier-ha v0.0.0-20210125070843-56ccae0d88a4
+
+replace github.com/ultramesh/crypto-gm => git.hyperchain.cn/ultramesh/crypto-gm v0.2.14
