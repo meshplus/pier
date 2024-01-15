@@ -101,6 +101,8 @@ func New(config *repo.Config, nodePrivKey crypto.PrivateKey, privKey crypto.Priv
 
 	ctx, cancel := context.WithCancel(context.Background())
 
+	logger.Infof("New swarm with localID: %s, protocolIDs: %v, localAddrInfo: %s", config.Appchain.ID, protocolIDs, localAddrInfo.String())
+
 	return &Swarm{
 		providers:     providers,
 		p2p:           p2p,

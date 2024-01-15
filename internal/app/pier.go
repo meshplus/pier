@@ -152,6 +152,7 @@ func NewPier(repoRoot string, config *repo.Config) (*Pier, error) {
 		}
 
 		pierHA = single.New(nil, config.Appchain.ID)
+		loggers.Logger(loggers.Direct).Infof("create direct pier instance finished")
 	case repo.RelayMode:
 		client, err := newBitXHubClient(logger, privateKey, config)
 		if err != nil {

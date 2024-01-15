@@ -64,6 +64,7 @@ func start(ctx *cli.Context) error {
 
 	pier, err := app.NewPier(repoRoot, config)
 	if err != nil {
+		loggers.Logger(loggers.Direct).Errorf("NewPier error: %s", err.Error())
 		return err
 	}
 
