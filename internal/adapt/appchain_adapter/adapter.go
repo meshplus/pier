@@ -141,15 +141,19 @@ func (a *AppchainAdapter) SendIBTP(ibtp *pb.IBTP) error {
 
 	isReq, err := a.checker.BasicCheck(ibtp)
 	if err != nil {
+		a.logger.Errorf("[%s-BasicCheck] BasicCheck [%s] error: %s", a.Name(), ibtp.ID(), err.Error())
 		return err
 	}
+	a.logger.Infof("[%s-SendIBTP] isReq: %v, ibtp.Type: %v", a.Name(), isReq, ibtp.Type)
 
 	ibtp, pd, err := a.handlePayload(ibtp, false)
 	if err != nil {
+		a.logger.Errorf("[%s-handlePayload] BasicCheck [%s] error: %s", a.Name(), ibtp.ID(), err.Error())
 		return err
 	}
 
 	if err := a.checker.CheckProof(ibtp); err != nil {
+		a.logger.Errorf("[%s-CheckProof] BasicCheck [%s] error: %s", a.Name(), ibtp.ID(), err.Error())
 		return err
 	}
 
@@ -197,6 +201,7 @@ func (a *AppchainAdapter) SendIBTP(ibtp *pb.IBTP) error {
 			Status: adapt.Other_Error,
 		}
 	}
+	a.logger.Infof("[%s-SendIBTP] got result: {Status: %v, ResultIBTP type: %v}", a.Name(), res.Status, res.Result.Type)
 
 	var genFailReceipt bool
 	if !res.Status {
@@ -209,6 +214,7 @@ func (a *AppchainAdapter) SendIBTP(ibtp *pb.IBTP) error {
 				strings.Contains(res.Message, DirectDestAuditErr)) {
 			genFailReceipt = true
 		}
+		a.logger.Warnf("[%s-SendIBTP] res.Status = false, genFailReceipt = %v", a.Name(), genFailReceipt)
 		if genFailReceipt {
 			ibtp.Type = pb.IBTP_RECEIPT_FAILURE
 			a.ibtpC <- ibtp
@@ -216,6 +222,7 @@ func (a *AppchainAdapter) SendIBTP(ibtp *pb.IBTP) error {
 		} else {
 			err.Status = adapt.Other_Error
 		}
+		a.logger.Errorf("[%s-SendIBTP] final returned err: %s", err.Error())
 		return err
 	}
 

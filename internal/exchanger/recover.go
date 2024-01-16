@@ -71,7 +71,7 @@ func (ex *Exchanger) recover(srcServiceMeta map[string]*pb.Interchain, destServi
 					IBTPid := fmt.Sprintf("%s-%s-%d", interchain.ID, k, begin)
 					_, _, txStatus, err := ex.srcAdapt.(*appchain_adapter.AppchainAdapter).GetDirectTransactionMeta(IBTPid)
 					if err != nil {
-						ex.logger.Panicf("fail to get direct transaction status for ibtp %s", IBTPid)
+						ex.logger.Panicf("fail to get direct transaction status for ibtp %s, err: %s", IBTPid, err.Error())
 					}
 					if txStatus == 2 { // transaction status is begin_rollback
 						// notify dst chain rollback
