@@ -201,7 +201,7 @@ func (a *AppchainAdapter) SendIBTP(ibtp *pb.IBTP) error {
 			Status: adapt.Other_Error,
 		}
 	}
-	a.logger.Infof("[%s-SendIBTP] got result: {Status: %v, ResultIBTP type: %v}", a.Name(), res.Status, res.Result.Type)
+	a.logger.Infof("[%s-SendIBTP] got result: {Status: %v, ResultIBTP type: %v}", a.Name(), res.Status, res.Result)
 
 	var genFailReceipt bool
 	if !res.Status {
