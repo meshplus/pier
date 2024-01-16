@@ -25,6 +25,7 @@ func (ex *Exchanger) listenIBTPFromDestAdaptForDirect(servicePair string) {
 			}
 			ex.logger.WithFields(logrus.Fields{"index": ibtp.Index, "type": ibtp.Type, "ibtp_id": ibtp.ID()}).Info("Receive ibtp from :", ex.destAdaptName)
 			index := ex.getCurrentIndexFromDest(ibtp)
+			ex.logger.Infof("current index from destAdaptor for ibtp: %s is %d", ibtp.ID(), index)
 
 			if index >= ibtp.Index {
 				if ibtp.Type == pb.IBTP_RECEIPT_ROLLBACK {
@@ -51,6 +52,7 @@ func (ex *Exchanger) listenIBTPFromDestAdaptForDirect(servicePair string) {
 			} else {
 				ex.sendIBTPForDirect(ex.destAdapt, ex.srcAdapt, ibtp, !ex.isIBTPBelongSrc(ibtp), false)
 			}
+			ex.logger.Infof("[direct-consumer] send IBTP [%s] returned", ibtp.ID())
 
 			if ex.isIBTPBelongSrc(ibtp) {
 				ex.destServiceMeta[ibtp.From].ReceiptCounter[ibtp.To] = ibtp.Index
