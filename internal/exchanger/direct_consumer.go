@@ -117,8 +117,10 @@ func (ex *Exchanger) isIBTPRollbackForDirect(ibtp *pb.IBTP) bool {
 	ex.logger.Infof("[isIBTPRollbackForDirect] ibtp.Type: %s, startTimeStamp: %d, timeoutPeriod: %d, "+
 		"txStatus: %v, for IBTP [%s], time.Now().Unix(): %d", ibtp.Type.String(), startTimeStamp, timeoutPeriod,
 		txStatus, ibtp.ID(), time.Now().Unix())
-
-	return uint64(time.Now().Unix())-startTimeStamp > timeoutPeriod
+	if uint64(time.Now().Unix()) > startTimeStamp {
+		return uint64(time.Now().Unix())-startTimeStamp > timeoutPeriod
+	}
+	return false
 }
 
 func (ex *Exchanger) rollbackIBTPForDirect(ibtp *pb.IBTP) {
