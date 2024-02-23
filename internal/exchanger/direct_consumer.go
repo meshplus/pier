@@ -110,10 +110,13 @@ func (ex *Exchanger) isIBTPRollbackForDirect(ibtp *pb.IBTP) bool {
 		return false
 	}
 
-	startTimeStamp, timeoutPeriod, _, err := ex.srcAdapt.(*appchain_adapter.AppchainAdapter).GetDirectTransactionMeta(ibtp.ID())
+	startTimeStamp, timeoutPeriod, txStatus, err := ex.srcAdapt.(*appchain_adapter.AppchainAdapter).GetDirectTransactionMeta(ibtp.ID())
 	if err != nil {
 		ex.logger.Errorf("get transaction meta with %s", ibtp.ID(), "error", err.Error())
 	}
+	ex.logger.Infof("[isIBTPRollbackForDirect] ibtp.Type: %s, startTimeStamp: %d, timeoutPeriod: %d, "+
+		"txStatus: %v, for IBTP [%s], time.Now().Unix(): %d", ibtp.Type.String(), startTimeStamp, timeoutPeriod,
+		txStatus, ibtp.ID(), time.Now().Unix())
 
 	return uint64(time.Now().Unix())-startTimeStamp > timeoutPeriod
 }
@@ -129,6 +132,7 @@ func (ex *Exchanger) rollbackIBTPForDirect(ibtp *pb.IBTP) {
 	// src chain rollback end, notify dst chain rollback
 	ex.logger.Infof("notify dst chain rollback")
 	ex.sendIBTPForDirect(ex.srcAdapt, ex.destAdapt, ibtp, ex.isIBTPBelongSrc(ibtp), true)
+	ex.logger.Infof("dst chain rollback %s end", ibtp.ID())
 }
 
 func (ex *Exchanger) sendIBTPForDirect(fromAdapt, toAdapt adapt.Adapt, ibtp *pb.IBTP, isReq bool, isRollback bool) {
